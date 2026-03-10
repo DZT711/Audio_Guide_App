@@ -45,7 +45,7 @@
     ]
   },
   "packageFolders": {
-    "D:\\DotNet_System\\.nuget": {}
+    "C:\\Users\\nguye\\.nuget": {}
   },
   "project": {
     "version": "1.0.0",
@@ -53,7 +53,7 @@
       "projectUniqueName": "D:\\Projects\\WebAppThuyetMinh\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj",
       "projectName": "BlazorApp_AdminWeb",
       "projectPath": "D:\\Projects\\WebAppThuyetMinh\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj",
-      "packagesPath": "D:\\DotNet_System\\.nuget",
+      "packagesPath": "C:\\Users\\nguye\\.nuget",
       "outputPath": "D:\\Projects\\WebAppThuyetMinh\\BlazorApp_AdminWeb\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [

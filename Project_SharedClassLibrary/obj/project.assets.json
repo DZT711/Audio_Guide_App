@@ -8,16 +8,16 @@
     "net10.0": []
   },
   "packageFolders": {
-    "D:\\DotNet_System\\.nuget": {}
+    "C:\\Users\\nguye\\.nuget": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "d:\\Projects\\WebAppThuyetMinh\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj",
+      "projectUniqueName": "D:\\Projects\\WebAppThuyetMinh\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj",
       "projectName": "Shared_ClassLibrary",
-      "projectPath": "d:\\Projects\\WebAppThuyetMinh\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj",
-      "packagesPath": "D:\\DotNet_System\\.nuget",
-      "outputPath": "d:\\Projects\\WebAppThuyetMinh\\Project_SharedClassLibrary\\obj\\",
+      "projectPath": "D:\\Projects\\WebAppThuyetMinh\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj",
+      "packagesPath": "C:\\Users\\nguye\\.nuget",
+      "outputPath": "D:\\Projects\\WebAppThuyetMinh\\Project_SharedClassLibrary\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\nguye\\AppData\\Roaming\\NuGet\\NuGet.Config"

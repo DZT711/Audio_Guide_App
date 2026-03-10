@@ -571,7 +571,7 @@
     ]
   },
   "packageFolders": {
-    "D:\\DotNet_System\\.nuget": {}
+    "C:\\Users\\nguye\\.nuget": {}
   },
   "project": {
     "version": "1.0.0",
@@ -579,7 +579,7 @@
       "projectUniqueName": "D:\\Projects\\WebAppThuyetMinh\\WebApplication_API\\WebApplication_API.csproj",
       "projectName": "WebApplication_API",
       "projectPath": "D:\\Projects\\WebAppThuyetMinh\\WebApplication_API\\WebApplication_API.csproj",
-      "packagesPath": "D:\\DotNet_System\\.nuget",
+      "packagesPath": "C:\\Users\\nguye\\.nuget",
       "outputPath": "D:\\Projects\\WebAppThuyetMinh\\WebApplication_API\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
