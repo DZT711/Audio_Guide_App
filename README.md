@@ -1,6 +1,11 @@
-# App Thuyet Minh Vinh Khanh
+# App Thuyết Minh Phố Ẩm Thực Vĩnh Khánh
 
-## Cau truc do an du kien
+## Thành viên
+
+1. Nguyễn Sĩ Huy - 3123411122
+2. Nguyễn Văn Cường - 3123411045
+
+## Cấu trúc đồ án dự kiến
 
 ```html
 Audio_Guide_App/
@@ -25,7 +30,7 @@ Audio_Guide_App/
 └── Audio_Guide_App.csproj    # File cấu hình dự án (file bạn vừa sửa)
 ```
 
-## Cau truc cac du an con
+## Cấu trúc các thành phần của đồ án
 
 ```html
 WebAppThuyetMinh/                              # Thư mục gốc của dự án
@@ -136,3 +141,4 @@ WebAppThuyetMinh/                              # Thư mục gốc của dự án
         ├── WebApplication_API.csproj.nuget.g.targets
         └── Debug/                             # Cache debug build
 ```
+
