@@ -139,5 +139,5 @@ WebAppThuyetMinh/                              # Thư mục gốc của dự án
         ├── WebApplication_API.csproj.nuget.dgspec.json
         ├── WebApplication_API.csproj.nuget.g.props
         ├── WebApplication_API.csproj.nuget.g.targets
-        └── Debug/                             # Cache debug build
+        └── Debug/                             # Cache debug build 
 ```
