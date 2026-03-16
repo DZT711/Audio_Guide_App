@@ -1,6 +1,6 @@
 using System;
 
-namespace WebApplication_API.Data;
+namespace WebApplication_API.Model;
 
 public class Audio
 {
