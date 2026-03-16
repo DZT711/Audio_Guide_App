@@ -18,7 +18,6 @@ CREATE TABLE Locations (
     Address TEXT,
     ImageUrl TEXT,            -- Ảnh minh họa địa điểm
     OwnerName TEXT,
-    Address TEXT,
     WebURL TEXT,
     Email TEXT,
     PhoneContact TEXT,
@@ -40,7 +39,7 @@ CREATE TABLE AudioContents (
     Duration INTEGER,         -- Thời lượng (giây)
     Description LONGTEXT,
     NumOfPeoplePlayed INTEGER DEFAULT 0,
-    VoiceGender TEXT CHECK(VoiceGender IN('Male', 'Female')) DEFAULT null,
+    VoiceGender TEXT CHECK(VoiceGender IN('Male', 'Female')) DEFAULT 'Female',
     Status Integer NOT NULL DEFAULT 1 CHECK( Status IN(0,1)),
     FOREIGN KEY (LocationId) REFERENCES Locations(LocationId) ON DELETE CASCADE
 );

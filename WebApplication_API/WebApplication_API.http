@@ -2,3 +2,5 @@
 
 ###
 GET {{WebApplication_API_HostAddress}}/categories
+###
+GET http://localhost:5123/categories
