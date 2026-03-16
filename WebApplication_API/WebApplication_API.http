@@ -1,6 +1,138 @@
-@WebApplication_API_HostAddress = http://localhost:5123
+@WebURL = http://localhost:5123
 
-###
-GET {{WebApplication_API_HostAddress}}/categories
-###
-GET http://localhost:5123/categories
+### ========== CATEGORY CRUD ==========
+
+### Get all category
+GET {{WebURL}}/category
+
+### Get category by ID
+GET {{WebURL}}/category/1
+
+### Create new category
+POST {{WebURL}}/category
+Content-Type: application/json
+
+{
+  "name": "Historical Sites",
+  "description": "Ancient and historical landmarks",
+  "numOfLocations": 0,
+  "status": 1
+}
+
+### Update category
+PUT {{WebURL}}/category/7
+Content-Type: application/json
+
+{
+  "name": "Historical Monuments",
+  "description": "Ancient monuments and historical sites",
+  "numOfLocations": 5,
+  "status": 1
+}
+
+### Delete category
+DELETE {{WebURL}}/category/7
+
+### ========== LOCATION CRUD ==========
+
+### Get all locations
+GET {{WebURL}}/location
+
+### Get location by ID
+GET {{WebURL}}/location/1
+
+### Get locations by category
+GET {{WebURL}}/location/category/1
+
+### Create new location
+POST {{WebURL}}/location
+Content-Type: application/json
+
+{
+  "name": "Hoan Kiem Lake",
+  "address": "Ha Noi, Vietnam",
+  "categoryId": 1,
+  "establishedYear": 1010,
+  "description": "Legendary lake in the heart of Hanoi",
+  "latitude": 21.0291,
+  "longitude": 105.8533,
+  "ownerName": "Hanoi Tourism Board",
+  "webURL": "https://hoankiemlake.com",
+  "phone": "+84-24-1234-5678",
+  "email": "info@hoankiemlake.com",
+  "numOfAudio": 0,
+  "numOfImg": 0,
+  "numOfPeopleVisited": 0,
+  "status": 1
+}
+
+### Update location
+PUT {{WebURL}}/location/1
+Content-Type: application/json
+
+{
+  "name": "Hoan Kiem Lake - Updated",
+  "address": "Hoan Kiem District, Ha Noi, Vietnam",
+  "categoryId": 1,
+  "establishedYear": 1010,
+  "description": "World-famous legendary lake in the heart of Hanoi",
+  "latitude": 21.0291,
+  "longitude": 105.8533,
+  "ownerName": "Hanoi Heritage Board",
+  "webURL": "https://hoankiemlake.vn",
+  "phone": "+84-24-9876-5432",
+  "email": "contact@hoankiemlake.vn",
+  "numOfAudio": 5,
+  "numOfImg": 15,
+  "numOfPeopleVisited": 50000,
+  "status": 1
+}
+
+### Delete location
+DELETE {{WebURL}}/location/1
+
+### ========== AUDIO CRUD ==========
+
+### Get all audio content
+GET {{WebURL}}/audio
+
+### Get audio by ID
+GET {{WebURL}}/audio/1
+
+### Get audio by location
+GET {{WebURL}}/audio/location/1
+
+### Create new audio
+POST {{WebURL}}/audio
+Content-Type: application/json
+
+{
+  "title": "History of Hoan Kiem Lake",
+  "locationName": "Hoan Kiem Lake",
+  "description": "An audio guide explaining the legend and history",
+  "audioURL": "/audio/hoankiemlake-history.mp3",
+  "language": "English",
+  "voiceGender": "Female",
+  "duration": 600,
+  "numOfPeoplePlayed": 0,
+  "status": 1
+}
+
+### Update audio
+PUT {{WebURL}}/audio/1
+Content-Type: application/json
+
+{
+  "title": "Complete History of Hoan Kiem Lake",
+  "locationName": "Hoan Kiem Lake",
+  "description": "Comprehensive audio guide with legend, history, and modern facts",
+  "audioURL": "/audio/hoankiemlake-complete-history.mp3",
+  "language": "English",
+  "voiceGender": "Male",
+  "duration": 900,
+  "numOfPeoplePlayed": 125,
+  "status": 1
+}
+
+### Delete audio
+DELETE {{WebURL}}/audio/2
