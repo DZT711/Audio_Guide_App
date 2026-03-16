@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BlazorApp_AdminWeb")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c05e4e493e396e6a4d1c55ec0ad920ebfb246caf")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a4475d45cd0ab72cd72cff406a04bb234ca9ff9")]
 [assembly: System.Reflection.AssemblyProductAttribute("BlazorApp_AdminWeb")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BlazorApp_AdminWeb")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

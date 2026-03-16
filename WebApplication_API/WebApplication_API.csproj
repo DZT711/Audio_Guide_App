@@ -11,4 +11,12 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Controller\" />
+    <Folder Include="DTO\" />
+    <Folder Include="Endpoint\" />
+    <Folder Include="LocationAudio\" />
+    <Folder Include="LocationImg\" />
+  </ItemGroup>
+
 </Project>

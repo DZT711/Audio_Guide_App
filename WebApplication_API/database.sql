@@ -4,7 +4,7 @@ CREATE TABLE Categories (
     Name TEXT NOT NULL,
     Description LONGTEXT,
     NumOfLocation INTEGER DEFAULT 0,
-    Status ENUM('active', 'inactive') DEFAULT 'active'
+    Status Integer NOT NULL DEFAULT 1 CHECK( Status IN(0,1))
 );
 
 -- 2. Bảng địa điểm du lịch
@@ -20,11 +20,13 @@ CREATE TABLE Locations (
     OwnerName TEXT,
     Address TEXT,
     WebURL TEXT,
+    Email TEXT,
     PhoneContact TEXT,
     NumOfAudio INTEGER DEFAULT 0,
+    NumOfImg INTEGER DEFAULT 0,
     NumOfPeopleVisited INTEGER DEFAULT 0,
     EstablishedYear INTEGER DEFAULT 2026,
-    Status ENUM('active', 'inactive') DEFAULT 'active',
+    Status Integer NOT NULL DEFAULT 1 CHECK( Status IN(0,1)),
     FOREIGN KEY (CategoryId) REFERENCES Categories(CategoryId)
 );
 
@@ -34,19 +36,19 @@ CREATE TABLE AudioContents (
     LocationId INTEGER NOT NULL,
     Title TEXT NOT NULL,      -- Tiêu đề bản thuyết minh
     FilePath TEXT NOT NULL,   -- Đường dẫn file trên server (vd: /uploads/audio/sgu_vi.mp3)
-    Language ENUM('vn', 'en', 'jp') DEFAULT 'vn', -- vn, en, jp...
+    Language TEXT CHECK(Language IN('vn', 'en', 'jp')) DEFAULT 'vn', -- vn, en, jp...
     Duration INTEGER,         -- Thời lượng (giây)
     Description LONGTEXT,
     NumOfPeoplePlayed INTEGER DEFAULT 0,
-    VoiceGender ENUM('Male', 'Female') DEFAULT null,
-    Status ENUM('active', 'inactive') DEFAULT 'active',
+    VoiceGender TEXT CHECK(VoiceGender IN('Male', 'Female')) DEFAULT null,
+    Status Integer NOT NULL DEFAULT 1 CHECK( Status IN(0,1)),
     FOREIGN KEY (LocationId) REFERENCES Locations(LocationId) ON DELETE CASCADE
 );
 -- CREATE TABLE AdminAccount(
 --     AdminId INTEGER PRIMARY KEY AUTOINCREMENT,
 --     Username TEXT NOT NULL UNIQUE,
 --     Password TEXT NOT NULL
---     Status ENUM('active', 'inactive') DEFAULT 'active'
+--     Status Integer NOT NULL DEFAULT 1 CHECK( Status IN(0,1))
 -- );
 -- CREATE TABLE Account(
 --     AccountId INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,7 +56,7 @@ CREATE TABLE AudioContents (
 --     Password TEXT NOT NULL,
 --     Email TEXT NOT NULL,
 --     Phone TEXT NOT NULL UNIQUE,
---     Status ENUM('active', 'inactive') DEFAULT 'active'
+--     Status Integer NOT NULL DEFAULT 1 CHECK( Status IN(0,1))
 
 -- );
 -- CREATE TABLE LocationImage(
