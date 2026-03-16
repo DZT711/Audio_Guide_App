@@ -1,10 +1,10 @@
 namespace WebApplication_API.DTO;
 
-public record AudioDTO
+public record AudioInformationDTO
 (
     int Id,
+    int LocationId,
     string Title,
-    string LocationName,
     string Description,
     string AudioURL,
     string Language,

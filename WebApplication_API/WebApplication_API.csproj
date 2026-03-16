@@ -18,7 +18,6 @@
   <ItemGroup>
     <Folder Include="Controller\" />
     <Folder Include="Data\" />
-    <Folder Include="DTO\" />
     <Folder Include="Endpoint\" />
     <Folder Include="LocationAudio\" />
     <Folder Include="LocationImg\" />
