@@ -11,7 +11,8 @@ public class Audio
     public string? Language { get; set; }
     public int? Duration { get; set; }
     public string? Description { get; set; }
-    public int NumOfPeoplePlayed { get; set; }
+    public string? Script { get; set; }
+    // public int NumOfPeoplePlayed { get; set; }
     public string? VoiceGender { get; set; }
     public required int Status { get; set; }
 }

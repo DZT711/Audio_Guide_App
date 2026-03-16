@@ -5,6 +5,6 @@ public record CategoryDTO
     int Id,
     string Name,
     string? Description,
-    int NumOfLocations,
+    // int NumOfLocations,
     int Status
 );

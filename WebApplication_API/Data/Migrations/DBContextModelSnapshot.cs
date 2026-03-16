@@ -38,8 +38,8 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<int>("LocationId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("NumOfPeoplePlayed")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("Script")
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
@@ -68,9 +68,6 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("NumOfLocations")
-                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
@@ -113,15 +110,6 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("NumOfAudio")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("NumOfImg")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("NumOfPeopleVisited")
-                        .HasColumnType("INTEGER");
 
                     b.Property<string>("OwnerName")
                         .HasColumnType("TEXT");

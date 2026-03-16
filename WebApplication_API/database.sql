@@ -3,7 +3,7 @@ CREATE TABLE Categories (
     CategoryId INTEGER PRIMARY KEY AUTOINCREMENT,
     Name TEXT NOT NULL,
     Description LONGTEXT,
-    NumOfLocation INTEGER DEFAULT 0,
+    -- NumOfLocation INTEGER DEFAULT 0,
     Status Integer NOT NULL DEFAULT 1 CHECK( Status IN(0,1))
 );
 
@@ -21,9 +21,9 @@ CREATE TABLE Locations (
     WebURL TEXT,
     Email TEXT,
     PhoneContact TEXT,
-    NumOfAudio INTEGER DEFAULT 0,
-    NumOfImg INTEGER DEFAULT 0,
-    NumOfPeopleVisited INTEGER DEFAULT 0,
+    -- NumOfAudio INTEGER DEFAULT 0,
+    -- NumOfImg INTEGER DEFAULT 0,
+    -- NumOfPeopleVisited INTEGER DEFAULT 0,
     EstablishedYear INTEGER DEFAULT 2026,
     Status Integer NOT NULL DEFAULT 1 CHECK( Status IN(0,1)),
     FOREIGN KEY (CategoryId) REFERENCES Categories(CategoryId)
@@ -38,7 +38,8 @@ CREATE TABLE AudioContents (
     Language TEXT CHECK(Language IN('vn', 'en', 'jp')) DEFAULT 'vn', -- vn, en, jp...
     Duration INTEGER,         -- Thời lượng (giây)
     Description LONGTEXT,
-    NumOfPeoplePlayed INTEGER DEFAULT 0,
+    Script LONGTEXT,
+    -- NumOfPeoplePlayed INTEGER DEFAULT 0,
     VoiceGender TEXT CHECK(VoiceGender IN('Male', 'Female')) DEFAULT 'Female',
     Status Integer NOT NULL DEFAULT 1 CHECK( Status IN(0,1)),
     FOREIGN KEY (LocationId) REFERENCES Locations(LocationId) ON DELETE CASCADE

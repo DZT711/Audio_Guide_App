@@ -18,8 +18,8 @@ public class Location
     public string? WebURL{ get; set; }
     public string? Phone{ get; set; }
     public string? Email { get; set; }
-    public int NumOfAudio { get; set; }
-    public int NumOfImg { get; set; }
-    public int NumOfPeopleVisited { get; set; }
+    // public int NumOfAudio { get; set; }
+    // public int NumOfImg { get; set; }
+    // public int NumOfPeopleVisited { get; set; }
     public required int Status { get; set; }
 }

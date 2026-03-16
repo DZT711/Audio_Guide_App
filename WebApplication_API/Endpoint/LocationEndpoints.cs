@@ -15,14 +15,14 @@ public static class LocationEndpoints
         var group = app.MapGroup("/locations");
         group.MapGet("/", async (DBContext dbcontext) =>
             await dbcontext.Locations.Include(l => l.Category).Select(l =>
-                new LocationDTO(l.Id, l.Name, l.Address, l.Category!.Name, l.EstablishedYear, l.Description, l.Latitude, l.Longitude, l.OwnerName, l.WebURL, l.Phone, l.Email, l.NumOfAudio, l.NumOfImg, l.NumOfPeopleVisited, l.Status)).ToListAsync()
+                new LocationDTO(l.Id, l.Name, l.Address, l.Category!.Name, l.EstablishedYear, l.Description, l.Latitude, l.Longitude, l.OwnerName, l.WebURL, l.Phone, l.Email,  l.Status)).ToListAsync()
         );
 
         group.MapGet("/{id}", async (int id, DBContext dbcontext) =>
         {
             var location = await dbcontext.Locations.FindAsync(id);
             return location is null ? Results.NotFound() : Results.Ok(
-                new LocationDTO(location.Id, location.Name, location.Address, location.Category!.Name, location.EstablishedYear, location.Description, location.Latitude, location.Longitude, location.OwnerName, location.WebURL, location.Phone, location.Email, location.NumOfAudio, location.NumOfImg, location.NumOfPeopleVisited, location.Status)
+                new LocationDTO(location.Id, location.Name, location.Address, location.Category!.Name, location.EstablishedYear, location.Description, location.Latitude, location.Longitude, location.OwnerName, location.WebURL, location.Phone, location.Email, location.Status)
             );
         }).WithName(EndpointName);
 
@@ -58,9 +58,9 @@ public static class LocationEndpoints
                 newLocation.WebURL,
                 newLocation.Phone,
                 newLocation.Email,
-                newLocation.NumOfAudio,
-                newLocation.NumOfImg,
-                newLocation.NumOfPeopleVisited,
+                // newLocation.NumOfAudio,
+                // newLocation.NumOfImg,
+                // newLocation.NumOfPeopleVisited,
                 newLocation.Status
             );
             return Results.CreatedAtRoute(EndpointName, new { id = locationInfo.Id }, locationInfo);

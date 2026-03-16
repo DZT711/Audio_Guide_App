@@ -10,7 +10,8 @@ public record class UpdateAudioDTO
     [Required][StringLength(255)] string AudioURL,
     [StringLength(50)] string Language,
     [StringLength(50)] string VoiceGender,
+    [StringLength(50)] string Script,
     [Range(0, int.MaxValue)] int Duration,
-    [Range(0, int.MaxValue)] int NumOfPeoplePlayed,
+    // [Range(0, int.MaxValue)] int NumOfPeoplePlayed,
     [Required][Range(0, 1)] int Status
 );

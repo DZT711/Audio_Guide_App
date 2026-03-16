@@ -13,13 +13,13 @@ public static class CategoryEndpoints
     public static void MapCategoryEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/categories");
-        group.MapGet("/", async (DBContext context) => await context.Categories.Select(r => new CategoryDTO(r.Id, r.Name, r.Description, r.NumOfLocations, r.Status)).AsNoTracking().ToListAsync());
+        group.MapGet("/", async (DBContext context) => await context.Categories.Select(r => new CategoryDTO(r.Id, r.Name, r.Description,  r.Status)).AsNoTracking().ToListAsync());
 
         group.MapGet("/{id}", async (int id, DBContext dbcontext) =>
         {
             var c = await dbcontext.Categories.FindAsync(id);
             return c is null ? Results.NotFound() : Results.Ok(
-                new CategoryDTO(c.Id, c.Name, c.Description, c.NumOfLocations, c.Status)
+                new CategoryDTO(c.Id, c.Name, c.Description,  c.Status)
             );
         }).WithName(EndpointName);
 
@@ -30,7 +30,7 @@ public static class CategoryEndpoints
             {
                 Name = user.Name,
                 Description = user.Description,
-                NumOfLocations = user.NumOfLocations,
+                // NumOfLocations = user.NumOfLocations,
                 Status = user.Status
             };
             dbcontext.Categories.Add(newCategory);
@@ -39,7 +39,7 @@ public static class CategoryEndpoints
                 newCategory.Id,
                 newCategory.Name,
                 newCategory.Description,
-                newCategory.NumOfLocations,
+                // newCategory.NumOfLocations,
                 newCategory.Status
             );
             return Results.CreatedAtRoute(EndpointName, new { id = categoryInfo.Id }, categoryInfo);
@@ -54,7 +54,7 @@ public static class CategoryEndpoints
             }
             existingUser.Name = user.Name;
             existingUser.Description = user.Description;
-            existingUser.NumOfLocations = user.NumOfLocations;
+            // existingUser.NumOfLocations = user.NumOfLocations;
             existingUser.Status = user.Status;
             await dbcontext.SaveChangesAsync();
             return Results.NoContent();

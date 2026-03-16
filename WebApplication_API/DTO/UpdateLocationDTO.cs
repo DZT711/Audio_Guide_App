@@ -15,8 +15,8 @@ public record UpdateLocationDTO
     [StringLength(255)] string WebURL,
     [StringLength(20)] string Phone,
     [EmailAddress] string Email,
-    [Range(0, int.MaxValue)] int NumOfAudio,
-    [Range(0, int.MaxValue)] int NumOfImg,
-    [Range(0, int.MaxValue)] int NumOfPeopleVisited,
+    // [Range(0, int.MaxValue)] int NumOfAudio,
+    // [Range(0, int.MaxValue)] int NumOfImg,
+    // [Range(0, int.MaxValue)] int NumOfPeopleVisited,
     [Required][Range(0, 1)] int Status
 );

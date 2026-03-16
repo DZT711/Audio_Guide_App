@@ -15,23 +15,21 @@ Content-Type: application/json
 {
   "name": "Historical Sites",
   "description": "Ancient and historical landmarks",
-  "numOfLocations": 0,
   "status": 1
 }
 
 ### Update category
-PUT {{WebURL}}/category/7
+PUT {{WebURL}}/category/6
 Content-Type: application/json
 
 {
-  "name": "Historical Monuments",
+  "name": "Monuments",
   "description": "Ancient monuments and historical sites",
-  "numOfLocations": 5,
   "status": 1
 }
 
 ### Delete category
-DELETE {{WebURL}}/category/7
+DELETE {{WebURL}}/category/6
 
 ### ========== LOCATION CRUD ==========
 
@@ -60,9 +58,24 @@ Content-Type: application/json
   "webURL": "https://hoankiemlake.com",
   "phone": "+84-24-1234-5678",
   "email": "info@hoankiemlake.com",
-  "numOfAudio": 0,
-  "numOfImg": 0,
-  "numOfPeopleVisited": 0,
+  "status": 1
+}
+### Create new location
+POST {{WebURL}}/location
+Content-Type: application/json
+
+{
+  "name": "Paris Eiffel Tower",
+  "address": "Ha Noi, Vietnam",
+  "categoryId": 1,
+  "establishedYear": 1010,
+  "description": "Legendary lake in the heart of Hanoi",
+  "latitude": 21.0291,
+  "longitude": 105.8533,
+  "ownerName": "Hanoi Tourism Board",
+  "webURL": "https://hoankiemlake.com",
+  "phone": "+84-24-1234-5678",
+  "email": "info@hoankiemlake.com",
   "status": 1
 }
 
@@ -73,7 +86,7 @@ Content-Type: application/json
 {
   "name": "Hoan Kiem Lake - Updated",
   "address": "Hoan Kiem District, Ha Noi, Vietnam",
-  "categoryId": 1,
+  "categoryId": 2,
   "establishedYear": 1010,
   "description": "World-famous legendary lake in the heart of Hanoi",
   "latitude": 21.0291,
@@ -82,9 +95,6 @@ Content-Type: application/json
   "webURL": "https://hoankiemlake.vn",
   "phone": "+84-24-9876-5432",
   "email": "contact@hoankiemlake.vn",
-  "numOfAudio": 5,
-  "numOfImg": 15,
-  "numOfPeopleVisited": 50000,
   "status": 1
 }
 
@@ -100,7 +110,7 @@ GET {{WebURL}}/audio
 GET {{WebURL}}/audio/1
 
 ### Get audio by location
-GET {{WebURL}}/audio/location/1
+GET {{WebURL}}/audio/location/4
 
 ### Create new audio
 POST {{WebURL}}/audio
@@ -113,8 +123,23 @@ Content-Type: application/json
   "audioURL": "/audio/hoankiemlake-history.mp3",
   "language": "English",
   "voiceGender": "Female",
+  "script":"hi",
   "duration": 600,
-  "numOfPeoplePlayed": 0,
+  "status": 1
+}
+### Create new audio
+POST {{WebURL}}/audio
+Content-Type: application/json
+
+{
+  "title": "History of Hoan Kiem Lake",
+  "locationName": "Paris Eiffel Tower",
+  "description": "An audio guide explaining the legend and history",
+  "audioURL": "/audio/hoankiemlake-history.mp3",
+  "language": "English",
+  "voiceGender": "Female",
+  "script":"hi",
+  "duration": 600,
   "status": 1
 }
 
@@ -129,8 +154,8 @@ Content-Type: application/json
   "audioURL": "/audio/hoankiemlake-complete-history.mp3",
   "language": "English",
   "voiceGender": "Male",
+  "script":"hi",
   "duration": 900,
-  "numOfPeoplePlayed": 125,
   "status": 1
 }
 

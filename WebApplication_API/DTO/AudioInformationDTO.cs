@@ -9,7 +9,8 @@ public record AudioInformationDTO
     string AudioURL,
     string Language,
     string VoiceGender,
+    string Script,
     int Duration,
-    int NumOfPeoplePlayed,
+    // int NumOfPeoplePlayed,
     int Status
 );

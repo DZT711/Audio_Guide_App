@@ -26,8 +26,9 @@ if (app.Environment.IsDevelopment())
 }
 // app.UseHttpsRedirection();
 app.MapControllers();
-// app.MapUserEndpoints();
-// app.MapRolesEndpoints();
+// app.MapLocationEndpoints();
+// app.MapCategoryEndpoints();
+// app.MapVoiceEndpoints();
 app.MigrateDb();
 app.Run();
 

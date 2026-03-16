@@ -10,7 +10,7 @@ using WebApplication_API.Data;
 namespace WebApplication_API.Data.Migrations
 {
     [DbContext(typeof(DBContext))]
-    [Migration("20260316043105_InitialCreate")]
+    [Migration("20260316142443_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -41,8 +41,8 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<int>("LocationId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("NumOfPeoplePlayed")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("Script")
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
@@ -71,9 +71,6 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("NumOfLocations")
-                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
@@ -116,15 +113,6 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("NumOfAudio")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("NumOfImg")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("NumOfPeopleVisited")
-                        .HasColumnType("INTEGER");
 
                     b.Property<string>("OwnerName")
                         .HasColumnType("TEXT");

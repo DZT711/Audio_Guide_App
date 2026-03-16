@@ -13,8 +13,8 @@ public record  LocateInformationDTO
     string WebURL,
     string Phone,
     string Email,
-    int NumOfAudio,
-    int NumOfImg,
-    int NumOfPeopleVisited,
+    // int NumOfAudio,
+    // int NumOfImg,
+    // int NumOfPeopleVisited,
     int Status
 );

@@ -22,7 +22,7 @@ namespace WebApplication_API.Data.Migrations
                     Language = table.Column<string>(type: "TEXT", nullable: true),
                     Duration = table.Column<int>(type: "INTEGER", nullable: true),
                     Description = table.Column<string>(type: "TEXT", nullable: true),
-                    NumOfPeoplePlayed = table.Column<int>(type: "INTEGER", nullable: false),
+                    Script = table.Column<string>(type: "TEXT", nullable: true),
                     VoiceGender = table.Column<string>(type: "TEXT", nullable: true),
                     Status = table.Column<int>(type: "INTEGER", nullable: false)
                 },
@@ -39,7 +39,6 @@ namespace WebApplication_API.Data.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: true),
-                    NumOfLocations = table.Column<int>(type: "INTEGER", nullable: false),
                     Status = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
@@ -65,9 +64,6 @@ namespace WebApplication_API.Data.Migrations
                     WebURL = table.Column<string>(type: "TEXT", nullable: true),
                     Phone = table.Column<string>(type: "TEXT", nullable: true),
                     Email = table.Column<string>(type: "TEXT", nullable: true),
-                    NumOfAudio = table.Column<int>(type: "INTEGER", nullable: false),
-                    NumOfImg = table.Column<int>(type: "INTEGER", nullable: false),
-                    NumOfPeopleVisited = table.Column<int>(type: "INTEGER", nullable: false),
                     Status = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>

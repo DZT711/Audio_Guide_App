@@ -31,7 +31,7 @@ public class CategoryController : ControllerBase
                 c.Id,
                 c.Name,
                 c.Description,
-                c.NumOfLocations,
+                // c.NumOfLocations,
                 c.Status
             )).ToList();
 
@@ -60,7 +60,7 @@ public class CategoryController : ControllerBase
                 category.Id,
                 category.Name,
                 category.Description,
-                category.NumOfLocations,
+                // category.NumOfLocations,
                 category.Status
             );
 
@@ -87,7 +87,7 @@ public class CategoryController : ControllerBase
             {
                 Name = createCategoryDTO.Name,
                 Description = createCategoryDTO.Description,
-                NumOfLocations = createCategoryDTO.NumOfLocations,
+                // // NumOfLocations = createCategoryDTO.NumOfLocations,
                 Status = createCategoryDTO.Status
             };
 
@@ -98,7 +98,7 @@ public class CategoryController : ControllerBase
                 category.Id,
                 category.Name,
                 category.Description,
-                category.NumOfLocations,
+                // category.NumOfLocations,
                 category.Status
             );
 
@@ -128,7 +128,7 @@ public class CategoryController : ControllerBase
 
             category.Name = updateCategoryDTO.Name;
             category.Description = updateCategoryDTO.Description;
-            category.NumOfLocations = updateCategoryDTO.NumOfLocations;
+            // // category.NumOfLocations = updateCategoryDTO.NumOfLocations;
             category.Status = updateCategoryDTO.Status;
 
             _context.Categories.Update(category);

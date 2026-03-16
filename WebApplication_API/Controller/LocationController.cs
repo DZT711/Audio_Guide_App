@@ -46,9 +46,9 @@ public class LocationController : ControllerBase
                     location.WebURL,
                     location.Phone,
                     location.Email,
-                    location.NumOfAudio,
-                    location.NumOfImg,
-                    location.NumOfPeopleVisited,
+                    // location.NumOfAudio,
+                    // location.NumOfImg,
+                    // location.NumOfPeopleVisited,
                     location.Status
                 );
                 locationDTOs.Add(locationDTO);
@@ -90,9 +90,9 @@ public class LocationController : ControllerBase
                 location.WebURL,
                 location.Phone,
                 location.Email,
-                location.NumOfAudio,
-                location.NumOfImg,
-                location.NumOfPeopleVisited,
+                // location.NumOfAudio,
+                // location.NumOfImg,
+                // location.NumOfPeopleVisited,
                 location.Status
             );
 
@@ -133,9 +133,9 @@ public class LocationController : ControllerBase
                 l.WebURL,
                 l.Phone,
                 l.Email,
-                l.NumOfAudio,
-                l.NumOfImg,
-                l.NumOfPeopleVisited,
+                // l.NumOfAudio,
+                // l.NumOfImg,
+                // l.NumOfPeopleVisited,
                 l.Status
             )).ToList();
 
@@ -176,14 +176,14 @@ public class LocationController : ControllerBase
                 WebURL = createLocationDTO.WebURL,
                 Phone = createLocationDTO.Phone,
                 Email = createLocationDTO.Email,
-                NumOfAudio = createLocationDTO.NumOfAudio,
-                NumOfImg = createLocationDTO.NumOfImg,
-                NumOfPeopleVisited = createLocationDTO.NumOfPeopleVisited,
+                // // NumOfAudio = createLocationDTO.NumOfAudio,
+                // // NumOfImg = createLocationDTO.NumOfImg,
+                // // NumOfPeopleVisited = createLocationDTO.NumOfPeopleVisited,
                 Status = createLocationDTO.Status
             };
 
             _context.Locations.Add(location);
-            category.NumOfLocations += 1;
+            // category.NumOfLocations += 1;
             _context.Categories.Update(category);
             await _context.SaveChangesAsync();
 
@@ -200,9 +200,9 @@ public class LocationController : ControllerBase
                 location.WebURL,
                 location.Phone,
                 location.Email,
-                location.NumOfAudio,
-                location.NumOfImg,
-                location.NumOfPeopleVisited,
+                // location.NumOfAudio,
+                // location.NumOfImg,
+                // location.NumOfPeopleVisited,
                 location.Status
             );
 
@@ -243,9 +243,9 @@ public class LocationController : ControllerBase
             location.WebURL = updateLocationDTO.WebURL;
             location.Phone = updateLocationDTO.Phone;
             location.Email = updateLocationDTO.Email;
-            location.NumOfAudio = updateLocationDTO.NumOfAudio;
-            location.NumOfImg = updateLocationDTO.NumOfImg;
-            location.NumOfPeopleVisited = updateLocationDTO.NumOfPeopleVisited;
+            // location.NumOfAudio = updateLocationDTO.NumOfAudio;
+            // location.NumOfImg = updateLocationDTO.NumOfImg;
+            // location.NumOfPeopleVisited = updateLocationDTO.NumOfPeopleVisited;
             location.Status = updateLocationDTO.Status;
             location.CategoryId = updateLocationDTO.CategoryId;
 
@@ -275,7 +275,7 @@ public class LocationController : ControllerBase
             var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == location.CategoryId);
             if (category != null)
             {
-                category.NumOfLocations -= 1;
+                // category.NumOfLocations -= 1;
                 _context.Categories.Update(category);
             }
 

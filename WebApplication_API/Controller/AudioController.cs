@@ -40,8 +40,9 @@ public class AudioController : ControllerBase
                     audio.FilePath,
                     audio.Language ?? "",
                     audio.VoiceGender ?? "",
+                    audio.Script ?? "",
                     audio.Duration ?? 0,
-                    audio.NumOfPeoplePlayed,
+                    // audio.NumOfPeoplePlayed,
                     audio.Status
                 );
                 audioDTOs.Add(audioDTOItem);
@@ -77,8 +78,8 @@ public class AudioController : ControllerBase
                 audio.FilePath,
                 audio.Language ?? "",
                 audio.VoiceGender ?? "",
+                audio.Script ?? "",
                 audio.Duration ?? 0,
-                audio.NumOfPeoplePlayed,
                 audio.Status
             );
 
@@ -114,8 +115,8 @@ public class AudioController : ControllerBase
                 a.FilePath,
                 a.Language ?? "",
                 a.VoiceGender ?? "",
+                a.Script ?? "",
                 a.Duration ?? 0,
-                a.NumOfPeoplePlayed,
                 a.Status
             )).ToList();
 
@@ -151,14 +152,14 @@ public class AudioController : ControllerBase
                 FilePath = createAudioDTO.AudioURL,
                 Language = createAudioDTO.Language,
                 Duration = createAudioDTO.Duration,
+                Script = createAudioDTO.Script,
                 Description = createAudioDTO.Description,
-                NumOfPeoplePlayed = createAudioDTO.NumOfPeoplePlayed,
                 VoiceGender = createAudioDTO.VoiceGender,
                 Status = createAudioDTO.Status
             };
 
             _context.AudioContents.Add(audio);
-            location.NumOfAudio += 1;
+            // location.NumOfAudio += 1;
             _context.Locations.Update(location);
             await _context.SaveChangesAsync();
 
@@ -170,8 +171,8 @@ public class AudioController : ControllerBase
                 audio.FilePath,
                 audio.Language ?? "",
                 audio.VoiceGender ?? "",
+                audio.Script ?? "",
                 audio.Duration ?? 0,
-                audio.NumOfPeoplePlayed,
                 audio.Status
             );
 
@@ -240,7 +241,7 @@ public class AudioController : ControllerBase
             var location = await _context.Locations.FirstOrDefaultAsync(l => l.Id == audio.LocationId);
             if (location != null)
             {
-                location.NumOfAudio -= 1;
+                // location.NumOfAudio -= 1;
                 _context.Locations.Update(location);
             }
 
