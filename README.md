@@ -46,6 +46,7 @@ MauiApp_Mobile/
 ```
 ### Class Library
 
+```html
 Project_SharedClassLibrary/
 │
 ├── Models/                 # Các thực thể chính (Entities) khớp với Database
@@ -68,7 +69,8 @@ Project_SharedClassLibrary/
 │
 └── Constants/              # Các hằng số cố định
     └── ApiEndpoints.cs     # Lưu các đường dẫn API mẫu
-    
+ ```
+   
 ## Cấu trúc các thành phần của đồ án
 
 ```html
