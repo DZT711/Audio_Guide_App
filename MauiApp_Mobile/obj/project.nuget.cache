@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "zO3Nrt1jm9k=",
+  "dgSpecHash": "aGgnUyMtn+M=",
   "success": true,
   "projectFilePath": "D:\\Projects\\WebAppThuyetMinh\\MauiApp_Mobile\\MauiApp_Mobile.csproj",
   "expectedPackageFiles": [
@@ -124,7 +124,7 @@
     "C:\\Users\\nguye\\.nuget\\xamarin.kotlinx.coroutines.core.jvm\\1.10.2.1\\xamarin.kotlinx.coroutines.core.jvm.1.10.2.1.nupkg.sha512",
     "C:\\Users\\nguye\\.nuget\\xamarin.kotlinx.serialization.core\\1.9.0.1\\xamarin.kotlinx.serialization.core.1.9.0.1.nupkg.sha512",
     "C:\\Users\\nguye\\.nuget\\xamarin.kotlinx.serialization.core.jvm\\1.9.0.1\\xamarin.kotlinx.serialization.core.jvm.1.9.0.1.nupkg.sha512",
-    "C:\\Users\\nguye\\.nuget\\microsoft.netcore.app.ref\\10.0.3\\microsoft.netcore.app.ref.10.0.3.nupkg.sha512",
+    "C:\\Users\\nguye\\.nuget\\microsoft.netcore.app.ref\\10.0.5\\microsoft.netcore.app.ref.10.0.5.nupkg.sha512",
     "C:\\Users\\nguye\\.nuget\\microsoft.windows.sdk.net.ref\\10.0.19041.57\\microsoft.windows.sdk.net.ref.10.0.19041.57.nupkg.sha512"
   ],
   "logs": []
