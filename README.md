@@ -7,29 +7,70 @@
 
 ## Cấu trúc đồ án dự kiến
 
-```html
-Audio_Guide_App/
-├── Platforms/                # Code riêng cho từng nền tảng (ít khi đụng tới)
-│   ├── Android/
-│   ├── iOS/
-│   └── Windows/
-├── Resources/                # Nơi chứa tài nguyên (Rất quan trọng)
-│   ├── AppIcon/              # Icon của ứng dụng
-│   ├── Fonts/                # Các font chữ tùy chỉnh
-│   ├── Images/               # Ảnh minh họa (.png, .svg)
-│   ├── Raw/                  # NƠI ĐỂ FILE ÂM THANH (.mp3, .wav) 👈
-│   └── Splash/               # Màn hình chờ khi mở app
-├── Models/                   # (Tự tạo) Chứa các lớp dữ liệu (vd: AudioModel.cs)
-├── Views/                    # (Tự tạo) Chứa các file giao diện (.xaml)
-├── ViewModels/               # (Tự tạo) Chứa logic xử lý dữ liệu cho giao diện
-├── App.xaml                  # Cấu hình tài nguyên tổng thể của app
-├── AppShell.xaml             # Cấu hình điều hướng (Menu, Tabs)
-├── MainPage.xaml             # Giao diện chính (cái bạn vừa chạy)
-├── MainPage.xaml.cs          # Logic code-behind của màn hình chính
-├── MauiProgram.cs            # Nơi khởi tạo app và đăng ký dịch vụ (Database, v.v.)
-└── Audio_Guide_App.csproj    # File cấu hình dự án (file bạn vừa sửa)
-```
+### MAUI
 
+```html
+MauiApp_Mobile/
+│
+├── Models/                 # Model phục vụ riêng cho UI (nếu khác Shared Library)
+│   └── ObservablePOI.cs    # Lớp POI có kế thừa ObservableObject để update giao diện
+│
+├── ViewModels/             # Hậu đài xử lý logic cho Giao diện
+│   ├── BaseViewModel.cs    # Lớp cơ sở chứa INotifyPropertyChanged
+│   ├── MainViewModel.cs    # Logic cho màn hình chính (Trạng thái GPS, POI gần nhất)
+│   ├── MapViewModel.cs     # Logic xử lý bản đồ và hiển thị Icon
+│   └── SettingsViewModel.cs# Logic chọn ngôn ngữ, tải gói offline
+│
+├── Views/                  # Giao diện XAML
+│   ├── MainPage.xaml       # Màn hình điều hướng chính
+│   ├── MapPage.xaml        # Màn hình bản đồ tương tác
+│   ├── POIDetailPage.xaml  # Chi tiết điểm thuyết minh
+│   └── SettingsPage.xaml   # Cấu hình ngôn ngữ và hệ thống
+│
+├── Services/               # Các "Bộ máy" cốt lõi (Cực kỳ quan trọng)
+│   ├── IApiService.cs      # Gọi API từ WebApplication_API
+│   ├── IDatabaseService.cs # Quản lý SQLite offline (Lưu POI, Audio path)
+│   ├── IGeofenceService.cs # Bộ máy tính toán tọa độ & kích hoạt điểm
+│   ├── IAudioService.cs    # Xử lý phát file .mp3 và TTS
+│   └── ILocationService.cs # Xử lý Background/Foreground GPS
+│
+├── Helpers/                # Các tiện ích nhỏ
+│   ├── AppConstants.cs     # Lưu Key, API URL, Bán kính mặc định
+│   └── PermissionsHelper.cs# Kiểm tra và xin quyền GPS/Storage
+│
+├── Resources/              
+│   ├── Raw/                # Chứa file âm thanh mặc định (.mp3)
+│   └── Styles/             # Định nghĩa màu sắc, font chữ cho app
+│
+└── MauiProgram.cs          # Nơi đăng ký Dependency Injection (DI)
+```
+### Class Library
+
+```html
+Project_SharedClassLibrary/
+│
+├── Models/                 # Các thực thể chính (Entities) khớp với Database
+│   ├── POI.cs              # Điểm quan tâm (Point of Interest)
+│   ├── AudioContent.cs     # Nội dung thuyết minh (đa ngôn ngữ)
+│   ├── User.cs             # Thông tin người dùng/admin
+│   └── Tour.cs             # Thông tin gói tour
+│
+├── DTOs/                   # Data Transfer Objects (Dùng để truyền tải qua API)
+│   ├── Requests/           # Dữ liệu gửi lên (LoginRequest, CreatePOIDto...)
+│   └── Responses/          # Dữ liệu trả về (POIDetailsDto, AuthResponse...)
+│
+├── Enums/                  # Các hằng số định nghĩa kiểu dữ liệu
+│   ├── LanguageType.cs     # VN, EN, JP, KR...
+│   ├── POIPriority.cs      # Low, Medium, High
+│   └── AudioSourceType.cs  # TTS (Text) hay File (Mp3)
+│
+├── Helpers/                # Các công cụ tính toán dùng chung
+│   └── GeoLocationHelper.cs# Công thức Haversine tính khoảng cách GPS
+│
+└── Constants/              # Các hằng số cố định
+    └── ApiEndpoints.cs     # Lưu các đường dẫn API mẫu
+ ```
+   
 ## Cấu trúc các thành phần của đồ án
 
 ```html
@@ -139,5 +180,5 @@ WebAppThuyetMinh/                              # Thư mục gốc của dự án
         ├── WebApplication_API.csproj.nuget.dgspec.json
         ├── WebApplication_API.csproj.nuget.g.props
         ├── WebApplication_API.csproj.nuget.g.targets
-        └── Debug/                             # Cache debug build
+        └── Debug/                             # Cache debug build 
 ```
