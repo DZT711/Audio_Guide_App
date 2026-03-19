@@ -1,9 +1,15 @@
-﻿namespace MauiApp_Mobile;
+﻿using MauiApp_Mobile.Views;
+
+namespace MauiApp_Mobile;
 
 public partial class AppShell : Shell
 {
-	public AppShell()
-	{
-		InitializeComponent();
-	}
+    public AppShell()
+    {
+        InitializeComponent();
+
+        // Register routes
+        Routing.RegisterRoute(nameof(POIDetailPage), typeof(POIDetailPage));
+        Routing.RegisterRoute(nameof(TourDetailPage), typeof(TourDetailPage));
+    }
 }

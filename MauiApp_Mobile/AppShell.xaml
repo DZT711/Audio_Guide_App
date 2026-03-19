@@ -3,12 +3,33 @@
     x:Class="MauiApp_Mobile.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:MauiApp_Mobile"
-    Title="MauiApp_Mobile">
+    xmlns:views="clr-namespace:MauiApp_Mobile.Views"
+    Shell.FlyoutBehavior="Disabled">
 
-    <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+    <TabBar>
+        <ShellContent
+            Title="Điểm"
+            ContentTemplate="{DataTemplate views:POIListPage}"
+            Icon="location.png"
+            Route="pois" />
+
+        <ShellContent
+            Title="Bản đồ"
+            ContentTemplate="{DataTemplate views:MapPage}"
+            Icon="map.png"
+            Route="map" />
+
+        <ShellContent
+            Title="Tour"
+            ContentTemplate="{DataTemplate views:TourListPage}"
+            Icon="route.png"
+            Route="tours" />
+
+        <ShellContent
+            Title="Cài đặt"
+            ContentTemplate="{DataTemplate views:SettingsPage}"
+            Icon="settings.png"
+            Route="settings" />
+    </TabBar>
 
 </Shell>
