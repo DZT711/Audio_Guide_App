@@ -89,6 +89,27 @@
 | API RESTful + đồng bộ offline | Backend |
 **Ngoài phạm vi:** Thanh toán, live chat, push notification, mạng xã hội.
 
+5.1 Logic Tải Audio Theo Dung Lượng Thiết Bị
+Khi người dùng chọn ngôn ngữ và tải gói offline, app kiểm tra dung lượng trống:
+Tổng kích thước audio pack (ngôn ngữ đã chọn)
+        ↓
+┌───────────────────────────────────────┐
+│  data size < free storage space?      │
+└───────────────────────────────────────┘
+        │ YES                    │ NO
+        ▼                        ▼
+  Tải toàn bộ audio        Stream từ server
+  vào thiết bị             theo từng POI khi nghe
+  → 100% offline           → Cần WiFi/4G
+  → Không cần mạng nữa     → Cache dần sau khi nghe
+Nguyên tắc:
+
+Chỉ tải audio của ngôn ngữ đã chọn (vd: khách Nhật → chỉ tải ja, không tải vi/en/zh/ko).
+Nếu đủ bộ nhớ: tải 1 lần lúc cài đặt, sau đó dùng offline hoàn toàn.
+Nếu không đủ bộ nhớ: LRU cache — audio POI đã nghe được giữ lại, audio cũ ít dùng bị xóa.
+
+Trạng tháiĐiều kiệnHành viFull offlineaudio_pack_size ≤ free_spaceTải hết, không cần mạng sau đóStreamingaudio_pack_size > free_spaceStream + cache dần từng POIHybridOffline 80% + stream 20%Audio gần (Hotset) tải trước, xa stream sau
+
 ---
 
 ## 6. Kiến Trúc Hệ Thống
