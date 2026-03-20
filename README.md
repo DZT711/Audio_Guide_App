@@ -91,6 +91,8 @@
 
 5.1 Logic Tải Audio Theo Dung Lượng Thiết Bị
 Khi người dùng chọn ngôn ngữ và tải gói offline, app kiểm tra dung lượng trống:
+
+```html
 Tổng kích thước audio pack (ngôn ngữ đã chọn)
         ↓
 ┌───────────────────────────────────────┐
@@ -102,6 +104,8 @@ Tổng kích thước audio pack (ngôn ngữ đã chọn)
   vào thiết bị             theo từng POI khi nghe
   → 100% offline           → Cần WiFi/4G
   → Không cần mạng nữa     → Cache dần sau khi nghe
+```
+
 Nguyên tắc:
 
 Chỉ tải audio của ngôn ngữ đã chọn (vd: khách Nhật → chỉ tải ja, không tải vi/en/zh/ko).
