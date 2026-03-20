@@ -44,7 +44,7 @@
 
 ---
 
-## 3. Mục Tiêu & Chỉ Số Thành Công
+## 3. Mục Tiêu 
 
 **Mục tiêu chính:**
 - Audio tự động, **không cần thao tác** khi du khách đi dạo.
