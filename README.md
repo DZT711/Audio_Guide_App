@@ -89,10 +89,10 @@
 | API RESTful + đồng bộ offline | Backend |
 **Ngoài phạm vi:** Thanh toán, live chat, push notification, mạng xã hội.
 
-5.1 Logic Tải Audio Theo Dung Lượng Thiết Bị
+### 5.1.Logic Tải Audio Theo Dung Lượng Thiết Bị
 Khi người dùng chọn ngôn ngữ và tải gói offline, app kiểm tra dung lượng trống:
 
-```html
+```
 Tổng kích thước audio pack (ngôn ngữ đã chọn)
         ↓
 ┌───────────────────────────────────────┐
@@ -113,6 +113,62 @@ Nếu đủ bộ nhớ: tải 1 lần lúc cài đặt, sau đó dùng offline h
 Nếu không đủ bộ nhớ: LRU cache — audio POI đã nghe được giữ lại, audio cũ ít dùng bị xóa.
 
 Trạng tháiĐiều kiệnHành viFull offlineaudio_pack_size ≤ free_spaceTải hết, không cần mạng sau đóStreamingaudio_pack_size > free_spaceStream + cache dần từng POIHybridOffline 80% + stream 20%Audio gần (Hotset) tải trước, xa stream sau
+### 5.2 Logic Tải Audio Theo Dung Lượng Thiết Bị
+
+Khi người dùng chọn ngôn ngữ và tải gói offline, app kiểm tra dung lượng trống:
+
+```
+Tổng kích thước audio pack (ngôn ngữ đã chọn)
+        ↓
+┌───────────────────────────────────────┐
+│  data size < free storage space?      │
+└───────────────────────────────────────┘
+        │ YES                    │ NO
+        ▼                        ▼
+  Tải toàn bộ audio        Stream từ server
+  vào thiết bị             theo từng POI khi nghe
+  → 100% offline           → Cần WiFi/4G
+  → Không cần mạng nữa     → Cache dần sau khi nghe
+```
+
+**Nguyên tắc:**
+- Chỉ tải audio của **ngôn ngữ đã chọn** (vd: khách Nhật → chỉ tải `ja`, không tải `vi/en/zh/ko`).
+- Nếu đủ bộ nhớ: tải 1 lần lúc cài đặt, sau đó dùng offline hoàn toàn.
+- Nếu không đủ bộ nhớ: LRU cache — audio POI đã nghe được giữ lại, audio cũ ít dùng bị xóa.
+
+| Trạng thái | Điều kiện | Hành vi |
+|---|---|---|
+| **Full offline** | `audio_pack_size ≤ free_space` | Tải hết, không cần mạng sau đó |
+| **Streaming** | `audio_pack_size > free_space` | Stream + cache dần từng POI |
+| **Hybrid** | Offline 80% + stream 20% | Audio gần (Hotset) tải trước, xa stream sau |
+
+### 5.3 QR Code — Kích Hoạt Audio Không Cần GPS
+
+Bổ sung phương thức kích hoạt thay thế cho GPS, phục vụ tại **trạm xe buýt, bảng hiệu đường phố** khu vực Khánh Hội, Vĩnh Hội, Xóm Chiếu:
+
+```mermaid
+sequenceDiagram
+    participant U as Du khách
+    participant APP as Mobile App
+    participant QR as QR Scanner
+    participant AU as AudioService
+
+    U->>APP: Mở camera / scan QR
+    APP->>QR: Giải mã QR Code
+    QR-->>APP: poi_id=VK_012 & lang=auto
+    APP->>APP: Lấy POI từ SQLite local
+    APP->>AU: Phát audio theo ngôn ngữ đã chọn
+    AU-->>U: Audio thuyết minh ngay lập tức
+```
+
+**Cấu trúc QR:** `vinhkhanh://poi?id=VK_012&lang=auto`
+
+| Trường | Mô tả |
+|---|---|
+| `id` | POI ID (vd: `VK_012`) |
+| `lang` | `auto` = dùng ngôn ngữ app đang chọn, hoặc chỉ định `ja`, `en`... |
+
+**Ưu điểm so với GPS:** Chính xác tuyệt đối, không cần quyền location, hoạt động tốt trong nhà / hẻm nhỏ nơi GPS bị nhiễu.
 
 ---
 
