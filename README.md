@@ -445,36 +445,9 @@ flowchart LR
 
 ---
 
-## 12. Lộ Trình Phát Triển
-
-```mermaid
-gantt
-    title Development Roadmap — Vinh Khanh Audio Guide
-    dateFormat  YYYY-MM-DD
-    section Phase 1 — Foundation
-    Setup Solution, DI, SharedLibrary     :p1a, 2026-01-01, 7d
-    Backend Auth + CRUD POI cơ bản       :p1b, after p1a, 7d
-
-    section Phase 2 — Core Mobile
-    GPS + Geofencing Service              :p2a, after p1b, 7d
-    Audio Service + Map Page              :p2b, after p2a, 7d
-
-    section Phase 3 — Audio & i18n
-    TTS Service + Localization Backend    :p3a, after p2b, 7d
-    Offline Sync + Settings Page          :p3b, after p3a, 7d
-
-    section Phase 4 — Admin Web
-    Blazor CRUD POI + Audio Monitor       :p4a, after p3b, 7d
-    RBAC, Owner Portal, AI Advisor        :p4b, after p4a, 7d
-
-    section Phase 5 — Offline Map & Polish
-    PMTiles + Offline Map Integration     :p5a, after p4b, 7d
-    Testing, Bug Fix, Field Test          :p5b, after p5a, 7d
-```
-
 ---
 
-## 13. Rủi Ro & Giảm Thiểu
+## 12. Rủi Ro & Giảm Thiểu
 
 | Rủi ro | Xác suất | Mức độ | Giảm thiểu |
 |---|---|---|---|
