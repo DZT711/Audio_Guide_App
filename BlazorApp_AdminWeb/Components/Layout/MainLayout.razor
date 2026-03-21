@@ -1,3 +1,34 @@
 ﻿@inherits LayoutComponentBase
+@using BlazorApp_AdminWeb.Components
+@using BlazorApp_AdminWeb.Components.Layout
 
-@Body
+<div class="page d-flex" style="height: 100vh; overflow: hidden;">
+    <Sidebar />
+
+    <main class="main-content d-flex flex-column flex-grow-1">
+        <AdminHeader PageTitle="@CurrentPageTitle" />
+
+        <div class="content px-4 py-3 flex-grow-1" style="overflow-y: auto;">
+            @Body
+        </div>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+<style>
+    /* Global styles or overrides can go here */
+    .sidebar {
+        width: 280px;
+        min-width: 280px;
+    }
+</style>
+
+@code {
+    // Ideally this would be dynamic based on the active page
+    private string CurrentPageTitle = "Admin Dashboard";
+}

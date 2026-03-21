@@ -1,0 +1,88 @@
+@page "/audio"
+@using BlazorApp_AdminWeb.Components.Layout
+@rendermode InteractiveServer
+
+<PageTitle>Audio & TTS</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>Audio & TTS Management</h3>
+    <button class="btn btn-primary"><i class="bi bi-mic me-2"></i>Add Audio</button>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>File Name</th>
+                    <th>Linked POI</th>
+                    <th>Language</th>
+                    <th>Type</th>
+                    <th>Size/Duration</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var audio in AudioFiles)
+                {
+                    <tr>
+                        <td>
+                            <i class="bi bi-file-earmark-music me-2 text-secondary"></i>
+                            @audio.FileName
+                        </td>
+                        <td>@audio.POIName</td>
+                        <td>@audio.Language</td>
+                        <td>
+                            @if (audio.Type == "TTS")
+                            {
+                                <span class="badge bg-primary-subtle text-primary">TTS</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success-subtle text-success">Upload</span>
+                            }
+                        </td>
+                        <td>@audio.Size</td>
+                        <td>
+                            <span class="badge @GetStatusBadge(audio.Status)">@audio.Status</span>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary me-1" title="Play"><i class="bi bi-play-fill"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<AudioItem> AudioFiles = new()
+    {
+        new AudioItem { FileName = "intro_hanoi.mp3", POIName = "General Intro", Language = "EN", Type = "Upload", Size = "3.2 MB", Status = "Active" },
+        new AudioItem { FileName = "hoan_kiem_legend.mp3", POIName = "Hoan Kiem Lake", Language = "VN", Type = "Upload", Size = "5.1 MB", Status = "Active" },
+        new AudioItem { FileName = "opera_house_history.wav", POIName = "Opera House", Language = "EN", Type = "TTS", Size = "1.2 MB", Status = "Processing" },
+        new AudioItem { FileName = "street_food_guide.mp3", POIName = "Old Quarter", Language = "VN", Type = "Upload", Size = "8.5 MB", Status = "Active" },
+        new AudioItem { FileName = "temple_detail.wav", POIName = "Tran Quoc Pagoda", Language = "EN", Type = "TTS", Size = "0.9 MB", Status = "Failed" },
+    };
+
+    private string GetStatusBadge(string status) => status switch
+    {
+        "Active" => "bg-success",
+        "Processing" => "bg-warning text-dark",
+        "Failed" => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    public class AudioItem
+    {
+        public string FileName { get; set; } = "";
+        public string POIName { get; set; } = "";
+        public string Language { get; set; } = "";
+        public string Type { get; set; } = ""; // TTS or Upload
+        public string Size { get; set; } = "";
+        public string Status { get; set; } = "";
+    }
+}
