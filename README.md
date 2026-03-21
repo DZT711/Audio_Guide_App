@@ -327,11 +327,11 @@ Tổng kích thước audio pack (ngôn ngữ đã chọn)
 
 #### FR-A05: Owner Portal
 
-- **Đăng ký:** Form tên, liên hệ, CCCD, thông tin quán → status `pending`.
+- **Đăng ký:** Form tên, liên hệ, Số Điện Thoại, thông tin quán → status `pending`.
 - **Sau duyệt:** Đăng nhập, chỉnh sửa chỉ quán của mình.
 - **Submit:** Gửi POI Submission → Admin duyệt → public.
 - **AI Advisor:** Gemini gợi ý mô tả mới (giới hạn 10 lần/ngày).
-- **PII:** CCCD mã hóa AES-256, tự xóa sau 180 ngày.
+- **PII:** Số Điện Thoại mã hóa AES-256, tự xóa sau 180 ngày.
 
 ---
 
@@ -430,7 +430,7 @@ Ràng buộc: Rate limit Owner 10 lần/ngày · Admin không giới hạn · Ti
 
 - **XSS:** JWT trong httpOnly cookie (JS không đọc được).
 - **CSRF:** SameSite=Lax cookie.
-- **PII Encryption:** CCCD mã hóa AES-256 (Fernet), tự redact sau 180 ngày.
+- **PII Encryption:** Số Điện Thoại mã hóa AES-256 (Fernet), tự redact sau 180 ngày.
 - **Path Traversal Guard:** Tất cả đường dẫn file phải resolve trong base directory.
 - **Input Validation:** Kiểm tra toàn bộ input (type, size, format).
 - **Rate Limiting:** On-demand TTS (30/10 phút) và AI Advisor (10/ngày cho Owner).
@@ -644,8 +644,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A([Owner điền form đăng ký]) --> B[Gửi: tên, liên hệ, CCCD, thông tin quán]
-    B --> C[Backend: mã hóa CCCD AES-256]
+    A([Owner điền form đăng ký]) --> B[Gửi: tên, liên hệ, Số Điện Thoại, thông tin quán]
+    B --> C[Backend: mã hóa Số Điện Thoại AES-256]
     C --> D[Trạng thái: PENDING]
     D --> E{Admin xem xét}
     E -- Duyệt --> F[Kích hoạt tài khoản Owner]
@@ -811,7 +811,7 @@ public class AdminUser {
     public string PasswordHash { get; set; }      // bcrypt
     public string RoleId { get; set; }
     public bool IsVerified { get; set; }
-    public string EncryptedPII { get; set; }      // AES-256 CCCD (Owner only)
+    public string EncryptedPII { get; set; }      // AES-256 Số Điện Thoại (Owner only)
     public DateTime PIICreatedAt { get; set; }    // Để redact sau 180 ngày
     public DateTime CreatedAt { get; set; }
     public Role Role { get; set; }
@@ -828,7 +828,7 @@ public class Role {
 // Các bảng khác
 // POIImages         → Id, POIId, ImageUrl, Order, CreatedAt
 // MenuItems         → Id, POIId, Name, Price, Description, IsAvailable
-// POIOwnerRegs      → Id, UserId, BusinessName, EncryptedCCCD, Status (pending/approved/rejected)
+// POIOwnerRegs      → Id, UserId, BusinessName, EncryptedSố Điện Thoại, Status (pending/approved/rejected)
 // POISubmissions    → Id, POIId, OwnerId, ProposedChanges (JSON), Status
 // AIUsageLimits     → Id, UserId, Date, Count
 // AuditLogs         → Id, Action, UserId, Resource, Details (JSON), Timestamp
@@ -1242,7 +1242,7 @@ Nguồn: OpenStreetMap / MapTiler
 | **SSE** | Server-Sent Events — Kênh push từ server → client theo thời gian thực |
 | **Hotset** | Tập POI ưu tiên gần người dùng nhất, dịch + sinh audio trước |
 | **Warmup** | Dịch + sinh audio toàn bộ POI dưới nền để chuẩn bị offline |
-| **PII** | Personally Identifiable Information — Thông tin nhận dạng cá nhân (CCCD) |
+| **PII** | Personally Identifiable Information — Thông tin nhận dạng cá nhân (Số Điện Thoại) |
 | **MVVM** | Model-View-ViewModel — Kiến trúc UI tách biệt logic khỏi giao diện |
 | **DI** | Dependency Injection — Inject phụ thuộc qua constructor/interface |
 | **LRU** | Least Recently Used — Chiến lược xóa cache: xóa mục ít dùng nhất |
