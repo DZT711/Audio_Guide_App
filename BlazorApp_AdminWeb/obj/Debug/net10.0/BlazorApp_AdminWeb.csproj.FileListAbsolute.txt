@@ -121,7 +121,6 @@ D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Co
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\AudioList.razor.rz.scp.css
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\CategoryList.razor.rz.scp.css
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\POIList.razor.rz.scp.css
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gp3blz7zhz-{0}-liskfwi7r0-liskfwi7r0.gz
 d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\appsettings.Development.json
 d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\appsettings.json
 d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.staticwebassets.runtime.json
@@ -132,5 +131,6 @@ d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.runtimec
 d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.dll
 d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.pdb
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\r008phjwfc-{0}-t31hkpquhi-t31hkpquhi.gz
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-9c894fz979-9c894fz979.gz
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-9c894fz979-9c894fz979.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gp3blz7zhz-{0}-wknx01re53-wknx01re53.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-d6femuq0t4-d6femuq0t4.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-d6femuq0t4-d6femuq0t4.gz
