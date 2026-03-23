@@ -1,9 +1,9 @@
-<nav class="sidebar-nav">
-    <a href="/dashboard" class="sidebar-brand">
+<nav class="@GetSidebarClass()">
+    <a href="/dashboard" class="sidebar-brand" aria-label="Dashboard home">
         <span class="sidebar-brand__icon">
             <i class="bi bi-compass-fill"></i>
         </span>
-        <span>
+        <span class="sidebar-brand__copy">
             <strong>Smart Tourism</strong>
             <small>Admin Console</small>
         </span>
@@ -11,39 +11,39 @@
 
     <div class="sidebar-group">
         <span class="sidebar-group__label">Overview</span>
-        <NavLink class="sidebar-link" href="/dashboard" Match="NavLinkMatch.All" @attributes="GetDismissAttributes()">
+        <NavLink class="sidebar-link" href="/dashboard" Match="NavLinkMatch.All" title="Dashboard" aria-label="Dashboard" @attributes="GetDismissAttributes()">
             <i class="bi bi-grid-1x2-fill"></i>
-            <span>Dashboard</span>
+            <span class="sidebar-link__text">Dashboard</span>
         </NavLink>
     </div>
 
     <div class="sidebar-group">
         <span class="sidebar-group__label">Management</span>
-        <NavLink class="sidebar-link" href="/poi" @attributes="GetDismissAttributes()">
+        <NavLink class="sidebar-link" href="/poi" title="Locations" aria-label="Locations" @attributes="GetDismissAttributes()">
             <i class="bi bi-geo-alt-fill"></i>
-            <span>Locations</span>
+            <span class="sidebar-link__text">Locations</span>
         </NavLink>
-        <NavLink class="sidebar-link" href="/categories" @attributes="GetDismissAttributes()">
+        <NavLink class="sidebar-link" href="/categories" title="Categories" aria-label="Categories" @attributes="GetDismissAttributes()">
             <i class="bi bi-diagram-3-fill"></i>
-            <span>Categories</span>
+            <span class="sidebar-link__text">Categories</span>
         </NavLink>
-        <NavLink class="sidebar-link" href="/audio" @attributes="GetDismissAttributes()">
+        <NavLink class="sidebar-link" href="/audio" title="Audio & Voice" aria-label="Audio & Voice" @attributes="GetDismissAttributes()">
             <i class="bi bi-mic-fill"></i>
-            <span>Audio &amp; Voice</span>
+            <span class="sidebar-link__text">Audio &amp; Voice</span>
         </NavLink>
-        <NavLink class="sidebar-link" href="/users" @attributes="GetDismissAttributes()">
+        <NavLink class="sidebar-link" href="/users" title="Users" aria-label="Users" @attributes="GetDismissAttributes()">
             <i class="bi bi-people-fill"></i>
-            <span>Users</span>
+            <span class="sidebar-link__text">Users</span>
         </NavLink>
-        <NavLink class="sidebar-link" href="/moderation" @attributes="GetDismissAttributes()">
+        <NavLink class="sidebar-link" href="/moderation" title="Moderation" aria-label="Moderation" @attributes="GetDismissAttributes()">
             <i class="bi bi-shield-check"></i>
-            <span>Moderation</span>
+            <span class="sidebar-link__text">Moderation</span>
         </NavLink>
     </div>
 
     <div class="sidebar-profile">
         <div class="sidebar-profile__avatar">A</div>
-        <div>
+        <div class="sidebar-profile__copy">
             <strong>admin</strong>
             <small>Static administrator</small>
         </div>
@@ -53,6 +53,13 @@
 @code {
     [Parameter]
     public bool DismissOnNavigate { get; set; }
+
+    [Parameter]
+    public bool Collapsed { get; set; }
+
+    private string GetSidebarClass() => Collapsed
+        ? "sidebar-nav sidebar-nav--collapsed"
+        : "sidebar-nav";
 
     private IReadOnlyDictionary<string, object>? GetDismissAttributes()
         => DismissOnNavigate

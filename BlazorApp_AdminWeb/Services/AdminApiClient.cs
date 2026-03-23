@@ -41,7 +41,7 @@ public sealed class AdminApiClient(HttpClient httpClient)
     public async Task DeleteCategoryAsync(int id)
     {
         using var response = await httpClient.DeleteAsync($"Category/{id}");
-        await EnsureSuccessAsync(response, "Unable to delete category.");
+        await EnsureSuccessAsync(response, "Unable to archive category.");
     }
 
     public async Task CreateLocationAsync(LocationFormModel model)
@@ -89,7 +89,7 @@ public sealed class AdminApiClient(HttpClient httpClient)
     public async Task DeleteLocationAsync(int id)
     {
         using var response = await httpClient.DeleteAsync($"Location/{id}");
-        await EnsureSuccessAsync(response, "Unable to delete location.");
+        await EnsureSuccessAsync(response, "Unable to archive location.");
     }
 
     public async Task CreateAudioAsync(AudioFormModel model)
@@ -131,7 +131,7 @@ public sealed class AdminApiClient(HttpClient httpClient)
     public async Task DeleteAudioAsync(int id)
     {
         using var response = await httpClient.DeleteAsync($"Audio/{id}");
-        await EnsureSuccessAsync(response, "Unable to delete audio.");
+        await EnsureSuccessAsync(response, "Unable to archive audio.");
     }
 
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, string fallbackMessage)

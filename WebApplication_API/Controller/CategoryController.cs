@@ -143,7 +143,7 @@ public class CategoryController : ControllerBase
     }
 
     /// <summary>
-    /// Delete a category by ID
+    /// Archive a category by ID
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteCategory(int id)
@@ -155,18 +155,18 @@ public class CategoryController : ControllerBase
             if (category == null)
                 return NotFound(new { message = "Category not found" });
 
-            var isInUse = await _context.Locations.AnyAsync(location => location.CategoryId == id);
-            if (isInUse)
-                return BadRequest(new { message = "Category is linked to existing locations and cannot be deleted yet." });
+            if (category.Status == 0)
+                return Ok(new { message = "Category is already inactive" });
 
-            _context.Categories.Remove(category);
+            category.Status = 0;
+            _context.Categories.Update(category);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Category deleted successfully" });
+            return Ok(new { message = "Category archived successfully" });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error deleting category", error = ex.Message });
+            return StatusCode(500, new { message = "Error archiving category", error = ex.Message });
         }
     }
 }

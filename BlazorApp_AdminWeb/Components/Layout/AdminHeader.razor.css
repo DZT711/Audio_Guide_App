@@ -45,6 +45,22 @@
     color: #0f172a;
 }
 
+.admin-header__toggle {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(248, 250, 252, 0.92);
+    color: #0f172a;
+}
+
+.admin-header__toggle:hover,
+.admin-header__menu:hover {
+    border-color: rgba(15, 118, 110, 0.25);
+    background: rgba(240, 253, 250, 0.94);
+    color: #0f766e;
+}
+
 .admin-header__context {
     align-items: center;
     gap: 0.45rem;

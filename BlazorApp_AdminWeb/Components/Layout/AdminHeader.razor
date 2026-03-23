@@ -9,6 +9,10 @@
             <i class="bi bi-list"></i>
         </button>
 
+        <button type="button" class="btn admin-header__toggle d-none d-lg-inline-flex" @onclick="ToggleSidebarAsync" title="Toggle navigation">
+            <i class="bi @(SidebarCollapsed ? "bi-chevron-bar-right" : "bi-chevron-bar-left")"></i>
+        </button>
+
         <div>
             <span class="admin-header__eyebrow">Smart Tourism Admin</span>
             <h1>@GetPageTitle()</h1>
@@ -31,6 +35,12 @@
 </header>
 
 @code {
+    [Parameter]
+    public bool SidebarCollapsed { get; set; }
+
+    [Parameter]
+    public EventCallback OnToggleSidebar { get; set; }
+
     protected override void OnInitialized()
     {
         Navigation.LocationChanged += HandleLocationChanged;
@@ -38,6 +48,8 @@
 
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
         => InvokeAsync(StateHasChanged);
+
+    private Task ToggleSidebarAsync() => OnToggleSidebar.InvokeAsync();
 
     private async Task LogoutAsync()
     {

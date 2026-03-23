@@ -3,12 +3,26 @@
     min-height: 100vh;
 }
 
+.admin-shell,
+.admin-shell__sidebar,
+.admin-shell__content {
+    transition:
+        width 240ms ease,
+        min-width 240ms ease,
+        padding 240ms ease;
+}
+
 .admin-shell__sidebar {
     width: 300px;
     min-width: 300px;
     border-right: 1px solid rgba(255, 255, 255, 0.72);
     background: rgba(255, 255, 255, 0.72);
     backdrop-filter: blur(16px);
+}
+
+.admin-shell--collapsed .admin-shell__sidebar {
+    width: 108px;
+    min-width: 108px;
 }
 
 .admin-shell__main {

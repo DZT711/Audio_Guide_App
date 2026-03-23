@@ -118,7 +118,7 @@
                 <div class="audio-list">
                     @foreach (var audio in FilteredAudio)
                     {
-                        <article class="audio-card">
+                        <article class="@GetAudioCardClass(audio.Status)">
                             <div class="audio-card__header">
                                 <div>
                                     <h3>@audio.Title</h3>
@@ -140,7 +140,9 @@
                                 <small class="management-muted">@audio.AudioURL</small>
                                 <div class="management-inline-actions">
                                     <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(audio)">Edit</button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAudioAsync(audio)">Delete</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(audio.Status == 0)" @onclick="() => DeleteAudioAsync(audio)">
+                                        @(audio.Status == 0 ? "Inactive" : "Archive")
+                                    </button>
                                 </div>
                             </div>
                         </article>
@@ -213,9 +215,30 @@
                     </div>
 
                     <div class="management-field management-field--full">
-                        <label for="audio-script">Script / TTS Source Text</label>
-                        <InputTextArea id="audio-script" class="form-control" rows="4" @bind-Value="_formModel.Script" />
+                        <label for="audio-script">Text-to-Speech Script</label>
+                        <InputTextArea id="audio-script" class="form-control" rows="5" @bind-Value="_formModel.Script" />
                         <ValidationMessage For="() => _formModel.Script" />
+                        <span class="management-field__hint">Enter sample narration here and use the preview controls below to test the current language and voice label.</span>
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <div class="audio-preview">
+                            <div>
+                                <span class="management-field__label">Voice Preview</span>
+                                <div class="management-field__hint">The preview uses your browser's built-in speech engine, so the exact voice can vary by device.</div>
+                            </div>
+
+                            <div class="audio-preview__actions">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@string.IsNullOrWhiteSpace(_formModel.Script)" @onclick="TryTtsPreviewAsync">
+                                    <i class="bi bi-play-circle me-1"></i>
+                                    Try Test
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="StopTtsPreviewAsync">
+                                    <i class="bi bi-stop-circle me-1"></i>
+                                    Stop
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="management-field management-field--full">
@@ -267,6 +290,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ResetForm();
         await LoadDataAsync();
     }
 
@@ -285,10 +309,14 @@
             await Task.WhenAll(audioTask, locationsTask);
 
             _audioItems.Clear();
-            _audioItems.AddRange((await audioTask).OrderBy(item => item.Title));
+            _audioItems.AddRange((await audioTask)
+                .OrderByDescending(item => item.Status)
+                .ThenBy(item => item.Title));
 
             _locations.Clear();
-            _locations.AddRange((await locationsTask).OrderBy(item => item.Name));
+            _locations.AddRange((await locationsTask)
+                .OrderByDescending(item => item.Status)
+                .ThenBy(item => item.Name));
         }
         catch (Exception ex)
         {
@@ -346,7 +374,7 @@
 
     private async Task DeleteAudioAsync(AudioDto audio)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete audio '{audio.Title}'?");
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive audio '{audio.Title}' and mark it inactive?");
         if (!confirmed)
         {
             return;
@@ -355,7 +383,7 @@
         try
         {
             await ApiClient.DeleteAudioAsync(audio.Id);
-            Notifications.Info($"Deleted '{audio.Title}'.", "Audio removed");
+            Notifications.Info($"'{audio.Title}' is now inactive.", "Audio archived");
             await LoadDataAsync();
 
             if (_editingId == audio.Id)
@@ -366,6 +394,38 @@
         catch (Exception ex)
         {
             Notifications.Error(ex.Message, "Delete failed");
+        }
+    }
+
+    private async Task TryTtsPreviewAsync()
+    {
+        try
+        {
+            var isSupported = await JS.InvokeAsync<bool>(
+                "smartTourAdmin.tts.preview",
+                _formModel.Script,
+                _formModel.Language,
+                _formModel.VoiceGender);
+
+            if (!isSupported)
+            {
+                Notifications.Warning("Speech preview is unavailable or the script is empty.", "Preview unavailable");
+            }
+        }
+        catch (JSException ex)
+        {
+            Notifications.Error(ex.Message, "Voice preview failed");
+        }
+    }
+
+    private async Task StopTtsPreviewAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.tts.stop");
+        }
+        catch (JSException)
+        {
         }
     }
 
@@ -418,6 +478,10 @@
 
     private static string GetAudioKind(AudioDto audio) =>
         string.IsNullOrWhiteSpace(audio.Script) ? "Uploaded Audio" : "TTS / Script";
+
+    private static string GetAudioCardClass(int status) => status == 1
+        ? "audio-card"
+        : "audio-card audio-card--inactive";
 
     private static string GetStatusClass(int status) => status == 1
         ? "management-status management-status--active"

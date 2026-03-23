@@ -1,4 +1,5 @@
 @page "/poi"
+@implements IAsyncDisposable
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
@@ -135,7 +136,7 @@
                         <tbody>
                             @foreach (var location in FilteredLocations)
                             {
-                                <tr>
+                                <tr class="@GetRowClass(location.Status)">
                                     <td>
                                         <div class="poi-name">@location.Name</div>
                                         <small class="management-muted">@(string.IsNullOrWhiteSpace(location.OwnerName) ? "No owner assigned" : location.OwnerName)</small>
@@ -149,7 +150,9 @@
                                     <td class="text-end">
                                         <div class="management-inline-actions">
                                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(location)">Edit</button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteLocationAsync(location)">Delete</button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(location.Status == 0)" @onclick="() => DeleteLocationAsync(location)">
+                                                @(location.Status == 0 ? "Inactive" : "Archive")
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -194,6 +197,24 @@
                         <label for="location-address">Address</label>
                         <InputText id="location-address" class="form-control" @bind-Value="_formModel.Address" />
                         <ValidationMessage For="() => _formModel.Address" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <div class="location-picker">
+                            <div class="location-picker__header">
+                                <div>
+                                    <span class="management-field__label">OpenStreetMap Picker</span>
+                                    <div class="management-field__hint">Drag the pin or click the map to auto-fill the address, latitude, and longitude.</div>
+                                </div>
+
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="CenterMapOnCoordinatesAsync">
+                                    <i class="bi bi-crosshair me-1"></i>
+                                    Center On Coordinates
+                                </button>
+                            </div>
+
+                            <div class="location-picker__map" @ref="_mapElement"></div>
+                        </div>
                     </div>
 
                     <div class="management-field management-field--full">
@@ -265,16 +286,21 @@
 </div>
 
 @code {
+    private const double DefaultLatitude = 21.0278;
+    private const double DefaultLongitude = 105.8342;
     private readonly LocationFormModel _formModel = new();
     private readonly List<LocationDto> _locations = new();
     private readonly List<CategoryDto> _categories = new();
+    private DotNetObjectReference<POIList>? _mapReference;
     private bool _isLoading = true;
     private bool _isSaving;
+    private bool _mapSyncPending;
     private int? _editingId;
     private string _searchText = "";
     private string _selectedCategoryName = "";
     private string _selectedStatus = "";
     private string? _loadError;
+    private ElementReference _mapElement;
 
     private IEnumerable<LocationDto> FilteredLocations =>
         _locations.Where(location =>
@@ -291,7 +317,24 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ResetForm();
         await LoadDataAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _mapReference = DotNetObjectReference.Create(this);
+            await InitializeMapAsync();
+            return;
+        }
+
+        if (_mapSyncPending)
+        {
+            _mapSyncPending = false;
+            await SyncMapAsync();
+        }
     }
 
     private async Task RefreshAsync() => await LoadDataAsync();
@@ -309,10 +352,14 @@
             await Task.WhenAll(categoriesTask, locationsTask);
 
             _categories.Clear();
-            _categories.AddRange((await categoriesTask).OrderBy(item => item.Name));
+            _categories.AddRange((await categoriesTask)
+                .OrderByDescending(item => item.Status)
+                .ThenBy(item => item.Name));
 
             _locations.Clear();
-            _locations.AddRange((await locationsTask).OrderBy(item => item.Name));
+            _locations.AddRange((await locationsTask)
+                .OrderByDescending(item => item.Status)
+                .ThenBy(item => item.Name));
         }
         catch (Exception ex)
         {
@@ -324,6 +371,49 @@
             _isLoading = false;
         }
     }
+
+    private async Task InitializeMapAsync()
+    {
+        try
+        {
+            var isInitialized = await JS.InvokeAsync<bool>(
+                "smartTourAdmin.map.initializeLocationPicker",
+                _mapElement,
+                _mapReference,
+                _formModel.Latitude,
+                _formModel.Longitude);
+
+            if (!isInitialized)
+            {
+                Notifications.Warning("The OpenStreetMap picker is unavailable right now.", "Map unavailable");
+            }
+            else
+            {
+                _mapSyncPending = false;
+            }
+        }
+        catch (JSException)
+        {
+            Notifications.Warning("The OpenStreetMap picker is unavailable right now.", "Map unavailable");
+        }
+    }
+
+    private async Task SyncMapAsync()
+    {
+        try
+        {
+            await JS.InvokeAsync<bool>(
+                "smartTourAdmin.map.syncLocationPicker",
+                _mapElement,
+                _formModel.Latitude,
+                _formModel.Longitude);
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private async Task CenterMapOnCoordinatesAsync() => await SyncMapAsync();
 
     private void StartCreate()
     {
@@ -370,7 +460,7 @@
 
     private async Task DeleteLocationAsync(LocationDto location)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete location '{location.Name}'?");
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive location '{location.Name}' and mark it inactive?");
         if (!confirmed)
         {
             return;
@@ -379,7 +469,7 @@
         try
         {
             await ApiClient.DeleteLocationAsync(location.Id);
-            Notifications.Info($"Deleted '{location.Name}'.", "Location removed");
+            Notifications.Info($"'{location.Name}' is now inactive.", "Location archived");
             await LoadDataAsync();
 
             if (_editingId == location.Id)
@@ -398,6 +488,8 @@
         ApplyForm(new LocationFormModel
         {
             EstablishedYear = DateTime.UtcNow.Year,
+            Latitude = DefaultLatitude,
+            Longitude = DefaultLongitude,
             Status = 1
         });
     }
@@ -422,9 +514,24 @@
         _formModel.Phone = model.Phone;
         _formModel.Email = model.Email;
         _formModel.Status = model.Status;
+        _mapSyncPending = true;
     }
 
     private void SetStatus(int status) => _formModel.Status = status;
+
+    [JSInvokable]
+    public Task ApplyLocationFromMap(double latitude, double longitude, string? address)
+    {
+        _formModel.Latitude = Math.Round(latitude, 6);
+        _formModel.Longitude = Math.Round(longitude, 6);
+
+        if (!string.IsNullOrWhiteSpace(address))
+        {
+            _formModel.Address = address.Length > 500 ? address[..500] : address;
+        }
+
+        return InvokeAsync(StateHasChanged);
+    }
 
     private static string GetStatusClass(int status) => status == 1
         ? "management-status management-status--active"
@@ -432,7 +539,27 @@
 
     private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
 
+    private static string GetRowClass(int status) => status == 1
+        ? string.Empty
+        : "poi-row--inactive";
+
     private static string GetChipClass(int status, int currentStatus) => status == currentStatus
         ? "management-chip management-chip--selected"
         : "management-chip";
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.map.disposeLocationPicker", _mapElement);
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+
+        _mapReference?.Dispose();
+    }
 }

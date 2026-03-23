@@ -218,7 +218,7 @@ public class LocationController : ControllerBase
     /// Update existing location
     /// </summary>
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateLocation(int id, [FromBody] CreateLocationDTO updateLocationDTO)
+    public async Task<IActionResult> UpdateLocation(int id, [FromBody] UpdateLocationDTO updateLocationDTO)
     {
         try
         {
@@ -261,7 +261,7 @@ public class LocationController : ControllerBase
     }
 
     /// <summary>
-    /// Delete location by ID
+    /// Archive location by ID
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteLocation(int id)
@@ -272,21 +272,18 @@ public class LocationController : ControllerBase
             if (location == null)
                 return NotFound(new { message = "Location not found" });
 
-            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == location.CategoryId);
-            if (category != null)
-            {
-                // category.NumOfLocations -= 1;
-                _context.Categories.Update(category);
-            }
+            if (location.Status == 0)
+                return Ok(new { message = "Location is already inactive" });
 
-            _context.Locations.Remove(location);
+            location.Status = 0;
+            _context.Locations.Update(location);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Location deleted successfully" });
+            return Ok(new { message = "Location archived successfully" });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error deleting location", error = ex.Message });
+            return StatusCode(500, new { message = "Error archiving location", error = ex.Message });
         }
     }
 }

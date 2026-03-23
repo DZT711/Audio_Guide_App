@@ -104,7 +104,7 @@
                 <div class="category-list">
                     @foreach (var category in FilteredCategories)
                     {
-                        <article class="category-card">
+                        <article class="@GetCategoryCardClass(category.Status)">
                             <div class="category-card__copy">
                                 <div class="category-card__top">
                                     <h3>@category.Name</h3>
@@ -115,7 +115,9 @@
 
                             <div class="management-inline-actions">
                                 <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">Edit</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategoryAsync(category)">Delete</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(category.Status == 0)" @onclick="() => DeleteCategoryAsync(category)">
+                                    @(category.Status == 0 ? "Inactive" : "Archive")
+                                </button>
                             </div>
                         </article>
                     }
@@ -196,7 +198,9 @@
         {
             var categories = await ApiClient.GetCategoriesAsync();
             _categories.Clear();
-            _categories.AddRange(categories.OrderBy(item => item.Name));
+            _categories.AddRange(categories
+                .OrderByDescending(item => item.Status)
+                .ThenBy(item => item.Name));
         }
         catch (Exception ex)
         {
@@ -256,7 +260,7 @@
 
     private async Task DeleteCategoryAsync(CategoryDto category)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete category '{category.Name}'?");
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive category '{category.Name}' and mark it inactive?");
         if (!confirmed)
         {
             return;
@@ -265,7 +269,7 @@
         try
         {
             await ApiClient.DeleteCategoryAsync(category.Id);
-            Notifications.Info($"Deleted '{category.Name}'.", "Category removed");
+            Notifications.Info($"'{category.Name}' is now inactive.", "Category archived");
             await LoadCategoriesAsync();
 
             if (_editingId == category.Id)
@@ -303,4 +307,8 @@
     private static string GetChipClass(int status, int currentStatus) => status == currentStatus
         ? "management-chip management-chip--selected"
         : "management-chip";
+
+    private static string GetCategoryCardClass(int status) => status == 1
+        ? "category-card"
+        : "category-card category-card--inactive";
 }

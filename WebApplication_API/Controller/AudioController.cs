@@ -228,7 +228,7 @@ public class AudioController : ControllerBase
     }
 
     /// <summary>
-    /// Delete audio content by ID
+    /// Archive audio content by ID
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteAudio(int id)
@@ -240,21 +240,18 @@ public class AudioController : ControllerBase
             if (audio == null)
                 return NotFound(new { message = "Audio not found" });
 
-            var location = await _context.Locations.FirstOrDefaultAsync(l => l.Id == audio.LocationId);
-            if (location != null)
-            {
-                // location.NumOfAudio -= 1;
-                _context.Locations.Update(location);
-            }
+            if (audio.Status == 0)
+                return Ok(new { message = "Audio is already inactive" });
 
-            _context.AudioContents.Remove(audio);
+            audio.Status = 0;
+            _context.AudioContents.Update(audio);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Audio deleted successfully" });
+            return Ok(new { message = "Audio archived successfully" });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error deleting audio", error = ex.Message });
+            return StatusCode(500, new { message = "Error archiving audio", error = ex.Message });
         }
     }
 }

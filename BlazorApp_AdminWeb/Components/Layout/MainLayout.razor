@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @inject AdminAuthService AuthService
 @inject NavigationManager Navigation
+@inject AdminShellState ShellState
 
 @if (!_authChecked)
 {
@@ -15,9 +16,9 @@
 }
 else if (_isAuthenticated)
 {
-    <div class="admin-shell">
+    <div class="@GetShellClass()">
         <aside class="admin-shell__sidebar d-none d-lg-flex">
-            <Sidebar />
+            <Sidebar Collapsed="@ShellState.IsSidebarCollapsed" />
         </aside>
 
         <div class="offcanvas offcanvas-start admin-shell__drawer" tabindex="-1" id="admin-sidebar-drawer" aria-labelledby="admin-sidebar-drawer-label">
@@ -31,7 +32,7 @@ else if (_isAuthenticated)
         </div>
 
         <main class="admin-shell__main">
-            <AdminHeader />
+            <AdminHeader SidebarCollapsed="@ShellState.IsSidebarCollapsed" OnToggleSidebar="ToggleSidebarAsync" />
 
             <section class="admin-shell__content">
                 @Body
@@ -51,6 +52,16 @@ else if (_isAuthenticated)
 @code {
     private bool _authChecked;
     private bool _isAuthenticated;
+
+    private string GetShellClass() => ShellState.IsSidebarCollapsed
+        ? "admin-shell admin-shell--collapsed"
+        : "admin-shell";
+
+    private Task ToggleSidebarAsync()
+    {
+        ShellState.IsSidebarCollapsed = !ShellState.IsSidebarCollapsed;
+        return Task.CompletedTask;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

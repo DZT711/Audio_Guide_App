@@ -21,6 +21,7 @@ builder.Services.AddDataProtection()
 builder.Services.Configure<AdminApiOptions>(builder.Configuration.GetSection(AdminApiOptions.SectionName));
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<AdminSessionState>();
+builder.Services.AddScoped<AdminShellState>();
 builder.Services.AddScoped<AdminAuthService>();
 builder.Services.AddHttpClient<AdminApiClient>((serviceProvider, client) =>
 {

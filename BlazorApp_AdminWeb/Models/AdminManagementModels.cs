@@ -66,7 +66,7 @@ public sealed class LocationFormModel
     [StringLength(100)]
     public string Name { get; set; } = "";
 
-    [StringLength(255)]
+    [StringLength(500)]
     public string Address { get; set; } = "";
 
     [Range(1, int.MaxValue, ErrorMessage = "Choose a category.")]
@@ -139,7 +139,7 @@ public sealed class AudioFormModel
     [StringLength(50)]
     public string VoiceGender { get; set; } = "Female";
 
-    [StringLength(255)]
+    [StringLength(4000)]
     public string Script { get; set; } = "";
 
     [Range(0, int.MaxValue)]
