@@ -1,0 +1,112 @@
+@page "/users"
+@using BlazorApp_AdminWeb.Components.Layout
+@rendermode InteractiveServer
+
+<PageTitle>User Management</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>Users</h3>
+    <button class="btn btn-primary"><i class="bi bi-person-plus me-2"></i>Add User</button>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm p-3 text-center">
+            <h5 class="mb-0 text-primary">2,450</h5>
+            <small class="text-muted">Total Users</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm p-3 text-center">
+            <h5 class="mb-0 text-success">1,980</h5>
+            <small class="text-muted">Active</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm p-3 text-center">
+            <h5 class="mb-0 text-warning">450</h5>
+            <small class="text-muted">Pending</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm p-3 text-center">
+            <h5 class="mb-0 text-danger">20</h5>
+            <small class="text-muted">Locked</small>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in Users)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="@user.AvatarUrl" class="rounded-circle me-3" width="40" height="40" alt="Avatar">
+                                <strong>@user.Name</strong>
+                            </div>
+                        </td>
+                        <td>@user.Email</td>
+                        <td>
+                            @if(user.Role == "Admin")
+                            {
+                                <span class="badge bg-dark">Admin</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-light text-dark border">Owner</span>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge @GetStatusBadge(user.Status)">@user.Status</span>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-secondary me-1">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger">Block</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<UserItem> Users = new()
+    {
+        new UserItem { Name = "Amanda Harvey", Email = "amanda@example.com", Role = "Admin", Status = "Active", AvatarUrl = "https://ui-avatars.com/api/?name=Amanda+Harvey&background=0D8ABC&color=fff" },
+        new UserItem { Name = "Anne Richard", Email = "anne@example.com", Role = "Owner", Status = "Pending", AvatarUrl = "https://ui-avatars.com/api/?name=Anne+Richard&background=QD8ABC&color=fff" },
+        new UserItem { Name = "David Harrison", Email = "david@example.com", Role = "Owner", Status = "Active", AvatarUrl = "https://ui-avatars.com/api/?name=David+Harrison&background=random" },
+        new UserItem { Name = "Finch Hoot", Email = "finch@example.com", Role = "Owner", Status = "Locked", AvatarUrl = "https://ui-avatars.com/api/?name=Finch+Hoot&background=random" },
+        new UserItem { Name = "Bob Smith", Email = "bob@example.com", Role = "Owner", Status = "Active", AvatarUrl = "https://ui-avatars.com/api/?name=Bob+Smith&background=random" },
+    };
+
+    private string GetStatusBadge(string status) => status switch
+    {
+        "Active" => "bg-success",
+        "Pending" => "bg-warning text-dark",
+        "Locked" => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    public class UserItem
+    {
+        public string Name { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Role { get; set; } = "";
+        public string Status { get; set; } = "";
+        public string AvatarUrl { get; set; } = "";
+    }
+}

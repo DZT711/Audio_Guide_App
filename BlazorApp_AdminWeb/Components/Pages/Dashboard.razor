@@ -1,0 +1,123 @@
+@page "/dashboard"
+@using BlazorApp_AdminWeb.Components.Layout
+@rendermode InteractiveServer
+
+<PageTitle>Dashboard</PageTitle>
+
+<div class="row g-4 mb-4">
+    <!-- Stat Cards -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-2">Total POIs</h6>
+                <div class="d-flex align-items-center">
+                    <div class="h2 mb-0 me-3">128</div>
+                    <span class="badge bg-success-subtle text-success">+5.0%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-2">Total Audios</h6>
+                <div class="d-flex align-items-center">
+                    <div class="h2 mb-0 me-3">345</div>
+                    <span class="badge bg-success-subtle text-success">+12%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-2">Total Users</h6>
+                <div class="d-flex align-items-center">
+                    <div class="h2 mb-0 me-3">2,450</div>
+                    <span class="badge bg-warning-subtle text-warning">-2%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-2">Pending Items</h6>
+                <div class="d-flex align-items-center">
+                    <div class="h2 mb-0 me-3">12</div>
+                    <span class="badge bg-danger-subtle text-danger">Action Required</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0">Recent Activity</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var act in Activities)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                    @act.UserInitials
+                                </div>
+                                <div>@act.UserName</div>
+                            </div>
+                        </td>
+                        <td>@act.Action</td>
+                        <td>@act.TargetName</td>
+                        <td>@act.TimeAgo</td>
+                        <td>
+                            <span class="badge @GetStatusBadge(act.Status)">@act.Status</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<ActivityLog> Activities = new()
+    {
+        new ActivityLog { UserName = "Amanda Harvey", UserInitials = "AH", Action = "Created POI", TargetName = "Hanoi Old Quarter", TimeAgo = "2 mins ago", Status = "Completed" },
+        new ActivityLog { UserName = "Anne Richard", UserInitials = "AR", Action = "Uploaded Audio", TargetName = "Pho Bat Dan Guide", TimeAgo = "15 mins ago", Status = "Processing" },
+        new ActivityLog { UserName = "David Harrison", UserInitials = "DH", Action = "Updated Profile", TargetName = "Self", TimeAgo = "1 hour ago", Status = "Completed" },
+        new ActivityLog { UserName = "Finch Hoot", UserInitials = "FH", Action = "Deleted POI", TargetName = "Cafe Giang", TimeAgo = "3 hours ago", Status = "Failed" },
+        new ActivityLog { UserName = "Bob Smith", UserInitials = "BS", Action = "Requested Review", TargetName = "Walking Tour Script", TimeAgo = "1 day ago", Status = "Pending" },
+    };
+
+    private string GetStatusBadge(string status) => status switch
+    {
+        "Completed" => "bg-success",
+        "Processing" => "bg-primary",
+        "Pending" => "bg-warning text-dark",
+        "Failed" => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    public class ActivityLog
+    {
+        public string UserName { get; set; } = "";
+        public string UserInitials { get; set; } = "";
+        public string Action { get; set; } = "";
+        public string TargetName { get; set; } = "";
+        public string TimeAgo { get; set; } = "";
+        public string Status { get; set; } = "";
+    }
+}

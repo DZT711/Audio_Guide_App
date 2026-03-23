@@ -1,0 +1,81 @@
+@page "/moderation"
+@using BlazorApp_AdminWeb.Components.Layout
+@rendermode InteractiveServer
+
+<PageTitle>Moderation Queue</PageTitle>
+
+<h3>Content Moderation</h3>
+<p class="text-muted">Review and approve user-submitted content.</p>
+
+<div class="card border-0 shadow-sm mt-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Type</th>
+                    <th>Content Name</th>
+                    <th>Submitted By</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th class="text-end">Decision</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in ModerationItems)
+                {
+                    <tr>
+                        <td>
+                            @if(item.Type == "POI")
+                            {
+                                <span class="badge bg-info text-dark">POI</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Audio</span>
+                            }
+                        </td>
+                        <td class="fw-bold">@item.Name</td>
+                        <td>@item.SubmittedBy</td>
+                        <td>@item.DateFormatted</td>
+                        <td>
+                            <span class="badge @GetStatusBadge(item.Status)">@item.Status</span>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-success me-1"><i class="bi bi-check-lg"></i> Approve</button>
+                            <button class="btn btn-sm btn-danger"><i class="bi bi-x-lg"></i> Reject</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<ModItem> ModerationItems = new()
+    {
+        new ModItem { Type = "POI", Name = "Hidden Cafe Alley", SubmittedBy = "explorer99", Date = DateTime.Now.AddDays(-1), Status = "Pending" },
+        new ModItem { Type = "Audio", Name = "Street Sound Ambience", SubmittedBy = "soundhunter", Date = DateTime.Now.AddDays(-2), Status = "Pending" },
+        new ModItem { Type = "POI", Name = "Old Well", SubmittedBy = "local_guide", Date = DateTime.Now.AddHours(-5), Status = "Approved" },
+        new ModItem { Type = "Audio", Name = "Wrong Description", SubmittedBy = "newbie", Date = DateTime.Now.AddDays(-5), Status = "Rejected" },
+        new ModItem { Type = "POI", Name = "New Art Gallery", SubmittedBy = "art_lover", Date = DateTime.Now.AddMinutes(-30), Status = "Pending" },
+    };
+
+    private string GetStatusBadge(string status) => status switch
+    {
+        "Pending" => "bg-warning text-dark",
+        "Approved" => "bg-success",
+        "Rejected" => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    public class ModItem
+    {
+        public string Type { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string SubmittedBy { get; set; } = "";
+        public DateTime Date { get; set; }
+        public string Status { get; set; } = "";
+        public string DateFormatted => Date.ToString("dd/MM/yyyy HH:mm");
+    }
+}
