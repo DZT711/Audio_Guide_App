@@ -1,6 +1,12 @@
 (() => {
     const root = document.documentElement;
     root.classList.add("js-ready");
+    window.smartTourAdmin = window.smartTourAdmin ?? {};
+    window.smartTourAdmin.storage = {
+        get: (key) => window.localStorage.getItem(key),
+        set: (key, value) => window.localStorage.setItem(key, value),
+        remove: (key) => window.localStorage.removeItem(key)
+    };
 
     const seen = new WeakSet();
     let observer = null;

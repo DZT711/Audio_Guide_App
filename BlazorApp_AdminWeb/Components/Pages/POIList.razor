@@ -1,149 +1,438 @@
 @page "/poi"
-@using BlazorApp_AdminWeb.Components.Layout
-@rendermode InteractiveServer
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject IJSRuntime JS
 
-<PageTitle>POI Management</PageTitle>
+<PageTitle>Location Management</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3>Points of Interest</h3>
-    <button class="btn btn-primary"><i class="bi bi-plus-lg me-2"></i>Add POI</button>
-</div>
+<div class="management-page poi-page">
+    <section class="management-hero" data-reveal>
+        <div>
+            <span class="management-hero__eyebrow">Locations</span>
+            <h1>Location Management</h1>
+            <p>
+                Manage tourism destinations directly through the API, including category assignment,
+                coordinates, contact information, and published status.
+            </p>
+        </div>
 
-<!-- Mini Stats for POI -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-primary text-white">
-            <div class="card-body p-3">
-                <small class="text-white-50">Total POIs</small>
-                <h4 class="mb-0">128</h4>
-            </div>
+        <div class="management-hero__actions">
+            <button type="button" class="btn btn-primary btn-lg" @onclick="StartCreate">
+                <i class="bi bi-plus-circle me-2"></i>
+                New Location
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
+                <i class="bi bi-arrow-clockwise me-2"></i>
+                Refresh
+            </button>
         </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-success text-white">
-            <div class="card-body p-3">
-                <small class="text-white-50">Active</small>
-                <h4 class="mb-0">110</h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-warning text-dark">
-            <div class="card-body p-3">
-                <small class="text-black-50">Pending Review</small>
-                <h4 class="mb-0">12</h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-secondary text-white">
-            <div class="card-body p-3">
-                <small class="text-white-50">Inactive</small>
-                <h4 class="mb-0">6</h4>
-            </div>
-        </div>
-    </div>
-</div>
+    </section>
 
-<!-- Filter & Search -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-body">
-        <div class="row g-3">
-            <div class="col-md-4">
-                <input type="text" class="form-control" placeholder="Search POI name..." @bind="searchText" @bind:event="oninput" />
+    <div class="management-stat-grid" data-stagger data-stagger-step="80">
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-geo-alt"></i></span>
+            <div>
+                <strong class="management-stat__value">@_locations.Count</strong>
+                <span class="management-stat__label">Total Locations</span>
             </div>
-            <div class="col-md-3">
-                <select class="form-select">
-                    <option value="">All Statuses</option>
-                    <option value="Active">Active</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Inactive">Inactive</option>
-                </select>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
+            <div>
+                <strong class="management-stat__value">@_locations.Count(item => item.Status == 1)</strong>
+                <span class="management-stat__label">Active</span>
             </div>
-            <div class="col-md-3">
-                <select class="form-select">
-                    <option value="">All Languages</option>
-                    <option value="VN">Vietnamese</option>
-                    <option value="EN">English</option>
-                </select>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-diagram-3"></i></span>
+            <div>
+                <strong class="management-stat__value">@_categories.Count</strong>
+                <span class="management-stat__label">Linked Categories</span>
             </div>
-        </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-search"></i></span>
+            <div>
+                <strong class="management-stat__value">@FilteredLocations.Count()</strong>
+                <span class="management-stat__label">Matching Search</span>
+            </div>
+        </article>
     </div>
-</div>
 
-<!-- POI Table -->
-<div class="card border-0 shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>POI Name</th>
-                    <th>Coordinates</th>
-                    <th>Radius (m)</th>
-                    <th>Language</th>
-                    <th>Status</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in FilteredPOIs)
-                {
-                    <tr>
-                        <td>
-                            <div class="fw-bold">@item.Name</div>
-                            <small class="text-muted">ID: @item.Id</small>
-                        </td>
-                        <td>@item.FormattedCoordinates</td>
-                        <td>@item.Radius</td>
-                        <td><span class="badge bg-info text-dark">@item.Language</span></td>
-                        <td>
-                            <span class="badge @GetStatusBadge(item.Status)">@item.Status</span>
-                        </td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-outline-secondary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+    <div class="management-layout">
+        <section class="management-panel" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">Directory</span>
+                    <h2>Tourism Locations</h2>
+                </div>
+
+                <div class="management-toolbar">
+                    <label class="management-search">
+                        <i class="bi bi-search"></i>
+                        <input class="form-control" type="search" placeholder="Search locations..." @bind="_searchText" @bind:event="oninput" />
+                    </label>
+
+                    <select class="form-select management-filter" @bind="_selectedCategoryName">
+                        <option value="">All categories</option>
+                        @foreach (var category in _categories)
+                        {
+                            <option value="@category.Name">@category.Name</option>
+                        }
+                    </select>
+
+                    <select class="form-select management-filter" @bind="_selectedStatus">
+                        <option value="">All statuses</option>
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+            </div>
+
+            @if (_isLoading)
+            {
+                <div class="table-responsive">
+                    <div class="poi-skeleton-table">
+                        @for (var i = 0; i < 4; i++)
+                        {
+                            <div class="skeleton-table-row">
+                                <div class="skeleton skeleton--line"></div>
+                                <div class="skeleton skeleton--line"></div>
+                                <div class="skeleton skeleton--line"></div>
+                                <div class="skeleton skeleton--line"></div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(_loadError))
+            {
+                <div class="management-error">
+                    <strong>Unable to load locations.</strong>
+                    <div>@_loadError</div>
+                </div>
+            }
+            else if (!FilteredLocations.Any())
+            {
+                <div class="app-empty-state">
+                    No locations match the current filters.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table management-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Address</th>
+                                <th>Coordinates</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var location in FilteredLocations)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="poi-name">@location.Name</div>
+                                        <small class="management-muted">@(string.IsNullOrWhiteSpace(location.OwnerName) ? "No owner assigned" : location.OwnerName)</small>
+                                    </td>
+                                    <td>@location.Category</td>
+                                    <td>@(string.IsNullOrWhiteSpace(location.Address) ? "No address" : location.Address)</td>
+                                    <td>@($"{location.Latitude:F4}, {location.Longitude:F4}")</td>
+                                    <td>
+                                        <span class="@GetStatusClass(location.Status)">@GetStatusLabel(location.Status)</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="management-inline-actions">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(location)">Edit</button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteLocationAsync(location)">Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        <section class="management-panel poi-editor" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">Editor</span>
+                    <h2>@(_editingId is null ? "Create Location" : "Edit Location")</h2>
+                </div>
+            </div>
+
+            <EditForm Model="_formModel" OnValidSubmit="SaveLocationAsync" class="management-form">
+                <DataAnnotationsValidator />
+
+                <div class="management-form__grid">
+                    <div class="management-field">
+                        <label for="location-name">Name</label>
+                        <InputText id="location-name" class="form-control" @bind-Value="_formModel.Name" />
+                        <ValidationMessage For="() => _formModel.Name" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-category">Category</label>
+                        <InputSelect id="location-category" class="form-select" @bind-Value="_formModel.CategoryId">
+                            <option value="0">Choose category</option>
+                            @foreach (var category in _categories)
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => _formModel.CategoryId" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <label for="location-address">Address</label>
+                        <InputText id="location-address" class="form-control" @bind-Value="_formModel.Address" />
+                        <ValidationMessage For="() => _formModel.Address" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <label for="location-description">Description</label>
+                        <InputTextArea id="location-description" class="form-control" rows="4" @bind-Value="_formModel.Description" />
+                        <ValidationMessage For="() => _formModel.Description" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-year">Established Year</label>
+                        <InputNumber id="location-year" class="form-control" @bind-Value="_formModel.EstablishedYear" />
+                        <ValidationMessage For="() => _formModel.EstablishedYear" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-owner">Owner Name</label>
+                        <InputText id="location-owner" class="form-control" @bind-Value="_formModel.OwnerName" />
+                        <ValidationMessage For="() => _formModel.OwnerName" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-lat">Latitude</label>
+                        <InputNumber id="location-lat" class="form-control" @bind-Value="_formModel.Latitude" />
+                        <ValidationMessage For="() => _formModel.Latitude" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-lng">Longitude</label>
+                        <InputNumber id="location-lng" class="form-control" @bind-Value="_formModel.Longitude" />
+                        <ValidationMessage For="() => _formModel.Longitude" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-web">Website</label>
+                        <InputText id="location-web" class="form-control" @bind-Value="_formModel.WebURL" />
+                        <ValidationMessage For="() => _formModel.WebURL" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-phone">Phone</label>
+                        <InputText id="location-phone" class="form-control" @bind-Value="_formModel.Phone" />
+                        <ValidationMessage For="() => _formModel.Phone" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <label for="location-email">Email</label>
+                        <InputText id="location-email" class="form-control" @bind-Value="_formModel.Email" />
+                        <ValidationMessage For="() => _formModel.Email" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <span class="management-field__label">Status</span>
+                        <div class="management-chip-group">
+                            <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
+                            <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="management-actions">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _categories.Count == 0)">
+                        @(_isSaving ? "Saving..." : _editingId is null ? "Create Location" : "Save Changes")
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
+                </div>
+            </EditForm>
+        </section>
     </div>
 </div>
 
 @code {
-    private string searchText = "";
+    private readonly LocationFormModel _formModel = new();
+    private readonly List<LocationDto> _locations = new();
+    private readonly List<CategoryDto> _categories = new();
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private int? _editingId;
+    private string _searchText = "";
+    private string _selectedCategoryName = "";
+    private string _selectedStatus = "";
+    private string? _loadError;
 
-    private List<POIItem> AllPOIs = new()
+    private IEnumerable<LocationDto> FilteredLocations =>
+        _locations.Where(location =>
+                string.IsNullOrWhiteSpace(_searchText)
+                || location.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+                || (location.Address?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+                || location.Category.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+            .Where(location =>
+                string.IsNullOrWhiteSpace(_selectedCategoryName)
+                || string.Equals(location.Category, _selectedCategoryName, StringComparison.OrdinalIgnoreCase))
+            .Where(location =>
+                string.IsNullOrWhiteSpace(_selectedStatus)
+                || location.Status.ToString() == _selectedStatus);
+
+    protected override async Task OnInitializedAsync()
     {
-        new POIItem { Id = "P001", Name = "Hanoi Opera House", Lat = 21.0254, Lng = 105.8576, Radius = 50, Language = "VN/EN", Status = "Active" },
-        new POIItem { Id = "P002", Name = "Hoan Kiem Lake", Lat = 21.0285, Lng = 105.8522, Radius = 100, Language = "VN/EN", Status = "Active" },
-        new POIItem { Id = "P003", Name = "Tran Quoc Pagoda", Lat = 21.0487, Lng = 105.8365, Radius = 60, Language = "VN", Status = "Pending" },
-        new POIItem { Id = "P004", Name = "Temple of Literature", Lat = 21.0293, Lng = 105.8360, Radius = 80, Language = "EN", Status = "Inactive" },
-        new POIItem { Id = "P005", Name = "St. Joseph's Cathedral", Lat = 21.0287, Lng = 105.8490, Radius = 40, Language = "VN/EN", Status = "Active" },
-    };
-
-    private IEnumerable<POIItem> FilteredPOIs => 
-        string.IsNullOrWhiteSpace(searchText) 
-        ? AllPOIs 
-        : AllPOIs.Where(p => p.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase));
-
-    private string GetStatusBadge(string status) => status switch
-    {
-        "Active" => "bg-success",
-        "Pending" => "bg-warning text-dark",
-        "Inactive" => "bg-secondary",
-        _ => "bg-light text-dark"
-    };
-
-    public class POIItem
-    {
-        public string Id { get; set; } = "";
-        public string Name { get; set; } = "";
-        public double Lat { get; set; }
-        public double Lng { get; set; }
-        public int Radius { get; set; }
-        public string Language { get; set; } = "";
-        public string Status { get; set; } = "";
-        public string FormattedCoordinates => $"{Lat:F4}, {Lng:F4}";
+        await LoadDataAsync();
     }
+
+    private async Task RefreshAsync() => await LoadDataAsync();
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            var categoriesTask = ApiClient.GetCategoriesAsync();
+            var locationsTask = ApiClient.GetLocationsAsync();
+
+            await Task.WhenAll(categoriesTask, locationsTask);
+
+            _categories.Clear();
+            _categories.AddRange((await categoriesTask).OrderBy(item => item.Name));
+
+            _locations.Clear();
+            _locations.AddRange((await locationsTask).OrderBy(item => item.Name));
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Location load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void StartCreate()
+    {
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void StartEdit(LocationDto location)
+    {
+        _editingId = location.Id;
+        var snapshot = LocationFormModel.FromDto(location, _categories);
+        ApplyForm(snapshot);
+    }
+
+    private async Task SaveLocationAsync()
+    {
+        _isSaving = true;
+
+        try
+        {
+            if (_editingId is null)
+            {
+                await ApiClient.CreateLocationAsync(_formModel);
+                Notifications.Success("Location created successfully.", "Location saved");
+            }
+            else
+            {
+                await ApiClient.UpdateLocationAsync(_editingId.Value, _formModel);
+                Notifications.Success("Location updated successfully.", "Location saved");
+            }
+
+            await LoadDataAsync();
+            StartCreate();
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Location save failed");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteLocationAsync(LocationDto location)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete location '{location.Name}'?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            await ApiClient.DeleteLocationAsync(location.Id);
+            Notifications.Info($"Deleted '{location.Name}'.", "Location removed");
+            await LoadDataAsync();
+
+            if (_editingId == location.Id)
+            {
+                StartCreate();
+            }
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Delete failed");
+        }
+    }
+
+    private void ResetForm()
+    {
+        ApplyForm(new LocationFormModel
+        {
+            EstablishedYear = DateTime.UtcNow.Year,
+            Status = 1
+        });
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void ApplyForm(LocationFormModel model)
+    {
+        _formModel.Name = model.Name;
+        _formModel.Address = model.Address;
+        _formModel.CategoryId = model.CategoryId;
+        _formModel.EstablishedYear = model.EstablishedYear;
+        _formModel.Description = model.Description;
+        _formModel.Latitude = model.Latitude;
+        _formModel.Longitude = model.Longitude;
+        _formModel.OwnerName = model.OwnerName;
+        _formModel.WebURL = model.WebURL;
+        _formModel.Phone = model.Phone;
+        _formModel.Email = model.Email;
+        _formModel.Status = model.Status;
+    }
+
+    private void SetStatus(int status) => _formModel.Status = status;
+
+    private static string GetStatusClass(int status) => status == 1
+        ? "management-status management-status--active"
+        : "management-status management-status--inactive";
+
+    private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
+
+    private static string GetChipClass(int status, int currentStatus) => status == currentStatus
+        ? "management-chip management-chip--selected"
+        : "management-chip";
 }

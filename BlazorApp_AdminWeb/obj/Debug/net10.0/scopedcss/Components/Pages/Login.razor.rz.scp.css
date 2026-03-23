@@ -277,6 +277,34 @@
     text-align: center;
 }
 
+.login-credentials[b-y3sf0aposz] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding: 0.9rem 1rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(241, 245, 249, 0.88);
+}
+
+.login-credentials span[b-y3sf0aposz] {
+    font-family: "JetBrains Mono", "Cascadia Code", monospace;
+}
+
+.login-validation[b-y3sf0aposz] {
+    color: #fecaca;
+    font-size: 0.84rem;
+}
+
+.login-error[b-y3sf0aposz] {
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(248, 113, 113, 0.24);
+    border-radius: 16px;
+    background: rgba(127, 29, 29, 0.28);
+    color: #fee2e2;
+}
+
 .login-footer[b-y3sf0aposz] {
     margin-top: 1.5rem;
     text-align: center;

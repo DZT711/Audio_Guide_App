@@ -1,3 +1,53 @@
+.admin-shell[b-gpilu7luv2] {
+    display: flex;
+    min-height: 100vh;
+}
+
+.admin-shell__sidebar[b-gpilu7luv2] {
+    width: 300px;
+    min-width: 300px;
+    border-right: 1px solid rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(16px);
+}
+
+.admin-shell__main[b-gpilu7luv2] {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.admin-shell__content[b-gpilu7luv2] {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 1.5rem;
+}
+
+.admin-shell__drawer[b-gpilu7luv2] {
+    width: min(320px, 88vw);
+}
+
+.admin-shell__drawer-header[b-gpilu7luv2] {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.layout-gate[b-gpilu7luv2] {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    padding: 1.5rem;
+}
+
+.layout-gate__card[b-gpilu7luv2] {
+    width: min(420px, 100%);
+    padding: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: var(--app-shadow);
+}
+
 #blazor-error-ui[b-gpilu7luv2] {
     color-scheme: light only;
     background: lightyellow;
@@ -12,9 +62,15 @@
     z-index: 1000;
 }
 
-    #blazor-error-ui .dismiss[b-gpilu7luv2] {
-        cursor: pointer;
-        position: absolute;
-        right: 0.75rem;
-        top: 0.5rem;
+#blazor-error-ui .dismiss[b-gpilu7luv2] {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
+
+@media (max-width: 575.98px) {
+    .admin-shell__content[b-gpilu7luv2] {
+        padding: 1rem;
     }
+}

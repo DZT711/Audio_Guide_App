@@ -155,6 +155,10 @@ public class CategoryController : ControllerBase
             if (category == null)
                 return NotFound(new { message = "Category not found" });
 
+            var isInUse = await _context.Locations.AnyAsync(location => location.CategoryId == id);
+            if (isInUse)
+                return BadRequest(new { message = "Category is linked to existing locations and cannot be deleted yet." });
+
             _context.Categories.Remove(category);
             await _context.SaveChangesAsync();
 

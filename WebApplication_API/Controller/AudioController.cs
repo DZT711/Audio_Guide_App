@@ -188,7 +188,7 @@ public class AudioController : ControllerBase
     /// Update existing audio content
     /// </summary>
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateAudio(int id, [FromBody] CreateAudioDTO updateAudioDTO)
+    public async Task<IActionResult> UpdateAudio(int id, [FromBody] UpdateAudioDTO updateAudioDTO)
     {
         try
         {
@@ -212,7 +212,9 @@ public class AudioController : ControllerBase
             audio.Duration = updateAudioDTO.Duration;
             audio.Description = updateAudioDTO.Description;
             audio.VoiceGender = updateAudioDTO.VoiceGender;
+            audio.Script = updateAudioDTO.Script;
             audio.Status = updateAudioDTO.Status;
+            audio.LocationId = location.Id;
 
             _context.AudioContents.Update(audio);
             await _context.SaveChangesAsync();

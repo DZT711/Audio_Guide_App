@@ -1,0 +1,23 @@
+.poi-page .management-layout {
+    align-items: start;
+}
+
+.poi-name {
+    font-weight: 800;
+}
+
+.poi-editor {
+    position: sticky;
+    top: 1.5rem;
+}
+
+.poi-skeleton-table {
+    display: grid;
+    gap: 0.25rem;
+}
+
+@media (max-width: 1199.98px) {
+    .poi-editor {
+        position: static;
+    }
+}

@@ -1,0 +1,23 @@
+.poi-page .management-layout[b-y4i1tuirqj] {
+    align-items: start;
+}
+
+.poi-name[b-y4i1tuirqj] {
+    font-weight: 800;
+}
+
+.poi-editor[b-y4i1tuirqj] {
+    position: sticky;
+    top: 1.5rem;
+}
+
+.poi-skeleton-table[b-y4i1tuirqj] {
+    display: grid;
+    gap: 0.25rem;
+}
+
+@media (max-width: 1199.98px) {
+    .poi-editor[b-y4i1tuirqj] {
+        position: static;
+    }
+}

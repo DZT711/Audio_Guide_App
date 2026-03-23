@@ -10,8 +10,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Project_SharedClassLibrary"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebApplication_API", "WebApplication_API\WebApplication_API.csproj", "{2F36F070-E36D-C578-074C-BFA7FF28AE0E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared_ClassLibrary", "Project_SharedClassLibrary\Shared_ClassLibrary.csproj", "{90FE2ACB-D906-C03D-30B7-D1A1D247E53C}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

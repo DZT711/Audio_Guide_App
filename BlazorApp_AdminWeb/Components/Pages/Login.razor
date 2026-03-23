@@ -1,6 +1,8 @@
 @page "/"
-@using BlazorApp_AdminWeb.Components.Layout
 @layout LoginLayout
+@inject AdminAuthService AuthService
+@inject NotificationService Notifications
+@inject NavigationManager Navigation
 
 <PageTitle>Login</PageTitle>
 
@@ -11,34 +13,34 @@
     <div class="container login-shell">
         <section class="login-copy" data-reveal>
             <span class="login-copy__eyebrow">Smart Tourism Admin</span>
-            <h1>One place to manage tours, audio guides, and moderation.</h1>
+            <h1>Manage locations, categories, and voice content from one dashboard.</h1>
             <p>
-                This mock login view now uses a direct link to the dashboard and adds cleaner spacing,
-                animation, and focus states across the page.
+                The admin portal now connects directly to the API for live management screens,
+                loading states, and notifications across the workflow.
             </p>
 
             <div class="login-copy__highlights" data-stagger data-stagger-step="110">
                 <article class="login-highlight" data-reveal>
-                    <i class="bi bi-compass"></i>
+                    <i class="bi bi-geo-alt"></i>
                     <div>
-                        <h2>Content Control</h2>
-                        <p>Review POIs, update routes, and keep destination pages consistent.</p>
+                        <h2>Live Location Control</h2>
+                        <p>Create and update destination content directly from the web admin.</p>
                     </div>
                 </article>
 
                 <article class="login-highlight" data-reveal>
-                    <i class="bi bi-headphones"></i>
+                    <i class="bi bi-diagram-3"></i>
                     <div>
-                        <h2>Audio Pipeline</h2>
-                        <p>Track uploads, approvals, and publishing from the same admin surface.</p>
+                        <h2>Category Management</h2>
+                        <p>Keep tourism categories organized and available for the mobile experience.</p>
                     </div>
                 </article>
 
                 <article class="login-highlight" data-reveal>
-                    <i class="bi bi-shield-check"></i>
+                    <i class="bi bi-mic"></i>
                     <div>
-                        <h2>Moderation Flow</h2>
-                        <p>Handle pending items faster with clearer status cues and motion feedback.</p>
+                        <h2>Audio &amp; Voice</h2>
+                        <p>Manage linked audio, scripts, and male or female speech labels in one place.</p>
                     </div>
                 </article>
             </div>
@@ -48,7 +50,7 @@
             <div class="card-body p-4 p-lg-5">
                 <div class="login-brand" data-reveal>
                     <div class="login-brand__icon">
-                        <i class="bi bi-soundwave"></i>
+                        <i class="bi bi-person-lock"></i>
                     </div>
                     <div>
                         <span class="login-brand__tag">Admin Access</span>
@@ -57,21 +59,25 @@
                     </div>
                 </div>
 
-                <div class="login-form" data-stagger data-stagger-step="90">
-                    <label class="login-field" for="email" data-reveal>
-                        <span class="login-field__label">Email Address</span>
+                <EditForm Model="_credentials" OnValidSubmit="HandleLoginAsync" FormName="login-form" class="login-form" data-stagger data-stagger-step="90">
+                    <DataAnnotationsValidator />
+
+                    <label class="login-field" for="username" data-reveal>
+                        <span class="login-field__label">Username</span>
                         <span class="login-field__shell">
-                            <i class="bi bi-envelope"></i>
-                            <input type="email" class="form-control login-field__input" id="email" placeholder="name@example.com" autocomplete="username">
+                            <i class="bi bi-person"></i>
+                            <InputText id="username" class="form-control login-field__input" @bind-Value="_credentials.UserName" autocomplete="username" placeholder="Enter username" />
                         </span>
+                        <ValidationMessage For="() => _credentials.UserName" class="login-validation" />
                     </label>
 
                     <label class="login-field" for="password" data-reveal>
                         <span class="login-field__label">Password</span>
                         <span class="login-field__shell">
                             <i class="bi bi-lock"></i>
-                            <input type="password" class="form-control login-field__input" id="password" placeholder="••••••••" autocomplete="current-password">
+                            <InputText id="password" type="password" class="form-control login-field__input" @bind-Value="_credentials.Password" autocomplete="current-password" placeholder="Enter password" />
                         </span>
+                        <ValidationMessage For="() => _credentials.Password" class="login-validation" />
                     </label>
 
                     <div class="login-options" data-reveal>
@@ -82,20 +88,59 @@
                         <a href="#" class="login-text-link">Forgot password?</a>
                     </div>
 
-                    <a href="/dashboard" class="btn login-submit w-100" data-reveal>
-                        <span>Sign In to Dashboard</span>
-                        <i class="bi bi-arrow-right-short"></i>
-                    </a>
+                    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+                    {
+                        <div class="login-error" data-reveal>@_errorMessage</div>
+                    }
 
-                    <div class="login-demo-note" data-reveal>
-                        Demo mode: the button above uses a simple `href="/dashboard"` navigation.
-                    </div>
-                </div>
+                    <button type="submit" class="btn login-submit w-100" disabled="@_isSubmitting" data-reveal>
+                        <span>@(_isSubmitting ? "Signing In..." : "Sign In")</span>
+                        <i class="bi bi-arrow-right-short"></i>
+                    </button>
+                </EditForm>
 
                 <div class="login-footer" data-reveal>
-                    <small>Need access? <a href="#" class="login-text-link">Contact support</a></small>
+                    <small>Start the API app before logging in.</small>
                 </div>
             </div>
         </section>
     </div>
 </div>
+
+@code {
+    private readonly AdminCredentialsModel _credentials = new();
+    private bool _isSubmitting;
+    private string? _errorMessage;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        if (await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/dashboard");
+        }
+    }
+
+    private async Task HandleLoginAsync()
+    {
+        _isSubmitting = true;
+        _errorMessage = null;
+
+        var isAuthenticated = await AuthService.LoginAsync(_credentials.UserName, _credentials.Password);
+
+        if (!isAuthenticated)
+        {
+            _errorMessage = "Invalid credentials. Use the static admin/admin account.";
+            Notifications.Warning(_errorMessage, "Login failed");
+            _isSubmitting = false;
+            return;
+        }
+
+        Notifications.Success("Welcome back, admin.", "Login successful");
+        Navigation.NavigateTo("/dashboard");
+    }
+}

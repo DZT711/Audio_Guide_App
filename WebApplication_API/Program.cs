@@ -9,16 +9,18 @@ builder.Services.AddValidation();
 builder.Services.AddControllers();
 builder.AddDataToDatabase();
 
-// builder.Services.AddCors(options =>
-// {
-//     options.AddPolicy("AllowBlazor",
-//         policy => policy.WithOrigins("http://localhost:5229") // Đúng Port của FE bạn gửi
-//                         .AllowAnyMethod()
-//                         .AllowAnyHeader());
-// });
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowBlazor",
+        policy => policy.WithOrigins(
+                            "http://localhost:5229",
+                            "https://localhost:7084")
+                        .AllowAnyMethod()
+                        .AllowAnyHeader());
+});
 
 var app = builder.Build();
-// app.UseCors("AllowBlazor");
+app.UseCors("AllowBlazor");
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

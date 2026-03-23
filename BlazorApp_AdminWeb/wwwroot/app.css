@@ -72,6 +72,409 @@ html.js-ready [data-reveal].is-visible {
     transform: translateY(0) scale(1);
 }
 
+.skeleton {
+    position: relative;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.16);
+}
+
+.skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+    animation: skeletonShift 1.25s infinite;
+}
+
+.skeleton--pill {
+    width: 8rem;
+    height: 1rem;
+    margin-bottom: 1rem;
+}
+
+.skeleton--title {
+    width: 70%;
+    height: 2.25rem;
+    margin-bottom: 1rem;
+    border-radius: 18px;
+}
+
+.skeleton--line {
+    width: 100%;
+    height: 0.95rem;
+    margin-bottom: 0.8rem;
+}
+
+.skeleton--line-short {
+    width: 62%;
+}
+
+.skeleton-card {
+    height: 7.5rem;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: var(--app-shadow);
+}
+
+.skeleton-table-row {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 0.9fr 0.7fr;
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+.app-empty-state {
+    padding: 2rem;
+    border: 1px dashed rgba(148, 163, 184, 0.26);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--app-muted);
+    text-align: center;
+}
+
+.management-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-bottom: 1rem;
+}
+
+.management-hero {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 1.8rem 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 28px;
+    background:
+        radial-gradient(circle at top right, rgba(45, 212, 191, 0.16), transparent 26%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.94) 100%);
+    box-shadow: var(--app-shadow);
+}
+
+.management-hero__eyebrow,
+.management-panel__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.1);
+    color: #0f766e;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.management-hero h1 {
+    margin: 0.8rem 0 0.65rem;
+    font-size: clamp(1.9rem, 3vw, 3rem);
+    font-weight: 800;
+    line-height: 1.08;
+}
+
+.management-hero p {
+    max-width: 48rem;
+    margin: 0;
+    color: var(--app-muted);
+    line-height: 1.75;
+}
+
+.management-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+}
+
+.management-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.management-stat {
+    display: flex;
+    gap: 0.95rem;
+    align-items: center;
+    padding: 1.2rem;
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.84);
+    box-shadow: var(--app-shadow);
+}
+
+.management-stat__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 18px;
+    background: rgba(15, 118, 110, 0.1);
+    color: #0f766e;
+    font-size: 1.15rem;
+}
+
+.management-stat__value {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.management-stat__label {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--app-muted);
+}
+
+.management-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+    gap: 1.5rem;
+}
+
+.management-panel {
+    padding: 1.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    border-radius: 26px;
+    background: rgba(255, 255, 255, 0.84);
+    box-shadow: var(--app-shadow);
+    backdrop-filter: blur(18px);
+}
+
+.management-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+}
+
+.management-panel__header h2 {
+    margin: 0.45rem 0 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+
+.management-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.management-search {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0.2rem 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 18px;
+    background: rgba(248, 250, 252, 0.96);
+}
+
+.management-search i {
+    color: #0f766e;
+}
+
+.management-search input {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.management-search input:focus {
+    background: transparent;
+    box-shadow: none;
+}
+
+.management-filter {
+    min-width: 0;
+    border-radius: 14px;
+}
+
+.management-table {
+    --bs-table-bg: transparent;
+}
+
+.management-table thead th {
+    padding: 0.95rem 1rem;
+    border-bottom-width: 1px;
+    color: var(--app-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.management-table tbody td {
+    padding: 1rem;
+    border-color: rgba(148, 163, 184, 0.16);
+    vertical-align: middle;
+}
+
+.management-table tbody tr:hover {
+    background: rgba(248, 250, 252, 0.92);
+}
+
+.management-form {
+    display: grid;
+    gap: 1rem;
+}
+
+.management-form__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.management-field {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.management-field--full {
+    grid-column: 1 / -1;
+}
+
+.management-field label,
+.management-field__label {
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.management-field__hint {
+    color: var(--app-muted);
+    font-size: 0.84rem;
+}
+
+.management-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.management-chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.management-chip {
+    padding: 0.7rem 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--app-muted);
+    font-weight: 600;
+}
+
+.management-chip:hover,
+.management-chip--selected {
+    border-color: rgba(13, 148, 136, 0.3);
+    background: rgba(20, 184, 166, 0.12);
+    color: #0f766e;
+    transform: translateY(-1px);
+}
+
+.management-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.management-status--active {
+    background: rgba(22, 163, 74, 0.14);
+    color: #166534;
+}
+
+.management-status--inactive {
+    background: rgba(148, 163, 184, 0.16);
+    color: #475569;
+}
+
+.management-status--pending {
+    background: rgba(245, 158, 11, 0.18);
+    color: #92400e;
+}
+
+.management-status--info {
+    background: rgba(59, 130, 246, 0.12);
+    color: #1d4ed8;
+}
+
+.management-inline-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.55rem;
+}
+
+.management-error {
+    padding: 1rem;
+    border: 1px solid rgba(239, 68, 68, 0.16);
+    border-radius: 18px;
+    background: rgba(254, 242, 242, 0.95);
+    color: #b91c1c;
+}
+
+.management-muted {
+    color: var(--app-muted);
+}
+
+.validation-message {
+    font-size: 0.84rem;
+}
+
+@media (max-width: 1199.98px) {
+    .management-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .management-hero,
+    .management-panel__header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .management-stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 575.98px) {
+    .management-hero,
+    .management-panel {
+        padding: 1.1rem;
+    }
+
+    .management-stat-grid,
+    .management-form__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .management-inline-actions,
+    .management-actions {
+        width: 100%;
+    }
+}
+
+@keyframes skeletonShift {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
 h1:focus {
     outline: none;
 }

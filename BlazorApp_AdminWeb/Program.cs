@@ -1,10 +1,36 @@
+using Microsoft.AspNetCore.DataProtection;
 using BlazorApp_AdminWeb.Components;
+using BlazorApp_AdminWeb.Options;
+using BlazorApp_AdminWeb.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+var dataProtectionKeyPath = Path.Combine(
+    Path.GetTempPath(),
+    "SmartTourismAdminWeb",
+    "DataProtection-Keys");
+
+builder.Services.AddDataProtection()
+    .SetApplicationName("SmartTourismAdminWeb")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyPath));
+
+builder.Services.Configure<AdminApiOptions>(builder.Configuration.GetSection(AdminApiOptions.SectionName));
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<AdminSessionState>();
+builder.Services.AddScoped<AdminAuthService>();
+builder.Services.AddHttpClient<AdminApiClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider
+        .GetRequiredService<Microsoft.Extensions.Options.IOptions<AdminApiOptions>>()
+        .Value;
+
+    client.BaseAddress = new Uri(options.BaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 var app = builder.Build();
 
@@ -16,7 +42,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 app.UseAntiforgery();
 

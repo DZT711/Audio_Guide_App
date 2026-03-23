@@ -1,0 +1,306 @@
+@page "/categories"
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject IJSRuntime JS
+
+<PageTitle>Category Management</PageTitle>
+
+<div class="management-page category-page">
+    <section class="management-hero" data-reveal>
+        <div>
+            <span class="management-hero__eyebrow">Taxonomy</span>
+            <h1>Category Management</h1>
+            <p>
+                Organize tourism content with live API-backed category management, quick editing,
+                and lightweight loading feedback while SQLite-backed data is loading.
+            </p>
+        </div>
+
+        <div class="management-hero__actions">
+            <button type="button" class="btn btn-primary btn-lg" @onclick="StartCreate">
+                <i class="bi bi-plus-circle me-2"></i>
+                New Category
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
+                <i class="bi bi-arrow-clockwise me-2"></i>
+                Refresh
+            </button>
+        </div>
+    </section>
+
+    <div class="management-stat-grid" data-stagger data-stagger-step="80">
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-diagram-3"></i></span>
+            <div>
+                <strong class="management-stat__value">@_categories.Count</strong>
+                <span class="management-stat__label">Total Categories</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
+            <div>
+                <strong class="management-stat__value">@_categories.Count(item => item.Status == 1)</strong>
+                <span class="management-stat__label">Active</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-pause-circle"></i></span>
+            <div>
+                <strong class="management-stat__value">@_categories.Count(item => item.Status == 0)</strong>
+                <span class="management-stat__label">Inactive</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-search"></i></span>
+            <div>
+                <strong class="management-stat__value">@FilteredCategories.Count()</strong>
+                <span class="management-stat__label">Matching Search</span>
+            </div>
+        </article>
+    </div>
+
+    <div class="management-layout">
+        <section class="management-panel" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">Directory</span>
+                    <h2>Available Categories</h2>
+                </div>
+
+                <label class="management-search">
+                    <i class="bi bi-search"></i>
+                    <input class="form-control" type="search" placeholder="Search categories..." @bind="_searchText" @bind:event="oninput" />
+                </label>
+            </div>
+
+            @if (_isLoading)
+            {
+                <div class="category-skeleton-list">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <div class="category-skeleton-card">
+                            <div class="skeleton skeleton--title"></div>
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--line skeleton--line-short"></div>
+                        </div>
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(_loadError))
+            {
+                <div class="management-error">
+                    <strong>Unable to load categories.</strong>
+                    <div>@_loadError</div>
+                </div>
+            }
+            else if (!FilteredCategories.Any())
+            {
+                <div class="app-empty-state">
+                    No categories match the current search.
+                </div>
+            }
+            else
+            {
+                <div class="category-list">
+                    @foreach (var category in FilteredCategories)
+                    {
+                        <article class="category-card">
+                            <div class="category-card__copy">
+                                <div class="category-card__top">
+                                    <h3>@category.Name</h3>
+                                    <span class="@GetStatusClass(category.Status)">@GetStatusLabel(category.Status)</span>
+                                </div>
+                                <p>@(string.IsNullOrWhiteSpace(category.Description) ? "No description provided yet." : category.Description)</p>
+                            </div>
+
+                            <div class="management-inline-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">Edit</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategoryAsync(category)">Delete</button>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="management-panel category-editor" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">Editor</span>
+                    <h2>@(_editingId is null ? "Create Category" : "Edit Category")</h2>
+                </div>
+            </div>
+
+            <EditForm Model="_formModel" OnValidSubmit="SaveCategoryAsync" class="management-form">
+                <DataAnnotationsValidator />
+
+                <div class="management-field management-field--full">
+                    <label for="category-name">Name</label>
+                    <InputText id="category-name" class="form-control" @bind-Value="_formModel.Name" />
+                    <ValidationMessage For="() => _formModel.Name" />
+                </div>
+
+                <div class="management-field management-field--full">
+                    <label for="category-description">Description</label>
+                    <InputTextArea id="category-description" class="form-control" rows="4" @bind-Value="_formModel.Description" />
+                    <ValidationMessage For="() => _formModel.Description" />
+                </div>
+
+                <div class="management-field management-field--full">
+                    <span class="management-field__label">Status</span>
+                    <div class="management-chip-group">
+                        <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
+                        <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                    </div>
+                </div>
+
+                <div class="management-actions">
+                    <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                        @(_isSaving ? "Saving..." : _editingId is null ? "Create Category" : "Save Changes")
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
+                </div>
+            </EditForm>
+        </section>
+    </div>
+</div>
+
+@code {
+    private readonly CategoryFormModel _formModel = new();
+    private readonly List<CategoryDto> _categories = new();
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private int? _editingId;
+    private string _searchText = "";
+    private string? _loadError;
+
+    private IEnumerable<CategoryDto> FilteredCategories =>
+        _categories.Where(category =>
+            string.IsNullOrWhiteSpace(_searchText)
+            || category.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+            || (category.Description?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategoriesAsync();
+    }
+
+    private async Task RefreshAsync() => await LoadCategoriesAsync();
+
+    private async Task LoadCategoriesAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            var categories = await ApiClient.GetCategoriesAsync();
+            _categories.Clear();
+            _categories.AddRange(categories.OrderBy(item => item.Name));
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Category load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void StartCreate()
+    {
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void StartEdit(CategoryDto category)
+    {
+        _editingId = category.Id;
+        var snapshot = CategoryFormModel.FromDto(category);
+        _formModel.Name = snapshot.Name;
+        _formModel.Description = snapshot.Description;
+        _formModel.Status = snapshot.Status;
+    }
+
+    private async Task SaveCategoryAsync()
+    {
+        _isSaving = true;
+
+        try
+        {
+            if (_editingId is null)
+            {
+                await ApiClient.CreateCategoryAsync(_formModel);
+                Notifications.Success("Category created successfully.", "Category saved");
+            }
+            else
+            {
+                await ApiClient.UpdateCategoryAsync(_editingId.Value, _formModel);
+                Notifications.Success("Category updated successfully.", "Category saved");
+            }
+
+            await LoadCategoriesAsync();
+            StartCreate();
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Category save failed");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteCategoryAsync(CategoryDto category)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete category '{category.Name}'?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            await ApiClient.DeleteCategoryAsync(category.Id);
+            Notifications.Info($"Deleted '{category.Name}'.", "Category removed");
+            await LoadCategoriesAsync();
+
+            if (_editingId == category.Id)
+            {
+                StartCreate();
+            }
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Delete failed");
+        }
+    }
+
+    private void ResetForm()
+    {
+        _formModel.Name = "";
+        _formModel.Description = "";
+        _formModel.Status = 1;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void SetStatus(int status) => _formModel.Status = status;
+
+    private static string GetStatusClass(int status) => status == 1
+        ? "management-status management-status--active"
+        : "management-status management-status--inactive";
+
+    private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
+
+    private static string GetChipClass(int status, int currentStatus) => status == currentStatus
+        ? "management-chip management-chip--selected"
+        : "management-chip";
+}

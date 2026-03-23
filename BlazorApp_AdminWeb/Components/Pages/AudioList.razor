@@ -1,88 +1,431 @@
 @page "/audio"
-@using BlazorApp_AdminWeb.Components.Layout
-@rendermode InteractiveServer
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject IJSRuntime JS
 
-<PageTitle>Audio & TTS</PageTitle>
+<PageTitle>Audio & Voice Management</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3>Audio & TTS Management</h3>
-    <button class="btn btn-primary"><i class="bi bi-mic me-2"></i>Add Audio</button>
-</div>
+<div class="management-page audio-page">
+    <section class="management-hero" data-reveal>
+        <div>
+            <span class="management-hero__eyebrow">Audio &amp; Voice</span>
+            <h1>Audio and Voice Management</h1>
+            <p>
+                Link audio to locations, manage scripts, and label each item for male or female
+                speech profiles in the live admin workflow.
+            </p>
+        </div>
 
-<div class="card border-0 shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>File Name</th>
-                    <th>Linked POI</th>
-                    <th>Language</th>
-                    <th>Type</th>
-                    <th>Size/Duration</th>
-                    <th>Status</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var audio in AudioFiles)
-                {
-                    <tr>
-                        <td>
-                            <i class="bi bi-file-earmark-music me-2 text-secondary"></i>
-                            @audio.FileName
-                        </td>
-                        <td>@audio.POIName</td>
-                        <td>@audio.Language</td>
-                        <td>
-                            @if (audio.Type == "TTS")
+        <div class="management-hero__actions">
+            <button type="button" class="btn btn-primary btn-lg" @onclick="StartCreate">
+                <i class="bi bi-plus-circle me-2"></i>
+                New Audio
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
+                <i class="bi bi-arrow-clockwise me-2"></i>
+                Refresh
+            </button>
+        </div>
+    </section>
+
+    <div class="management-stat-grid" data-stagger data-stagger-step="80">
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-mic"></i></span>
+            <div>
+                <strong class="management-stat__value">@_audioItems.Count</strong>
+                <span class="management-stat__label">Total Audio Items</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-gender-male"></i></span>
+            <div>
+                <strong class="management-stat__value">@_audioItems.Count(item => IsVoice(item, "Male"))</strong>
+                <span class="management-stat__label">Male Voice Labels</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-gender-female"></i></span>
+            <div>
+                <strong class="management-stat__value">@_audioItems.Count(item => IsVoice(item, "Female"))</strong>
+                <span class="management-stat__label">Female Voice Labels</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-file-text"></i></span>
+            <div>
+                <strong class="management-stat__value">@_audioItems.Count(item => !string.IsNullOrWhiteSpace(item.Script))</strong>
+                <span class="management-stat__label">Script-backed TTS Items</span>
+            </div>
+        </article>
+    </div>
+
+    <div class="management-layout">
+        <section class="management-panel" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">Library</span>
+                    <h2>Audio Catalog</h2>
+                </div>
+
+                <div class="management-toolbar">
+                    <label class="management-search">
+                        <i class="bi bi-search"></i>
+                        <input class="form-control" type="search" placeholder="Search audio..." @bind="_searchText" @bind:event="oninput" />
+                    </label>
+
+                    <select class="form-select management-filter" @bind="_voiceFilter">
+                        <option value="">All voices</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+
+                    <select class="form-select management-filter" @bind="_statusFilter">
+                        <option value="">All statuses</option>
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+            </div>
+
+            @if (_isLoading)
+            {
+                <div class="audio-skeleton-list">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <article class="audio-skeleton-card">
+                            <div class="skeleton skeleton--title"></div>
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--line skeleton--line-short"></div>
+                        </article>
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(_loadError))
+            {
+                <div class="management-error">
+                    <strong>Unable to load audio items.</strong>
+                    <div>@_loadError</div>
+                </div>
+            }
+            else if (!FilteredAudio.Any())
+            {
+                <div class="app-empty-state">
+                    No audio items match the current filters.
+                </div>
+            }
+            else
+            {
+                <div class="audio-list">
+                    @foreach (var audio in FilteredAudio)
+                    {
+                        <article class="audio-card">
+                            <div class="audio-card__header">
+                                <div>
+                                    <h3>@audio.Title</h3>
+                                    <p>@audio.LocationName</p>
+                                </div>
+
+                                <span class="@GetStatusClass(audio.Status)">@GetStatusLabel(audio.Status)</span>
+                            </div>
+
+                            <div class="audio-card__meta">
+                                <span class="audio-card__tag">@GetAudioKind(audio)</span>
+                                <span class="audio-card__tag">@($"{audio.Language} / {GetVoiceLabel(audio.VoiceGender)}")</span>
+                                <span class="audio-card__tag">@($"{audio.Duration} sec")</span>
+                            </div>
+
+                            <p class="audio-card__description">@(string.IsNullOrWhiteSpace(audio.Description) ? "No description provided yet." : audio.Description)</p>
+
+                            <div class="audio-card__footer">
+                                <small class="management-muted">@audio.AudioURL</small>
+                                <div class="management-inline-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(audio)">Edit</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAudioAsync(audio)">Delete</button>
+                                </div>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="management-panel audio-editor" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">Editor</span>
+                    <h2>@(_editingId is null ? "Create Audio" : "Edit Audio")</h2>
+                </div>
+            </div>
+
+            <EditForm Model="_formModel" OnValidSubmit="SaveAudioAsync" class="management-form">
+                <DataAnnotationsValidator />
+
+                <div class="management-form__grid">
+                    <div class="management-field">
+                        <label for="audio-title">Title</label>
+                        <InputText id="audio-title" class="form-control" @bind-Value="_formModel.Title" />
+                        <ValidationMessage For="() => _formModel.Title" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="audio-location">Location</label>
+                        <InputSelect id="audio-location" class="form-select" @bind-Value="_formModel.LocationName">
+                            <option value="">Choose location</option>
+                            @foreach (var location in _locations)
                             {
-                                <span class="badge bg-primary-subtle text-primary">TTS</span>
+                                <option value="@location.Name">@location.Name</option>
                             }
-                            else
-                            {
-                                <span class="badge bg-success-subtle text-success">Upload</span>
-                            }
-                        </td>
-                        <td>@audio.Size</td>
-                        <td>
-                            <span class="badge @GetStatusBadge(audio.Status)">@audio.Status</span>
-                        </td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1" title="Play"><i class="bi bi-play-fill"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+                        </InputSelect>
+                        <ValidationMessage For="() => _formModel.LocationName" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <label for="audio-url">Audio URL / File Path</label>
+                        <InputText id="audio-url" class="form-control" @bind-Value="_formModel.AudioURL" />
+                        <ValidationMessage For="() => _formModel.AudioURL" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="audio-language">Language</label>
+                        <InputText id="audio-language" class="form-control" @bind-Value="_formModel.Language" />
+                        <ValidationMessage For="() => _formModel.Language" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="audio-duration">Duration (sec)</label>
+                        <InputNumber id="audio-duration" class="form-control" @bind-Value="_formModel.Duration" />
+                        <ValidationMessage For="() => _formModel.Duration" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <span class="management-field__label">Speech Profile</span>
+                        <div class="management-chip-group">
+                            <button type="button" class="@GetVoiceChipClass(MaleVoice)" @onclick="SelectMaleVoice">Male Voice</button>
+                            <button type="button" class="@GetVoiceChipClass(FemaleVoice)" @onclick="SelectFemaleVoice">Female Voice</button>
+                        </div>
+                        <span class="management-field__hint">Use these labels when preparing TTS or voice-targeted audio variants.</span>
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <label for="audio-description">Description</label>
+                        <InputTextArea id="audio-description" class="form-control" rows="3" @bind-Value="_formModel.Description" />
+                        <ValidationMessage For="() => _formModel.Description" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <label for="audio-script">Script / TTS Source Text</label>
+                        <InputTextArea id="audio-script" class="form-control" rows="4" @bind-Value="_formModel.Script" />
+                        <ValidationMessage For="() => _formModel.Script" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <span class="management-field__label">Status</span>
+                        <div class="management-chip-group">
+                            <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
+                            <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="management-actions">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _locations.Count == 0)">
+                        @(_isSaving ? "Saving..." : _editingId is null ? "Create Audio" : "Save Changes")
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
+                </div>
+            </EditForm>
+        </section>
     </div>
 </div>
 
 @code {
-    private List<AudioItem> AudioFiles = new()
-    {
-        new AudioItem { FileName = "intro_hanoi.mp3", POIName = "General Intro", Language = "EN", Type = "Upload", Size = "3.2 MB", Status = "Active" },
-        new AudioItem { FileName = "hoan_kiem_legend.mp3", POIName = "Hoan Kiem Lake", Language = "VN", Type = "Upload", Size = "5.1 MB", Status = "Active" },
-        new AudioItem { FileName = "opera_house_history.wav", POIName = "Opera House", Language = "EN", Type = "TTS", Size = "1.2 MB", Status = "Processing" },
-        new AudioItem { FileName = "street_food_guide.mp3", POIName = "Old Quarter", Language = "VN", Type = "Upload", Size = "8.5 MB", Status = "Active" },
-        new AudioItem { FileName = "temple_detail.wav", POIName = "Tran Quoc Pagoda", Language = "EN", Type = "TTS", Size = "0.9 MB", Status = "Failed" },
-    };
+    private const string MaleVoice = "Male";
+    private const string FemaleVoice = "Female";
+    private readonly AudioFormModel _formModel = new();
+    private readonly List<AudioDto> _audioItems = new();
+    private readonly List<LocationDto> _locations = new();
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private int? _editingId;
+    private string _searchText = "";
+    private string _voiceFilter = "";
+    private string _statusFilter = "";
+    private string? _loadError;
 
-    private string GetStatusBadge(string status) => status switch
-    {
-        "Active" => "bg-success",
-        "Processing" => "bg-warning text-dark",
-        "Failed" => "bg-danger",
-        _ => "bg-secondary"
-    };
+    private IEnumerable<AudioDto> FilteredAudio =>
+        _audioItems.Where(audio =>
+                string.IsNullOrWhiteSpace(_searchText)
+                || audio.Title.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+                || audio.LocationName.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+                || audio.Language.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+            .Where(audio =>
+                string.IsNullOrWhiteSpace(_voiceFilter)
+                || IsVoice(audio, _voiceFilter))
+            .Where(audio =>
+                string.IsNullOrWhiteSpace(_statusFilter)
+                || audio.Status.ToString() == _statusFilter);
 
-    public class AudioItem
+    protected override async Task OnInitializedAsync()
     {
-        public string FileName { get; set; } = "";
-        public string POIName { get; set; } = "";
-        public string Language { get; set; } = "";
-        public string Type { get; set; } = ""; // TTS or Upload
-        public string Size { get; set; } = "";
-        public string Status { get; set; } = "";
+        await LoadDataAsync();
     }
+
+    private async Task RefreshAsync() => await LoadDataAsync();
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            var audioTask = ApiClient.GetAudioAsync();
+            var locationsTask = ApiClient.GetLocationsAsync();
+
+            await Task.WhenAll(audioTask, locationsTask);
+
+            _audioItems.Clear();
+            _audioItems.AddRange((await audioTask).OrderBy(item => item.Title));
+
+            _locations.Clear();
+            _locations.AddRange((await locationsTask).OrderBy(item => item.Name));
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Audio load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void StartCreate()
+    {
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void StartEdit(AudioDto audio)
+    {
+        _editingId = audio.Id;
+        var snapshot = AudioFormModel.FromDto(audio);
+        ApplyForm(snapshot);
+    }
+
+    private async Task SaveAudioAsync()
+    {
+        _isSaving = true;
+
+        try
+        {
+            if (_editingId is null)
+            {
+                await ApiClient.CreateAudioAsync(_formModel);
+                Notifications.Success("Audio created successfully.", "Audio saved");
+            }
+            else
+            {
+                await ApiClient.UpdateAudioAsync(_editingId.Value, _formModel);
+                Notifications.Success("Audio updated successfully.", "Audio saved");
+            }
+
+            await LoadDataAsync();
+            StartCreate();
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Audio save failed");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteAudioAsync(AudioDto audio)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete audio '{audio.Title}'?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            await ApiClient.DeleteAudioAsync(audio.Id);
+            Notifications.Info($"Deleted '{audio.Title}'.", "Audio removed");
+            await LoadDataAsync();
+
+            if (_editingId == audio.Id)
+            {
+                StartCreate();
+            }
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Delete failed");
+        }
+    }
+
+    private void ResetForm()
+    {
+        ApplyForm(new AudioFormModel
+        {
+            VoiceGender = "Female",
+            Language = "vi-VN",
+            Status = 1
+        });
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void ApplyForm(AudioFormModel model)
+    {
+        _formModel.Title = model.Title;
+        _formModel.LocationName = model.LocationName;
+        _formModel.Description = model.Description;
+        _formModel.AudioURL = model.AudioURL;
+        _formModel.Language = model.Language;
+        _formModel.VoiceGender = model.VoiceGender;
+        _formModel.Script = model.Script;
+        _formModel.Duration = model.Duration;
+        _formModel.Status = model.Status;
+    }
+
+    private void SetVoiceGender(string voiceGender) => _formModel.VoiceGender = voiceGender;
+
+    private void SelectMaleVoice() => SetVoiceGender(MaleVoice);
+
+    private void SelectFemaleVoice() => SetVoiceGender(FemaleVoice);
+
+    private void SetStatus(int status) => _formModel.Status = status;
+
+    private string GetVoiceChipClass(string voiceGender) => string.Equals(_formModel.VoiceGender, voiceGender, StringComparison.OrdinalIgnoreCase)
+        ? "management-chip management-chip--selected"
+        : "management-chip";
+
+    private static bool IsVoice(AudioDto audio, string voiceGender) =>
+        string.Equals(audio.VoiceGender, voiceGender, StringComparison.OrdinalIgnoreCase);
+
+    private static string GetVoiceLabel(string? voiceGender) =>
+        string.IsNullOrWhiteSpace(voiceGender) ? "Unspecified voice" : $"{voiceGender} voice";
+
+    private static string GetAudioKind(AudioDto audio) =>
+        string.IsNullOrWhiteSpace(audio.Script) ? "Uploaded Audio" : "TTS / Script";
+
+    private static string GetStatusClass(int status) => status == 1
+        ? "management-status management-status--active"
+        : "management-status management-status--inactive";
+
+    private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
+
+    private static string GetChipClass(int status, int currentStatus) => status == currentStatus
+        ? "management-chip management-chip--selected"
+        : "management-chip";
 }
