@@ -1,4 +1,4 @@
-@page "/login"
+@page "/"
 @layout LoginLayout
 
 <div class="login-container d-flex align-items-center justify-content-center vh-100 bg-light">
@@ -8,14 +8,14 @@
                 <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
                     <i class="bi bi-soundwave fs-2"></i>
                 </div>
-                <h3 class="fw-bold text-primary">Audio Guide Admin</h3>
+                <h3 class="fw-bold text-primary">Smart Tour Admin Site</h3>
                 <p class="text-muted">Welcome back! Please login.</p>
             </div>
 
             <form>
                 <div class="mb-3">
                     <label for="email" class="form-label">Email Address</label>
-                    <input type="email" class="form-control form-control-lg" id="email" placeholder="name@example.com" value="admin@example.com">
+                    <input type="email" class="form-control form-control-lg" id="email" placeholder="name@example.com" >
                 </div>
                 <div class="mb-3">
                     <label for="password" class="form-label">Password</label>
@@ -28,7 +28,7 @@
                     </div>
                     <a href="#" class="text-decoration-none small">Forgot password?</a>
                 </div>
-                <button type="submit" class="btn btn-primary btn-lg w-100" @onclick="HandleLogin">Sign In</button>
+                <button type="submit" class="btn btn-primary btn-lg w-100" @onclick="window.location.href='dashboard'">Sign In</button>
             </form>
             
             <div class="text-center mt-4">
