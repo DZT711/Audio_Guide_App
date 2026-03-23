@@ -1,3 +1,77 @@
+:root {
+    --app-ink: #0f172a;
+    --app-muted: #5b667d;
+    --app-line: rgba(15, 23, 42, 0.08);
+    --app-surface: rgba(255, 255, 255, 0.88);
+    --app-surface-strong: #ffffff;
+    --app-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+    font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+}
+
+html {
+    min-height: 100%;
+    scroll-behavior: smooth;
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    background:
+        radial-gradient(circle at top left, rgba(45, 212, 191, 0.16), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.14), transparent 24%),
+        linear-gradient(180deg, #f3fbfa 0%, #f8fafc 52%, #eff5ff 100%);
+    color: var(--app-ink);
+    font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+}
+
+a {
+    color: inherit;
+}
+
+::selection {
+    background: rgba(13, 148, 136, 0.18);
+}
+
+button,
+.btn,
+a,
+.form-control,
+.form-check-input,
+.card {
+    transition:
+        transform 240ms ease,
+        box-shadow 240ms ease,
+        border-color 240ms ease,
+        background-color 240ms ease,
+        color 240ms ease,
+        opacity 240ms ease;
+}
+
+.form-control,
+.form-select {
+    border-color: rgba(148, 163, 184, 0.35);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: rgba(13, 148, 136, 0.45);
+    box-shadow: 0 0 0 0.25rem rgba(13, 148, 136, 0.12);
+}
+
+html.js-ready [data-reveal] {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    transition:
+        opacity 650ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+html.js-ready [data-reveal].is-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
 h1:focus {
     outline: none;
 }
@@ -35,4 +109,23 @@ h1:focus {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    html.js-ready [data-reveal] {
+        opacity: 1 !important;
+        transform: none !important;
+    }
 }
