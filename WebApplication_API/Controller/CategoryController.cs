@@ -1,8 +1,8 @@
 using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Project_SharedClassLibrary.Contracts;
 using WebApplication_API.Data;
-using WebApplication_API.DTO;
 using WebApplication_API.Model;
 
 namespace WebApplication_API.Controller;
@@ -22,12 +22,12 @@ public class CategoryController : ControllerBase
     /// Get all categories
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetAllCategories()
+    public async Task<ActionResult<IEnumerable<CategoryDto>>> GetAllCategories()
     {
         try
         {
             var categories = await _context.Categories.ToListAsync();
-            var categoryDTOs = categories.Select(c => new CategoryDTO(
+            var categoryDTOs = categories.Select(c => new CategoryDto(
                 c.Id,
                 c.Name,
                 c.Description,
@@ -47,7 +47,7 @@ public class CategoryController : ControllerBase
     /// Get category by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<CategoryDTO>> GetCategoryById(int id)
+    public async Task<ActionResult<CategoryDto>> GetCategoryById(int id)
     {
         try
         {
@@ -56,7 +56,7 @@ public class CategoryController : ControllerBase
             if (category == null)
                 return NotFound(new { message = "Category not found" });
 
-            var categoryDTO = new CategoryDTO(
+            var categoryDTO = new CategoryDto(
                 category.Id,
                 category.Name,
                 category.Description,
@@ -76,7 +76,7 @@ public class CategoryController : ControllerBase
     /// Create a new category
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<CategoryDTO>> CreateCategory([FromBody] CreateCategoryDTO createCategoryDTO)
+    public async Task<ActionResult<CategoryDto>> CreateCategory([FromBody] CategoryUpsertRequest request)
     {
         try
         {
@@ -85,16 +85,16 @@ public class CategoryController : ControllerBase
 
             var category = new Category
             {
-                Name = createCategoryDTO.Name,
-                Description = createCategoryDTO.Description,
+                Name = request.Name,
+                Description = request.Description,
                 // // NumOfLocations = createCategoryDTO.NumOfLocations,
-                Status = createCategoryDTO.Status
+                Status = request.Status
             };
 
             _context.Categories.Add(category);
             await _context.SaveChangesAsync();
 
-            var categoryDTO = new CategoryDTO(
+            var categoryDTO = new CategoryDto(
                 category.Id,
                 category.Name,
                 category.Description,
@@ -114,7 +114,7 @@ public class CategoryController : ControllerBase
     /// Update an existing category
     /// </summary>
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpdateCategoryDTO updateCategoryDTO)
+    public async Task<IActionResult> UpdateCategory(int id, [FromBody] CategoryUpsertRequest request)
     {
         try
         {
@@ -126,10 +126,10 @@ public class CategoryController : ControllerBase
             if (category == null)
                 return NotFound(new { message = "Category not found" });
 
-            category.Name = updateCategoryDTO.Name;
-            category.Description = updateCategoryDTO.Description;
+            category.Name = request.Name;
+            category.Description = request.Description;
             // // category.NumOfLocations = updateCategoryDTO.NumOfLocations;
-            category.Status = updateCategoryDTO.Status;
+            category.Status = request.Status;
 
             _context.Categories.Update(category);
             await _context.SaveChangesAsync();
@@ -143,7 +143,7 @@ public class CategoryController : ControllerBase
     }
 
     /// <summary>
-    /// Delete a category by ID
+    /// Archive a category by ID
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteCategory(int id)
@@ -155,14 +155,18 @@ public class CategoryController : ControllerBase
             if (category == null)
                 return NotFound(new { message = "Category not found" });
 
-            _context.Categories.Remove(category);
+            if (category.Status == 0)
+                return Ok(new { message = "Category is already inactive" });
+
+            category.Status = 0;
+            _context.Categories.Update(category);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Category deleted successfully" });
+            return Ok(new { message = "Category archived successfully" });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error deleting category", error = ex.Message });
+            return StatusCode(500, new { message = "Error archiving category", error = ex.Message });
         }
     }
 }

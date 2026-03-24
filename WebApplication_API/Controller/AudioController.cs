@@ -1,9 +1,11 @@
 using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Data;
-using WebApplication_API.DTO;
 using WebApplication_API.Model;
+using WebApplication_API.Services;
 
 namespace WebApplication_API.Controller;
 
@@ -12,27 +14,29 @@ namespace WebApplication_API.Controller;
 public class AudioController : ControllerBase
 {
     private readonly DBContext _context;
+    private readonly SharedAudioFileStorageService _audioStorage;
 
-    public AudioController(DBContext context)
+    public AudioController(DBContext context, SharedAudioFileStorageService audioStorage)
     {
         _context = context;
+        _audioStorage = audioStorage;
     }
 
     /// <summary>
     /// Get all audio content
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AudioDTO>>> GetAllAudio()
+    public async Task<ActionResult<IEnumerable<AudioDto>>> GetAllAudio()
     {
         try
         {
             var audioList = await _context.AudioContents.ToListAsync();
 
-            var audioDTOs = new List<AudioDTO>();
+            var audioDTOs = new List<AudioDto>();
             foreach (var audio in audioList)
             {
                 var location = await _context.Locations.FirstOrDefaultAsync(l => l.Id == audio.LocationId);
-                var audioDTOItem = new AudioDTO(
+                var audioDTOItem = new AudioDto(
                     audio.Id,
                     audio.Title,
                     location?.Name ?? "Unknown",
@@ -60,7 +64,7 @@ public class AudioController : ControllerBase
     /// Get audio content by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<AudioDTO>> GetAudioById(int id)
+    public async Task<ActionResult<AudioDto>> GetAudioById(int id)
     {
         try
         {
@@ -70,7 +74,7 @@ public class AudioController : ControllerBase
                 return NotFound(new { message = "Audio not found" });
 
             var location = await _context.Locations.FirstOrDefaultAsync(l => l.Id == audio.LocationId);
-            var audioDTO = new AudioDTO(
+            var audioDTO = new AudioDto(
                 audio.Id,
                 audio.Title,
                 location?.Name ?? "Unknown",
@@ -95,7 +99,7 @@ public class AudioController : ControllerBase
     /// Get audio content by location ID
     /// </summary>
     [HttpGet("location/{locationId}")]
-    public async Task<ActionResult<IEnumerable<AudioDTO>>> GetAudioByLocation(int locationId)
+    public async Task<ActionResult<IEnumerable<AudioDto>>> GetAudioByLocation(int locationId)
     {
         try
         {
@@ -107,7 +111,7 @@ public class AudioController : ControllerBase
                 .Where(a => a.LocationId == locationId)
                 .ToListAsync();
 
-            var audioDTOs = audioList.Select(a => new AudioDTO(
+            var audioDTOs = audioList.Select(a => new AudioDto(
                 a.Id,
                 a.Title,
                 location.Name,
@@ -132,30 +136,45 @@ public class AudioController : ControllerBase
     /// Create new audio content
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<AudioDTO>> CreateAudio([FromBody] CreateAudioDTO createAudioDTO)
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<AudioDto>> CreateAudio(
+        [FromForm] AudioUpsertRequest request,
+        [FromForm(Name = "AudioFile")] IFormFile? audioFile,
+        CancellationToken cancellationToken)
     {
         try
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            if (audioFile is null && string.IsNullOrWhiteSpace(request.AudioURL))
+            {
+                return BadRequest(new { message = "Choose an audio file to upload." });
+            }
+
             var location = await _context.Locations
-                .FirstOrDefaultAsync(l => l.Name == createAudioDTO.LocationName);
+                .FirstOrDefaultAsync(l => l.Name == request.LocationName, cancellationToken);
 
             if (location == null)
                 return NotFound(new { message = "Location not found" });
 
+            var audioPath = SharedStoragePaths.NormalizePublicAudioPath(request.AudioURL);
+            if (audioFile is not null)
+            {
+                audioPath = await _audioStorage.SaveAudioAsync(audioFile, request.LocationName, request.Title, cancellationToken);
+            }
+
             var audio = new Audio
             {
                 LocationId = location.Id,
-                Title = createAudioDTO.Title,
-                FilePath = createAudioDTO.AudioURL,
-                Language = createAudioDTO.Language,
-                Duration = createAudioDTO.Duration,
-                Script = createAudioDTO.Script,
-                Description = createAudioDTO.Description,
-                VoiceGender = createAudioDTO.VoiceGender,
-                Status = createAudioDTO.Status
+                Title = request.Title,
+                FilePath = audioPath ?? string.Empty,
+                Language = request.Language,
+                Duration = request.Duration,
+                Script = request.Script,
+                Description = request.Description,
+                VoiceGender = request.VoiceGender,
+                Status = request.Status
             };
 
             _context.AudioContents.Add(audio);
@@ -163,7 +182,7 @@ public class AudioController : ControllerBase
             _context.Locations.Update(location);
             await _context.SaveChangesAsync();
 
-            var audioDTO = new AudioDTO(
+            var audioDTO = new AudioDto(
                 audio.Id,
                 audio.Title,
                 location.Name,
@@ -188,31 +207,52 @@ public class AudioController : ControllerBase
     /// Update existing audio content
     /// </summary>
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateAudio(int id, [FromBody] CreateAudioDTO updateAudioDTO)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UpdateAudio(
+        int id,
+        [FromForm] AudioUpsertRequest request,
+        [FromForm(Name = "AudioFile")] IFormFile? audioFile,
+        CancellationToken cancellationToken)
     {
         try
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var audio = await _context.AudioContents.FirstOrDefaultAsync(a => a.Id == id);
+            var audio = await _context.AudioContents.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
             if (audio == null)
                 return NotFound(new { message = "Audio not found" });
 
             var location = await _context.Locations
-                .FirstOrDefaultAsync(l => l.Name == updateAudioDTO.LocationName);
+                .FirstOrDefaultAsync(l => l.Name == request.LocationName, cancellationToken);
 
             if (location == null)
                 return NotFound(new { message = "Location not found" });
 
-            audio.Title = updateAudioDTO.Title;
-            audio.FilePath = updateAudioDTO.AudioURL;
-            audio.Language = updateAudioDTO.Language;
-            audio.Duration = updateAudioDTO.Duration;
-            audio.Description = updateAudioDTO.Description;
-            audio.VoiceGender = updateAudioDTO.VoiceGender;
-            audio.Status = updateAudioDTO.Status;
+            var nextAudioPath = string.IsNullOrWhiteSpace(request.AudioURL)
+                ? SharedStoragePaths.NormalizePublicAudioPath(audio.FilePath)
+                : SharedStoragePaths.NormalizePublicAudioPath(request.AudioURL);
+            if (audioFile is not null)
+            {
+                nextAudioPath = await _audioStorage.SaveAudioAsync(audioFile, request.LocationName, request.Title, cancellationToken);
+                _audioStorage.DeleteIfManaged(audio.FilePath);
+            }
+
+            if (string.IsNullOrWhiteSpace(nextAudioPath))
+            {
+                return BadRequest(new { message = "Choose an audio file to upload." });
+            }
+
+            audio.Title = request.Title;
+            audio.FilePath = nextAudioPath;
+            audio.Language = request.Language;
+            audio.Duration = request.Duration;
+            audio.Description = request.Description;
+            audio.VoiceGender = request.VoiceGender;
+            audio.Script = request.Script;
+            audio.Status = request.Status;
+            audio.LocationId = location.Id;
 
             _context.AudioContents.Update(audio);
             await _context.SaveChangesAsync();
@@ -226,7 +266,7 @@ public class AudioController : ControllerBase
     }
 
     /// <summary>
-    /// Delete audio content by ID
+    /// Archive audio content by ID
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteAudio(int id)
@@ -238,21 +278,18 @@ public class AudioController : ControllerBase
             if (audio == null)
                 return NotFound(new { message = "Audio not found" });
 
-            var location = await _context.Locations.FirstOrDefaultAsync(l => l.Id == audio.LocationId);
-            if (location != null)
-            {
-                // location.NumOfAudio -= 1;
-                _context.Locations.Update(location);
-            }
+            if (audio.Status == 0)
+                return Ok(new { message = "Audio is already inactive" });
 
-            _context.AudioContents.Remove(audio);
+            audio.Status = 0;
+            _context.AudioContents.Update(audio);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Audio deleted successfully" });
+            return Ok(new { message = "Audio archived successfully" });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error deleting audio", error = ex.Message });
+            return StatusCode(500, new { message = "Error archiving audio", error = ex.Message });
         }
     }
 }

@@ -1,18 +1,47 @@
-﻿@inherits LayoutComponentBase
-@using BlazorApp_AdminWeb.Components
-@using BlazorApp_AdminWeb.Components.Layout
+@inherits LayoutComponentBase
+@inject AdminAuthService AuthService
+@inject NavigationManager Navigation
+@inject AdminShellState ShellState
 
-<div class="page d-flex" style="height: 100vh; overflow: hidden;">
-    <Sidebar />
-
-    <main class="main-content d-flex flex-column flex-grow-1">
-        <AdminHeader PageTitle="@CurrentPageTitle" />
-
-        <div class="content px-4 py-3 flex-grow-1" style="overflow-y: auto;">
-            @Body
+@if (!_authChecked)
+{
+    <div class="layout-gate">
+        <div class="layout-gate__card">
+            <div class="skeleton skeleton--pill"></div>
+            <div class="skeleton skeleton--title"></div>
+            <div class="skeleton skeleton--line"></div>
+            <div class="skeleton skeleton--line skeleton--line-short"></div>
         </div>
-    </main>
-</div>
+    </div>
+}
+else if (_isAuthenticated)
+{
+    <div class="@GetShellClass()">
+        <aside class="admin-shell__sidebar d-none d-lg-flex">
+            <Sidebar Collapsed="@ShellState.IsSidebarCollapsed" />
+        </aside>
+
+        <div class="offcanvas offcanvas-start admin-shell__drawer" tabindex="-1" id="admin-sidebar-drawer" aria-labelledby="admin-sidebar-drawer-label">
+            <div class="offcanvas-header admin-shell__drawer-header">
+                <h2 class="offcanvas-title" id="admin-sidebar-drawer-label">Navigation</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body p-0">
+                <Sidebar DismissOnNavigate="true" />
+            </div>
+        </div>
+
+        <main class="admin-shell__main">
+            <AdminHeader SidebarCollapsed="@ShellState.IsSidebarCollapsed" OnToggleSidebar="ToggleSidebarAsync" />
+
+            <section class="admin-shell__content">
+                @Body
+            </section>
+        </main>
+    </div>
+}
+
+<NotificationCenter />
 
 <div id="blazor-error-ui">
     An unhandled error has occurred.
@@ -20,15 +49,42 @@
     <a class="dismiss">🗙</a>
 </div>
 
-<style>
-    /* Global styles or overrides can go here */
-    .sidebar {
-        width: 280px;
-        min-width: 280px;
-    }
-</style>
-
 @code {
-    // Ideally this would be dynamic based on the active page
-    private string CurrentPageTitle = "Admin Dashboard";
+    private bool _authChecked;
+    private bool _isAuthenticated;
+
+    private string GetShellClass() => ShellState.IsSidebarCollapsed
+        ? "admin-shell admin-shell--collapsed"
+        : "admin-shell";
+
+    private Task ToggleSidebarAsync()
+    {
+        ShellState.IsSidebarCollapsed = !ShellState.IsSidebarCollapsed;
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        }
+        finally
+        {
+            _authChecked = true;
+        }
+
+        if (!_isAuthenticated)
+        {
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+
+        StateHasChanged();
+    }
 }

@@ -5,7 +5,7 @@ namespace WebApplication_API.DTO;
 public record UpdateLocationDTO
 (
     [Required][StringLength(100)] string Name,
-    [StringLength(255)] string Address,
+    [StringLength(500)] string Address,
     [Required][Range(0, int.MaxValue)] int CategoryId,
     [YearRange] int EstablishedYear,
     [StringLength(255)] string Description,

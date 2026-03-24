@@ -1,0 +1,272 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);font-size:13px;color:var(--color-text-primary)}
+.tree{padding:12px 0 24px}
+.node{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:5px;cursor:pointer;transition:background .12s;user-select:none;line-height:1.5}
+.row:hover{background:var(--color-background-secondary)}
+.indent{padding-left:20px;border-left:1px solid var(--color-border-tertiary);margin-left:14px}
+.chevron{width:12px;height:12px;flex-shrink:0;transition:transform .15s;color:var(--color-text-tertiary)}
+.chevron.open{transform:rotate(90deg)}
+.chevron svg{display:block}
+.icon{width:15px;height:15px;flex-shrink:0;border-radius:3px;display:flex;align-items:center;justify-content:center}
+.label{font-size:13px;font-weight:400;color:var(--color-text-primary);flex-shrink:0}
+.label.bold{font-weight:500}
+.desc{font-size:11px;color:var(--color-text-tertiary);margin-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{font-size:10px;padding:1px 6px;border-radius:10px;font-weight:500;flex-shrink:0;margin-left:4px}
+.hidden{display:none}
+
+/* project color bands */
+.p-admin .icon{background:#CECBF6}
+.p-mobile .icon{background:#9FE1CB}
+.p-shared .icon{background:#FAC775}
+.p-api .icon{background:#F5C4B3}
+.p-root .icon{background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary)}
+
+.tag-admin{background:#EEEDFE;color:#3C3489}
+.tag-mobile{background:#E1F5EE;color:#085041}
+.tag-shared{background:#FAEEDA;color:#633806}
+.tag-api{background:#FAECE7;color:#4A1B0C}
+.tag-config{background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary)}
+
+.legend{display:flex;gap:10px;flex-wrap:wrap;padding:0 6px 14px;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:10px}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.section-label{font-size:10px;font-weight:500;letter-spacing:.05em;color:var(--color-text-tertiary);padding:10px 6px 4px;text-transform:uppercase}
+</style>
+
+<div class="tree">
+<div class="legend">
+  <div class="leg"><div class="dot" style="background:#AFA9EC"></div>BlazorApp_AdminWeb</div>
+  <div class="leg"><div class="dot" style="background:#5DCAA5"></div>MauiApp_Mobile</div>
+  <div class="leg"><div class="dot" style="background:#EF9F27"></div>Shared Class Library</div>
+  <div class="leg"><div class="dot" style="background:#F0997B"></div>WebApplication_API</div>
+</div>
+
+<div id="tree-root"></div>
+</div>
+
+<script>
+const data = [
+  {name:"Smart-Tourism-MAUI.sln", type:"file", proj:"root", desc:"Solution entry — links all 4 projects", tag:"config"},
+  {name:"README.md", type:"file", proj:"root", desc:"Project overview and setup instructions", tag:"config"},
+  {name:"Directory.Build.props", type:"file", proj:"root", desc:"Shared MSBuild properties across all projects", tag:"config"},
+  {name:"BlazorApp_AdminWeb/", type:"dir", proj:"admin", tag:"admin", desc:"Admin web dashboard (Blazor Server)", open:true, children:[
+    {name:"BlazorApp_AdminWeb.csproj", type:"file", proj:"admin", desc:"Project definition — Blazor Server, .NET 10"},
+    {name:"Program.cs", type:"file", proj:"admin", desc:"App startup — registers services, configures pipeline"},
+    {name:"appsettings.json", type:"file", proj:"admin", desc:"App configuration — API base URL, auth settings", tag:"config"},
+    {name:"Components/", type:"dir", proj:"admin", desc:"All Blazor UI components", open:true, children:[
+      {name:"App.razor", type:"file", proj:"admin", desc:"Root component — cascade auth + router mount"},
+      {name:"Routes.razor", type:"file", proj:"admin", desc:"Client-side routing — maps URLs to pages"},
+      {name:"_Imports.razor", type:"file", proj:"admin", desc:"Global using statements for all components"},
+      {name:"Layout/", type:"dir", proj:"admin", desc:"Shared layout wrappers", open:true, children:[
+        {name:"MainLayout.razor", type:"file", proj:"admin", desc:"Authenticated shell — sidebar + header + content slot"},
+        {name:"LoginLayout.razor", type:"file", proj:"admin", desc:"Unauthenticated layout — centered login card"},
+        {name:"AdminHeader.razor", type:"file", proj:"admin", desc:"Top nav bar — user info, logout, breadcrumbs"},
+        {name:"Sidebar.razor", type:"file", proj:"admin", desc:"Left nav — links to Dashboard, POIs, Users, Audio"},
+        {name:"NotificationCenter.razor", type:"file", proj:"admin", desc:"Slide-in panel — real-time notification feed"},
+      ]},
+      {name:"Pages/", type:"dir", proj:"admin", desc:"Route-level page components", open:true, children:[
+        {name:"Login.razor", type:"file", proj:"admin", desc:"Admin login form — calls AdminAuthService"},
+        {name:"Dashboard.razor", type:"file", proj:"admin", desc:"Overview metrics — user count, POI stats"},
+        {name:"POIList.razor", type:"file", proj:"admin", desc:"Manage Points of Interest — CRUD table + map"},
+        {name:"CategoryList.razor", type:"file", proj:"admin", desc:"Manage POI categories — add, edit, delete"},
+        {name:"AudioList.razor", type:"file", proj:"admin", desc:"Manage audio guides — upload, assign to POI"},
+        {name:"UserList.razor", type:"file", proj:"admin", desc:"Manage registered users — view, ban, promote"},
+        {name:"ModerationList.razor", type:"file", proj:"admin", desc:"Review flagged / reported content"},
+        {name:"Error.razor", type:"file", proj:"admin", desc:"Global error boundary page"},
+        {name:"NotFound.razor", type:"file", proj:"admin", desc:"404 handler page"},
+      ]},
+    ]},
+    {name:"Models/", type:"dir", proj:"admin", desc:"Admin-specific data models", children:[
+      {name:"AdminManagementModels.cs", type:"file", proj:"admin", desc:"ViewModels for admin UI — user, POI, audio records"},
+    ]},
+    {name:"Options/", type:"dir", proj:"admin", desc:"Typed configuration options", children:[
+      {name:"AdminApiOptions.cs", type:"file", proj:"admin", desc:"Binds appsettings → typed class (API base URL, timeout)"},
+    ]},
+    {name:"Services/", type:"dir", proj:"admin", desc:"Business logic & state management", open:true, children:[
+      {name:"AdminApiClient.cs", type:"file", proj:"admin", desc:"HTTP client wrapper — all calls to WebApplication_API"},
+      {name:"AdminAuthService.cs", type:"file", proj:"admin", desc:"Login / logout — manages JWT token lifecycle"},
+      {name:"AdminSessionState.cs", type:"file", proj:"admin", desc:"Cascading state — current admin user & permissions"},
+      {name:"AdminShellState.cs", type:"file", proj:"admin", desc:"UI state — sidebar open/close, active route"},
+      {name:"NotificationService.cs", type:"file", proj:"admin", desc:"Push notification queue — broadcast to NotificationCenter"},
+    ]},
+    {name:"wwwroot/", type:"dir", proj:"admin", desc:"Static web assets", children:[
+      {name:"app.css", type:"file", proj:"admin", desc:"Global CSS — typography, layout, component overrides"},
+      {name:"js/admin-ui.js", type:"file", proj:"admin", desc:"Client JS helpers — DOM interactions, clipboard"},
+    ]},
+  ]},
+
+  {name:"MauiApp_Mobile/", type:"dir", proj:"mobile", tag:"mobile", desc:"Cross-platform mobile app (Android, iOS, Windows, Mac)", open:true, children:[
+    {name:"MauiApp_Mobile.csproj", type:"file", proj:"mobile", desc:"Project definition — targets Android, iOS, MacCatalyst, Windows"},
+    {name:"MauiProgram.cs", type:"file", proj:"mobile", desc:"App builder — registers fonts, services, dependency injection"},
+    {name:"App.xaml / App.xaml.cs", type:"file", proj:"mobile", desc:"App lifecycle — startup, sleep, resume handlers"},
+    {name:"AppShell.xaml", type:"file", proj:"mobile", desc:"Navigation shell — tab bar and flyout routing"},
+    {name:"MainPage.xaml", type:"file", proj:"mobile", desc:"Home screen — entry point UI"},
+    {name:"Pages/", type:"dir", proj:"mobile", desc:"(Frontend pages — in development)", children:[]},
+    {name:"Platforms/", type:"dir", proj:"mobile", desc:"Platform-specific native code", open:true, children:[
+      {name:"Android/", type:"dir", proj:"mobile", desc:"Android entry + manifest + resources", children:[
+        {name:"MainActivity.cs", type:"file", proj:"mobile", desc:"Android activity — MAUI bootstrap entry point"},
+        {name:"MainApplication.cs", type:"file", proj:"mobile", desc:"Application class — initializes MAUI for Android"},
+        {name:"AndroidManifest.xml", type:"file", proj:"mobile", desc:"Permissions — internet, location, camera"},
+        {name:"Resources/values/colors.xml", type:"file", proj:"mobile", desc:"Android color definitions for status bar, etc."},
+      ]},
+      {name:"iOS/", type:"dir", proj:"mobile", desc:"iOS entry + Info.plist", children:[
+        {name:"AppDelegate.cs", type:"file", proj:"mobile", desc:"iOS app delegate — MAUI lifecycle bridge"},
+        {name:"Info.plist", type:"file", proj:"mobile", desc:"iOS app metadata — permissions, bundle ID, display name"},
+        {name:"Program.cs", type:"file", proj:"mobile", desc:"iOS main entry point"},
+      ]},
+      {name:"Windows/", type:"dir", proj:"mobile", desc:"Windows (WinUI 3) entry", children:[
+        {name:"App.xaml.cs", type:"file", proj:"mobile", desc:"WinUI app class — MAUI bridge for Windows"},
+        {name:"Package.appxmanifest", type:"file", proj:"mobile", desc:"Windows app package — capabilities, identity"},
+      ]},
+      {name:"MacCatalyst/", type:"dir", proj:"mobile", desc:"Mac Catalyst entry + entitlements", children:[
+        {name:"AppDelegate.cs", type:"file", proj:"mobile", desc:"Mac app delegate — MAUI lifecycle for macOS"},
+        {name:"Entitlements.plist", type:"file", proj:"mobile", desc:"macOS capability declarations"},
+      ]},
+    ]},
+    {name:"Resources/", type:"dir", proj:"mobile", desc:"Shared cross-platform assets", children:[
+      {name:"AppIcon/", type:"dir", proj:"mobile", desc:"App icon SVG — auto-generates platform icons"},
+      {name:"Fonts/", type:"dir", proj:"mobile", desc:"OpenSans Regular + Semibold — registered in MauiProgram.cs"},
+      {name:"Images/", type:"dir", proj:"mobile", desc:"Image assets — auto-resized per platform"},
+      {name:"Splash/splash.svg", type:"file", proj:"mobile", desc:"Splash screen — auto-generated per platform"},
+      {name:"Styles/Colors.xaml", type:"file", proj:"mobile", desc:"App color palette — referenced by Styles.xaml"},
+      {name:"Styles/Styles.xaml", type:"file", proj:"mobile", desc:"Global XAML styles — Button, Label, Entry themes"},
+    ]},
+  ]},
+
+  {name:"Project_SharedClassLibrary/", type:"dir", proj:"shared", tag:"shared", desc:"Shared code between Mobile, AdminWeb, and API", open:true, children:[
+    {name:"Shared_ClassLibrary.csproj", type:"file", proj:"shared", desc:"Class library project — referenced by all 3 other projects"},
+    {name:"Constants/", type:"dir", proj:"shared", desc:"Compile-time constants shared across projects", open:true, children:[
+      {name:"ApiRoutes.cs", type:"file", proj:"shared", desc:"All API endpoint path strings — single source of truth"},
+      {name:"LocationDefaults.cs", type:"file", proj:"shared", desc:"Default lat/lng, zoom level, map center coordinates"},
+    ]},
+    {name:"Contracts/", type:"dir", proj:"shared", desc:"Shared request/response models (DTOs)", open:true, children:[
+      {name:"ContentDtos.cs", type:"file", proj:"shared", desc:"Read DTOs — POI, audio, category response shapes"},
+      {name:"UpsertRequests.cs", type:"file", proj:"shared", desc:"Create + update request models — used by API and clients"},
+    ]},
+    {name:"Storage/", type:"dir", proj:"shared", desc:"File storage constants", children:[
+      {name:"SharedStoragePaths.cs", type:"file", proj:"shared", desc:"Audio/image storage directory path constants"},
+    ]},
+    {name:"Validation/", type:"dir", proj:"shared", desc:"Custom validation attributes", children:[
+      {name:"YearRangeAttribute.cs", type:"file", proj:"shared", desc:"Validates year field is within acceptable range"},
+    ]},
+  ]},
+
+  {name:"WebApplication_API/", type:"dir", proj:"api", tag:"api", desc:"ASP.NET Core REST API backend", open:true, children:[
+    {name:"WebApplication_API.csproj", type:"file", proj:"api", desc:"Project definition — ASP.NET Core, EF Core, SQLite"},
+    {name:"Program.cs", type:"file", proj:"api", desc:"App startup — registers EF, services, Swagger, CORS, pipeline"},
+    {name:"App.db", type:"file", proj:"api", desc:"SQLite database file — persists POIs, audio, categories", tag:"config"},
+    {name:"appsettings.json", type:"file", proj:"api", desc:"DB connection string, storage paths, CORS origins", tag:"config"},
+    {name:"database.sql", type:"file", proj:"api", desc:"Raw SQL schema — used as reference / manual setup"},
+    {name:"sample-data.sql", type:"file", proj:"api", desc:"Seed data — sample POIs and categories for dev/testing"},
+    {name:"Model/", type:"dir", proj:"api", desc:"EF Core entity models (database tables)", open:true, children:[
+      {name:"Location.cs", type:"file", proj:"api", desc:"POI entity — name, lat/lng, description, category FK"},
+      {name:"Category.cs", type:"file", proj:"api", desc:"Category entity — name, icon, parent category"},
+      {name:"Audio.cs", type:"file", proj:"api", desc:"Audio guide entity — file path, language, location FK"},
+    ]},
+    {name:"Data/", type:"dir", proj:"api", desc:"Database access layer", open:true, children:[
+      {name:"DBContext.cs", type:"file", proj:"api", desc:"EF Core DbContext — defines DbSets, model relationships"},
+      {name:"DataExtension.cs", type:"file", proj:"api", desc:"Extension method to seed initial data on startup"},
+      {name:"Migrations/", type:"dir", proj:"api", desc:"EF Core auto-generated migration files", children:[
+        {name:"20260316142443_InitialCreate.cs", type:"file", proj:"api", desc:"First migration — creates Location, Category, Audio tables"},
+        {name:"DBContextModelSnapshot.cs", type:"file", proj:"api", desc:"Current schema snapshot — used by migration tooling"},
+      ]},
+    ]},
+    {name:"DTO/", type:"dir", proj:"api", desc:"API-layer data transfer objects", open:true, children:[
+      {name:"LocationDTO.cs", type:"file", proj:"api", desc:"Location read DTO — returned from GET endpoints"},
+      {name:"CreateLocationDTO.cs", type:"file", proj:"api", desc:"Location create DTO — POST /locations body"},
+      {name:"UpdateLocationDTO.cs", type:"file", proj:"api", desc:"Location update DTO — PUT /locations/{id} body"},
+      {name:"AudioDTO.cs / AudioInformationDTO.cs", type:"file", proj:"api", desc:"Audio read DTOs — summary and full detail"},
+      {name:"CreateAudioDTO.cs / UpdateAudioDTO.cs", type:"file", proj:"api", desc:"Audio write DTOs — file upload + metadata"},
+      {name:"CategoryDTO.cs / CreateCategoryDTO.cs", type:"file", proj:"api", desc:"Category read + write DTOs"},
+      {name:"LocateInformationDTO.cs", type:"file", proj:"api", desc:"Geo-lookup DTO — lat/lng + radius for nearby POI query"},
+    ]},
+    {name:"Controller/", type:"dir", proj:"api", desc:"MVC-style controllers (traditional route pattern)", open:true, children:[
+      {name:"LocationController.cs", type:"file", proj:"api", desc:"CRUD for POIs — GET, POST, PUT, DELETE /api/locations"},
+      {name:"CategoryController.cs", type:"file", proj:"api", desc:"CRUD for categories — GET, POST, PUT, DELETE"},
+      {name:"AudioController.cs", type:"file", proj:"api", desc:"CRUD for audio — includes file upload handling"},
+    ]},
+    {name:"Endpoint/", type:"dir", proj:"api", desc:"Minimal API endpoints (lightweight alternative to controllers)", open:true, children:[
+      {name:"LocationEndpoints.cs", type:"file", proj:"api", desc:"Minimal API — map.MapGet/Post for locations"},
+      {name:"CategoryEndpoints.cs", type:"file", proj:"api", desc:"Minimal API — map.MapGet/Post for categories"},
+      {name:"VoiceEndpoints.cs", type:"file", proj:"api", desc:"Audio streaming endpoint — serves audio file to mobile app"},
+    ]},
+    {name:"Services/", type:"dir", proj:"api", desc:"Business logic services", children:[
+      {name:"SharedAudioFileStorageService.cs", type:"file", proj:"api", desc:"Handles audio file save/delete from disk using shared paths"},
+    ]},
+    {name:"Properties/launchSettings.json", type:"file", proj:"api", desc:"Dev launch profile — HTTP/HTTPS ports, Swagger URL", tag:"config"},
+  ]},
+];
+
+const projColors={admin:'#AFA9EC',mobile:'#5DCAA5',shared:'#EF9F27',api:'#F0997B',root:'transparent'};
+const tagColors={admin:'tag-admin',mobile:'tag-mobile',shared:'tag-shared',api:'tag-api',config:'tag-config'};
+
+function fileIcon(proj,type){
+  const color=projColors[proj]||'#888';
+  if(type==='dir') return `<svg width="13" height="13" viewBox="0 0 13 13"><path d="M1 3a1 1 0 011-1h3l1.5 1.5H11a1 1 0 011 1V10a1 1 0 01-1 1H2a1 1 0 01-1-1V3z" fill="${color}" opacity="0.9"/></svg>`;
+  return `<svg width="11" height="13" viewBox="0 0 11 13"><rect x="0.5" y="0.5" width="10" height="12" rx="2" fill="${color}" opacity="0.5"/><line x1="2.5" y1="4" x2="8.5" y2="4" stroke="${color}" stroke-width="1" opacity="0.8"/><line x1="2.5" y1="6.5" x2="8.5" y2="6.5" stroke="${color}" stroke-width="1" opacity="0.8"/><line x1="2.5" y1="9" x2="6" y2="9" stroke="${color}" stroke-width="1" opacity="0.8"/></svg>`;
+}
+
+function buildNode(item, depth){
+  const div=document.createElement('div');
+  div.className='node';
+  const row=document.createElement('div');
+  row.className='row';
+  
+  if(item.type==='dir' && item.children && item.children.length>0){
+    const chev=document.createElement('span');
+    chev.className='chevron'+(item.open?' open':'');
+    chev.innerHTML=`<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 3l4 3-4 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    row.appendChild(chev);
+  } else {
+    const sp=document.createElement('span');
+    sp.style.width='12px';sp.style.flexShrink='0';
+    row.appendChild(sp);
+  }
+  
+  const icon=document.createElement('span');
+  icon.className='icon';
+  icon.innerHTML=fileIcon(item.proj,item.type);
+  row.appendChild(icon);
+  
+  const label=document.createElement('span');
+  label.className='label'+(depth<=1?' bold':'');
+  label.textContent=item.name;
+  row.appendChild(label);
+  
+  if(item.tag){
+    const t=document.createElement('span');
+    t.className='tag '+(tagColors[item.tag]||'tag-config');
+    const labels={admin:'Admin',mobile:'Mobile',shared:'Shared',api:'API',config:'config'};
+    t.textContent=labels[item.tag]||item.tag;
+    row.appendChild(t);
+  }
+  
+  if(item.desc){
+    const d=document.createElement('span');
+    d.className='desc';
+    d.textContent='— '+item.desc;
+    row.appendChild(d);
+  }
+  
+  div.appendChild(row);
+  
+  if(item.type==='dir' && item.children && item.children.length>0){
+    const child=document.createElement('div');
+    child.className='indent'+(item.open?'':' hidden');
+    item.children.forEach(c=>child.appendChild(buildNode(c, depth+1)));
+    div.appendChild(child);
+    row.addEventListener('click',()=>{
+      const open=!child.classList.contains('hidden');
+      child.classList.toggle('hidden',open);
+      row.querySelector('.chevron').classList.toggle('open',!open);
+    });
+  }
+  return div;
+}
+
+const root=document.getElementById('tree-root');
+data.forEach(item=>root.appendChild(buildNode(item,0)));
+</script>

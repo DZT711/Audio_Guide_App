@@ -1,112 +1,184 @@
 @page "/users"
 @using BlazorApp_AdminWeb.Components.Layout
-@rendermode InteractiveServer
 
 <PageTitle>User Management</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3>Users</h3>
-    <button class="btn btn-primary"><i class="bi bi-person-plus me-2"></i>Add User</button>
-</div>
+<div class="users-page">
+    <section class="users-hero" data-reveal>
+        <div>
+            <span class="users-hero__eyebrow">Team &amp; Access</span>
+            <h1>User Management</h1>
+            <p>
+                Review admins, owners, and onboarding progress with a cleaner layout,
+                better status cues, and smoother hover interactions.
+            </p>
+        </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm p-3 text-center">
-            <h5 class="mb-0 text-primary">2,450</h5>
-            <small class="text-muted">Total Users</small>
+        <div class="users-hero__actions">
+            <button class="btn btn-primary btn-lg" type="button">
+                <i class="bi bi-person-plus me-2"></i>
+                Add User
+            </button>
+            <button class="btn btn-outline-secondary btn-lg" type="button">
+                <i class="bi bi-send me-2"></i>
+                Invite by Email
+            </button>
         </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm p-3 text-center">
-            <h5 class="mb-0 text-success">1,980</h5>
-            <small class="text-muted">Active</small>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm p-3 text-center">
-            <h5 class="mb-0 text-warning">450</h5>
-            <small class="text-muted">Pending</small>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm p-3 text-center">
-            <h5 class="mb-0 text-danger">20</h5>
-            <small class="text-muted">Locked</small>
-        </div>
-    </div>
-</div>
+    </section>
 
-<div class="card border-0 shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>User</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var user in Users)
-                {
+    <section class="users-toolbar" data-reveal>
+        <label class="users-search" for="userSearch">
+            <i class="bi bi-search"></i>
+            <input id="userSearch" class="form-control" type="search" placeholder="Search by name or email">
+        </label>
+
+        <div class="users-filters">
+            <button type="button" class="filter-chip filter-chip--active">All Users</button>
+            <button type="button" class="filter-chip">Admins</button>
+            <button type="button" class="filter-chip">Owners</button>
+            <button type="button" class="filter-chip">Pending</button>
+        </div>
+    </section>
+
+    <div class="row g-3" data-stagger data-stagger-step="80">
+        @foreach (var summary in Summaries)
+        {
+            <div class="col-12 col-sm-6 col-xl-3">
+                <article class="@GetSummaryCardClass(summary.Tone)" data-reveal>
+                    <div class="summary-card__icon">
+                        <i class="bi @summary.Icon"></i>
+                    </div>
+                    <div>
+                        <span class="summary-card__label">@summary.Label</span>
+                        <div class="summary-card__value">@summary.Value</div>
+                        <p>@summary.Copy</p>
+                    </div>
+                </article>
+            </div>
+        }
+    </div>
+
+    <section class="users-table-card" data-reveal>
+        <div class="users-table-card__header">
+            <div>
+                <span class="users-table-card__eyebrow">Directory</span>
+                <h2>Active Team Members</h2>
+            </div>
+            <span class="users-table-card__count">@Users.Count users</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table users-table align-middle mb-0">
+                <thead>
                     <tr>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <img src="@user.AvatarUrl" class="rounded-circle me-3" width="40" height="40" alt="Avatar">
-                                <strong>@user.Name</strong>
-                            </div>
-                        </td>
-                        <td>@user.Email</td>
-                        <td>
-                            @if(user.Role == "Admin")
-                            {
-                                <span class="badge bg-dark">Admin</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-light text-dark border">Owner</span>
-                            }
-                        </td>
-                        <td>
-                            <span class="badge @GetStatusBadge(user.Status)">@user.Status</span>
-                        </td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-outline-secondary me-1">Edit</button>
-                            <button class="btn btn-sm btn-outline-danger">Block</button>
-                        </td>
+                        <th>User</th>
+                        <th>Contact</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
                     </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody>
+                    @foreach (var user in Users)
+                    {
+                        <tr>
+                            <td>
+                                <div class="user-cell">
+                                    <div class="user-avatar" style="@($"--avatar-hue:{user.AvatarHue};")">@user.Initials</div>
+                                    <div class="user-cell__meta">
+                                        <strong>@user.Name</strong>
+                                        <span>@user.Location</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="user-contact">
+                                    <span>@user.Email</span>
+                                    <small>Last seen @user.LastSeen</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="@GetRoleClass(user.Role)">@user.Role</span>
+                            </td>
+                            <td>
+                                <span class="@GetStatusClass(user.Status)">@user.Status</span>
+                            </td>
+                            <td class="text-end">
+                                <div class="row-actions justify-content-end">
+                                    <button class="btn btn-sm btn-outline-secondary" type="button">Edit</button>
+                                    <button class="btn btn-sm btn-outline-danger" type="button">@GetActionLabel(user)</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
 </div>
 
 @code {
-    private List<UserItem> Users = new()
+    private readonly List<UserSummary> Summaries = new()
     {
-        new UserItem { Name = "Amanda Harvey", Email = "amanda@example.com", Role = "Admin", Status = "Active", AvatarUrl = "https://ui-avatars.com/api/?name=Amanda+Harvey&background=0D8ABC&color=fff" },
-        new UserItem { Name = "Anne Richard", Email = "anne@example.com", Role = "Owner", Status = "Pending", AvatarUrl = "https://ui-avatars.com/api/?name=Anne+Richard&background=QD8ABC&color=fff" },
-        new UserItem { Name = "David Harrison", Email = "david@example.com", Role = "Owner", Status = "Active", AvatarUrl = "https://ui-avatars.com/api/?name=David+Harrison&background=random" },
-        new UserItem { Name = "Finch Hoot", Email = "finch@example.com", Role = "Owner", Status = "Locked", AvatarUrl = "https://ui-avatars.com/api/?name=Finch+Hoot&background=random" },
-        new UserItem { Name = "Bob Smith", Email = "bob@example.com", Role = "Owner", Status = "Active", AvatarUrl = "https://ui-avatars.com/api/?name=Bob+Smith&background=random" },
+        new UserSummary { Label = "Total Users", Value = "2,450", Copy = "Across all admin spaces", Icon = "bi-people", Tone = "teal" },
+        new UserSummary { Label = "Active", Value = "1,980", Copy = "Signed in during the last 30 days", Icon = "bi-person-check", Tone = "green" },
+        new UserSummary { Label = "Pending", Value = "450", Copy = "Waiting for onboarding approval", Icon = "bi-hourglass-split", Tone = "amber" },
+        new UserSummary { Label = "Locked", Value = "20", Copy = "Accounts requiring manual action", Icon = "bi-shield-lock", Tone = "rose" }
     };
 
-    private string GetStatusBadge(string status) => status switch
+    private readonly List<UserItem> Users = new()
     {
-        "Active" => "bg-success",
-        "Pending" => "bg-warning text-dark",
-        "Locked" => "bg-danger",
-        _ => "bg-secondary"
+        new UserItem { Name = "Amanda Harvey", Initials = "AH", Location = "Hanoi, Vietnam", Email = "amanda@example.com", Role = "Admin", Status = "Active", LastSeen = "2 mins ago", AvatarHue = 184 },
+        new UserItem { Name = "Anne Richard", Initials = "AR", Location = "Da Nang, Vietnam", Email = "anne@example.com", Role = "Owner", Status = "Pending", LastSeen = "12 mins ago", AvatarHue = 224 },
+        new UserItem { Name = "David Harrison", Initials = "DH", Location = "Ho Chi Minh City, Vietnam", Email = "david@example.com", Role = "Moderator", Status = "Active", LastSeen = "1 hour ago", AvatarHue = 154 },
+        new UserItem { Name = "Finch Hoot", Initials = "FH", Location = "Hue, Vietnam", Email = "finch@example.com", Role = "Owner", Status = "Locked", LastSeen = "3 hours ago", AvatarHue = 344 },
+        new UserItem { Name = "Bob Smith", Initials = "BS", Location = "Ninh Binh, Vietnam", Email = "bob@example.com", Role = "Owner", Status = "Active", LastSeen = "Yesterday", AvatarHue = 278 },
     };
+
+    private string GetSummaryCardClass(string tone) => tone switch
+    {
+        "teal" => "summary-card summary-card--teal",
+        "green" => "summary-card summary-card--green",
+        "amber" => "summary-card summary-card--amber",
+        "rose" => "summary-card summary-card--rose",
+        _ => "summary-card"
+    };
+
+    private string GetRoleClass(string role) => role switch
+    {
+        "Admin" => "role-pill role-pill--dark",
+        "Moderator" => "role-pill role-pill--blue",
+        _ => "role-pill role-pill--soft"
+    };
+
+    private string GetStatusClass(string status) => status switch
+    {
+        "Active" => "status-pill status-pill--active",
+        "Pending" => "status-pill status-pill--pending",
+        "Locked" => "status-pill status-pill--locked",
+        _ => "status-pill"
+    };
+
+    private string GetActionLabel(UserItem user) => user.Status == "Locked" ? "Unlock" : "Block";
+
+    public class UserSummary
+    {
+        public string Label { get; set; } = "";
+        public string Value { get; set; } = "";
+        public string Copy { get; set; } = "";
+        public string Icon { get; set; } = "";
+        public string Tone { get; set; } = "";
+    }
 
     public class UserItem
     {
         public string Name { get; set; } = "";
+        public string Initials { get; set; } = "";
+        public string Location { get; set; } = "";
         public string Email { get; set; } = "";
         public string Role { get; set; } = "";
         public string Status { get; set; } = "";
-        public string AvatarUrl { get; set; } = "";
+        public string LastSeen { get; set; } = "";
+        public int AvatarHue { get; set; }
     }
 }

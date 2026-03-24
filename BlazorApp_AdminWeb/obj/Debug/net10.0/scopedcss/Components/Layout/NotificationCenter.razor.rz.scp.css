@@ -1,0 +1,80 @@
+.notification-center[b-rsm1uwklwm] {
+    position: fixed;
+    top: 1.2rem;
+    right: 1.2rem;
+    z-index: 1200;
+    display: grid;
+    gap: 0.85rem;
+    width: min(360px, calc(100vw - 1.5rem));
+}
+
+.notification-card[b-rsm1uwklwm] {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.85rem;
+    align-items: start;
+    padding: 0.95rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 24px 52px rgba(15, 23, 42, 0.16);
+    backdrop-filter: blur(18px);
+}
+
+.notification-card__icon[b-rsm1uwklwm] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    font-size: 1rem;
+}
+
+.notification-card__copy strong[b-rsm1uwklwm] {
+    display: block;
+    margin-bottom: 0.15rem;
+    font-size: 0.95rem;
+}
+
+.notification-card__copy p[b-rsm1uwklwm] {
+    margin: 0;
+    color: var(--app-muted);
+    line-height: 1.55;
+}
+
+.notification-card__dismiss[b-rsm1uwklwm] {
+    border: 0;
+    background: transparent;
+    color: #64748b;
+}
+
+.notification-card--success .notification-card__icon[b-rsm1uwklwm] {
+    background: rgba(22, 163, 74, 0.14);
+    color: #166534;
+}
+
+.notification-card--info .notification-card__icon[b-rsm1uwklwm] {
+    background: rgba(59, 130, 246, 0.12);
+    color: #1d4ed8;
+}
+
+.notification-card--warning .notification-card__icon[b-rsm1uwklwm] {
+    background: rgba(245, 158, 11, 0.16);
+    color: #92400e;
+}
+
+.notification-card--error .notification-card__icon[b-rsm1uwklwm] {
+    background: rgba(239, 68, 68, 0.14);
+    color: #b91c1c;
+}
+
+@media (max-width: 575.98px) {
+    .notification-center[b-rsm1uwklwm] {
+        top: auto;
+        right: 0.75rem;
+        bottom: 0.75rem;
+        left: 0.75rem;
+        width: auto;
+    }
+}

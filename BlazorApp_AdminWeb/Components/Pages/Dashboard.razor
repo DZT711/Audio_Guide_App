@@ -1,99 +1,201 @@
 @page "/dashboard"
 @using BlazorApp_AdminWeb.Components.Layout
-@rendermode InteractiveServer
 
 <PageTitle>Dashboard</PageTitle>
 
-<div class="row g-4 mb-4">
-    <!-- Stat Cards -->
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-2">Total POIs</h6>
-                <div class="d-flex align-items-center">
-                    <div class="h2 mb-0 me-3">128</div>
-                    <span class="badge bg-success-subtle text-success">+5.0%</span>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-2">Total Audios</h6>
-                <div class="d-flex align-items-center">
-                    <div class="h2 mb-0 me-3">345</div>
-                    <span class="badge bg-success-subtle text-success">+12%</span>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-2">Total Users</h6>
-                <div class="d-flex align-items-center">
-                    <div class="h2 mb-0 me-3">2,450</div>
-                    <span class="badge bg-warning-subtle text-warning">-2%</span>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-2">Pending Items</h6>
-                <div class="d-flex align-items-center">
-                    <div class="h2 mb-0 me-3">12</div>
-                    <span class="badge bg-danger-subtle text-danger">Action Required</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+<div class="dashboard-page">
+    <section class="dashboard-hero" data-reveal>
+        <div class="dashboard-hero__content">
+            <span class="dashboard-hero__eyebrow">Overview</span>
+            <h1>Admin Dashboard</h1>
+            <p>
+                Track content health, moderation, and platform activity with clearer hierarchy,
+                smoother reveals, and more polished feedback states.
+            </p>
 
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white py-3">
-        <h5 class="mb-0">Recent Activity</h5>
+            <div class="dashboard-hero__actions">
+                <a class="btn btn-light btn-lg" href="/users">
+                    <i class="bi bi-people me-2"></i>
+                    Manage Users
+                </a>
+                <button class="btn btn-outline-light btn-lg" type="button">
+                    <i class="bi bi-download me-2"></i>
+                    Export Snapshot
+                </button>
+            </div>
+        </div>
+
+        <div class="dashboard-hero__stats" data-stagger data-stagger-step="90">
+            <article class="hero-stat" data-reveal>
+                <strong>94%</strong>
+                <span>Review SLA met this week</span>
+            </article>
+            <article class="hero-stat" data-reveal>
+                <strong>28</strong>
+                <span>New guides drafted today</span>
+            </article>
+            <article class="hero-stat" data-reveal>
+                <strong>3.8k</strong>
+                <span>Audio plays in the last 24 hours</span>
+            </article>
+        </div>
+    </section>
+
+    <div class="row g-4" data-stagger data-stagger-step="80">
+        @foreach (var metric in Metrics)
+        {
+            <div class="col-12 col-md-6 col-xl-3">
+                <article class="metric-card card border-0 h-100" data-reveal style="@GetMetricStyle(metric)">
+                    <div class="card-body">
+                        <div class="metric-card__top">
+                            <span class="metric-icon">
+                                <i class="bi @metric.Icon"></i>
+                            </span>
+                            <span class="@GetTrendClass(metric.TrendTone)">@metric.Trend</span>
+                        </div>
+
+                        <div class="metric-value">@metric.Value</div>
+                        <h2 class="metric-title">@metric.Title</h2>
+                        <p class="metric-copy">@metric.Description</p>
+                    </div>
+                </article>
+            </div>
+        }
     </div>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>User</th>
-                    <th>Action</th>
-                    <th>Target</th>
-                    <th>Time</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var act in Activities)
-                {
-                    <tr>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                                    @act.UserInitials
-                                </div>
-                                <div>@act.UserName</div>
+
+    <div class="row g-4">
+        <div class="col-12 col-xxl-8">
+            <section class="dashboard-panel dashboard-panel--table" data-reveal>
+                <div class="dashboard-panel__header">
+                    <div>
+                        <span class="dashboard-panel__eyebrow">Live Feed</span>
+                        <h2>Recent Activity</h2>
+                    </div>
+                    <a class="btn btn-outline-secondary btn-sm" href="/moderation">View All</a>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table dashboard-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Target</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var act in Activities)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="activity-user">
+                                            <div class="activity-avatar">@act.UserInitials</div>
+                                            <div>
+                                                <strong class="d-block">@act.UserName</strong>
+                                                <span class="text-muted small">Admin workspace</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>@act.Action</td>
+                                    <td>@act.TargetName</td>
+                                    <td>@act.TimeAgo</td>
+                                    <td>
+                                        <span class="@GetStatusBadgeClass(act.Status)">@act.Status</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12 col-xxl-4">
+            <section class="dashboard-panel dashboard-panel--stack" data-reveal>
+                <div class="dashboard-panel__header">
+                    <div>
+                        <span class="dashboard-panel__eyebrow">Focus Area</span>
+                        <h2>Team Priorities</h2>
+                    </div>
+                </div>
+
+                <div class="focus-list" data-stagger data-stagger-step="90">
+                    @foreach (var item in FocusItems)
+                    {
+                        <article class="@GetFocusCardClass(item.Tone)" data-reveal>
+                            <div class="focus-card__icon">
+                                <i class="bi @item.Icon"></i>
                             </div>
-                        </td>
-                        <td>@act.Action</td>
-                        <td>@act.TargetName</td>
-                        <td>@act.TimeAgo</td>
-                        <td>
-                            <span class="badge @GetStatusBadge(act.Status)">@act.Status</span>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+                            <div class="focus-card__body">
+                                <div class="focus-card__top">
+                                    <h3>@item.Title</h3>
+                                    <span>@item.Progress%</span>
+                                </div>
+                                <p>@item.Description</p>
+                                <div class="focus-progress">
+                                    <span style="@($"width: {item.Progress}%")"></span>
+                                </div>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+        </div>
     </div>
 </div>
 
 @code {
-    private List<ActivityLog> Activities = new()
+    private readonly List<DashboardMetric> Metrics = new()
+    {
+        new DashboardMetric
+        {
+            Title = "Total POIs",
+            Value = "128",
+            Trend = "+5.0%",
+            TrendTone = "positive",
+            Icon = "bi-geo-alt",
+            Description = "Published locations available across curated routes.",
+            AccentStart = "#0f766e",
+            AccentEnd = "#14b8a6"
+        },
+        new DashboardMetric
+        {
+            Title = "Total Audios",
+            Value = "345",
+            Trend = "+12%",
+            TrendTone = "positive",
+            Icon = "bi-headphones",
+            Description = "Fresh narrations uploaded and queued for distribution.",
+            AccentStart = "#1d4ed8",
+            AccentEnd = "#38bdf8"
+        },
+        new DashboardMetric
+        {
+            Title = "Total Users",
+            Value = "2,450",
+            Trend = "-2%",
+            TrendTone = "warning",
+            Icon = "bi-people",
+            Description = "Active admins and business owners in the platform.",
+            AccentStart = "#7c3aed",
+            AccentEnd = "#c084fc"
+        },
+        new DashboardMetric
+        {
+            Title = "Pending Items",
+            Value = "12",
+            Trend = "Action now",
+            TrendTone = "negative",
+            Icon = "bi-hourglass-split",
+            Description = "Moderation and content changes waiting for approval.",
+            AccentStart = "#dc2626",
+            AccentEnd = "#fb7185"
+        }
+    };
+
+    private readonly List<ActivityLog> Activities = new()
     {
         new ActivityLog { UserName = "Amanda Harvey", UserInitials = "AH", Action = "Created POI", TargetName = "Hanoi Old Quarter", TimeAgo = "2 mins ago", Status = "Completed" },
         new ActivityLog { UserName = "Anne Richard", UserInitials = "AR", Action = "Uploaded Audio", TargetName = "Pho Bat Dan Guide", TimeAgo = "15 mins ago", Status = "Processing" },
@@ -102,14 +204,72 @@
         new ActivityLog { UserName = "Bob Smith", UserInitials = "BS", Action = "Requested Review", TargetName = "Walking Tour Script", TimeAgo = "1 day ago", Status = "Pending" },
     };
 
-    private string GetStatusBadge(string status) => status switch
+    private readonly List<FocusItem> FocusItems = new()
     {
-        "Completed" => "bg-success",
-        "Processing" => "bg-primary",
-        "Pending" => "bg-warning text-dark",
-        "Failed" => "bg-danger",
-        _ => "bg-secondary"
+        new FocusItem
+        {
+            Title = "Moderation Queue",
+            Description = "12 items are waiting for editorial review before they go live.",
+            Progress = 68,
+            Icon = "bi-shield-check",
+            Tone = "amber"
+        },
+        new FocusItem
+        {
+            Title = "Audio Localization",
+            Description = "Vietnamese and English voice tracks are being aligned this sprint.",
+            Progress = 84,
+            Icon = "bi-translate",
+            Tone = "teal"
+        },
+        new FocusItem
+        {
+            Title = "Partner Onboarding",
+            Description = "New tourism businesses are halfway through account verification.",
+            Progress = 52,
+            Icon = "bi-person-workspace",
+            Tone = "blue"
+        }
     };
+
+    private string GetMetricStyle(DashboardMetric metric) => $"--metric-start:{metric.AccentStart}; --metric-end:{metric.AccentEnd};";
+
+    private string GetTrendClass(string tone) => tone switch
+    {
+        "positive" => "trend-pill trend-pill--positive",
+        "warning" => "trend-pill trend-pill--warning",
+        "negative" => "trend-pill trend-pill--negative",
+        _ => "trend-pill"
+    };
+
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "Completed" => "status-pill status-pill--success",
+        "Processing" => "status-pill status-pill--processing",
+        "Pending" => "status-pill status-pill--pending",
+        "Failed" => "status-pill status-pill--failed",
+        _ => "status-pill"
+    };
+
+    private string GetFocusCardClass(string tone) => tone switch
+    {
+        "teal" => "focus-card focus-card--teal",
+        "amber" => "focus-card focus-card--amber",
+        "blue" => "focus-card focus-card--blue",
+        _ => "focus-card"
+    };
+
+    public class DashboardMetric
+    {
+        public string Title { get; set; } = "";
+        public string Value { get; set; } = "";
+        public string Trend { get; set; } = "";
+        public string TrendTone { get; set; } = "";
+        public string Icon { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string AccentStart { get; set; } = "";
+        public string AccentEnd { get; set; } = "";
+    }
 
     public class ActivityLog
     {
@@ -119,5 +279,14 @@
         public string TargetName { get; set; } = "";
         public string TimeAgo { get; set; } = "";
         public string Status { get; set; } = "";
+    }
+
+    public class FocusItem
+    {
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        public int Progress { get; set; }
+        public string Icon { get; set; } = "";
+        public string Tone { get; set; } = "";
     }
 }
