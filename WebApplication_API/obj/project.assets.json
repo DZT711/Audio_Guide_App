@@ -827,6 +827,16 @@
         "build": {
           "buildTransitive/net8.0/_._": {}
         }
+      },
+      "Shared_ClassLibrary/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "compile": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        }
       }
     }
   },
@@ -2461,13 +2471,19 @@
         "system.composition.typedparts.nuspec",
         "useSharedDesignerContext.txt"
       ]
+    },
+    "Shared_ClassLibrary/1.0.0": {
+      "type": "project",
+      "path": "../Project_SharedClassLibrary/Shared_ClassLibrary.csproj",
+      "msbuildProject": "../Project_SharedClassLibrary/Shared_ClassLibrary.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net10.0": [
       "Microsoft.AspNetCore.OpenApi >= 10.0.3",
       "Microsoft.EntityFrameworkCore.Design >= 10.0.5",
-      "Microsoft.EntityFrameworkCore.Sqlite >= 10.0.3"
+      "Microsoft.EntityFrameworkCore.Sqlite >= 10.0.3",
+      "Shared_ClassLibrary >= 1.0.0"
     ]
   },
   "packageFolders": {
@@ -2495,7 +2511,11 @@
       "frameworks": {
         "net10.0": {
           "targetAlias": "net10.0",
-          "projectReferences": {}
+          "projectReferences": {
+            "D:\\Projects\\Smart-Tourism-MAUI\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj": {
+              "projectPath": "D:\\Projects\\Smart-Tourism-MAUI\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj"
+            }
+          }
         }
       },
       "warningProperties": {

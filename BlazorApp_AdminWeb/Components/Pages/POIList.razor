@@ -3,6 +3,7 @@
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
+@using Project_SharedClassLibrary.Constants
 
 <PageTitle>Location Management</PageTitle>
 
@@ -18,10 +19,6 @@
         </div>
 
         <div class="management-hero__actions">
-            <button type="button" class="btn btn-primary btn-lg" @onclick="StartCreate">
-                <i class="bi bi-plus-circle me-2"></i>
-                New Location
-            </button>
             <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
                 <i class="bi bi-arrow-clockwise me-2"></i>
                 Refresh
@@ -211,6 +208,10 @@
                                     <i class="bi bi-crosshair me-1"></i>
                                     Center On Coordinates
                                 </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="UseDeviceLocationAsync">
+                                    <i class="bi bi-geo-alt me-1"></i>
+                                    Use My Device Location
+                                </button>
                             </div>
 
                             <div class="location-picker__map" @ref="_mapElement"></div>
@@ -286,14 +287,15 @@
 </div>
 
 @code {
-    private const double DefaultLatitude = 21.0278;
-    private const double DefaultLongitude = 105.8342;
+    private const double DefaultLatitude = LocationDefaults.District4Latitude;
+    private const double DefaultLongitude = LocationDefaults.District4Longitude;
     private readonly LocationFormModel _formModel = new();
     private readonly List<LocationDto> _locations = new();
     private readonly List<CategoryDto> _categories = new();
     private DotNetObjectReference<POIList>? _mapReference;
     private bool _isLoading = true;
     private bool _isSaving;
+    private bool _deviceLocationPending = true;
     private bool _mapSyncPending;
     private int? _editingId;
     private string _searchText = "";
@@ -327,13 +329,18 @@
         {
             _mapReference = DotNetObjectReference.Create(this);
             await InitializeMapAsync();
-            return;
         }
 
         if (_mapSyncPending)
         {
             _mapSyncPending = false;
             await SyncMapAsync();
+        }
+
+        if (_deviceLocationPending && _editingId is null)
+        {
+            _deviceLocationPending = false;
+            await TryUseDeviceLocationAsync(showFallbackNotice: false);
         }
     }
 
@@ -424,6 +431,7 @@
     private void StartEdit(LocationDto location)
     {
         _editingId = location.Id;
+        _deviceLocationPending = false;
         var snapshot = LocationFormModel.FromDto(location, _categories);
         ApplyForm(snapshot);
     }
@@ -492,6 +500,7 @@
             Longitude = DefaultLongitude,
             Status = 1
         });
+        _deviceLocationPending = true;
     }
 
     private void CancelEdit()
@@ -515,6 +524,36 @@
         _formModel.Email = model.Email;
         _formModel.Status = model.Status;
         _mapSyncPending = true;
+    }
+
+    private async Task UseDeviceLocationAsync() => await TryUseDeviceLocationAsync(showFallbackNotice: true);
+
+    private async Task TryUseDeviceLocationAsync(bool showFallbackNotice)
+    {
+        try
+        {
+            var usedDeviceLocation = await JS.InvokeAsync<bool>(
+                "smartTourAdmin.map.tryUseDeviceLocation",
+                _mapElement,
+                DefaultLatitude,
+                DefaultLongitude);
+
+            if (!usedDeviceLocation && showFallbackNotice)
+            {
+                Notifications.Info(
+                    $"Device location is unavailable, so the pin was placed at {LocationDefaults.District4Label}.",
+                    "Using default location");
+            }
+        }
+        catch (JSException)
+        {
+            if (showFallbackNotice)
+            {
+                Notifications.Warning(
+                    $"The browser could not access device location. The pin remains at {LocationDefaults.District4Label}.",
+                    "Location unavailable");
+            }
+        }
     }
 
     private void SetStatus(int status) => _formModel.Status = status;

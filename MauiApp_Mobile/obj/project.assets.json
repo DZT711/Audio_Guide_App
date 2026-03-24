@@ -2484,6 +2484,16 @@
             "related": ".aar;.pdb;.xml"
           }
         }
+      },
+      "Shared_ClassLibrary/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "compile": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        }
       }
     },
     "net10.0-android36.0/android-arm64": {
@@ -4968,6 +4978,16 @@
           "lib/net10.0-android36.0/Xamarin.KotlinX.Serialization.Core.Jvm.dll": {
             "related": ".aar;.pdb;.xml"
           }
+        }
+      },
+      "Shared_ClassLibrary/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "compile": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
         }
       }
     },
@@ -7454,6 +7474,16 @@
             "related": ".aar;.pdb;.xml"
           }
         }
+      },
+      "Shared_ClassLibrary/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "compile": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        }
       }
     },
     "net10.0-android36.0/win-x64": {
@@ -9939,6 +9969,16 @@
             "related": ".aar;.pdb;.xml"
           }
         }
+      },
+      "Shared_ClassLibrary/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "compile": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        }
       }
     },
     "net10.0-windows10.0.19041": {
@@ -10655,6 +10695,16 @@
             "rid": "win-x86"
           }
         }
+      },
+      "Shared_ClassLibrary/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "compile": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        }
       }
     },
     "net10.0-windows10.0.19041/android-arm64": {
@@ -11309,6 +11359,16 @@
           "buildTransitive/Microsoft.WindowsAppSDK.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.targets": {}
         }
+      },
+      "Shared_ClassLibrary/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "compile": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        }
       }
     },
     "net10.0-windows10.0.19041/android-x64": {
@@ -11962,6 +12022,16 @@
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.targets": {}
+        }
+      },
+      "Shared_ClassLibrary/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "compile": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
         }
       }
     },
@@ -12626,6 +12696,16 @@
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.targets": {}
+        }
+      },
+      "Shared_ClassLibrary/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "compile": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Shared_ClassLibrary.dll": {}
         }
       }
     }
@@ -17107,17 +17187,24 @@
         "xamarin.kotlinx.serialization.core.jvm.1.9.0.1.nupkg.sha512",
         "xamarin.kotlinx.serialization.core.jvm.nuspec"
       ]
+    },
+    "Shared_ClassLibrary/1.0.0": {
+      "type": "project",
+      "path": "../Project_SharedClassLibrary/Shared_ClassLibrary.csproj",
+      "msbuildProject": "../Project_SharedClassLibrary/Shared_ClassLibrary.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net10.0-android36.0": [
       "Microsoft.Extensions.Logging.Debug >= 10.0.0",
       "Microsoft.Maui.Controls >= 10.0.20",
-      "Microsoft.NET.ILLink.Tasks >= 10.0.4"
+      "Microsoft.NET.ILLink.Tasks >= 10.0.4",
+      "Shared_ClassLibrary >= 1.0.0"
     ],
     "net10.0-windows10.0.19041": [
       "Microsoft.Extensions.Logging.Debug >= 10.0.0",
-      "Microsoft.Maui.Controls >= 10.0.20"
+      "Microsoft.Maui.Controls >= 10.0.20",
+      "Shared_ClassLibrary >= 1.0.0"
     ]
   },
   "packageFolders": {
@@ -17147,11 +17234,19 @@
       "frameworks": {
         "net10.0-android36.0": {
           "targetAlias": "net10.0-android",
-          "projectReferences": {}
+          "projectReferences": {
+            "D:\\Projects\\Smart-Tourism-MAUI\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj": {
+              "projectPath": "D:\\Projects\\Smart-Tourism-MAUI\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj"
+            }
+          }
         },
         "net10.0-windows10.0.19041": {
           "targetAlias": "net10.0-windows10.0.19041.0",
-          "projectReferences": {}
+          "projectReferences": {
+            "D:\\Projects\\Smart-Tourism-MAUI\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj": {
+              "projectPath": "D:\\Projects\\Smart-Tourism-MAUI\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj"
+            }
+          }
         }
       },
       "warningProperties": {
@@ -17814,13 +17909,5 @@
         "#import": []
       }
     }
-  },
-  "logs": [
-    {
-      "code": "NU1900",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Error occurred while getting package vulnerability data: Unable to load the service index for source https://api.nuget.org/v3/index.json."
-    }
-  ]
+  }
 }

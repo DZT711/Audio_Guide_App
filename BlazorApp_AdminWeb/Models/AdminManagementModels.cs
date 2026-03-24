@@ -1,35 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Components.Forms;
+using Project_SharedClassLibrary.Contracts;
 
 namespace BlazorApp_AdminWeb.Models;
-
-public record CategoryDto(int Id, string Name, string? Description, int Status);
-
-public record LocationDto(
-    int Id,
-    string Name,
-    string? Address,
-    string Category,
-    int EstablishedYear,
-    string? Description,
-    double Latitude,
-    double Longitude,
-    string? OwnerName,
-    string? WebURL,
-    string? Phone,
-    string? Email,
-    int Status);
-
-public record AudioDto(
-    int Id,
-    string Title,
-    string LocationName,
-    string Description,
-    string AudioURL,
-    string Language,
-    string VoiceGender,
-    string Script,
-    int Duration,
-    int Status);
 
 public sealed class AdminCredentialsModel
 {
@@ -116,7 +89,7 @@ public sealed class LocationFormModel
     };
 }
 
-public sealed class AudioFormModel
+public sealed class AudioFormModel : IValidatableObject
 {
     [Required]
     [StringLength(100)]
@@ -129,9 +102,10 @@ public sealed class AudioFormModel
     [StringLength(255)]
     public string Description { get; set; } = "";
 
-    [Required]
     [StringLength(255)]
-    public string AudioURL { get; set; } = "";
+    public string AudioPath { get; set; } = "";
+
+    public IBrowserFile? AudioFile { get; set; }
 
     [StringLength(50)]
     public string Language { get; set; } = "vi-VN";
@@ -153,16 +127,19 @@ public sealed class AudioFormModel
         Title = dto.Title,
         LocationName = dto.LocationName,
         Description = dto.Description,
-        AudioURL = dto.AudioURL,
+        AudioPath = dto.AudioURL,
         Language = dto.Language,
         VoiceGender = string.IsNullOrWhiteSpace(dto.VoiceGender) ? "Female" : dto.VoiceGender,
         Script = dto.Script,
         Duration = dto.Duration,
         Status = dto.Status
     };
-}
 
-public sealed class ApiMessageResponse
-{
-    public string Message { get; set; } = "";
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (AudioFile is null && string.IsNullOrWhiteSpace(AudioPath))
+        {
+            yield return new ValidationResult("Choose an audio file to upload.", [nameof(AudioPath)]);
+        }
+    }
 }

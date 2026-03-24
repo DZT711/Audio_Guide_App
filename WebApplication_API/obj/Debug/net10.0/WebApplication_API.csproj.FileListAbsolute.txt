@@ -296,3 +296,5 @@ D:\Projects\Smart-Tourism-MAUI\WebApplication_API\obj\Debug\net10.0\refint\WebAp
 D:\Projects\Smart-Tourism-MAUI\WebApplication_API\obj\Debug\net10.0\WebApplication_API.pdb
 D:\Projects\Smart-Tourism-MAUI\WebApplication_API\obj\Debug\net10.0\WebApplication_API.genruntimeconfig.cache
 D:\Projects\Smart-Tourism-MAUI\WebApplication_API\obj\Debug\net10.0\ref\WebApplication_API.dll
+D:\Projects\Smart-Tourism-MAUI\WebApplication_API\bin\Debug\net10.0\Shared_ClassLibrary.dll
+D:\Projects\Smart-Tourism-MAUI\WebApplication_API\bin\Debug\net10.0\Shared_ClassLibrary.pdb
