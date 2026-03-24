@@ -586,6 +586,23 @@
     background: rgba(240, 253, 250, 0.72);
 }
 
+.audio-file-preview[b-47wya8mj6w] {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid rgba(59, 130, 246, 0.12);
+    border-radius: 18px;
+    background: rgba(239, 246, 255, 0.72);
+}
+
+.audio-file-preview__player[b-47wya8mj6w] {
+    width: 100%;
+}
+
+.audio-file-preview__warning[b-47wya8mj6w] {
+    color: #b45309;
+}
+
 .audio-preview__actions[b-47wya8mj6w] {
     display: flex;
     flex-wrap: wrap;

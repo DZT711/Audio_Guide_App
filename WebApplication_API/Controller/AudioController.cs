@@ -2,6 +2,7 @@ using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Data;
 using WebApplication_API.Model;
 using WebApplication_API.Services;
@@ -157,7 +158,7 @@ public class AudioController : ControllerBase
             if (location == null)
                 return NotFound(new { message = "Location not found" });
 
-            var audioPath = request.AudioURL;
+            var audioPath = SharedStoragePaths.NormalizePublicAudioPath(request.AudioURL);
             if (audioFile is not null)
             {
                 audioPath = await _audioStorage.SaveAudioAsync(audioFile, request.LocationName, request.Title, cancellationToken);
@@ -229,7 +230,9 @@ public class AudioController : ControllerBase
             if (location == null)
                 return NotFound(new { message = "Location not found" });
 
-            var nextAudioPath = string.IsNullOrWhiteSpace(request.AudioURL) ? audio.FilePath : request.AudioURL;
+            var nextAudioPath = string.IsNullOrWhiteSpace(request.AudioURL)
+                ? SharedStoragePaths.NormalizePublicAudioPath(audio.FilePath)
+                : SharedStoragePaths.NormalizePublicAudioPath(request.AudioURL);
             if (audioFile is not null)
             {
                 nextAudioPath = await _audioStorage.SaveAudioAsync(audioFile, request.LocationName, request.Title, cancellationToken);

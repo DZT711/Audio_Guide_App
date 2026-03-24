@@ -131,10 +131,10 @@ d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.runtimec
 d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.dll
 d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.pdb
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gp3blz7zhz-{0}-wknx01re53-wknx01re53.gz
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-d6femuq0t4-d6femuq0t4.gz
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-d6femuq0t4-d6femuq0t4.gz
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\Shared_ClassLibrary.dll
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\Shared_ClassLibrary.pdb
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.csproj.AssemblyReference.cache
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\r008phjwfc-{0}-27nyr4fi2q-27nyr4fi2q.gz
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorAp.19485DFA.Up2Date
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\r008phjwfc-{0}-86f0r7i0n7-86f0r7i0n7.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-i32sgvpqlg-i32sgvpqlg.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-i32sgvpqlg-i32sgvpqlg.gz

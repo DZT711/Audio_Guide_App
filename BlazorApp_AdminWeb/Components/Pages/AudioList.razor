@@ -1,4 +1,5 @@
 @page "/audio"
+@implements IAsyncDisposable
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
@@ -135,7 +136,7 @@
                             <div class="audio-card__footer">
                                 <small class="management-muted">@GetAudioStorageLabel(audio.AudioURL)</small>
                                 <div class="management-inline-actions">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(audio)">Edit</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">Edit</button>
                                     <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(audio.Status == 0)" @onclick="() => DeleteAudioAsync(audio)">
                                         @(audio.Status == 0 ? "Inactive" : "Archive")
                                     </button>
@@ -190,6 +191,33 @@
                             <span class="management-field__hint">Stored file: @_formModel.AudioPath</span>
                         }
                         <span class="management-field__hint">The uploaded file is stored automatically in `Project_SharedClassLibrary/SharedStorage/Audio` and the URL is generated for you.</span>
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <div class="audio-file-preview">
+                            <div>
+                                <span class="management-field__label">Audio File Preview</span>
+                                <div class="management-field__hint">@GetAudioPreviewHint()</div>
+                            </div>
+
+                            @if (_isCheckingAudioPreview)
+                            {
+                                <div class="management-muted">Checking the audio file before previewing it.</div>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(_audioPreviewUrl))
+                            {
+                                <audio @key="_audioPreviewUrl" class="audio-file-preview__player" controls preload="metadata" src="@_audioPreviewUrl"></audio>
+                            }
+                            else
+                            {
+                                <div class="management-muted">Select a new audio file or edit an existing item to listen here.</div>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_audioPreviewWarning))
+                        {
+                            <span class="management-field__hint audio-file-preview__warning">@_audioPreviewWarning</span>
+                        }
                     </div>
 
                     <div class="management-field">
@@ -259,7 +287,7 @@
                     <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _locations.Count == 0)">
                         @(_isSaving ? "Saving..." : _editingId is null ? "Create Audio" : "Save Changes")
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
                 </div>
             </EditForm>
         </section>
@@ -269,6 +297,7 @@
 @code {
     private const string MaleVoice = "Male";
     private const string FemaleVoice = "Female";
+    private const long MaxAudioPreviewBytes = 25L * 1024 * 1024;
     private readonly AudioFormModel _formModel = new();
     private readonly List<AudioDto> _audioItems = new();
     private readonly List<LocationDto> _locations = new();
@@ -278,6 +307,10 @@
     private string _searchText = "";
     private string _voiceFilter = "";
     private string _statusFilter = "";
+    private string? _audioPreviewUrl;
+    private string? _audioPreviewWarning;
+    private bool _audioPreviewIsObjectUrl;
+    private bool _isCheckingAudioPreview;
     private string? _loadError;
 
     private IEnumerable<AudioDto> FilteredAudio =>
@@ -347,8 +380,19 @@
         ApplyForm(snapshot);
     }
 
+    private async Task StartEditAsync(AudioDto audio)
+    {
+        StartEdit(audio);
+        await RefreshAudioPreviewAsync();
+    }
+
     private async Task SaveAudioAsync()
     {
+        if (!await EnsureAudioFileAvailableForSaveAsync())
+        {
+            return;
+        }
+
         _isSaving = true;
 
         try
@@ -365,7 +409,7 @@
             }
 
             await LoadDataAsync();
-            StartCreate();
+            await StartCreateAsync();
         }
         catch (Exception ex)
         {
@@ -393,7 +437,7 @@
 
             if (_editingId == audio.Id)
             {
-                StartCreate();
+                await StartCreateAsync();
             }
         }
         catch (Exception ex)
@@ -450,6 +494,18 @@
         ResetForm();
     }
 
+    private async Task StartCreateAsync()
+    {
+        StartCreate();
+        await RefreshAudioPreviewAsync();
+    }
+
+    private async Task CancelEditAsync()
+    {
+        CancelEdit();
+        await RefreshAudioPreviewAsync();
+    }
+
     private void ApplyForm(AudioFormModel model)
     {
         _formModel.Title = model.Title;
@@ -464,9 +520,10 @@
         _formModel.Status = model.Status;
     }
 
-    private void HandleAudioFileSelected(InputFileChangeEventArgs eventArgs)
+    private async Task HandleAudioFileSelected(InputFileChangeEventArgs eventArgs)
     {
         _formModel.AudioFile = eventArgs.File;
+        await RefreshAudioPreviewAsync();
     }
 
     private void SetVoiceGender(string voiceGender) => _formModel.VoiceGender = voiceGender;
@@ -513,4 +570,123 @@
     private static string GetChipClass(int status, int currentStatus) => status == currentStatus
         ? "management-chip management-chip--selected"
         : "management-chip";
+
+    private string GetAudioPreviewHint()
+    {
+        if (_formModel.AudioFile is not null)
+        {
+            return $"Previewing the newly selected file: {_formModel.AudioFile.Name}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(_formModel.AudioPath))
+        {
+            return $"Previewing the stored audio path: {_formModel.AudioPath}";
+        }
+
+        return "This preview is for uploaded audio files only. The browser speech preview below is unchanged.";
+    }
+
+    private async Task<bool> EnsureAudioFileAvailableForSaveAsync()
+    {
+        if (_formModel.AudioFile is not null)
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(_formModel.AudioPath))
+        {
+            return false;
+        }
+
+        var resolvedAudioUrl = await ApiClient.ResolvePlayableAudioUrlAsync(_formModel.AudioPath);
+        if (!string.IsNullOrWhiteSpace(resolvedAudioUrl))
+        {
+            return true;
+        }
+
+        _audioPreviewWarning = "The current audio file could not be found. Upload another audio file before saving.";
+        Notifications.Warning("The current audio file could not be found. Upload another audio file before saving.", "Audio file missing");
+        return false;
+    }
+
+    private async Task RefreshAudioPreviewAsync()
+    {
+        await ClearAudioPreviewAsync();
+        _audioPreviewWarning = null;
+
+        if (_formModel.AudioFile is not null)
+        {
+            try
+            {
+                await using var sourceStream = _formModel.AudioFile.OpenReadStream(MaxAudioPreviewBytes);
+                using var streamReference = new DotNetStreamReference(sourceStream);
+
+                _audioPreviewUrl = await JS.InvokeAsync<string>(
+                    "smartTourAdmin.audioPreview.createObjectUrlFromStream",
+                    streamReference,
+                    _formModel.AudioFile.ContentType);
+
+                _audioPreviewIsObjectUrl = !string.IsNullOrWhiteSpace(_audioPreviewUrl);
+            }
+            catch (Exception ex) when (ex is IOException or JSException)
+            {
+                _audioPreviewWarning = "The selected file could not be previewed, but you can still try to upload it.";
+            }
+
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_formModel.AudioPath))
+        {
+            return;
+        }
+
+        _isCheckingAudioPreview = true;
+
+        try
+        {
+            _audioPreviewUrl = await ApiClient.ResolvePlayableAudioUrlAsync(_formModel.AudioPath);
+            if (string.IsNullOrWhiteSpace(_audioPreviewUrl))
+            {
+                _audioPreviewWarning = "The stored audio file was not found. Upload another audio file to replace it.";
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _audioPreviewWarning = "The audio file preview could not be verified right now. Try again after the API is available.";
+        }
+        finally
+        {
+            _isCheckingAudioPreview = false;
+        }
+    }
+
+    private async Task ClearAudioPreviewAsync()
+    {
+        if (_audioPreviewIsObjectUrl && !string.IsNullOrWhiteSpace(_audioPreviewUrl))
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("smartTourAdmin.audioPreview.revokeObjectUrl", _audioPreviewUrl);
+            }
+            catch (JSException)
+            {
+            }
+        }
+
+        _audioPreviewUrl = null;
+        _audioPreviewIsObjectUrl = false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await StopTtsPreviewAsync();
+            await ClearAudioPreviewAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
 }

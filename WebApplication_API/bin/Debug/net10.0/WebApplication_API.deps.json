@@ -10,7 +10,8 @@
         "dependencies": {
           "Microsoft.AspNetCore.OpenApi": "10.0.3",
           "Microsoft.EntityFrameworkCore.Design": "10.0.5",
-          "Microsoft.EntityFrameworkCore.Sqlite": "10.0.3"
+          "Microsoft.EntityFrameworkCore.Sqlite": "10.0.3",
+          "Shared_ClassLibrary": "1.0.0"
         },
         "runtime": {
           "WebApplication_API.dll": {}
@@ -657,6 +658,14 @@
             "fileVersion": "9.0.24.52809"
           }
         }
+      },
+      "Shared_ClassLibrary/1.0.0": {
+        "runtime": {
+          "Shared_ClassLibrary.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
       }
     }
   },
@@ -882,6 +891,11 @@
       "sha512": "sha512-aRZlojCCGEHDKqh43jaDgaVpYETsgd7Nx4g1zwLKMtv4iTo0627715ajEFNpEEBTgLmvZuv8K0EVxc3sM4NWJA==",
       "path": "system.composition.typedparts/9.0.0",
       "hashPath": "system.composition.typedparts.9.0.0.nupkg.sha512"
+    },
+    "Shared_ClassLibrary/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
     }
   }
 }

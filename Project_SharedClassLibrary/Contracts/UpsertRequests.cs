@@ -25,10 +25,10 @@ public record LocationUpsertRequest(
 public record AudioUpsertRequest(
     [Required][StringLength(100)] string Title,
     [Required][StringLength(100)] string LocationName,
-    [StringLength(255)] string Description,
-    [StringLength(255)] string AudioURL,
-    [StringLength(50)] string Language,
-    [StringLength(50)] string VoiceGender,
-    [StringLength(4000)] string Script,
+    [StringLength(255)] string? Description,
+    [StringLength(255)] string? AudioURL,
+    [StringLength(50)] string? Language,
+    [StringLength(50)] string? VoiceGender,
+    [StringLength(4000)] string? Script,
     [Range(0, int.MaxValue)] int Duration,
     [Required][Range(0, 1)] int Status);

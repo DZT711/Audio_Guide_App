@@ -2,13 +2,18 @@ using System.Net.Http.Json;
 using BlazorApp_AdminWeb.Models;
 using Project_SharedClassLibrary.Constants;
 using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Storage;
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
+using System.Text.Json;
 
 namespace BlazorApp_AdminWeb.Services;
 
 public sealed class AdminApiClient(HttpClient httpClient)
 {
+    private const long MaxAudioUploadBytes = 25L * 1024 * 1024;
+
     public async Task<IReadOnlyList<CategoryDto>> GetCategoriesAsync() =>
         await httpClient.GetFromJsonAsync<List<CategoryDto>>(ApiRoutes.Categories) ?? [];
 
@@ -112,6 +117,19 @@ public sealed class AdminApiClient(HttpClient httpClient)
         await EnsureSuccessAsync(response, "Unable to archive audio.");
     }
 
+    public async Task<string?> ResolvePlayableAudioUrlAsync(string? audioPath, CancellationToken cancellationToken = default)
+    {
+        foreach (var candidate in GetAudioUrlCandidates(audioPath))
+        {
+            if (await UrlExistsAsync(candidate, cancellationToken))
+            {
+                return candidate.ToString();
+            }
+        }
+
+        return null;
+    }
+
     private static MultipartFormDataContent CreateAudioContent(AudioFormModel model)
     {
         var content = new MultipartFormDataContent();
@@ -128,7 +146,7 @@ public sealed class AdminApiClient(HttpClient httpClient)
 
         if (model.AudioFile is not null)
         {
-            var stream = model.AudioFile.OpenReadStream(25 * 1024 * 1024);
+            var stream = model.AudioFile.OpenReadStream(MaxAudioUploadBytes);
             var fileContent = new StreamContent(stream);
 
             if (!string.IsNullOrWhiteSpace(model.AudioFile.ContentType))
@@ -136,7 +154,7 @@ public sealed class AdminApiClient(HttpClient httpClient)
                 fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(model.AudioFile.ContentType);
             }
 
-            content.Add(fileContent, "AudioFile", model.AudioFile.Name);
+            content.Add(fileContent, "AudioFile", Path.GetFileName(model.AudioFile.Name));
         }
 
         return content;
@@ -145,6 +163,69 @@ public sealed class AdminApiClient(HttpClient httpClient)
     private static void AddString(MultipartFormDataContent content, string name, string? value)
     {
         content.Add(new StringContent(value ?? string.Empty), name);
+    }
+
+    private IEnumerable<Uri> GetAudioUrlCandidates(string? audioPath)
+    {
+        if (string.IsNullOrWhiteSpace(audioPath) || httpClient.BaseAddress is null)
+        {
+            yield break;
+        }
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var candidate in BuildCandidates(audioPath))
+        {
+            if (seen.Add(candidate.AbsoluteUri))
+            {
+                yield return candidate;
+            }
+        }
+    }
+
+    private IEnumerable<Uri> BuildCandidates(string audioPath)
+    {
+        var trimmedPath = audioPath.Trim();
+        if (Uri.TryCreate(trimmedPath, UriKind.Absolute, out var absoluteUri))
+        {
+            yield return absoluteUri;
+            yield break;
+        }
+
+        yield return new Uri(httpClient.BaseAddress!, trimmedPath);
+
+        var normalizedManagedPath = SharedStoragePaths.NormalizePublicAudioPath(trimmedPath);
+        if (!string.Equals(normalizedManagedPath, trimmedPath, StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(normalizedManagedPath))
+        {
+            yield return new Uri(httpClient.BaseAddress!, normalizedManagedPath);
+        }
+    }
+
+    private async Task<bool> UrlExistsAsync(Uri audioUri, CancellationToken cancellationToken)
+    {
+        using var headRequest = new HttpRequestMessage(HttpMethod.Head, audioUri);
+        using var headResponse = await httpClient.SendAsync(
+            headRequest,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        if (headResponse.IsSuccessStatusCode)
+        {
+            return true;
+        }
+
+        if (headResponse.StatusCode != HttpStatusCode.MethodNotAllowed)
+        {
+            return false;
+        }
+
+        using var getRequest = new HttpRequestMessage(HttpMethod.Get, audioUri);
+        using var getResponse = await httpClient.SendAsync(
+            getRequest,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        return getResponse.IsSuccessStatusCode;
     }
 
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, string fallbackMessage)
@@ -156,10 +237,52 @@ public sealed class AdminApiClient(HttpClient httpClient)
 
         try
         {
-            var apiMessage = await response.Content.ReadFromJsonAsync<ApiMessageResponse>();
-            if (!string.IsNullOrWhiteSpace(apiMessage?.Message))
+            var rawContent = await response.Content.ReadAsStringAsync();
+            if (string.IsNullOrWhiteSpace(rawContent))
             {
-                throw new InvalidOperationException(apiMessage.Message);
+                throw new InvalidOperationException(fallbackMessage);
+            }
+
+            using var document = JsonDocument.Parse(rawContent);
+            if (document.RootElement.TryGetProperty("message", out var messageElement)
+                && messageElement.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(messageElement.GetString()))
+            {
+                throw new InvalidOperationException(messageElement.GetString());
+            }
+
+            if (document.RootElement.TryGetProperty("errors", out var errorsElement)
+                && errorsElement.ValueKind == JsonValueKind.Object)
+            {
+                var errors = new List<string>();
+                foreach (var property in errorsElement.EnumerateObject())
+                {
+                    if (property.Value.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (var item in property.Value.EnumerateArray())
+                    {
+                        var message = item.ValueKind == JsonValueKind.String ? item.GetString() : null;
+                        if (!string.IsNullOrWhiteSpace(message))
+                        {
+                            errors.Add(message);
+                        }
+                    }
+                }
+
+                if (errors.Count > 0)
+                {
+                    throw new InvalidOperationException(string.Join(" ", errors.Distinct()));
+                }
+            }
+
+            if (document.RootElement.TryGetProperty("title", out var titleElement)
+                && titleElement.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(titleElement.GetString()))
+            {
+                throw new InvalidOperationException(titleElement.GetString());
             }
         }
         catch (NotSupportedException)

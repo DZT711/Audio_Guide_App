@@ -84,6 +84,26 @@
         }
     };
 
+    admin.audioPreview = {
+        createObjectUrlFromStream: async (streamReference, contentType) => {
+            if (!streamReference) {
+                return "";
+            }
+
+            const arrayBuffer = await streamReference.arrayBuffer();
+            const blob = new Blob([arrayBuffer], {
+                type: contentType || "audio/mpeg"
+            });
+
+            return URL.createObjectURL(blob);
+        },
+        revokeObjectUrl: (url) => {
+            if (url) {
+                URL.revokeObjectURL(url);
+            }
+        }
+    };
+
     const roundCoordinate = (value) => {
         const numericValue = Number(value);
         if (!Number.isFinite(numericValue)) {
