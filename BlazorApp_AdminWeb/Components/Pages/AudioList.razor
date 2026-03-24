@@ -17,10 +17,6 @@
         </div>
 
         <div class="management-hero__actions">
-            <button type="button" class="btn btn-primary btn-lg" @onclick="StartCreate">
-                <i class="bi bi-plus-circle me-2"></i>
-                New Audio
-            </button>
             <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
                 <i class="bi bi-arrow-clockwise me-2"></i>
                 Refresh
@@ -137,7 +133,7 @@
                             <p class="audio-card__description">@(string.IsNullOrWhiteSpace(audio.Description) ? "No description provided yet." : audio.Description)</p>
 
                             <div class="audio-card__footer">
-                                <small class="management-muted">@audio.AudioURL</small>
+                                <small class="management-muted">@GetAudioStorageLabel(audio.AudioURL)</small>
                                 <div class="management-inline-actions">
                                     <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(audio)">Edit</button>
                                     <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(audio.Status == 0)" @onclick="() => DeleteAudioAsync(audio)">
@@ -182,9 +178,18 @@
                     </div>
 
                     <div class="management-field management-field--full">
-                        <label for="audio-url">Audio URL / File Path</label>
-                        <InputText id="audio-url" class="form-control" @bind-Value="_formModel.AudioURL" />
-                        <ValidationMessage For="() => _formModel.AudioURL" />
+                        <label for="audio-file">Audio File</label>
+                        <InputFile id="audio-file" class="form-control" OnChange="HandleAudioFileSelected" accept="audio/*" />
+                        <ValidationMessage For="() => _formModel.AudioPath" />
+                        @if (_formModel.AudioFile is not null)
+                        {
+                            <span class="management-field__hint">Selected file: @_formModel.AudioFile.Name</span>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_formModel.AudioPath))
+                        {
+                            <span class="management-field__hint">Stored file: @_formModel.AudioPath</span>
+                        }
+                        <span class="management-field__hint">The uploaded file is stored automatically in `Project_SharedClassLibrary/SharedStorage/Audio` and the URL is generated for you.</span>
                     </div>
 
                     <div class="management-field">
@@ -450,12 +455,18 @@
         _formModel.Title = model.Title;
         _formModel.LocationName = model.LocationName;
         _formModel.Description = model.Description;
-        _formModel.AudioURL = model.AudioURL;
+        _formModel.AudioPath = model.AudioPath;
+        _formModel.AudioFile = null;
         _formModel.Language = model.Language;
         _formModel.VoiceGender = model.VoiceGender;
         _formModel.Script = model.Script;
         _formModel.Duration = model.Duration;
         _formModel.Status = model.Status;
+    }
+
+    private void HandleAudioFileSelected(InputFileChangeEventArgs eventArgs)
+    {
+        _formModel.AudioFile = eventArgs.File;
     }
 
     private void SetVoiceGender(string voiceGender) => _formModel.VoiceGender = voiceGender;
@@ -478,6 +489,16 @@
 
     private static string GetAudioKind(AudioDto audio) =>
         string.IsNullOrWhiteSpace(audio.Script) ? "Uploaded Audio" : "TTS / Script";
+
+    private static string GetAudioStorageLabel(string? audioPath)
+    {
+        if (string.IsNullOrWhiteSpace(audioPath))
+        {
+            return "No stored audio file";
+        }
+
+        return $"Shared library file: {System.IO.Path.GetFileName(audioPath)}";
+    }
 
     private static string GetAudioCardClass(int status) => status == 1
         ? "audio-card"

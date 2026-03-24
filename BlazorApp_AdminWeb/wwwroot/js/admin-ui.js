@@ -4,8 +4,8 @@
     window.smartTourAdmin = window.smartTourAdmin ?? {};
     const admin = window.smartTourAdmin;
     const defaultMapCenter = {
-        lat: 21.0278,
-        lng: 105.8342
+        lat: 10.754027,
+        lng: 106.705412
     };
     const locationPickers = new WeakMap();
 
@@ -163,6 +163,40 @@
         }
     };
 
+    const setPickerLocationAndNotify = async (picker, latitude, longitude, focusMap) => {
+        setMarkerPosition(picker, latitude, longitude, focusMap);
+        await notifyMapChange(picker, latitude, longitude);
+    };
+
+    const tryUseDeviceLocation = (picker, fallbackLatitude, fallbackLongitude) => new Promise((resolve) => {
+        if (!picker) {
+            resolve(false);
+            return;
+        }
+
+        if (!("geolocation" in navigator)) {
+            void setPickerLocationAndNotify(picker, fallbackLatitude, fallbackLongitude, true)
+                .finally(() => resolve(false));
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition((position) => {
+            void setPickerLocationAndNotify(
+                picker,
+                position.coords.latitude,
+                position.coords.longitude,
+                true)
+                .finally(() => resolve(true));
+        }, () => {
+            void setPickerLocationAndNotify(picker, fallbackLatitude, fallbackLongitude, true)
+                .finally(() => resolve(false));
+        }, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+        });
+    });
+
     admin.map = {
         initializeLocationPicker: (element, dotNetRef, latitude, longitude) => {
             if (!element || typeof L === "undefined") {
@@ -216,6 +250,17 @@
             setMarkerPosition(picker, latitude, longitude, false);
             picker.map.invalidateSize();
             return true;
+        },
+        tryUseDeviceLocation: async (element, fallbackLatitude, fallbackLongitude) => {
+            const picker = locationPickers.get(element);
+            if (!picker) {
+                return false;
+            }
+
+            return await tryUseDeviceLocation(
+                picker,
+                getMapCoordinate(fallbackLatitude, defaultMapCenter.lat),
+                getMapCoordinate(fallbackLongitude, defaultMapCenter.lng));
         },
         disposeLocationPicker: (element) => {
             const picker = locationPickers.get(element);

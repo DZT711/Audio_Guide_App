@@ -2,8 +2,8 @@ using System;
 using Microsoft.AspNetCore.Mvc;
 using WebApplication_API.Data;
 using Microsoft.EntityFrameworkCore;
+using Project_SharedClassLibrary.Contracts;
 using WebApplication_API.Model;
-using WebApplication_API.DTO;
 
 namespace WebApplication_API.Controller;
 
@@ -30,10 +30,10 @@ public class LocationController : ControllerBase
                 .Include(l => l.Category)
                 .ToListAsync();
 
-            var locationDTOs = new List<LocationDTO>();
+            var locationDTOs = new List<LocationDto>();
             foreach (var location in locations)
             {
-                var locationDTO = new LocationDTO(
+                var locationDTO = new LocationDto(
                     location.Id,
                     location.Name,
                     location.Address,
@@ -66,7 +66,7 @@ public class LocationController : ControllerBase
     /// Get location by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<LocationDTO>> GetLocationById(int id)
+    public async Task<ActionResult<LocationDto>> GetLocationById(int id)
     {
         try
         {
@@ -77,7 +77,7 @@ public class LocationController : ControllerBase
             if (location == null)
                 return NotFound(new { message = "Location not found" });
 
-            var locationDTO = new LocationDTO(
+            var locationDTO = new LocationDto(
                 location.Id,
                 location.Name,
                 location.Address,
@@ -108,7 +108,7 @@ public class LocationController : ControllerBase
     /// Get locations by category ID
     /// </summary>
     [HttpGet("category/{categoryId}")]
-    public async Task<ActionResult<IEnumerable<LocationDTO>>> GetLocationsByCategory(int categoryId)
+    public async Task<ActionResult<IEnumerable<LocationDto>>> GetLocationsByCategory(int categoryId)
     {
         try
         {
@@ -120,7 +120,7 @@ public class LocationController : ControllerBase
                 .Where(l => l.CategoryId == categoryId)
                 .ToListAsync();
 
-            var locationDTOs = locations.Select(l => new LocationDTO(
+            var locationDTOs = locations.Select(l => new LocationDto(
                 l.Id,
                 l.Name,
                 l.Address,
@@ -151,35 +151,35 @@ public class LocationController : ControllerBase
     /// Create new location
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<LocationDTO>> CreateLocation([FromBody] CreateLocationDTO createLocationDTO)
+    public async Task<ActionResult<LocationDto>> CreateLocation([FromBody] LocationUpsertRequest request)
     {
         try
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == createLocationDTO.CategoryId);
+            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == request.CategoryId);
             if (category == null)
                 return NotFound(new { message = "Category not found" });
 
             var location = new Location
             {
-                CategoryId = createLocationDTO.CategoryId,
-                Name = createLocationDTO.Name,
-                Description = createLocationDTO.Description,
-                EstablishedYear = createLocationDTO.EstablishedYear,
-                Latitude = createLocationDTO.Latitude,
-                Longitude = createLocationDTO.Longitude,
-                Address = createLocationDTO.Address,
+                CategoryId = request.CategoryId,
+                Name = request.Name,
+                Description = request.Description,
+                EstablishedYear = request.EstablishedYear,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                Address = request.Address,
                 ImgURL = null,
-                OwnerName = createLocationDTO.OwnerName,
-                WebURL = createLocationDTO.WebURL,
-                Phone = createLocationDTO.Phone,
-                Email = createLocationDTO.Email,
+                OwnerName = request.OwnerName,
+                WebURL = request.WebURL,
+                Phone = request.Phone,
+                Email = request.Email,
                 // // NumOfAudio = createLocationDTO.NumOfAudio,
                 // // NumOfImg = createLocationDTO.NumOfImg,
                 // // NumOfPeopleVisited = createLocationDTO.NumOfPeopleVisited,
-                Status = createLocationDTO.Status
+                Status = request.Status
             };
 
             _context.Locations.Add(location);
@@ -187,7 +187,7 @@ public class LocationController : ControllerBase
             _context.Categories.Update(category);
             await _context.SaveChangesAsync();
 
-            var locationDTO = new LocationDTO(
+            var locationDTO = new LocationDto(
                 location.Id,
                 location.Name,
                 location.Address,
@@ -218,7 +218,7 @@ public class LocationController : ControllerBase
     /// Update existing location
     /// </summary>
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateLocation(int id, [FromBody] UpdateLocationDTO updateLocationDTO)
+    public async Task<IActionResult> UpdateLocation(int id, [FromBody] LocationUpsertRequest request)
     {
         try
         {
@@ -229,25 +229,25 @@ public class LocationController : ControllerBase
             if (location == null)
                 return NotFound(new { message = "Location not found" });
 
-            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == updateLocationDTO.CategoryId);
+            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == request.CategoryId);
             if (category == null)
                 return NotFound(new { message = "Category not found" });
 
-            location.Name = updateLocationDTO.Name;
-            location.Description = updateLocationDTO.Description;
-            location.EstablishedYear = updateLocationDTO.EstablishedYear;
-            location.Latitude = updateLocationDTO.Latitude;
-            location.Longitude = updateLocationDTO.Longitude;
-            location.Address = updateLocationDTO.Address;
-            location.OwnerName = updateLocationDTO.OwnerName;
-            location.WebURL = updateLocationDTO.WebURL;
-            location.Phone = updateLocationDTO.Phone;
-            location.Email = updateLocationDTO.Email;
+            location.Name = request.Name;
+            location.Description = request.Description;
+            location.EstablishedYear = request.EstablishedYear;
+            location.Latitude = request.Latitude;
+            location.Longitude = request.Longitude;
+            location.Address = request.Address;
+            location.OwnerName = request.OwnerName;
+            location.WebURL = request.WebURL;
+            location.Phone = request.Phone;
+            location.Email = request.Email;
             // location.NumOfAudio = updateLocationDTO.NumOfAudio;
             // location.NumOfImg = updateLocationDTO.NumOfImg;
             // location.NumOfPeopleVisited = updateLocationDTO.NumOfPeopleVisited;
-            location.Status = updateLocationDTO.Status;
-            location.CategoryId = updateLocationDTO.CategoryId;
+            location.Status = request.Status;
+            location.CategoryId = request.CategoryId;
 
             _context.Locations.Update(location);
             await _context.SaveChangesAsync();
