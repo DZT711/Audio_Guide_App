@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Tourism — ERD</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:sans-serif;background:#f8f7f4;color:#3d3d3a;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+@media(prefers-color-scheme:dark){body{background:#1a1a18;color:#c2c0b6}}
+#toolbar{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid rgba(0,0,0,0.1);flex-shrink:0;flex-wrap:wrap;background:inherit}
+#toolbar h1{font-size:15px;font-weight:500;flex:1;min-width:160px}
+#toolbar small{font-size:12px;opacity:.5}
+.btn{padding:5px 13px;border:1px solid rgba(0,0,0,0.18);border-radius:6px;background:rgba(0,0,0,0.04);font-size:12px;cursor:pointer;color:inherit}
+.btn:hover{background:rgba(0,0,0,0.1)}
+@media(prefers-color-scheme:dark){.btn{border-color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.05)}.btn:hover{background:rgba(255,255,255,0.12)}}
+#zoom-label{font-size:12px;min-width:44px;text-align:center;opacity:.65}
+#canvas{flex:1;overflow:hidden;cursor:grab;position:relative;background:inherit}
+#canvas.grabbing{cursor:grabbing}
+#svg-wrap{width:100%;height:100%;position:absolute;inset:0}
+#svg-wrap svg{width:100%!important;height:100%!important;max-width:none!important;display:block}
+#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;opacity:.45;pointer-events:none}
+#hint{position:absolute;bottom:12px;right:16px;font-size:11px;opacity:.35;pointer-events:none;user-select:none}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>Smart Tourism — Entity Relationship Diagram</h1>
+  <small>17 tables · SQLite</small>
+  <button class="btn" onclick="zoomBtn(0.75)">＋ Zoom in</button>
+  <span id="zoom-label">100%</span>
+  <button class="btn" onclick="zoomBtn(1.33)">－ Zoom out</button>
+  <button class="btn" onclick="fitView()">⤢ Fit</button>
+  <button class="btn" onclick="resetView()">⊙ 100%</button>
+</div>
+
+<div id="canvas">
+  <div id="loading">Rendering diagram…</div>
+  <div id="svg-wrap"></div>
+  <div id="hint">Scroll to zoom · Drag to pan</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: 'sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: 'sans-serif',
+    lineColor:  dark ? '#9c9a92' : '#73726c',
+    textColor:  dark ? '#c2c0b6' : '#3d3d3a',
+    primaryColor: dark ? '#2a2a28' : '#f1efea',
+    primaryBorderColor: dark ? '#555550' : '#b4b2a9',
+    primaryTextColor: dark ? '#c2c0b6' : '#3d3d3a',
+    attributeBackgroundColorEven: dark ? '#222220' : '#f0eeea',
+    attributeBackgroundColorOdd:  dark ? '#2a2a28' : '#ffffff',
+  },
+});
+
+const DIAGRAM = `erDiagram
+  Languages {
+    int LanguageId PK
+    text LangCode
+    text LangName
+    text NativeName
+    int IsDefault
+    int Status
+    text CreatedAt
+  }
+  Voices {
+    int VoiceId PK
+    int LanguageId FK
+    text VoiceCode
+    text VoiceName
+    text Gender
+    text Provider
+    text LocaleRegion
+    int IsOfflineCapable
+    int Status
+  }
+  DashboardUsers {
+    int UserId PK
+    text Username
+    text PasswordHash
+    text FullName
+    text Role
+    text Email
+    text Phone
+    int Status
+    text CreatedAt
+    text UpdatedAt
+  }
+  Categories {
+    int CategoryId PK
+    text Name
+    text Description
+    int Status
+    text CreatedAt
+    text UpdatedAt
+  }
+  Tours {
+    int TourId PK
+    int OwnerId FK
+    text Name
+    text Description
+    int EstimatedDurationMinutes
+    text CoverImageUrl
+    int Status
+    text CreatedAt
+    text UpdatedAt
+  }
+  Locations {
+    int LocationId PK
+    int CategoryId FK
+    int OwnerId FK
+    int DefaultTourId FK
+    text Name
+    text Description
+    real Latitude
+    real Longitude
+    real Radius
+    real StandbyRadius
+    int Priority
+    int DebounceSeconds
+    int IsGpsTriggerEnabled
+    text Address
+    text Ward
+    text District
+    text City
+    text ImageUrl
+    text WebURL
+    text Email
+    text PhoneContact
+    int EstablishedYear
+    int Status
+    text CreatedAt
+    text UpdatedAt
+  }
+  LocationImages {
+    int ImageId PK
+    int LocationId FK
+    text ImageUrl
+    text Description
+    int SortOrder
+    text CreatedAt
+  }
+  TourLocations {
+    int TourId FK
+    int LocationId FK
+    int SequenceOrder
+    int IsRequiredStop
+  }
+  AudioContents {
+    int AudioId PK
+    int LocationId FK
+    int LanguageId FK
+    int VoiceId FK
+    text Title
+    text Description
+    text SourceType
+    text Script
+    text FilePath
+    int FileSizeBytes
+    int DurationSeconds
+    int Priority
+    text PlaybackMode
+    int IsDownloadable
+    text InterruptPolicy
+    int Status
+    text CreatedAt
+    text UpdatedAt
+  }
+  QRProfiles {
+    int QrProfileId PK
+    int LocationId FK
+    int TourId FK
+    int AudioId FK
+    text CodeValue
+    text Name
+    text TriggerType
+    int AllowBypassGps
+    text StartAt
+    text EndAt
+    int Status
+    text CreatedAt
+  }
+  AppDevices {
+    text DeviceId PK
+    text Platform
+    text DeviceModel
+    text AppVersion
+    int PreferredLanguageId FK
+    text LastKnownCountryCode
+    text LastSeenAt
+    text CreatedAt
+  }
+  DeviceSyncStates {
+    text DeviceId FK
+    text SyncScope
+    text LastFullSyncAt
+    text LastDeltaToken
+  }
+  PlaybackEvents {
+    int PlaybackEventId PK
+    text DeviceId FK
+    int LocationId FK
+    int AudioId FK
+    int QrProfileId FK
+    text TriggerSource
+    text EventType
+    text EventAt
+    int ListeningSeconds
+    int QueuePosition
+    int BatteryPercent
+    text NetworkType
+    text SessionId
+  }
+  LocationTrackingEvents {
+    int TrackingEventId PK
+    text DeviceId FK
+    text SessionId
+    real Latitude
+    real Longitude
+    real AccuracyMeters
+    real SpeedMetersPerSecond
+    int BatteryPercent
+    int IsForeground
+    text CapturedAt
+  }
+  ChangeRequests {
+    int RequestId PK
+    text TargetTable
+    int TargetId
+    int OwnerId FK
+    text RequestType
+    text NewDataJson
+    text Reason
+    text AdminNote
+    text Status
+    text CreatedAt
+    text UpdatedAt
+  }
+  PlaybackCooldown {
+    text DeviceId FK
+    int LocationId FK
+    text LastPlayedAt
+    text CooldownUntil
+    int PlayCount
+  }
+  LocalSettings {
+    text SettingKey PK
+    text SettingValue
+    text UpdatedAt
+  }
+
+  Languages ||--o{ Voices : "has"
+  Languages ||--o{ AudioContents : "used in"
+  Languages ||--o{ AppDevices : "preferred by"
+  DashboardUsers ||--o{ Tours : "owns"
+  DashboardUsers ||--o{ Locations : "owns"
+  DashboardUsers ||--o{ ChangeRequests : "submits"
+  Categories ||--o{ Locations : "classifies"
+  Tours ||--o{ Locations : "default for"
+  Tours ||--o{ TourLocations : "contains"
+  Tours ||--o{ QRProfiles : "linked to"
+  Locations ||--o{ LocationImages : "has"
+  Locations ||--o{ TourLocations : "appears in"
+  Locations ||--o{ AudioContents : "has"
+  Locations ||--o{ QRProfiles : "has"
+  Locations ||--o{ PlaybackEvents : "triggers"
+  Locations ||--o{ PlaybackCooldown : "tracked in"
+  Voices ||--o{ AudioContents : "voices"
+  AudioContents ||--o{ QRProfiles : "triggered by"
+  AudioContents ||--o{ PlaybackEvents : "played in"
+  AppDevices ||--o{ DeviceSyncStates : "has"
+  AppDevices ||--o{ PlaybackEvents : "generates"
+  AppDevices ||--o{ LocationTrackingEvents : "logs"
+  AppDevices ||--o{ PlaybackCooldown : "has"
+  QRProfiles ||--o{ PlaybackEvents : "scanned in"
+`;
+
+/* ── State ── */
+const canvas = document.getElementById('canvas');
+const wrap   = document.getElementById('svg-wrap');
+const zLabel = document.getElementById('zoom-label');
+let svg, origVB, curVB;
+let dragging = false, dragStart = {x:0,y:0}, dragVB = null;
+
+/* ── Render ── */
+(async () => {
+  try {
+    const { svg: svgStr } = await mermaid.render('erd-svg', DIAGRAM);
+    wrap.innerHTML = svgStr;
+    svg = wrap.querySelector('svg');
+
+    /* Strip fixed dimensions — let viewBox drive rendering */
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.removeAttribute('style');
+    svg.style.cssText = 'width:100%;height:100%;display:block';
+
+    /* Round entity box corners */
+    svg.querySelectorAll('.entityBox').forEach(el => {
+      el.setAttribute('rx','8'); el.setAttribute('ry','8');
+    });
+
+    /* Capture original viewBox */
+    const vb = svg.viewBox.baseVal;
+    origVB = { x: vb.x, y: vb.y, w: vb.width, h: vb.height };
+    curVB  = { ...origVB };
+
+    document.getElementById('loading').remove();
+    fitView();
+  } catch(e) {
+    document.getElementById('loading').textContent = 'Render error: ' + e.message;
+  }
+})();
+
+/* ── viewBox helpers ── */
+function applyVB() {
+  if (!svg) return;
+  svg.setAttribute('viewBox', `${curVB.x} ${curVB.y} ${curVB.w} ${curVB.h}`);
+  zLabel.textContent = Math.round(origVB.w / curVB.w * 100) + '%';
+}
+
+function fitView() {
+  if (!origVB) return;
+  curVB = { ...origVB };
+  applyVB();
+}
+
+function resetView() {
+  if (!origVB) return;
+  /* 100% = show 1:1, centered */
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  curVB = {
+    x: origVB.x + (origVB.w - cw) / 2,
+    y: origVB.y + (origVB.h - ch) / 2,
+    w: cw, h: ch
+  };
+  applyVB();
+}
+
+function zoomAtPoint(clientX, clientY, factor) {
+  if (!svg) return;
+  const rect = svg.getBoundingClientRect();
+  const fx = (clientX - rect.left)  / rect.width;
+  const fy = (clientY - rect.top)   / rect.height;
+  const ax = curVB.x + fx * curVB.w;
+  const ay = curVB.y + fy * curVB.h;
+  const newW = Math.min(origVB.w * 8, Math.max(origVB.w * 0.04, curVB.w * factor));
+  const newH = newW * (origVB.h / origVB.w);
+  curVB.x = ax - fx * newW;
+  curVB.y = ay - fy * newH;
+  curVB.w = newW;
+  curVB.h = newH;
+  applyVB();
+}
+
+function zoomBtn(factor) {
+  const rect = canvas.getBoundingClientRect();
+  zoomAtPoint(rect.left + rect.width/2, rect.top + rect.height/2, factor);
+}
+
+/* ── Mouse wheel ── */
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoomAtPoint(e.clientX, e.clientY, e.deltaY > 0 ? 1.12 : 0.88);
+}, { passive: false });
+
+/* ── Drag to pan ── */
+canvas.addEventListener('mousedown', e => {
+  dragging = true;
+  dragStart = { x: e.clientX, y: e.clientY };
+  dragVB = { ...curVB };
+  canvas.classList.add('grabbing');
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging || !svg) return;
+  const rect = svg.getBoundingClientRect();
+  const dx = -(e.clientX - dragStart.x) / rect.width  * curVB.w;
+  const dy = -(e.clientY - dragStart.y) / rect.height * curVB.h;
+  curVB.x = dragVB.x + dx;
+  curVB.y = dragVB.y + dy;
+  applyVB();
+});
+window.addEventListener('mouseup', () => {
+  dragging = false;
+  canvas.classList.remove('grabbing');
+});
+
+/* ── Touch pan ── */
+let touchStart = null, touchVB = null;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    touchVB = { ...curVB };
+  }
+}, { passive: true });
+canvas.addEventListener('touchmove', e => {
+  if (!touchStart || !svg || e.touches.length !== 1) return;
+  const rect = svg.getBoundingClientRect();
+  const dx = -(e.touches[0].clientX - touchStart.x) / rect.width  * curVB.w;
+  const dy = -(e.touches[0].clientY - touchStart.y) / rect.height * curVB.h;
+  curVB.x = touchVB.x + dx;
+  curVB.y = touchVB.y + dy;
+  applyVB();
+}, { passive: true });
+canvas.addEventListener('touchend', () => { touchStart = null; });
+
+/* ── Pinch to zoom ── */
+let lastPinchDist = null;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) lastPinchDist = Math.hypot(
+    e.touches[0].clientX - e.touches[1].clientX,
+    e.touches[0].clientY - e.touches[1].clientY
+  );
+}, { passive: true });
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 2 && lastPinchDist) {
+    const d = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    zoomAtPoint(cx, cy, lastPinchDist / d);
+    lastPinchDist = d;
+  }
+}, { passive: true });
+</script>
+</body>
+</html>
