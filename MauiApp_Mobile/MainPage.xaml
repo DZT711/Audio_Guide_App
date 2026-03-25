@@ -6,153 +6,348 @@
     BackgroundColor="{StaticResource LightBg}">
 
     <Grid RowDefinitions="180,*">
+
         <Grid BackgroundColor="{StaticResource PrimaryGreen}" Padding="20,50,20,20">
             <VerticalStackLayout Spacing="18">
-                <Label Text="Địa điểm" Style="{StaticResource PageTitleStyle}" />
+                <Label x:Name="TitleLabel"
+                       Text="Địa điểm"
+                       Style="{StaticResource PageTitleStyle}" />
 
-                <Frame
-                    BackgroundColor="White"
-                    BorderColor="Transparent"
-                    CornerRadius="18"
-                    HasShadow="False"
-                    Padding="16,10">
+                <Frame BackgroundColor="White"
+                       BorderColor="Transparent"
+                       CornerRadius="18"
+                       HasShadow="False"
+                       Padding="16,10">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                        <Label Text="🔍" FontSize="22" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
-                        <Entry
-                            Grid.Column="1"
-                            Placeholder="Tìm kiếm điểm..."
-                            PlaceholderColor="{StaticResource MutedText}"
-                            BackgroundColor="Transparent"
-                            TextColor="{StaticResource BodyText}" />
+                        <Label Text="🔍"
+                               FontSize="22"
+                               TextColor="{StaticResource MutedText}"
+                               VerticalOptions="Center" />
+
+                        <Entry x:Name="SearchEntry"
+                               Grid.Column="1"
+                               Placeholder="Tìm kiếm điểm..."
+                               PlaceholderColor="{StaticResource MutedText}"
+                               BackgroundColor="Transparent"
+                               TextColor="{StaticResource BodyText}"
+                               ClearButtonVisibility="WhileEditing"
+                               TextChanged="OnSearchChanged" />
                     </Grid>
                 </Frame>
             </VerticalStackLayout>
         </Grid>
 
-        <Grid Grid.Row="1" Padding="0">
-            <ScrollView>
-                <VerticalStackLayout Padding="16,14,16,24" Spacing="0">
-                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,14">
-                        <Label Text="16 điểm tham quan" FontSize="15" TextColor="{StaticResource BodyText}" />
-                        <HorizontalStackLayout Grid.Column="1" Spacing="6">
-                            <Label Text="⚙" FontSize="16" TextColor="{StaticResource MutedText}" />
-                            <Label Text="Lọc" FontSize="15" TextColor="{StaticResource BodyText}" />
-                        </HorizontalStackLayout>
-                    </Grid>
+        <Grid Grid.Row="1" Padding="16,14,16,12" RowDefinitions="Auto,Auto,*">
 
-                    <!-- Card 1 -->
-                    <Frame Style="{StaticResource CardFrameStyle}">
-                        <Grid ColumnDefinitions="88,*,Auto" ColumnSpacing="14">
-                            <Image Source="dotnet_bot.png" WidthRequest="88" HeightRequest="88" Aspect="AspectFill" />
-                            <VerticalStackLayout Grid.Column="1" Spacing="4">
-                                <Label Text="Dinh Độc Lập" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
-                                <Label Text="Dinh Thống Nhất – biểu tượng lịch sử Việt Nam" FontSize="13" TextColor="#667085" />
-                                <HorizontalStackLayout Spacing="8" Margin="0,6,0,0">
-                                    <Frame Padding="10,4" CornerRadius="10" HasShadow="False" BackgroundColor="{StaticResource SoftRed}" BorderColor="Transparent">
-                                        <Label Text="Lịch sử" FontSize="12" TextColor="#E53935" />
-                                    </Frame>
-                                    <Label Text="⭐ 10/10" FontSize="13" TextColor="#667085" VerticalOptions="Center" />
-                                </HorizontalStackLayout>
-                            </VerticalStackLayout>
-                            <Frame
-                                Grid.Column="2"
-                                WidthRequest="44"
-                                HeightRequest="44"
-                                CornerRadius="22"
-                                Padding="0"
-                                BackgroundColor="{StaticResource PrimaryGreen}"
-                                HorizontalOptions="End"
-                                VerticalOptions="Center">
-                                <Label Text="▶" HorizontalOptions="Center" VerticalOptions="Center" TextColor="White" FontSize="18" />
-                            </Frame>
-                        </Grid>
-                    </Frame>
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,14">
+                <Label x:Name="CountLabel"
+                       Text="10 địa điểm"
+                       FontSize="15"
+                       TextColor="{StaticResource BodyText}" />
 
-                    <!-- Card 2 -->
-                    <Frame Style="{StaticResource CardFrameStyle}">
-                        <Grid ColumnDefinitions="88,*,Auto" ColumnSpacing="14">
-                            <Image Source="dotnet_bot.png" WidthRequest="88" HeightRequest="88" Aspect="AspectFill" />
-                            <VerticalStackLayout Grid.Column="1" Spacing="4">
-                                <Label Text="Đại Nội Huế" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
-                                <Label Text="Hoàng thành Huế – Di sản văn hóa Thế giới UNESCO" FontSize="13" TextColor="#667085" />
-                                <HorizontalStackLayout Spacing="8" Margin="0,6,0,0">
-                                    <Frame Padding="10,4" CornerRadius="10" HasShadow="False" BackgroundColor="{StaticResource SoftPurple}" BorderColor="Transparent">
-                                        <Label Text="Di sản" FontSize="12" TextColor="#7C3AED" />
-                                    </Frame>
-                                    <Label Text="⭐ 10/10" FontSize="13" TextColor="#667085" VerticalOptions="Center" />
-                                </HorizontalStackLayout>
-                            </VerticalStackLayout>
-                            <Frame
-                                Grid.Column="2"
-                                WidthRequest="44"
-                                HeightRequest="44"
-                                CornerRadius="22"
-                                Padding="0"
-                                BackgroundColor="{StaticResource PrimaryGreen}"
-                                HorizontalOptions="End"
-                                VerticalOptions="Center">
-                                <Label Text="▶" HorizontalOptions="Center" VerticalOptions="Center" TextColor="White" FontSize="18" />
-                            </Frame>
-                        </Grid>
-                    </Frame>
+                <Grid Grid.Column="1">
+                    <HorizontalStackLayout Spacing="6">
+                        <Label Text="⚙"
+                               FontSize="16"
+                               TextColor="{StaticResource MutedText}" />
+                        <Label x:Name="FilterLabel"
+                               Text="Lọc"
+                               FontSize="15"
+                               TextColor="{StaticResource BodyText}" />
+                    </HorizontalStackLayout>
 
-                    <!-- Card 3 -->
-                    <Frame Style="{StaticResource CardFrameStyle}">
-                        <Grid ColumnDefinitions="88,*,Auto" ColumnSpacing="14">
-                            <Image Source="dotnet_bot.png" WidthRequest="88" HeightRequest="88" Aspect="AspectFill" />
-                            <VerticalStackLayout Grid.Column="1" Spacing="4">
-                                <Label Text="Bảo tàng Chứng tích Chiến..." FontSize="18" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
-                                <Label Text="Bảo tàng về chiến tranh Việt Nam, thu hút hàng triệu du khách" FontSize="13" TextColor="#667085" />
-                                <HorizontalStackLayout Spacing="8" Margin="0,6,0,0">
-                                    <Frame Padding="10,4" CornerRadius="10" HasShadow="False" BackgroundColor="{StaticResource SoftRed}" BorderColor="Transparent">
-                                        <Label Text="Lịch sử" FontSize="12" TextColor="#E53935" />
-                                    </Frame>
-                                    <Label Text="⭐ 9/10" FontSize="13" TextColor="#667085" VerticalOptions="Center" />
-                                </HorizontalStackLayout>
-                            </VerticalStackLayout>
-                            <Frame
-                                Grid.Column="2"
-                                WidthRequest="44"
-                                HeightRequest="44"
-                                CornerRadius="22"
-                                Padding="0"
-                                BackgroundColor="{StaticResource PrimaryGreen}"
-                                HorizontalOptions="End"
-                                VerticalOptions="Center">
-                                <Label Text="▶" HorizontalOptions="Center" VerticalOptions="Center" TextColor="White" FontSize="18" />
-                            </Frame>
-                        </Grid>
-                    </Frame>
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnToggleFilterPopup" />
+                    </Grid.GestureRecognizers>
+                </Grid>
+            </Grid>
 
-                    <!-- Card 4 -->
-                    <Frame Style="{StaticResource CardFrameStyle}">
-                        <Grid ColumnDefinitions="88,*,Auto" ColumnSpacing="14">
-                            <Image Source="dotnet_bot.png" WidthRequest="88" HeightRequest="88" Aspect="AspectFill" />
-                            <VerticalStackLayout Grid.Column="1" Spacing="4">
-                                <Label Text="Chùa Thiên Mụ" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
-                                <Label Text="Ngôi chùa nổi tiếng bên sông Hương, biểu tượng của Huế" FontSize="13" TextColor="#667085" />
-                                <HorizontalStackLayout Spacing="8" Margin="0,6,0,0">
-                                    <Frame Padding="10,4" CornerRadius="10" HasShadow="False" BackgroundColor="{StaticResource SoftOrange}" BorderColor="Transparent">
-                                        <Label Text="Tâm linh" FontSize="12" TextColor="#D97706" />
-                                    </Frame>
-                                    <Label Text="⭐ 9/10" FontSize="13" TextColor="#667085" VerticalOptions="Center" />
-                                </HorizontalStackLayout>
-                            </VerticalStackLayout>
-                            <Frame
-                                Grid.Column="2"
-                                WidthRequest="44"
-                                HeightRequest="44"
-                                CornerRadius="22"
-                                Padding="0"
-                                BackgroundColor="{StaticResource PrimaryGreen}"
-                                HorizontalOptions="End"
-                                VerticalOptions="Center">
-                                <Label Text="▶" HorizontalOptions="Center" VerticalOptions="Center" TextColor="White" FontSize="18" />
-                            </Frame>
+            <VerticalStackLayout x:Name="EmptyStateLayout"
+                                 Grid.Row="1"
+                                 IsVisible="False"
+                                 Spacing="8"
+                                 Padding="0,12,0,12">
+                <Label Text="🔎"
+                       FontSize="34"
+                       HorizontalOptions="Center" />
+                <Label x:Name="EmptyTitleLabel"
+                       Text="Không tìm thấy địa điểm"
+                       FontSize="18"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource BodyText}"
+                       HorizontalTextAlignment="Center" />
+                <Label x:Name="EmptySubtitleLabel"
+                       Text="Thử nhập từ khóa khác"
+                       FontSize="14"
+                       TextColor="{StaticResource MutedText}"
+                       HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+
+            <CollectionView x:Name="PlacesCollectionView"
+                            Grid.Row="2"
+                            SelectionMode="None"
+                            VerticalOptions="FillAndExpand"
+                            ItemsLayout="VerticalList">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame Style="{StaticResource CardFrameStyle}">
+                            <Grid ColumnDefinitions="88,*,Auto" ColumnSpacing="14">
+                                <Image Source="{Binding Image}"
+                                       WidthRequest="88"
+                                       HeightRequest="88"
+                                       Aspect="AspectFill" />
+
+                                <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                    <Label Text="{Binding Name}"
+                                           FontSize="18"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource BodyText}" />
+
+                                    <Label Text="{Binding Description}"
+                                           FontSize="13"
+                                           TextColor="#667085" />
+
+                                    <HorizontalStackLayout Spacing="8" Margin="0,6,0,0">
+                                        <Frame Padding="10,4"
+                                               CornerRadius="10"
+                                               HasShadow="False"
+                                               BackgroundColor="{Binding CategoryColor}"
+                                               BorderColor="Transparent">
+                                            <Label Text="{Binding Category}"
+                                                   FontSize="12"
+                                                   TextColor="{Binding CategoryTextColor}" />
+                                        </Frame>
+
+                                        <Label Text="{Binding Rating, StringFormat='⭐ {0}'}"
+                                               FontSize="13"
+                                               TextColor="#667085"
+                                               VerticalOptions="Center" />
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+
+                                <Frame Grid.Column="2"
+                                       WidthRequest="44"
+                                       HeightRequest="44"
+                                       CornerRadius="22"
+                                       Padding="0"
+                                       BackgroundColor="{StaticResource PrimaryGreen}"
+                                       HorizontalOptions="End"
+                                       VerticalOptions="Center">
+                                    <Label Text="▶"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"
+                                           TextColor="White"
+                                           FontSize="18" />
+                                </Frame>
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Border x:Name="FilterPopup"
+                    Grid.RowSpan="3"
+                    IsVisible="False"
+                    Stroke="#E5E7EB"
+                    StrokeThickness="1"
+                    BackgroundColor="White"
+                    StrokeShape="RoundRectangle 18"
+                    HorizontalOptions="End"
+                    VerticalOptions="Start"
+                    Margin="0,38,0,0"
+                    WidthRequest="270"
+                    MaximumHeightRequest="430"
+                    ZIndex="10">
+
+                <ScrollView>
+                    <VerticalStackLayout Spacing="0">
+                        <Label x:Name="FilterPopupTitleLabel"
+                               Text="DANH MỤC"
+                               Padding="18,16,18,12"
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               TextColor="#667085" />
+
+                        <!-- All -->
+                        <Grid x:Name="FilterAllItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterAllIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="📍"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterAllLabel"
+                                   Grid.Column="2"
+                                   Text="Tất cả"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterAllTapped" />
+                            </Grid.GestureRecognizers>
                         </Grid>
-                    </Frame>
-                </VerticalStackLayout>
-            </ScrollView>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <!-- Signature -->
+                        <Grid x:Name="FilterSignatureDishItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterSignatureDishIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="🍜"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterSignatureDishLabel"
+                                   Grid.Column="2"
+                                   Text="Món ăn đặc trưng"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterSignatureDishTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <!-- Famous -->
+                        <Grid x:Name="FilterFamousRestaurantItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterFamousRestaurantIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="🏆"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterFamousRestaurantLabel"
+                                   Grid.Column="2"
+                                   Text="Quán nổi tiếng"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterFamousRestaurantTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <!-- Drinks -->
+                        <Grid x:Name="FilterDrinksItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterDrinksIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="🥤"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterDrinksLabel"
+                                   Grid.Column="2"
+                                   Text="Đồ uống"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterDrinksTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <!-- Culture -->
+                        <Grid x:Name="FilterFoodCultureItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterFoodCultureIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="🎎"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterFoodCultureLabel"
+                                   Grid.Column="2"
+                                   Text="Văn hóa ẩm thực"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterFoodCultureTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <!-- Utility -->
+                        <Grid x:Name="FilterUtilityItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterUtilityIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="🏪"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterUtilityLabel"
+                                   Grid.Column="2"
+                                   Text="Tiện ích"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterUtilityTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+                    </VerticalStackLayout>
+                </ScrollView>
+            </Border>
         </Grid>
     </Grid>
 </ContentPage>

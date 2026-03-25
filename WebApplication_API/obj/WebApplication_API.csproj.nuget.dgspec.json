@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\WebApplication_API\\WebApplication_API.csproj": {}
+    "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\WebApplication_API\\WebApplication_API.csproj": {}
   },
   "projects": {
-    "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\WebApplication_API\\WebApplication_API.csproj": {
+    "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\WebApplication_API\\WebApplication_API.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\WebApplication_API\\WebApplication_API.csproj",
+        "projectUniqueName": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\WebApplication_API\\WebApplication_API.csproj",
         "projectName": "WebApplication_API",
-        "projectPath": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\WebApplication_API\\WebApplication_API.csproj",
+        "projectPath": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\WebApplication_API\\WebApplication_API.csproj",
         "packagesPath": "C:\\Users\\LENOVO\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\WebApplication_API\\obj\\",
+        "outputPath": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\WebApplication_API\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

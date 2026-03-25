@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "8o1v/l34jJM=",
+  "dgSpecHash": "HjNao4eKPlI=",
   "success": true,
-  "projectFilePath": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\MauiApp_Mobile\\MauiApp_Mobile.csproj",
+  "projectFilePath": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\MauiApp_Mobile\\MauiApp_Mobile.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\LENOVO\\.nuget\\packages\\googlegson\\2.13.1.1\\googlegson.2.13.1.1.nupkg.sha512",
     "C:\\Users\\LENOVO\\.nuget\\packages\\microsoft.extensions.configuration\\10.0.0\\microsoft.extensions.configuration.10.0.0.nupkg.sha512",

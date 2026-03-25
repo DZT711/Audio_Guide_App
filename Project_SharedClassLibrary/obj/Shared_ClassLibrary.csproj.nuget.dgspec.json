@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj": {}
+    "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj": {}
   },
   "projects": {
-    "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj": {
+    "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj",
+        "projectUniqueName": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj",
         "projectName": "Shared_ClassLibrary",
-        "projectPath": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj",
+        "projectPath": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\Project_SharedClassLibrary\\Shared_ClassLibrary.csproj",
         "packagesPath": "C:\\Users\\LENOVO\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\Project_SharedClassLibrary\\obj\\",
+        "outputPath": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\Project_SharedClassLibrary\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

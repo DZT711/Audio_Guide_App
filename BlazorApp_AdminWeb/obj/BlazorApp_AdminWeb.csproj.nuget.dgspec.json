@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj": {}
+    "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj": {}
   },
   "projects": {
-    "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj": {
+    "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj",
+        "projectUniqueName": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj",
         "projectName": "BlazorApp_AdminWeb",
-        "projectPath": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj",
+        "projectPath": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj",
         "packagesPath": "C:\\Users\\LENOVO\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\BlazorApp_AdminWeb\\obj\\",
+        "outputPath": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\BlazorApp_AdminWeb\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

@@ -1,9 +1,21 @@
-﻿namespace MauiApp_Mobile;
+﻿using MauiApp_Mobile.Services;
+
+namespace MauiApp_Mobile;
 
 public partial class AppShell : Shell
 {
     public AppShell()
     {
         InitializeComponent();
+        ApplyTabTexts();
+        LocalizationService.Instance.PropertyChanged += (_, _) => ApplyTabTexts();
+    }
+
+    private void ApplyTabTexts()
+    {
+        PlacesTab.Title = LocalizationService.Instance.T("Places.Title");
+        MapTab.Title = LocalizationService.Instance.T("Map.Title");
+        HistoryTab.Title = LocalizationService.Instance.T("History.Title");
+        SettingsTab.Title = LocalizationService.Instance.T("Settings.Title");
     }
 }

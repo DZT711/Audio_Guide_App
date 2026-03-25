@@ -1,0 +1,12 @@
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\bin\Debug\net10.0\Shared_ClassLibrary.deps.json
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\bin\Debug\net10.0\Shared_ClassLibrary.dll
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\bin\Debug\net10.0\Shared_ClassLibrary.pdb
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.GeneratedMSBuildEditorConfig.editorconfig
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.AssemblyInfoInputs.cache
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.AssemblyInfo.cs
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.csproj.CoreCompileInputs.cache
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.sourcelink.json
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.dll
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\obj\Debug\net10.0\refint\Shared_ClassLibrary.dll
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.pdb
+D:\visua studio code\Smart-Tourism-MAUI-Test\Project_SharedClassLibrary\obj\Debug\net10.0\ref\Shared_ClassLibrary.dll

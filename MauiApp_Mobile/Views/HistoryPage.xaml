@@ -9,18 +9,16 @@
         <Grid BackgroundColor="{StaticResource PrimaryGreen}" Padding="18,50,18,16">
             <Grid ColumnDefinitions="*,Auto">
                 <VerticalStackLayout Spacing="4">
-                    <Label Text="Lịch sử" Style="{StaticResource PageTitleStyle}" />
-                    <Label Text="Các địa điểm đã nghe thuyết minh" FontSize="15" TextColor="#DDF7E7" />
+                    <Label x:Name="TitleLabel"
+                           Text="Lịch sử"
+                           Style="{StaticResource PageTitleStyle}" />
+                    <Label x:Name="SubtitleLabel"
+                           Text="Các địa điểm đã nghe thuyết minh"
+                           FontSize="15"
+                           TextColor="#DDF7E7" />
                 </VerticalStackLayout>
 
-                <Frame
-                    Grid.Column="1"
-                    WidthRequest="46"
-                    HeightRequest="46"
-                    CornerRadius="14"
-                    Padding="0"
-                    HasShadow="False"
-                    BackgroundColor="#45C26F">
+                <Frame Grid.Column="1" WidthRequest="46" HeightRequest="46" CornerRadius="14" Padding="0" HasShadow="False" BackgroundColor="#45C26F">
                     <Label Text="🗑" HorizontalOptions="Center" VerticalOptions="Center" FontSize="20" />
                 </Frame>
             </Grid>
@@ -29,12 +27,22 @@
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Padding="16,12,16,24" Spacing="12">
                 <HorizontalStackLayout Spacing="20">
-                    <Label Text="⏱ 4 địa điểm" FontSize="15" TextColor="{StaticResource BodyText}" />
-                    <Label Text="🟠 15p 55s tổng" FontSize="15" TextColor="{StaticResource BodyText}" />
+                    <Label x:Name="CountLabel"
+                           Text="⏱ 4 địa điểm"
+                           FontSize="15"
+                           TextColor="{StaticResource BodyText}" />
+                    <Label x:Name="TotalLabel"
+                           Text="🟠 15p 55s tổng"
+                           FontSize="15"
+                           TextColor="{StaticResource BodyText}" />
                 </HorizontalStackLayout>
 
                 <Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
-                    <Label Text="Hôm nay" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
+                    <Label x:Name="TodayLabel"
+                           Text="Hôm nay"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource BodyText}" />
                     <Label Grid.Column="1" Text="3 nơi" FontSize="14" TextColor="{StaticResource MutedText}" />
                 </Grid>
 
@@ -62,32 +70,12 @@
                     </Grid>
                 </Frame>
 
-                <Frame Style="{StaticResource CardFrameStyle}">
-                    <Grid ColumnDefinitions="90,*,Auto" ColumnSpacing="14">
-                        <Image Source="dotnet_bot.png" WidthRequest="90" HeightRequest="90" Aspect="AspectFill" />
-                        <VerticalStackLayout Grid.Column="1" Spacing="4">
-                            <Label Text="Đại Nội Huế" FontSize="17" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
-                            <Label Text="📍 Thuận Thành, TP. Huế" FontSize="13" TextColor="{StaticResource MutedText}" />
-                            <HorizontalStackLayout Spacing="10">
-                                <Frame Padding="10,4" CornerRadius="10" HasShadow="False" BackgroundColor="{StaticResource SoftPurple}" BorderColor="Transparent">
-                                    <Label Text="Di sản" FontSize="12" TextColor="#7C3AED" />
-                                </Frame>
-                                <Label Text="🕘 2 giờ trước" FontSize="13" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
-                            </HorizontalStackLayout>
-                        </VerticalStackLayout>
-                        <VerticalStackLayout Grid.Column="2" Spacing="10" HorizontalOptions="End">
-                            <Frame WidthRequest="44" HeightRequest="44" CornerRadius="22" Padding="0" BackgroundColor="{StaticResource PrimaryGreen}" HasShadow="False">
-                                <Label Text="▶" HorizontalOptions="Center" VerticalOptions="Center" TextColor="White" />
-                            </Frame>
-                            <Frame WidthRequest="34" HeightRequest="34" CornerRadius="17" Padding="0" BackgroundColor="#F3F4F6" HasShadow="False">
-                                <Label Text="🗑" HorizontalOptions="Center" VerticalOptions="Center" FontSize="14" />
-                            </Frame>
-                        </VerticalStackLayout>
-                    </Grid>
-                </Frame>
-
                 <Grid ColumnDefinitions="*,Auto" Margin="0,14,0,0">
-                    <Label Text="Hôm qua" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
+                    <Label x:Name="YesterdayLabel"
+                           Text="Hôm qua"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource BodyText}" />
                     <Label Grid.Column="1" Text="1 nơi" FontSize="14" TextColor="{StaticResource MutedText}" />
                 </Grid>
 

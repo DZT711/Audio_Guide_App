@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\MauiApp_Mobile\\MauiApp_Mobile.csproj": {}
+    "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\MauiApp_Mobile\\MauiApp_Mobile.csproj": {}
   },
   "projects": {
-    "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\MauiApp_Mobile\\MauiApp_Mobile.csproj": {
+    "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\MauiApp_Mobile\\MauiApp_Mobile.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\MauiApp_Mobile\\MauiApp_Mobile.csproj",
+        "projectUniqueName": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\MauiApp_Mobile\\MauiApp_Mobile.csproj",
         "projectName": "MauiApp_Mobile",
-        "projectPath": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\MauiApp_Mobile\\MauiApp_Mobile.csproj",
+        "projectPath": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\MauiApp_Mobile\\MauiApp_Mobile.csproj",
         "packagesPath": "C:\\Users\\LENOVO\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\MauiApp_Mobile\\obj\\",
+        "outputPath": "D:\\visua studio code\\Smart-Tourism-MAUI-Test\\MauiApp_Mobile\\obj\\",
         "projectStyle": "PackageReference",
         "crossTargeting": true,
         "fallbackFolders": [

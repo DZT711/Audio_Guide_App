@@ -13,33 +13,36 @@
     Shell.TabBarForegroundColor="#18A94B">
 
     <ShellContent
-        Title="Ngôn ngữ"
         Route="language"
         ContentTemplate="{DataTemplate views:LanguagePage}" />
 
     <TabBar Route="mainTabs">
         <ShellContent
+            x:Name="PlacesTab"
             Title="Địa điểm"
             Route="places"
-            Icon="dotnet_bot.png"
+            Icon="location.png"
             ContentTemplate="{DataTemplate local:MainPage}" />
 
         <ShellContent
+            x:Name="MapTab"
             Title="Bản đồ"
             Route="map"
-            Icon="dotnet_bot.png"
+            Icon="map.png"
             ContentTemplate="{DataTemplate views:MapPage}" />
 
         <ShellContent
+            x:Name="HistoryTab"
             Title="Lịch sử"
             Route="history"
-            Icon="dotnet_bot.png"
+            Icon="history.png"
             ContentTemplate="{DataTemplate views:HistoryPage}" />
 
         <ShellContent
+            x:Name="SettingsTab"
             Title="Cài đặt"
             Route="settings"
-            Icon="dotnet_bot.png"
+            Icon="settings.png"
             ContentTemplate="{DataTemplate views:SettingsPage}" />
     </TabBar>
 </Shell>
