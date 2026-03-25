@@ -1,14 +1,61 @@
-﻿<?xml version = "1.0" encoding = "UTF-8" ?>
-<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:local="clr-namespace:MauiApp_Mobile"
-             x:Class="MauiApp_Mobile.App">
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Application
+    x:Class="MauiApp_Mobile.App"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
     <Application.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
-                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
-            </ResourceDictionary.MergedDictionaries>
+            <Color x:Key="PrimaryGreen">#18A94B</Color>
+            <Color x:Key="PrimaryGreenDark">#148F40</Color>
+            <Color x:Key="LightBg">#F3F4F6</Color>
+            <Color x:Key="CardBg">#FFFFFF</Color>
+            <Color x:Key="MutedText">#8A94A6</Color>
+            <Color x:Key="BodyText">#1E3250</Color>
+            <Color x:Key="BorderColor">#E5E7EB</Color>
+            <Color x:Key="SoftGreen">#E8F7EE</Color>
+            <Color x:Key="SoftPurple">#F2E8FF</Color>
+            <Color x:Key="SoftOrange">#FFE8D8</Color>
+            <Color x:Key="SoftRed">#FFE3E3</Color>
+
+            <Style x:Key="PageTitleStyle" TargetType="Label">
+                <Setter Property="FontSize" Value="26" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="TextColor" Value="White" />
+            </Style>
+
+            <Style x:Key="SectionTitleStyle" TargetType="Label">
+                <Setter Property="FontSize" Value="18" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="TextColor" Value="{StaticResource BodyText}" />
+            </Style>
+
+            <Style x:Key="BodyStyle" TargetType="Label">
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="TextColor" Value="{StaticResource BodyText}" />
+            </Style>
+
+            <Style x:Key="MutedStyle" TargetType="Label">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="TextColor" Value="{StaticResource MutedText}" />
+            </Style>
+
+            <Style x:Key="CardFrameStyle" TargetType="Frame">
+                <Setter Property="BackgroundColor" Value="{StaticResource CardBg}" />
+                <Setter Property="BorderColor" Value="{StaticResource BorderColor}" />
+                <Setter Property="CornerRadius" Value="22" />
+                <Setter Property="Padding" Value="16" />
+                <Setter Property="HasShadow" Value="True" />
+                <Setter Property="Margin" Value="0,0,0,14" />
+            </Style>
+
+            <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{StaticResource PrimaryGreen}" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="CornerRadius" Value="18" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="FontSize" Value="18" />
+                <Setter Property="HeightRequest" Value="64" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

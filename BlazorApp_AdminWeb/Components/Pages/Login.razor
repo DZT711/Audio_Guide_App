@@ -1,50 +1,300 @@
 @page "/login"
+@using BlazorApp_AdminWeb.Components.Layout
+@rendermode InteractiveServer
 @layout LoginLayout
+@inject NavigationManager Navigation
 
-<div class="login-container d-flex align-items-center justify-content-center vh-100 bg-light">
-    <div class="card border-0 shadow-lg" style="width: 100%; max-width: 400px;">
-        <div class="card-body p-5">
-            <div class="text-center mb-4">
-                <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
-                    <i class="bi bi-soundwave fs-2"></i>
-                </div>
-                <h3 class="fw-bold text-primary">Audio Guide Admin</h3>
-                <p class="text-muted">Welcome back! Please login.</p>
-            </div>
+<div class="login-wrapper">
+    <div class="login-content">
+        <div class="brand-header">
+            <h1>Phố ẩm thực Vĩnh Khánh</h1>
+        </div>
 
-            <form>
-                <div class="mb-3">
-                    <label for="email" class="form-label">Email Address</label>
-                    <input type="email" class="form-control form-control-lg" id="email" placeholder="name@example.com" value="admin@example.com">
-                </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control form-control-lg" id="password" placeholder="••••••••">
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="rememberMe">
-                        <label class="form-check-label" for="rememberMe">Remember me</label>
+        <div class="login-card">
+            @if (!isRegister)
+            {
+                <div class="auth-form-container fade-in">
+                    <h4 class="form-title">ĐĂNG NHẬP</h4>
+
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" class="form-control" placeholder="example@email.com" />
                     </div>
-                    <a href="#" class="text-decoration-none small">Forgot password?</a>
+
+                    <div class="form-group">
+                        <label>Mật khẩu</label>
+                        <input type="password" class="form-control" placeholder="••••••••" />
+                    </div>
+
+                    <div class="forgot-pass-link">
+                        <a href="javascript:void(0)">Quên mật khẩu?</a>
+                    </div>
+
+                    <button class="btn-submit" @onclick="HandleLogin">ĐĂNG NHẬP</button>
+
+                    <div class="switch-auth">
+                        <span>Bạn chưa có tài khoản?</span>
+                        <a href="javascript:void(0)" @onclick="ShowRegister">Đăng ký ngay</a>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-lg w-100" @onclick="HandleLogin">Sign In</button>
-            </form>
-            
-            <div class="text-center mt-4">
-                <small class="text-muted">Don't have an account? <a href="#" class="text-decoration-none">Contact Support</a></small>
-            </div>
+            }
+            else
+            {
+                <div class="auth-form-container fade-in">
+                    <h4 class="form-title">ĐĂNG KÝ CHỦ QUÁN</h4>
+
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" class="form-control" placeholder="example@email.com" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mật khẩu</label>
+                        <input type="password" class="form-control" placeholder="••••••••" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tên quán</label>
+                        <input type="text" class="form-control" placeholder="Nhập tên quán ăn..." />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Số điện thoại</label>
+                        <input type="tel" class="form-control" placeholder="09xxxxxxxx" />
+                    </div>
+
+                    <button class="btn-submit" @onclick="HandleRegister">ĐĂNG KÝ</button>
+
+                    <div class="switch-auth">
+                        <span>Đã có tài khoản?</span>
+                        <a href="javascript:void(0)" @onclick="ShowLogin">Đăng nhập</a>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>
 
-@using BlazorApp_AdminWeb.Components.Layout
+<style>
+    :root {
+        --primary-green: #2e7d32; /* Dark Green */
+        --bg-green: #e8f5e9; /* Light Green */
+        --text-dark: #333;
+        --text-secondary: #666;
+        --border-color: #ddd;
+        --white: #ffffff;
+        --brand-gradient: linear-gradient(135deg, #15803d 0%, #f59e0b 100%);
+    }
+
+    .login-wrapper {
+        min-height: 100vh;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--bg-green);
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .login-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 480px;
+    }
+
+    .brand-header {
+        text-align: center;
+        margin-bottom: 30px;
+        width: 100%;
+    }
+
+    .brand-header h1 {
+        font-family: 'Times New Roman', serif;
+        font-weight: 800;
+        font-style: italic;
+        font-size: 2.8rem;
+        margin: 0;
+        line-height: 1.2;
+        
+        /* Gradient Text Effect */
+        background: var(--brand-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        
+        /* Drop shadow for depth */
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+    }
+
+    .login-card {
+        background-color: var(--white);
+        width: 100%;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+
+    .form-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        text-align: center;
+        margin-bottom: 25px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+    }
+
+    .form-control {
+        display: block;
+        width: 100%;
+        padding: 12px 15px;
+        font-size: 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        box-sizing: border-box;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-green);
+        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+    }
+
+    .forgot-pass-link {
+        text-align: right;
+        margin-bottom: 20px;
+    }
+
+    .forgot-pass-link a {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .forgot-pass-link a:hover {
+        color: var(--primary-green);
+        text-decoration: underline;
+    }
+
+    .btn-submit {
+        display: block;
+        width: 100%;
+        padding: 14px;
+        background-color: var(--primary-green);
+        color: var(--white);
+        border: none;
+        border-radius: 10px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s, transform 0.1s;
+        box-shadow: 0 4px 6px rgba(46, 125, 50, 0.2);
+    }
+
+    .btn-submit:hover {
+        background-color: #1b5e20;
+    }
+
+    .btn-submit:active {
+        transform: scale(0.98);
+    }
+
+    .switch-auth {
+        margin-top: 25px;
+        text-align: center;
+        font-size: 0.95rem;
+        color: var(--text-secondary);
+    }
+
+    .switch-auth a {
+        color: var(--primary-green);
+        font-weight: 600;
+        text-decoration: none;
+        margin-left: 5px;
+        cursor: pointer;
+    }
+
+    .switch-auth a:hover {
+        text-decoration: underline;
+    }
+
+    /* Animation */
+    .fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive */
+    @@media (max-width: 576px) {
+        .login-card {
+            padding: 30px 20px;
+            border-radius: 15px;
+        }
+
+        .brand-header h3 {
+            font-size: 1.75rem;
+        }
+
+        .form-title {
+            font-size: 1.3rem;
+        }
+    }
+</style>
+
 @code {
-    [Inject] NavigationManager Navigation { get; set; } = default!;
+    private bool isRegister = false;
+
+    private void ShowRegister()
+    {
+        isRegister = true;
+    }
+
+    private void ShowLogin()
+    {
+        isRegister = false;
+    }
 
     private void HandleLogin()
     {
-        // Mock login - redirect to dashboard
-        Navigation.NavigateTo("dashboard");
+        // Placeholder for Login logic
+        // Redirect to dashboard for demo
+        Navigation.NavigateTo("/");
+    }
+
+    private void HandleRegister()
+    {
+        // Placeholder for Register logic
+        // Switch to login for demo
+        isRegister = false;
     }
 }

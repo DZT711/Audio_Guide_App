@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MauiApp_Mobile.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="{StaticResource LightBg}">
+
+    <Grid RowDefinitions="115,*">
+        <Grid BackgroundColor="{StaticResource PrimaryGreen}" Padding="18,50,18,16">
+            <Label Text="Cài đặt" Style="{StaticResource PageTitleStyle}" VerticalOptions="Center" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="16,18,16,28" Spacing="18">
+
+                <HorizontalStackLayout Spacing="8">
+                    <Label Text="🔊" FontSize="18" />
+                    <Label Text="Âm thanh" Style="{StaticResource SectionTitleStyle}" />
+                </HorizontalStackLayout>
+
+                <Frame Style="{StaticResource CardFrameStyle}">
+                    <VerticalStackLayout Spacing="18">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Ngôn ngữ" FontSize="16" TextColor="{StaticResource BodyText}" />
+                            <Label Grid.Column="1" Text="Tiếng Việt ›" FontSize="16" TextColor="{StaticResource PrimaryGreen}" FontAttributes="Bold" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Giọng đọc" FontSize="16" TextColor="{StaticResource BodyText}" />
+                            <Label Grid.Column="1" Text="Giọng nữ miền Nam ▼" FontSize="16" TextColor="{StaticResource PrimaryGreen}" FontAttributes="Bold" />
+                        </Grid>
+
+                        <Label Text="Tốc độ đọc" FontSize="16" TextColor="{StaticResource BodyText}" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Slider Minimum="0.5" Maximum="2" Value="1.0" MinimumTrackColor="{StaticResource PrimaryGreen}" MaximumTrackColor="#D1D5DB" />
+                            <Label Grid.Column="1" Text="1.0x" Margin="10,0,0,0" VerticalOptions="Center" FontSize="16" FontAttributes="Bold" />
+                        </Grid>
+
+                        <Label Text="Âm lượng" FontSize="16" TextColor="{StaticResource BodyText}" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Slider Minimum="0" Maximum="100" Value="100" MinimumTrackColor="{StaticResource PrimaryGreen}" MaximumTrackColor="#D1D5DB" />
+                            <Label Grid.Column="1" Text="100%" Margin="10,0,0,0" VerticalOptions="Center" FontSize="16" FontAttributes="Bold" />
+                        </Grid>
+
+                        <Button Text="🎙 Test giọng đọc" Style="{StaticResource PrimaryButtonStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <HorizontalStackLayout Spacing="8">
+                    <Label Text="🛰" FontSize="18" />
+                    <Label Text="GPS và Vị trí" Style="{StaticResource SectionTitleStyle}" />
+                </HorizontalStackLayout>
+
+                <Frame Style="{StaticResource CardFrameStyle}">
+                    <VerticalStackLayout Spacing="18">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Độ chính xác GPS" FontSize="16" TextColor="{StaticResource BodyText}" />
+                            <Label Grid.Column="1" Text="Cao" FontSize="16" TextColor="{StaticResource PrimaryGreen}" FontAttributes="Bold" />
+                        </Grid>
+
+                        <Label Text="Bán kính kích hoạt" FontSize="16" TextColor="{StaticResource BodyText}" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Slider Minimum="10" Maximum="100" Value="50" MinimumTrackColor="{StaticResource PrimaryGreen}" MaximumTrackColor="#D1D5DB" />
+                            <Label Grid.Column="1" Text="50m" Margin="10,0,0,0" VerticalOptions="Center" FontSize="16" FontAttributes="Bold" />
+                        </Grid>
+
+                        <Label Text="Bán kính cảnh báo" FontSize="16" TextColor="{StaticResource BodyText}" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Slider Minimum="20" Maximum="200" Value="100" MinimumTrackColor="{StaticResource PrimaryGreen}" MaximumTrackColor="#D1D5DB" />
+                            <Label Grid.Column="1" Text="100m" Margin="10,0,0,0" VerticalOptions="Center" FontSize="16" FontAttributes="Bold" />
+                        </Grid>
+
+                        <Label Text="Thời gian chờ" FontSize="16" TextColor="{StaticResource BodyText}" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Slider Minimum="60" Maximum="600" Value="300" MinimumTrackColor="{StaticResource PrimaryGreen}" MaximumTrackColor="#D1D5DB" />
+                            <Label Grid.Column="1" Text="300s" Margin="10,0,0,0" VerticalOptions="Center" FontSize="16" FontAttributes="Bold" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <HorizontalStackLayout Spacing="8">
+                    <Label Text="⤴" FontSize="18" />
+                    <Label Text="Hành vi" Style="{StaticResource SectionTitleStyle}" />
+                </HorizontalStackLayout>
+
+                <Frame Style="{StaticResource CardFrameStyle}">
+                    <VerticalStackLayout Spacing="18">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Tự động phát khi vào vùng" FontSize="16" TextColor="{StaticResource BodyText}" />
+                            <Switch Grid.Column="1" IsToggled="True" OnColor="{StaticResource PrimaryGreen}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Thông báo khi đến gần" FontSize="16" TextColor="{StaticResource BodyText}" />
+                            <Switch Grid.Column="1" IsToggled="True" OnColor="{StaticResource PrimaryGreen}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Theo dõi ở nền" FontSize="16" TextColor="{StaticResource BodyText}" />
+                            <Switch Grid.Column="1" IsToggled="True" OnColor="{StaticResource PrimaryGreen}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Chế độ tiết kiệm pin" FontSize="16" TextColor="{StaticResource BodyText}" />
+                            <Switch Grid.Column="1" IsToggled="False" OnColor="{StaticResource PrimaryGreen}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Chế độ Offline" FontSize="16" TextColor="{StaticResource BodyText}" />
+                            <Switch Grid.Column="1" IsToggled="False" OnColor="{StaticResource PrimaryGreen}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <Button Text="💾 Lưu cài đặt" Style="{StaticResource PrimaryButtonStyle}" />
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

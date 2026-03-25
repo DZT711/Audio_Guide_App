@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "mfxbQ2mILRQ=",
+  "dgSpecHash": "Ct+KjYGFqYs=",
   "success": true,
-  "projectFilePath": "D:\\visua studio code\\Smart-Tourism-MAUI\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj",
+  "projectFilePath": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\LENOVO\\.nuget\\packages\\microsoft.aspnetcore.app.internal.assets\\10.0.5\\microsoft.aspnetcore.app.internal.assets.10.0.5.nupkg.sha512"
   ],

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MauiApp_Mobile.Views.MapPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="{StaticResource LightBg}">
+
+    <Grid RowDefinitions="180,*,80">
+        <Grid BackgroundColor="{StaticResource PrimaryGreen}" Padding="20,50,20,20">
+            <VerticalStackLayout Spacing="18">
+                <Label Text="Bản đồ" Style="{StaticResource PageTitleStyle}" />
+
+                <Frame
+                    BackgroundColor="White"
+                    BorderColor="Transparent"
+                    CornerRadius="18"
+                    HasShadow="False"
+                    Padding="16,10">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Label Text="🔍" FontSize="22" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+                        <Entry
+                            Grid.Column="1"
+                            Placeholder="Tìm kiếm địa điểm..."
+                            PlaceholderColor="{StaticResource MutedText}"
+                            BackgroundColor="Transparent"
+                            TextColor="{StaticResource BodyText}" />
+                    </Grid>
+                </Frame>
+            </VerticalStackLayout>
+        </Grid>
+
+        <Grid Grid.Row="1" BackgroundColor="#ECECEC">
+            <Label Text="Khu vực bản đồ" TextColor="#B0B0B0" FontSize="18" HorizontalOptions="Center" VerticalOptions="Center" />
+            <Frame
+                WidthRequest="54"
+                HeightRequest="54"
+                CornerRadius="27"
+                BackgroundColor="White"
+                HasShadow="True"
+                Padding="0"
+                HorizontalOptions="End"
+                VerticalOptions="Start"
+                Margin="0,16,16,0">
+                <Label Text="🧭" HorizontalOptions="Center" VerticalOptions="Center" FontSize="22" TextColor="{StaticResource PrimaryGreen}" />
+            </Frame>
+        </Grid>
+    </Grid>
+</ContentPage>

@@ -77,3 +77,43 @@ build_metadata.AdditionalFiles.Inflator = SourceGen
 build_metadata.AdditionalFiles.NoWarn = 
 build_metadata.AdditionalFiles.EnableDiagnostics = 
 build_metadata.AdditionalFiles.LineInfo = 
+
+[C:/Users/LENOVO/Smart-Tourism-MAUI/MauiApp_Mobile/Views/HistoryPage.xaml]
+build_metadata.AdditionalFiles.GenKind = Xaml
+build_metadata.AdditionalFiles.ManifestResourceName = MauiApp_Mobile.Views.HistoryPage.xaml
+build_metadata.AdditionalFiles.TargetPath = Views\HistoryPage.xaml
+build_metadata.AdditionalFiles.RelativePath = Views\HistoryPage.xaml
+build_metadata.AdditionalFiles.Inflator = SourceGen
+build_metadata.AdditionalFiles.NoWarn = 
+build_metadata.AdditionalFiles.EnableDiagnostics = 
+build_metadata.AdditionalFiles.LineInfo = 
+
+[C:/Users/LENOVO/Smart-Tourism-MAUI/MauiApp_Mobile/Views/LanguagePage.xaml]
+build_metadata.AdditionalFiles.GenKind = Xaml
+build_metadata.AdditionalFiles.ManifestResourceName = MauiApp_Mobile.Views.LanguagePage.xaml
+build_metadata.AdditionalFiles.TargetPath = Views\LanguagePage.xaml
+build_metadata.AdditionalFiles.RelativePath = Views\LanguagePage.xaml
+build_metadata.AdditionalFiles.Inflator = SourceGen
+build_metadata.AdditionalFiles.NoWarn = 
+build_metadata.AdditionalFiles.EnableDiagnostics = 
+build_metadata.AdditionalFiles.LineInfo = 
+
+[C:/Users/LENOVO/Smart-Tourism-MAUI/MauiApp_Mobile/Views/MapPage.xaml]
+build_metadata.AdditionalFiles.GenKind = Xaml
+build_metadata.AdditionalFiles.ManifestResourceName = MauiApp_Mobile.Views.MapPage.xaml
+build_metadata.AdditionalFiles.TargetPath = Views\MapPage.xaml
+build_metadata.AdditionalFiles.RelativePath = Views\MapPage.xaml
+build_metadata.AdditionalFiles.Inflator = SourceGen
+build_metadata.AdditionalFiles.NoWarn = 
+build_metadata.AdditionalFiles.EnableDiagnostics = 
+build_metadata.AdditionalFiles.LineInfo = 
+
+[C:/Users/LENOVO/Smart-Tourism-MAUI/MauiApp_Mobile/Views/SettingsPage.xaml]
+build_metadata.AdditionalFiles.GenKind = Xaml
+build_metadata.AdditionalFiles.ManifestResourceName = MauiApp_Mobile.Views.SettingsPage.xaml
+build_metadata.AdditionalFiles.TargetPath = Views\SettingsPage.xaml
+build_metadata.AdditionalFiles.RelativePath = Views\SettingsPage.xaml
+build_metadata.AdditionalFiles.Inflator = SourceGen
+build_metadata.AdditionalFiles.NoWarn = 
+build_metadata.AdditionalFiles.EnableDiagnostics = 
+build_metadata.AdditionalFiles.LineInfo = 

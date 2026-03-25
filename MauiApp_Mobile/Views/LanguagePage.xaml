@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MauiApp_Mobile.Views.LanguagePage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="{StaticResource LightBg}">
+
+    <Grid RowDefinitions="300,*">
+        <Grid BackgroundColor="{StaticResource PrimaryGreen}" Padding="24,50,24,20">
+            <Grid>
+                <BoxView WidthRequest="170" HeightRequest="170" CornerRadius="85" Color="#3BC46B" Opacity="0.35" HorizontalOptions="End" VerticalOptions="Start" TranslationX="40" TranslationY="-10" />
+                <BoxView WidthRequest="120" HeightRequest="120" CornerRadius="60" Color="#4ED378" Opacity="0.35" HorizontalOptions="Start" VerticalOptions="End" TranslationX="-40" TranslationY="40" />
+                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="18">
+                    <Frame WidthRequest="100" HeightRequest="56" CornerRadius="28" BackgroundColor="White" Padding="0" HasShadow="False">
+                        <Label Text="📍" FontSize="28" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{StaticResource PrimaryGreen}" />
+                    </Frame>
+                    <Label Text="Chào mừng đến với&#10;VietAudio Guide" HorizontalTextAlignment="Center" TextColor="White" FontSize="26" FontAttributes="Bold" />
+                    <Label Text="Thuyết minh tự động cho các điểm tham&#10;quan lịch sử Việt Nam" HorizontalTextAlignment="Center" TextColor="#DDF7E7" FontSize="15" />
+                </VerticalStackLayout>
+            </Grid>
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="22,24,22,28" Spacing="18">
+                <HorizontalStackLayout Spacing="10">
+                    <Frame WidthRequest="28" HeightRequest="28" CornerRadius="14" Padding="0" HasShadow="False" BackgroundColor="{StaticResource PrimaryGreen}">
+                        <Label Text="1" TextColor="White" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" />
+                    </Frame>
+                    <Label Text="Chọn ngôn ngữ của bạn" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource BodyText}" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="16" RowSpacing="16">
+                    <Frame BorderColor="{StaticResource PrimaryGreen}" BackgroundColor="#EEF8F1" CornerRadius="18" Padding="16" HasShadow="False">
+                        <Grid ColumnDefinitions="Auto,1,* ,Auto" ColumnSpacing="10">
+                            <Label Text="VN" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource PrimaryGreen}" VerticalOptions="Center" />
+                            <BoxView Grid.Column="1" WidthRequest="1" HeightRequest="34" Color="#D1D5DB" VerticalOptions="Center" />
+                            <VerticalStackLayout Grid.Column="2" Spacing="2">
+                                <Label Text="Tiếng Việt" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource PrimaryGreen}" />
+                                <Label Text="Vietnamese" FontSize="12" TextColor="{StaticResource MutedText}" />
+                            </VerticalStackLayout>
+                            <Frame Grid.Column="3" WidthRequest="24" HeightRequest="24" CornerRadius="12" Padding="0" HasShadow="False" BackgroundColor="{StaticResource PrimaryGreen}">
+                                <Label Text="✓" TextColor="White" HorizontalOptions="Center" VerticalOptions="Center" FontSize="12" />
+                            </Frame>
+                        </Grid>
+                    </Frame>
+
+                    <Frame Grid.Column="1" BorderColor="{StaticResource BorderColor}" CornerRadius="18" Padding="16" HasShadow="False">
+                        <Grid ColumnDefinitions="Auto,1,*" ColumnSpacing="10">
+                            <Label Text="GB" FontSize="16" FontAttributes="Bold" TextColor="#667085" VerticalOptions="Center" />
+                            <BoxView Grid.Column="1" WidthRequest="1" HeightRequest="34" Color="#D1D5DB" VerticalOptions="Center" />
+                            <VerticalStackLayout Grid.Column="2" Spacing="2">
+                                <Label Text="English" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
+                                <Label Text="English" FontSize="12" TextColor="{StaticResource MutedText}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Frame>
+
+                    <Frame Grid.Row="1" BorderColor="{StaticResource BorderColor}" CornerRadius="18" Padding="16" HasShadow="False">
+                        <Grid ColumnDefinitions="Auto,1,*" ColumnSpacing="10">
+                            <Label Text="CN" FontSize="16" FontAttributes="Bold" TextColor="#667085" VerticalOptions="Center" />
+                            <BoxView Grid.Column="1" WidthRequest="1" HeightRequest="34" Color="#D1D5DB" VerticalOptions="Center" />
+                            <VerticalStackLayout Grid.Column="2" Spacing="2">
+                                <Label Text="中文" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
+                                <Label Text="Chinese" FontSize="12" TextColor="{StaticResource MutedText}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Frame>
+
+                    <Frame Grid.Row="1" Grid.Column="1" BorderColor="{StaticResource BorderColor}" CornerRadius="18" Padding="16" HasShadow="False">
+                        <Grid ColumnDefinitions="Auto,1,*" ColumnSpacing="10">
+                            <Label Text="JP" FontSize="16" FontAttributes="Bold" TextColor="#667085" VerticalOptions="Center" />
+                            <BoxView Grid.Column="1" WidthRequest="1" HeightRequest="34" Color="#D1D5DB" VerticalOptions="Center" />
+                            <VerticalStackLayout Grid.Column="2" Spacing="2">
+                                <Label Text="日本語" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
+                                <Label Text="Japanese" FontSize="12" TextColor="{StaticResource MutedText}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Frame>
+
+                    <Frame Grid.Row="2" BorderColor="{StaticResource BorderColor}" CornerRadius="18" Padding="16" HasShadow="False">
+                        <Grid ColumnDefinitions="Auto,1,*" ColumnSpacing="10">
+                            <Label Text="KR" FontSize="16" FontAttributes="Bold" TextColor="#667085" VerticalOptions="Center" />
+                            <BoxView Grid.Column="1" WidthRequest="1" HeightRequest="34" Color="#D1D5DB" VerticalOptions="Center" />
+                            <VerticalStackLayout Grid.Column="2" Spacing="2">
+                                <Label Text="한국어" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
+                                <Label Text="Korean" FontSize="12" TextColor="{StaticResource MutedText}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Frame>
+
+                    <Frame Grid.Row="2" Grid.Column="1" BorderColor="{StaticResource BorderColor}" CornerRadius="18" Padding="16" HasShadow="False">
+                        <Grid ColumnDefinitions="Auto,1,*" ColumnSpacing="10">
+                            <Label Text="FR" FontSize="16" FontAttributes="Bold" TextColor="#667085" VerticalOptions="Center" />
+                            <BoxView Grid.Column="1" WidthRequest="1" HeightRequest="34" Color="#D1D5DB" VerticalOptions="Center" />
+                            <VerticalStackLayout Grid.Column="2" Spacing="2">
+                                <Label Text="Français" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
+                                <Label Text="French" FontSize="12" TextColor="{StaticResource MutedText}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Frame>
+                </Grid>
+
+                <Button Text="Bắt đầu khám phá  ❯" Style="{StaticResource PrimaryButtonStyle}" Clicked="OnStartClicked" />
+                <Label Text="Bạn có thể thay đổi ngôn ngữ trong Cài đặt" HorizontalTextAlignment="Center" TextColor="{StaticResource MutedText}" FontSize="14" />
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>
