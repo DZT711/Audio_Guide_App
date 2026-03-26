@@ -260,7 +260,7 @@ else
                             }
                         </InputSelect>
                         <ValidationMessage For="() => _formModel.Language" />
-                        <span class="management-field__hint">@GetSelectedLanguageHint()</span>
+                        @* <span class="management-field__hint">@GetSelectedLanguageHint()</span> *@
                     </div>
 
                     <div class="management-field audio-field audio-field--duration">
@@ -307,7 +307,7 @@ else
                         <div class="audio-preview">
                             <div>
                                 <span class="management-field__label">Voice Preview</span>
-                                <div class="management-field__hint">The preview is generated from the API using the selected TTS language.</div>
+                                @* <div class="management-field__hint">The preview is generated from the API using the selected TTS language.</div> *@
                                 <div class="management-field__hint">@GetCurrentPreviewModeHint()</div>
                             </div>
 
@@ -967,7 +967,7 @@ else
         return string.Join(" · ", parts);
     }
 
-    private string GetSelectedLanguageHint()
+    @* private string GetSelectedLanguageHint()
     {
         var language = SelectedLanguage;
         if (language is null)
@@ -979,7 +979,7 @@ else
             ? language.Name
             : language.NativeName;
         return $"{nativeName} is selected. Preview will prefer a same-language {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} when available, then fall back to generated audio for {language.Code}.";
-    }
+    } *@
 
     private string GetCurrentPreviewModeHint()
     {
