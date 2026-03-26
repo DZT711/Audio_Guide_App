@@ -39,6 +39,13 @@
                 <span class="sidebar-link__text">Categories</span>
             </NavLink>
         }
+        @if (SessionState.HasPermission(AdminPermissions.LanguageRead))
+        {
+            <NavLink class="sidebar-link" href="/languages" title="Languages" aria-label="Languages" @attributes="GetDismissAttributes()">
+                <i class="bi bi-translate"></i>
+                <span class="sidebar-link__text">Languages</span>
+            </NavLink>
+        }
         @if (SessionState.HasPermission(AdminPermissions.AudioRead))
         {
             <NavLink class="sidebar-link" href="/audio" title="Audio & Voice" aria-label="Audio & Voice" @attributes="GetDismissAttributes()">

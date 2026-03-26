@@ -6,6 +6,7 @@ using WebApplication_API.Model;
 public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
 {
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Language> Languages => Set<Language>();
     public DbSet<DashboardUser> DashboardUsers => Set<DashboardUser>();
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<Audio> AudioContents => Set<Audio>();
@@ -20,6 +21,15 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.ToTable("Categories");
             entity.HasKey(item => item.CategoryId);
             entity.HasIndex(item => item.Name).IsUnique();
+            entity.Property(item => item.Status).HasDefaultValue(1);
+        });
+
+        modelBuilder.Entity<Language>(entity =>
+        {
+            entity.ToTable("Languages");
+            entity.HasKey(item => item.LanguageId);
+            entity.HasIndex(item => item.LangCode).IsUnique();
+            entity.Property(item => item.PreferNativeVoice).HasDefaultValue(true);
             entity.Property(item => item.Status).HasDefaultValue(1);
         });
 

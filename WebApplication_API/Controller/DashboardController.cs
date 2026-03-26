@@ -58,6 +58,10 @@ public class DashboardController(
             .OrderBy(item => item.Title)
             .ToListAsync();
 
+        var languageLookup = await context.Languages
+            .Where(item => audioItems.Select(audio => audio.LanguageCode).Contains(item.LangCode))
+            .ToDictionaryAsync(item => item.LangCode, StringComparer.OrdinalIgnoreCase);
+
         var users = AdminRolePolicies.HasPermission(currentUser.Role, AdminPermissions.UserRead)
             ? await context.DashboardUsers
                 .OrderBy(item => item.Username)
@@ -77,7 +81,9 @@ public class DashboardController(
             Overview = overview,
             Categories = categories.Select(item => item.ToDto()).ToList(),
             Locations = locations.Select(item => item.ToDto()).ToList(),
-            AudioItems = audioItems.Select(item => item.ToDto()).ToList(),
+            AudioItems = audioItems
+                .Select(item => item.ToDto(languageLookup.TryGetValue(item.LanguageCode, out var language) ? language : null))
+                .ToList(),
             Users = users.Select(item => item.User.ToDto(item.OwnedLocationCount, item.OwnedAudioCount)).ToList()
         });
     }

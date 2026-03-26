@@ -14,6 +14,7 @@ namespace WebApplication_API.Controller;
 public class AudioController(
     DBContext context,
     SharedAudioFileStorageService audioStorage,
+    TtsPreviewService ttsPreviewService,
     AdminRequestAuthorizationService authService) : ControllerBase
 {
     [HttpGet]
@@ -30,7 +31,8 @@ public class AudioController(
             .ThenBy(item => item.Title)
             .ToListAsync();
 
-        return Ok(audioItems.Select(item => item.ToDto()).ToList());
+        var languageLookup = await LoadLanguageLookupAsync(audioItems.Select(item => item.LanguageCode));
+        return Ok(audioItems.Select(item => item.ToDto(GetLanguage(languageLookup, item.LanguageCode))).ToList());
     }
 
     [HttpGet("{id:int}")]
@@ -50,7 +52,8 @@ public class AudioController(
             return NotFound(new { message = "Audio item not found." });
         }
 
-        return Ok(audio.ToDto());
+        var languageLookup = await LoadLanguageLookupAsync([audio.LanguageCode]);
+        return Ok(audio.ToDto(GetLanguage(languageLookup, audio.LanguageCode)));
     }
 
     [HttpGet("location/{locationId:int}")]
@@ -68,7 +71,37 @@ public class AudioController(
             .ThenBy(item => item.Title)
             .ToListAsync();
 
-        return Ok(audioItems.Select(item => item.ToDto()).ToList());
+        var languageLookup = await LoadLanguageLookupAsync(audioItems.Select(item => item.LanguageCode));
+        return Ok(audioItems.Select(item => item.ToDto(GetLanguage(languageLookup, item.LanguageCode))).ToList());
+    }
+
+    [HttpPost("preview-tts")]
+    public async Task<IActionResult> PreviewTts([FromBody] AudioTtsPreviewRequest request, CancellationToken cancellationToken)
+    {
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.AudioRead);
+        if (!access.Succeeded)
+        {
+            return access.ToFailureResult();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        try
+        {
+            var preview = await ttsPreviewService.GeneratePreviewAsync(request, cancellationToken);
+            return File(preview.Content, preview.ContentType);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (HttpRequestException)
+        {
+            return StatusCode(502, new { message = "The TTS preview provider could not be reached." });
+        }
     }
 
     [HttpPost]
@@ -103,6 +136,13 @@ public class AudioController(
             return StatusCode(403, new { message = "You can only create audio for your own locations." });
         }
 
+        var language = await context.Languages
+            .FirstOrDefaultAsync(item => item.LangCode == request.Language.Trim(), cancellationToken);
+        if (language is null)
+        {
+            return NotFound(new { message = "Language not found." });
+        }
+
         var audioPath = NormalizeAudioPath(request.AudioURL);
         if (audioFile is not null)
         {
@@ -118,7 +158,7 @@ public class AudioController(
         var audio = new Audio
         {
             LocationId = location.LocationId,
-            LanguageCode = request.Language.Trim(),
+            LanguageCode = language.LangCode,
             Title = request.Title.Trim(),
             Description = Normalize(request.Description),
             SourceType = request.SourceType.Trim(),
@@ -142,7 +182,7 @@ public class AudioController(
         var savedAudio = await BuildAudioQuery(access.User!)
             .FirstAsync(item => item.AudioId == audio.AudioId, cancellationToken);
 
-        return CreatedAtAction(nameof(GetAudioById), new { id = audio.AudioId }, savedAudio.ToDto());
+        return CreatedAtAction(nameof(GetAudioById), new { id = audio.AudioId }, savedAudio.ToDto(language));
     }
 
     [HttpPut("{id:int}")]
@@ -193,6 +233,13 @@ public class AudioController(
             return StatusCode(403, new { message = "You can only assign audio to your own locations." });
         }
 
+        var language = await context.Languages
+            .FirstOrDefaultAsync(item => item.LangCode == request.Language.Trim(), cancellationToken);
+        if (language is null)
+        {
+            return NotFound(new { message = "Language not found." });
+        }
+
         var nextAudioPath = string.IsNullOrWhiteSpace(request.AudioURL)
             ? NormalizeAudioPath(audio.FilePath)
             : NormalizeAudioPath(request.AudioURL);
@@ -210,7 +257,7 @@ public class AudioController(
         }
 
         audio.LocationId = location.LocationId;
-        audio.LanguageCode = request.Language.Trim();
+        audio.LanguageCode = language.LangCode;
         audio.Title = request.Title.Trim();
         audio.Description = Normalize(request.Description);
         audio.SourceType = request.SourceType.Trim();
@@ -294,6 +341,32 @@ public class AudioController(
 
     private static string? NormalizeAudioPath(string? path) =>
         string.IsNullOrWhiteSpace(path) ? null : SharedStoragePaths.NormalizePublicAudioPath(path);
+
+    private async Task<Dictionary<string, Language>> LoadLanguageLookupAsync(IEnumerable<string> languageCodes)
+    {
+        var normalizedCodes = languageCodes
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalizedCodes.Count == 0)
+        {
+            return new Dictionary<string, Language>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var languages = await context.Languages
+            .Where(item => normalizedCodes.Contains(item.LangCode))
+            .ToListAsync();
+
+        return languages.ToDictionary(item => item.LangCode, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static Language? GetLanguage(IReadOnlyDictionary<string, Language> languageLookup, string? languageCode) =>
+        string.IsNullOrWhiteSpace(languageCode)
+            ? null
+            : languageLookup.TryGetValue(languageCode, out var language)
+                ? language
+                : null;
 
     private static bool IsOwnerScoped(DashboardUser user) =>
         string.Equals(user.Role, AdminRoles.User, StringComparison.OrdinalIgnoreCase);

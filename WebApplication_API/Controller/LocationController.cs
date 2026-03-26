@@ -214,6 +214,7 @@ public class LocationController(
         location.UpdatedAt = DateTime.UtcNow;
 
         await context.SaveChangesAsync(cancellationToken);
+        await SyncExistingImagesAsync(location, request.RetainedImageUrls, cancellationToken);
         await AddImagesAsync(location, imageFiles, cancellationToken);
         return Ok(new ApiMessageResponse { Message = "Location updated successfully." });
     }
@@ -309,6 +310,39 @@ public class LocationController(
             });
         }
 
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SyncExistingImagesAsync(
+        Location location,
+        IEnumerable<string>? retainedImageUrls,
+        CancellationToken cancellationToken)
+    {
+        var retainedSet = retainedImageUrls?
+            .Select(SharedStoragePaths.NormalizePublicImagePath)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+
+        var existingImages = await context.LocationImages
+            .Where(item => item.LocationId == location.LocationId)
+            .ToListAsync(cancellationToken);
+
+        var removedImages = existingImages
+            .Where(item => !retainedSet.Contains(SharedStoragePaths.NormalizePublicImagePath(item.ImageUrl) ?? item.ImageUrl))
+            .ToList();
+
+        if (removedImages.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var removedImage in removedImages)
+        {
+            imageStorage.DeleteIfManaged(removedImage.ImageUrl);
+        }
+
+        context.LocationImages.RemoveRange(removedImages);
         await context.SaveChangesAsync(cancellationToken);
     }
 

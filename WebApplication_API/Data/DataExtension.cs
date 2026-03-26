@@ -35,6 +35,31 @@ public static class DataExtension
             await context.SaveChangesAsync();
         }
 
+        if (!await context.Languages.AnyAsync())
+        {
+            context.Languages.AddRange(
+                new Language
+                {
+                    LangCode = "vi-VN",
+                    LangName = "Vietnamese",
+                    NativeName = "Tieng Viet",
+                    PreferNativeVoice = true,
+                    IsDefault = true,
+                    Status = 1
+                },
+                new Language
+                {
+                    LangCode = "en-US",
+                    LangName = "English",
+                    NativeName = "English",
+                    PreferNativeVoice = true,
+                    IsDefault = false,
+                    Status = 1
+                });
+
+            await context.SaveChangesAsync();
+        }
+
         if (!await context.DashboardUsers.AnyAsync())
         {
             var passwordHasher = new PasswordHasher<DashboardUser>();

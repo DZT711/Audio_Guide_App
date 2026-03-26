@@ -62,3 +62,19 @@ public sealed class DashboardUserInviteResultDto
     public DashboardUserDto User { get; init; } = new();
     public string TemporaryPassword { get; init; } = "";
 }
+
+public sealed class AudioTtsPreviewRequest
+{
+    [Required]
+    [StringLength(8000)]
+    public string Text { get; set; } = "";
+
+    [Required]
+    [StringLength(20)]
+    public string Language { get; set; } = "vi-VN";
+
+    [StringLength(20)]
+    public string? VoiceGender { get; set; }
+
+    public bool PreferNativeVoice { get; set; } = true;
+}

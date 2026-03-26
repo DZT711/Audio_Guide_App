@@ -139,7 +139,7 @@ else
 
                             <div class="audio-card__meta">
                                 <span class="audio-card__tag">@GetAudioKind(audio)</span>
-                                <span class="audio-card__tag">@($"{audio.Language} / {GetVoiceLabel(audio.VoiceGender)}")</span>
+                                <span class="audio-card__tag">@($"{GetAudioLanguageLabel(audio)} / {GetVoiceLabel(audio.VoiceGender)}")</span>
                                 <span class="audio-card__tag">@($"{audio.Duration} sec")</span>
                             </div>
 
@@ -246,8 +246,21 @@ else
 
                     <div class="management-field">
                         <label for="audio-language">Language</label>
-                        <InputText id="audio-language" class="form-control" @bind-Value="_formModel.Language" />
+                        <InputSelect id="audio-language" class="form-select" @bind-Value="_formModel.Language" disabled="@(!HasLanguageCatalog)">
+                            @if (!HasLanguageCatalog)
+                            {
+                                <option value="">No language available</option>
+                            }
+                            else
+                            {
+                                @foreach (var language in LanguageOptions)
+                                {
+                                    <option value="@language.Code">@GetLanguageOptionLabel(language)</option>
+                                }
+                            }
+                        </InputSelect>
                         <ValidationMessage For="() => _formModel.Language" />
+                        <span class="management-field__hint">@GetSelectedLanguageHint()</span>
                     </div>
 
                     <div class="management-field">
@@ -294,7 +307,8 @@ else
                         <div class="audio-preview">
                             <div>
                                 <span class="management-field__label">Voice Preview</span>
-                                <div class="management-field__hint">The preview uses your browser's built-in speech engine, so the exact voice can vary by device.</div>
+                                <div class="management-field__hint">The preview is generated from the API using the selected TTS language.</div>
+                                <div class="management-field__hint">@GetCurrentPreviewModeHint()</div>
                             </div>
 
                             <div class="audio-preview__actions">
@@ -308,6 +322,26 @@ else
                                 </button>
                             </div>
                         </div>
+
+                        @if (_isGeneratingTtsPreview)
+                        {
+                            <div class="management-muted mt-3">Generating TTS preview...</div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_ttsPreviewUrl))
+                        {
+                            <div class="audio-file-preview mt-3">
+                                <div>
+                                    <span class="management-field__label">Generated TTS Preview</span>
+                                    <div class="management-field__hint">This preview uses the current script and language selection.</div>
+                                </div>
+                                <audio @key="_ttsPreviewUrl" @ref="_ttsPreviewElement" class="audio-file-preview__player" controls autoplay preload="auto" src="@_ttsPreviewUrl"></audio>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(_ttsPreviewWarning))
+                        {
+                            <span class="management-field__hint audio-file-preview__warning">@_ttsPreviewWarning</span>
+                        }
                     </div>
 
                     <div class="management-field">
@@ -348,7 +382,7 @@ else
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _locations.Count == 0 || !CanManage)">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _locations.Count == 0 || !HasLanguageCatalog || !CanManage)">
                         @(_isSaving ? "Saving..." : _editingId is null ? "Create Audio" : "Save Changes")
                     </button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
@@ -398,7 +432,8 @@ else
                     <div class="audio-preview mt-3">
                         <div>
                             <span class="management-field__label">Voice Preview</span>
-                            <div class="management-field__hint">Browser speech preview still works for TTS-backed content.</div>
+                            <div class="management-field__hint">The preview is generated from the API using the selected TTS language.</div>
+                            <div class="management-field__hint">@GetCurrentPreviewModeHint()</div>
                         </div>
 
                         <div class="audio-preview__actions">
@@ -412,6 +447,26 @@ else
                             </button>
                         </div>
                     </div>
+
+                    @if (_isGeneratingTtsPreview)
+                    {
+                        <div class="management-muted mt-3">Generating TTS preview...</div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_ttsPreviewUrl))
+                    {
+                        <div class="audio-file-preview mt-3">
+                            <div>
+                                <span class="management-field__label">Generated TTS Preview</span>
+                                <div class="management-field__hint">This preview uses the current script and language selection.</div>
+                            </div>
+                            <audio @key="_ttsPreviewUrl" @ref="_ttsPreviewElement" class="audio-file-preview__player" controls autoplay preload="auto" src="@_ttsPreviewUrl"></audio>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(_ttsPreviewWarning))
+                    {
+                        <span class="management-field__hint audio-file-preview__warning">@_ttsPreviewWarning</span>
+                    }
 
                     <div class="audio-detail-grid">
                         <article class="audio-detail-card">
@@ -427,7 +482,7 @@ else
                         <article class="audio-detail-card">
                             <span>Voice</span>
                             <strong>@GetVoiceLabel(selectedAudio.VoiceGender)</strong>
-                            <small>@selectedAudio.Language</small>
+                            <small>@GetAudioLanguageDetail(selectedAudio)</small>
                         </article>
                         <article class="audio-detail-card">
                             <span>Duration</span>
@@ -466,6 +521,7 @@ else
     private const long MaxAudioPreviewBytes = 25L * 1024 * 1024;
     private readonly AudioFormModel _formModel = new();
     private readonly List<AudioDto> _audioItems = new();
+    private readonly List<LanguageDto> _languages = new();
     private readonly List<LocationDto> _locations = new();
     private AudioDto? _selectedAudio;
     private bool _isLoading = true;
@@ -478,17 +534,33 @@ else
     private string? _audioPreviewWarning;
     private bool _audioPreviewIsObjectUrl;
     private bool _isCheckingAudioPreview;
+    private string? _ttsPreviewUrl;
+    private string? _ttsPreviewWarning;
+    private bool _ttsPreviewIsObjectUrl;
+    private bool _isGeneratingTtsPreview;
+    private ElementReference _ttsPreviewElement;
     private string? _loadError;
     private bool CanView => SessionState.HasPermission(AdminPermissions.AudioRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.AudioManage);
+    private bool CanLoadLanguages => SessionState.HasPermission(AdminPermissions.LanguageRead);
+    private bool HasLanguageCatalog => LanguageOptions.Any();
     private AudioDto? SelectedAudioForDisplay => ResolveSelectedAudio();
+    private LanguageDto? SelectedLanguage =>
+        _languages.FirstOrDefault(item => string.Equals(item.Code, _formModel.Language, StringComparison.OrdinalIgnoreCase));
+    private IEnumerable<LanguageDto> LanguageOptions =>
+        _languages
+            .Where(item => item.Status == 1 || string.Equals(item.Code, _formModel.Language, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(item => item.IsDefault)
+            .ThenBy(item => item.Name);
 
     private IEnumerable<AudioDto> FilteredAudio =>
         _audioItems.Where(audio =>
                 string.IsNullOrWhiteSpace(_searchText)
                 || audio.Title.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
                 || audio.LocationName.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
-                || audio.Language.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+                || audio.Language.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+                || (audio.LanguageName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (audio.NativeLanguageName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
             .Where(audio =>
                 string.IsNullOrWhiteSpace(_voiceFilter)
                 || IsVoice(audio, _voiceFilter))
@@ -513,8 +585,11 @@ else
         {
             var audioTask = ApiClient.GetAudioAsync();
             var locationsTask = ApiClient.GetLocationsAsync();
+            var languagesTask = CanLoadLanguages
+                ? ApiClient.GetLanguagesAsync()
+                : Task.FromResult<IReadOnlyList<LanguageDto>>([]);
 
-            await Task.WhenAll(audioTask, locationsTask);
+            await Task.WhenAll(audioTask, locationsTask, languagesTask);
 
             _audioItems.Clear();
             _audioItems.AddRange((await audioTask)
@@ -526,15 +601,25 @@ else
                 .OrderByDescending(item => item.Status)
                 .ThenBy(item => item.Name));
 
+            _languages.Clear();
+            _languages.AddRange((await languagesTask)
+                .OrderByDescending(item => item.Status)
+                .ThenByDescending(item => item.IsDefault)
+                .ThenBy(item => item.Name));
+
+            EnsureFormLanguageSelection();
+
             SyncSelectedAudio();
 
             if (!CanManage && SelectedAudioForDisplay is not null)
             {
                 ApplyForm(AudioFormModel.FromDto(SelectedAudioForDisplay));
+                await ClearTtsPreviewAsync();
                 await RefreshAudioPreviewAsync();
             }
             else if (!CanManage)
             {
+                await ClearTtsPreviewAsync();
                 await ClearAudioPreviewAsync();
             }
         }
@@ -567,6 +652,7 @@ else
     private async Task StartEditAsync(AudioDto audio)
     {
         StartEdit(audio);
+        await ClearTtsPreviewAsync();
         await RefreshAudioPreviewAsync();
     }
 
@@ -646,20 +732,44 @@ else
     {
         try
         {
-            var isSupported = await JS.InvokeAsync<bool>(
-                "smartTourAdmin.tts.preview",
-                _formModel.Script,
-                _formModel.Language,
-                _formModel.VoiceGender);
-
-            if (!isSupported)
+            if (string.IsNullOrWhiteSpace(_formModel.Script))
             {
                 Notifications.Warning("Speech preview is unavailable or the script is empty.", "Preview unavailable");
+                return;
             }
+
+            _isGeneratingTtsPreview = true;
+            _ttsPreviewWarning = null;
+
+            await ClearTtsPreviewAsync();
+
+            var previewRequest = new AudioTtsPreviewRequest
+            {
+                Text = _formModel.Script,
+                Language = _formModel.Language,
+                VoiceGender = _formModel.VoiceGender,
+                PreferNativeVoice = GetPreferNativeVoiceForPreview()
+            };
+
+            var (stream, contentType) = await ApiClient.GenerateAudioTtsPreviewAsync(previewRequest);
+            await using var previewStream = stream;
+            using var streamReference = new DotNetStreamReference(previewStream);
+
+            _ttsPreviewUrl = await JS.InvokeAsync<string>(
+                "smartTourAdmin.audioPreview.createObjectUrlFromStream",
+                streamReference,
+                contentType);
+
+            _ttsPreviewIsObjectUrl = !string.IsNullOrWhiteSpace(_ttsPreviewUrl);
         }
-        catch (JSException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or JSException or TaskCanceledException)
         {
+            _ttsPreviewWarning = ex.Message;
             Notifications.Error(ex.Message, "Voice preview failed");
+        }
+        finally
+        {
+            _isGeneratingTtsPreview = false;
         }
     }
 
@@ -667,7 +777,7 @@ else
     {
         try
         {
-            await JS.InvokeVoidAsync("smartTourAdmin.tts.stop");
+            await JS.InvokeVoidAsync("smartTourAdmin.audioPreview.pauseElement", _ttsPreviewElement);
         }
         catch (JSException)
         {
@@ -683,7 +793,7 @@ else
             PlaybackMode = "Auto",
             InterruptPolicy = "NotificationFirst",
             IsDownloadable = true,
-            Language = "vi-VN",
+            Language = GetDefaultLanguageCode(),
             Status = 1
         });
     }
@@ -697,12 +807,14 @@ else
     private async Task StartCreateAsync()
     {
         StartCreate();
+        await ClearTtsPreviewAsync();
         await RefreshAudioPreviewAsync();
     }
 
     private async Task CancelEditAsync()
     {
         CancelEdit();
+        await ClearTtsPreviewAsync();
         await RefreshAudioPreviewAsync();
     }
 
@@ -724,6 +836,7 @@ else
         _formModel.InterruptPolicy = model.InterruptPolicy;
         _formModel.IsDownloadable = model.IsDownloadable;
         _formModel.Status = model.Status;
+        EnsureFormLanguageSelection();
     }
 
     private async Task HandleAudioFileSelected(InputFileChangeEventArgs eventArgs)
@@ -775,6 +888,14 @@ else
     private static string GetVoiceLabel(string? voiceGender) =>
         string.IsNullOrWhiteSpace(voiceGender) ? "Unspecified voice" : $"{voiceGender} voice";
 
+    private static string GetAudioLanguageLabel(AudioDto audio) =>
+        string.IsNullOrWhiteSpace(audio.LanguageName) ? audio.Language : $"{audio.LanguageName} ({audio.Language})";
+
+    private static string GetAudioLanguageDetail(AudioDto audio) =>
+        string.IsNullOrWhiteSpace(audio.NativeLanguageName)
+            ? GetAudioLanguageLabel(audio)
+            : $"{audio.NativeLanguageName} · {audio.Language}";
+
     private static string GetAudioKind(AudioDto audio) =>
         audio.SourceType;
 
@@ -806,11 +927,94 @@ else
         ? "management-chip management-chip--selected"
         : "management-chip";
 
+    private string GetLanguageOptionLabel(LanguageDto language)
+    {
+        var parts = new List<string> { $"{language.Name} ({language.Code})" };
+        if (!string.IsNullOrWhiteSpace(language.NativeName))
+        {
+            parts.Add(language.NativeName);
+        }
+
+        if (language.IsDefault)
+        {
+            parts.Add("Default");
+        }
+
+        if (language.Status == 0)
+        {
+            parts.Add("Inactive");
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    private string GetSelectedLanguageHint()
+    {
+        var language = SelectedLanguage;
+        if (language is null)
+        {
+            return "Add at least one active language in Language Management before saving audio.";
+        }
+
+        var nativeName = string.IsNullOrWhiteSpace(language.NativeName)
+            ? language.Name
+            : language.NativeName;
+        var previewMode = language.PreferNativeVoice ? "native voice preview" : "flexible fallback preview";
+        return $"{nativeName} is selected. Browser preview will use {previewMode}.";
+    }
+
+    private string GetCurrentPreviewModeHint()
+    {
+        var language = SelectedLanguage;
+        if (language is null)
+        {
+            var selectedAudio = SelectedAudioForDisplay;
+            if (selectedAudio is null)
+            {
+                return "Voice preview follows the current language code.";
+            }
+
+            return selectedAudio.PreferNativeVoice
+                ? $"Native voice preview is enabled for {GetAudioLanguageLabel(selectedAudio)}."
+                : $"Flexible fallback preview is enabled for {GetAudioLanguageLabel(selectedAudio)}.";
+        }
+
+        return language.PreferNativeVoice
+            ? $"Native voice preview is enabled for {language.Name}. The browser will stay in this locale when possible."
+            : $"Flexible fallback preview is enabled for {language.Name}. The browser can fall back to another installed voice if needed.";
+    }
+
+    private bool GetPreferNativeVoiceForPreview() =>
+        SelectedLanguage?.PreferNativeVoice
+        ?? SelectedAudioForDisplay?.PreferNativeVoice
+        ?? true;
+
+    private string GetDefaultLanguageCode() =>
+        _languages.FirstOrDefault(item => item.IsDefault && item.Status == 1)?.Code
+        ?? _languages.FirstOrDefault(item => item.Status == 1)?.Code
+        ?? "vi-VN";
+
+    private void EnsureFormLanguageSelection()
+    {
+        if (_languages.Count == 0)
+        {
+            return;
+        }
+
+        var selectedLanguageExists = _languages.Any(item =>
+            string.Equals(item.Code, _formModel.Language, StringComparison.OrdinalIgnoreCase));
+
+        if (!selectedLanguageExists)
+        {
+            _formModel.Language = GetDefaultLanguageCode();
+        }
+    }
+
     private string GetAudioPreviewHint()
     {
         if (_formModel.SourceType == "TTS" && _formModel.AudioFile is null && string.IsNullOrWhiteSpace(_formModel.AudioPath))
         {
-            return "TTS-only entries do not require an uploaded file. Use the browser voice preview below.";
+            return "TTS-only entries do not require an uploaded file. Use the generated TTS preview below.";
         }
 
         if (_formModel.AudioFile is not null)
@@ -823,7 +1027,7 @@ else
             return $"Previewing the stored audio path: {_formModel.AudioPath}";
         }
 
-        return "This preview is for uploaded audio files only. The browser speech preview below is unchanged.";
+        return "This preview is for uploaded audio files only. The generated TTS preview below is separate.";
     }
 
     private async Task<bool> EnsureAudioFileAvailableForSaveAsync()
@@ -928,11 +1132,30 @@ else
         _audioPreviewIsObjectUrl = false;
     }
 
+    private async Task ClearTtsPreviewAsync()
+    {
+        if (_ttsPreviewIsObjectUrl && !string.IsNullOrWhiteSpace(_ttsPreviewUrl))
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("smartTourAdmin.audioPreview.revokeObjectUrl", _ttsPreviewUrl);
+            }
+            catch (JSException)
+            {
+            }
+        }
+
+        _ttsPreviewUrl = null;
+        _ttsPreviewWarning = null;
+        _ttsPreviewIsObjectUrl = false;
+    }
+
     public async ValueTask DisposeAsync()
     {
         try
         {
             await StopTtsPreviewAsync();
+            await ClearTtsPreviewAsync();
             await ClearAudioPreviewAsync();
         }
         catch (JSDisconnectedException)

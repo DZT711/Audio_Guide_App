@@ -34,6 +34,37 @@ public sealed class CategoryFormModel
     };
 }
 
+public sealed class LanguageFormModel
+{
+    [Required]
+    [StringLength(20)]
+    public string Code { get; set; } = "vi-VN";
+
+    [Required]
+    [StringLength(100)]
+    public string Name { get; set; } = "";
+
+    [StringLength(100)]
+    public string NativeName { get; set; } = "";
+
+    public bool PreferNativeVoice { get; set; } = true;
+
+    public bool IsDefault { get; set; }
+
+    [Range(0, 1)]
+    public int Status { get; set; } = 1;
+
+    public static LanguageFormModel FromDto(LanguageDto dto) => new()
+    {
+        Code = dto.Code,
+        Name = dto.Name,
+        NativeName = dto.NativeName ?? "",
+        PreferNativeVoice = dto.PreferNativeVoice,
+        IsDefault = dto.IsDefault,
+        Status = dto.Status
+    };
+}
+
 public sealed class LocationFormModel
 {
     [Required]

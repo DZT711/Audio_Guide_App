@@ -10,6 +10,18 @@ public sealed class CategoryDto
     public DateTime? UpdatedAt { get; init; }
 }
 
+public sealed class LanguageDto
+{
+    public int Id { get; init; }
+    public string Code { get; init; } = "";
+    public string Name { get; init; } = "";
+    public string? NativeName { get; init; }
+    public bool PreferNativeVoice { get; init; } = true;
+    public bool IsDefault { get; init; }
+    public int Status { get; init; }
+    public DateTime CreatedAt { get; init; }
+}
+
 public sealed class LocationDto
 {
     public int Id { get; init; }
@@ -45,6 +57,9 @@ public sealed class AudioDto
     public int LocationId { get; init; }
     public string LocationName { get; init; } = "";
     public string Language { get; init; } = "vi-VN";
+    public string? LanguageName { get; init; }
+    public string? NativeLanguageName { get; init; }
+    public bool PreferNativeVoice { get; init; } = true;
     public string Title { get; init; } = "";
     public string? Description { get; init; }
     public string SourceType { get; init; } = "TTS";

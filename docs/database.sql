@@ -240,6 +240,7 @@ CREATE TABLE Languages (
     LangCode TEXT NOT NULL UNIQUE,
     LangName TEXT NOT NULL,
     NativeName TEXT,
+    PreferNativeVoice INTEGER NOT NULL DEFAULT 1 CHECK (PreferNativeVoice IN (0, 1)),
     IsDefault INTEGER NOT NULL DEFAULT 0 CHECK (IsDefault IN (0, 1)),
     Status INTEGER NOT NULL DEFAULT 1 CHECK (Status IN (0, 1)),
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -341,7 +342,7 @@ CREATE INDEX IX_ChangeRequests_TargetTable_TargetId ON ChangeRequests(TargetTabl
 -- OPTIONAL SEED DATA
 -- =========================================================
 
-INSERT INTO Languages (LangCode, LangName, NativeName, IsDefault, Status)
+INSERT INTO Languages (LangCode, LangName, NativeName, PreferNativeVoice, IsDefault, Status)
 VALUES
-    ('vi-VN', 'Vietnamese', 'Tiếng Việt', 1, 1),
-    ('en-US', 'English', 'English', 0, 1);
+    ('vi-VN', 'Vietnamese', 'Tiếng Việt', 1, 1, 1),
+    ('en-US', 'English', 'English', 1, 0, 1);

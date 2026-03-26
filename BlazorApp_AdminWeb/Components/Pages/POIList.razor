@@ -318,8 +318,9 @@ else
 
                     <div class="management-field management-field--full">
                         <label for="location-images">Location Images</label>
-                        <InputFile id="location-images" class="form-control" OnChange="HandleLocationImagesSelected" accept="image/*" multiple />
+                        <InputFile @key="_imageInputVersion" id="location-images" class="form-control" OnChange="HandleLocationImagesSelected" accept="image/*" multiple />
                         <span class="management-field__hint">Upload one or more images. Files are stored automatically in `Project_SharedClassLibrary/SharedStorage/Images`.</span>
+                        <span class="management-field__hint">Use the `X` button on a preview tile to remove a stored image or cancel a pending upload before saving.</span>
                     </div>
 
                     <div class="management-field management-field--full">
@@ -333,12 +334,36 @@ else
                             {
                                 <div class="management-muted">Preparing image previews...</div>
                             }
-                            else if (_imagePreviewUrls.Count > 0)
+                            else if (_formModel.ExistingImageUrls.Count > 0 || _imagePreviewUrls.Count > 0)
                             {
                                 <div class="poi-image-grid">
-                                    @foreach (var imageUrl in _imagePreviewUrls)
+                                    @foreach (var storedImageUrl in _formModel.ExistingImageUrls)
                                     {
-                                        <img class="poi-image-thumb" src="@imageUrl" alt="Location preview image" />
+                                        var resolvedStoredImageUrl = ApiClient.ResolveImageUrl(storedImageUrl);
+                                        if (string.IsNullOrWhiteSpace(resolvedStoredImageUrl))
+                                        {
+                                            continue;
+                                        }
+
+                                        <div class="poi-image-tile">
+                                            <img class="poi-image-thumb" src="@resolvedStoredImageUrl" alt="Stored location image" />
+                                            <button type="button" class="poi-image-remove" title="Remove image" aria-label="Remove image" @onclick="() => RemoveStoredImage(storedImageUrl)">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+                                    }
+
+                                    @for (var imageIndex = 0; imageIndex < _imagePreviewUrls.Count; imageIndex++)
+                                    {
+                                        var currentImageIndex = imageIndex;
+                                        var previewUrl = _imagePreviewUrls[imageIndex];
+
+                                        <div class="poi-image-tile">
+                                            <img class="poi-image-thumb" src="@previewUrl" alt="New location image" />
+                                            <button type="button" class="poi-image-remove" title="Remove upload" aria-label="Remove upload" @onclick="() => RemovePendingImageAsync(currentImageIndex)">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
                                     }
                                 </div>
                             }
@@ -467,6 +492,7 @@ else
     private bool _isPreparingImagePreview;
     private bool _deviceLocationPending = true;
     private bool _mapSyncPending;
+    private int _imageInputVersion;
     private int? _editingId;
     private string _searchText = "";
     private string _selectedCategoryName = "";
@@ -749,6 +775,7 @@ else
         _formModel.Status = model.Status;
         _formModel.ExistingImageUrls = model.ExistingImageUrls.ToList();
         _formModel.ImageFiles = [];
+        _imageInputVersion++;
         _mapSyncPending = CanManage;
     }
 
@@ -757,6 +784,37 @@ else
     private async Task HandleLocationImagesSelected(InputFileChangeEventArgs eventArgs)
     {
         _formModel.ImageFiles = eventArgs.GetMultipleFiles().ToList();
+        await RefreshLocationImagePreviewsAsync();
+    }
+
+    private void RemoveStoredImage(string imageUrl)
+    {
+        if (!CanManage)
+        {
+            return;
+        }
+
+        _formModel.ExistingImageUrls = _formModel.ExistingImageUrls
+            .Where(item => !string.Equals(item, imageUrl, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private async Task RemovePendingImageAsync(int imageIndex)
+    {
+        if (!CanManage)
+        {
+            return;
+        }
+
+        var nextFiles = _formModel.ImageFiles.ToList();
+        if (imageIndex < 0 || imageIndex >= nextFiles.Count)
+        {
+            return;
+        }
+
+        nextFiles.RemoveAt(imageIndex);
+        _formModel.ImageFiles = nextFiles;
+        _imageInputVersion++;
         await RefreshLocationImagePreviewsAsync();
     }
 
@@ -844,14 +902,6 @@ else
         try
         {
             await ClearLocationImagePreviewsAsync();
-
-            foreach (var imageUrl in _formModel.ExistingImageUrls
-                         .Select(ApiClient.ResolveImageUrl)
-                         .Where(item => !string.IsNullOrWhiteSpace(item))
-                         .Cast<string>())
-            {
-                _imagePreviewUrls.Add(imageUrl);
-            }
 
             foreach (var imageFile in _formModel.ImageFiles)
             {

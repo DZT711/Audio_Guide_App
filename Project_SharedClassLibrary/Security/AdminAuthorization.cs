@@ -23,6 +23,8 @@ public static class AdminPermissions
     public const string DashboardExport = "dashboard:export";
     public const string CategoryRead = "category:read";
     public const string CategoryManage = "category:manage";
+    public const string LanguageRead = "language:read";
+    public const string LanguageManage = "language:manage";
     public const string LocationRead = "location:read";
     public const string LocationManage = "location:manage";
     public const string AudioRead = "audio:read";
@@ -45,6 +47,8 @@ public static class AdminRolePolicies
                 AdminPermissions.DashboardExport,
                 AdminPermissions.CategoryRead,
                 AdminPermissions.CategoryManage,
+                AdminPermissions.LanguageRead,
+                AdminPermissions.LanguageManage,
                 AdminPermissions.LocationRead,
                 AdminPermissions.LocationManage,
                 AdminPermissions.AudioRead,
@@ -61,6 +65,8 @@ public static class AdminRolePolicies
                 AdminPermissions.DashboardExport,
                 AdminPermissions.CategoryRead,
                 AdminPermissions.CategoryManage,
+                AdminPermissions.LanguageRead,
+                AdminPermissions.LanguageManage,
                 AdminPermissions.LocationRead,
                 AdminPermissions.LocationManage,
                 AdminPermissions.AudioRead,

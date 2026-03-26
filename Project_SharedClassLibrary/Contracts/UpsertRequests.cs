@@ -16,6 +16,27 @@ public sealed class CategoryUpsertRequest
     public int Status { get; set; } = 1;
 }
 
+public sealed class LanguageUpsertRequest
+{
+    [Required]
+    [StringLength(20)]
+    public string Code { get; set; } = "vi-VN";
+
+    [Required]
+    [StringLength(100)]
+    public string Name { get; set; } = "";
+
+    [StringLength(100)]
+    public string? NativeName { get; set; }
+
+    public bool PreferNativeVoice { get; set; } = true;
+
+    public bool IsDefault { get; set; }
+
+    [Range(0, 1)]
+    public int Status { get; set; } = 1;
+}
+
 public sealed class LocationUpsertRequest
 {
     [Required]
@@ -64,6 +85,8 @@ public sealed class LocationUpsertRequest
 
     [StringLength(30)]
     public string? Phone { get; set; }
+
+    public List<string> RetainedImageUrls { get; set; } = [];
 
     [YearRange]
     public int EstablishedYear { get; set; } = DateTime.UtcNow.Year;

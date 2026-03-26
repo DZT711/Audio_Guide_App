@@ -49,6 +49,9 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
     public Task<IReadOnlyList<CategoryDto>> GetCategoriesAsync() =>
         GetListAsync<CategoryDto>(ApiRoutes.Categories, "Unable to load categories.");
 
+    public Task<IReadOnlyList<LanguageDto>> GetLanguagesAsync() =>
+        GetListAsync<LanguageDto>(ApiRoutes.Languages, "Unable to load languages.");
+
     public Task<IReadOnlyList<LocationDto>> GetLocationsAsync() =>
         GetListAsync<LocationDto>(ApiRoutes.Locations, "Unable to load locations.");
 
@@ -116,6 +119,52 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to archive category.");
     }
 
+    public async Task CreateLanguageAsync(LanguageFormModel model)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PostAsJsonAsync(
+            ApiRoutes.Languages,
+            new LanguageUpsertRequest
+            {
+                Code = model.Code,
+                Name = model.Name,
+                NativeName = model.NativeName,
+                PreferNativeVoice = model.PreferNativeVoice,
+                IsDefault = model.IsDefault,
+                Status = model.Status
+            });
+
+        await EnsureSuccessAsync(response, "Unable to create language.");
+    }
+
+    public async Task UpdateLanguageAsync(int id, LanguageFormModel model)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PutAsJsonAsync(
+            $"{ApiRoutes.Languages}/{id}",
+            new LanguageUpsertRequest
+            {
+                Code = model.Code,
+                Name = model.Name,
+                NativeName = model.NativeName,
+                PreferNativeVoice = model.PreferNativeVoice,
+                IsDefault = model.IsDefault,
+                Status = model.Status
+            });
+
+        await EnsureSuccessAsync(response, "Unable to update language.");
+    }
+
+    public async Task DeleteLanguageAsync(int id)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.DeleteAsync($"{ApiRoutes.Languages}/{id}");
+        await EnsureSuccessAsync(response, "Unable to archive language.");
+    }
+
     public async Task CreateLocationAsync(LocationFormModel model)
     {
         ApplyAuthHeader();
@@ -170,6 +219,20 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
         using var response = await httpClient.DeleteAsync($"{ApiRoutes.Audio}/{id}");
         await EnsureSuccessAsync(response, "Unable to archive audio.");
+    }
+
+    public async Task<(MemoryStream Stream, string ContentType)> GenerateAudioTtsPreviewAsync(
+        AudioTtsPreviewRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PostAsJsonAsync(ApiRoutes.AudioTtsPreview, request, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to generate the TTS preview.");
+
+        var contentType = response.Content.Headers.ContentType?.ToString() ?? "audio/mpeg";
+        var payload = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        return (new MemoryStream(payload, writable: false), contentType);
     }
 
     public async Task CreateUserAsync(UserFormModel model)
@@ -271,6 +334,10 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         AddString(content, nameof(model.WebURL), model.WebURL);
         AddString(content, nameof(model.Email), model.Email);
         AddString(content, nameof(model.Phone), model.Phone);
+        foreach (var retainedImageUrl in model.ExistingImageUrls.Where(item => !string.IsNullOrWhiteSpace(item)))
+        {
+            AddString(content, "RetainedImageUrls", retainedImageUrl);
+        }
         AddString(content, nameof(model.EstablishedYear), model.EstablishedYear.ToString(CultureInfo.InvariantCulture));
         AddString(content, nameof(model.Status), model.Status.ToString(CultureInfo.InvariantCulture));
 

@@ -75,6 +75,10 @@
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
+.poi-image-tile {
+    position: relative;
+}
+
 .poi-image-thumb {
     width: 100%;
     aspect-ratio: 4 / 3;
@@ -82,6 +86,27 @@
     border-radius: 18px;
     border: 1px solid rgba(148, 163, 184, 0.2);
     background: rgba(255, 255, 255, 0.82);
+}
+
+.poi-image-remove {
+    position: absolute;
+    top: 0.65rem;
+    right: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.72);
+    color: #fff;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
+}
+
+.poi-image-remove:hover {
+    transform: translateY(-1px) scale(1.04);
+    background: rgba(185, 28, 28, 0.88);
 }
 
 .poi-detail-grid {

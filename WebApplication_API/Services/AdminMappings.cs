@@ -17,6 +17,19 @@ public static class AdminMappings
             UpdatedAt = category.UpdatedAt
         };
 
+    public static LanguageDto ToDto(this Language language) =>
+        new()
+        {
+            Id = language.LanguageId,
+            Code = language.LangCode,
+            Name = language.LangName,
+            NativeName = language.NativeName,
+            PreferNativeVoice = language.PreferNativeVoice,
+            IsDefault = language.IsDefault,
+            Status = language.Status,
+            CreatedAt = language.CreatedAt
+        };
+
     public static DashboardUserDto ToDto(this DashboardUser user, int ownedLocationCount, int ownedAudioCount) =>
         new()
         {
@@ -84,13 +97,16 @@ public static class AdminMappings
             UpdatedAt = location.UpdatedAt
         };
 
-    public static AudioDto ToDto(this Audio audio) =>
+    public static AudioDto ToDto(this Audio audio, Language? language = null) =>
         new()
         {
             Id = audio.AudioId,
             LocationId = audio.LocationId,
             LocationName = audio.Location?.Name ?? "Unknown",
             Language = audio.LanguageCode,
+            LanguageName = language?.LangName,
+            NativeLanguageName = language?.NativeName,
+            PreferNativeVoice = language?.PreferNativeVoice ?? true,
             Title = audio.Title,
             Description = audio.Description,
             SourceType = audio.SourceType,
