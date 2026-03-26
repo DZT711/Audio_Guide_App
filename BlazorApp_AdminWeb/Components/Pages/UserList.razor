@@ -1,25 +1,39 @@
 @page "/users"
-@using BlazorApp_AdminWeb.Components.Layout
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject IJSRuntime JS
+@inject AdminSessionState SessionState
 
 <PageTitle>User Management</PageTitle>
 
+@if (!CanView)
+{
+    <div class="users-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view dashboard users.</div>
+        </div>
+    </div>
+}
+else
+{
 <div class="users-page">
     <section class="users-hero" data-reveal>
         <div>
             <span class="users-hero__eyebrow">Team &amp; Access</span>
             <h1>User Management</h1>
             <p>
-                Review admins, owners, and onboarding progress with a cleaner layout,
-                better status cues, and smoother hover interactions.
+                Manage dashboard accounts, assign roles from the POC schema, and control who can
+                log into the admin web or own location content.
             </p>
         </div>
 
         <div class="users-hero__actions">
-            <button class="btn btn-primary btn-lg" type="button">
+            <button class="btn btn-primary btn-lg" type="button" disabled="@(!CanManage)" @onclick="StartCreate">
                 <i class="bi bi-person-plus me-2"></i>
                 Add User
             </button>
-            <button class="btn btn-outline-secondary btn-lg" type="button">
+            <button class="btn btn-outline-secondary btn-lg" type="button" disabled="@(!CanManage)" @onclick="StartInvite">
                 <i class="bi bi-send me-2"></i>
                 Invite by Email
             </button>
@@ -29,14 +43,14 @@
     <section class="users-toolbar" data-reveal>
         <label class="users-search" for="userSearch">
             <i class="bi bi-search"></i>
-            <input id="userSearch" class="form-control" type="search" placeholder="Search by name or email">
+            <input id="userSearch" class="form-control" type="search" placeholder="Search by username, role, or email" @bind="_searchText" @bind:event="oninput">
         </label>
 
         <div class="users-filters">
-            <button type="button" class="filter-chip filter-chip--active">All Users</button>
-            <button type="button" class="filter-chip">Admins</button>
-            <button type="button" class="filter-chip">Owners</button>
-            <button type="button" class="filter-chip">Pending</button>
+            <button type="button" class="@GetFilterChipClass(null)" @onclick="() => SetRoleFilter(null)">All Users</button>
+            <button type="button" class="@GetFilterChipClass(AdminRoles.Admin)" @onclick="() => SetRoleFilter(AdminRoles.Admin)">Admins</button>
+            <button type="button" class="@GetFilterChipClass(AdminRoles.User)" @onclick="() => SetRoleFilter(AdminRoles.User)">Owners</button>
+            <button type="button" class="@GetFilterChipClass(InactiveFilter)" @onclick="() => SetRoleFilter(InactiveFilter)">Inactive</button>
         </div>
     </section>
 
@@ -58,82 +72,426 @@
         }
     </div>
 
-    <section class="users-table-card" data-reveal>
+    <section class="users-table-card mt-4" data-reveal>
         <div class="users-table-card__header">
             <div>
                 <span class="users-table-card__eyebrow">Directory</span>
-                <h2>Active Team Members</h2>
+                <h2>Dashboard Accounts</h2>
             </div>
-            <span class="users-table-card__count">@Users.Count users</span>
+            <span class="users-table-card__count">@VisibleUsers.Count users</span>
         </div>
 
-        <div class="table-responsive">
-            <table class="table users-table align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Contact</th>
-                        <th>Role</th>
-                        <th>Status</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var user in Users)
-                    {
+        @if (_isLoading)
+        {
+            <div class="management-error">
+                <strong>Loading users...</strong>
+                <div>The admin API is loading role and status data.</div>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_loadError))
+        {
+            <div class="management-error">
+                <strong>Unable to load users.</strong>
+                <div>@_loadError</div>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table users-table align-middle mb-0">
+                    <thead>
                         <tr>
-                            <td>
-                                <div class="user-cell">
-                                    <div class="user-avatar" style="@($"--avatar-hue:{user.AvatarHue};")">@user.Initials</div>
-                                    <div class="user-cell__meta">
-                                        <strong>@user.Name</strong>
-                                        <span>@user.Location</span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="user-contact">
-                                    <span>@user.Email</span>
-                                    <small>Last seen @user.LastSeen</small>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="@GetRoleClass(user.Role)">@user.Role</span>
-                            </td>
-                            <td>
-                                <span class="@GetStatusClass(user.Status)">@user.Status</span>
-                            </td>
-                            <td class="text-end">
-                                <div class="row-actions justify-content-end">
-                                    <button class="btn btn-sm btn-outline-secondary" type="button">Edit</button>
-                                    <button class="btn btn-sm btn-outline-danger" type="button">@GetActionLabel(user)</button>
-                                </div>
-                            </td>
+                            <th>User</th>
+                            <th>Contact</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in VisibleUsers)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="user-cell">
+                                        <div class="user-avatar" style="@($"--avatar-hue:{GetAvatarHue(user)};")">@GetInitials(user)</div>
+                                        <div class="user-cell__meta">
+                                            <strong>@(user.FullName ?? user.Username)</strong>
+                                            <span>@user.Username</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="user-contact">
+                                        <span>@(string.IsNullOrWhiteSpace(user.Email) ? "No email" : user.Email)</span>
+                                        <small>@GetMetaLine(user)</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="@GetRoleClass(user.Role)">@user.Role</span>
+                                </td>
+                                <td>
+                                    <span class="@GetStatusClass(user.Status)">@GetStatusLabel(user.Status)</span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="row-actions justify-content-end">
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" disabled="@(!CanManage)" @onclick="() => StartEdit(user)">Edit</button>
+                                        <button class="btn btn-sm btn-outline-danger" type="button" disabled="@(!CanManage)" @onclick="() => ToggleUserStatusAsync(user)">@GetActionLabel(user)</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="users-table-card mt-4" data-reveal>
+        <div class="users-table-card__header">
+            <div>
+                <span class="users-table-card__eyebrow">Editor</span>
+                <h2>@GetEditorTitle()</h2>
+            </div>
+            <span class="users-table-card__count">@GetEditorSubtitle()</span>
         </div>
+
+        <EditForm Model="_formModel" OnValidSubmit="SaveUserAsync" class="management-form">
+            <DataAnnotationsValidator />
+
+            <div class="management-form__grid">
+                <div class="management-field">
+                    <label for="user-username">Username</label>
+                    <InputText id="user-username" class="form-control" @bind-Value="_formModel.Username" />
+                    <ValidationMessage For="() => _formModel.Username" />
+                </div>
+
+                <div class="management-field">
+                    <label for="user-fullname">Full Name</label>
+                    <InputText id="user-fullname" class="form-control" @bind-Value="_formModel.FullName" />
+                    <ValidationMessage For="() => _formModel.FullName" />
+                </div>
+
+                <div class="management-field">
+                    <label for="user-email">Email</label>
+                    <InputText id="user-email" class="form-control" @bind-Value="_formModel.Email" />
+                    <ValidationMessage For="() => _formModel.Email" />
+                </div>
+
+                <div class="management-field">
+                    <label for="user-phone">Phone</label>
+                    <InputText id="user-phone" class="form-control" @bind-Value="_formModel.Phone" />
+                    <ValidationMessage For="() => _formModel.Phone" />
+                </div>
+
+                <div class="management-field">
+                    <label for="user-role">Role</label>
+                    <InputSelect id="user-role" class="form-select" @bind-Value="_formModel.Role">
+                        @foreach (var role in AdminRoles.All)
+                        {
+                            <option value="@role">@role</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="management-field">
+                    <label for="user-password">Password</label>
+                    <InputText id="user-password" type="password" class="form-control" @bind-Value="_formModel.Password" />
+                    <span class="management-field__hint">@GetPasswordHint()</span>
+                </div>
+
+                <div class="management-field management-field--full">
+                    <span class="management-field__label">Status</span>
+                    <div class="management-chip-group">
+                        <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
+                        <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="management-actions">
+                <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !CanManage)">
+                    @GetSaveButtonLabel()
+                </button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">Reset</button>
+            </div>
+        </EditForm>
     </section>
 </div>
+}
 
 @code {
-    private readonly List<UserSummary> Summaries = new()
-    {
-        new UserSummary { Label = "Total Users", Value = "2,450", Copy = "Across all admin spaces", Icon = "bi-people", Tone = "teal" },
-        new UserSummary { Label = "Active", Value = "1,980", Copy = "Signed in during the last 30 days", Icon = "bi-person-check", Tone = "green" },
-        new UserSummary { Label = "Pending", Value = "450", Copy = "Waiting for onboarding approval", Icon = "bi-hourglass-split", Tone = "amber" },
-        new UserSummary { Label = "Locked", Value = "20", Copy = "Accounts requiring manual action", Icon = "bi-shield-lock", Tone = "rose" }
-    };
+    private readonly UserFormModel _formModel = new();
+    private readonly List<DashboardUserDto> _users = new();
+    private const string InactiveFilter = "inactive";
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _inviteMode;
+    private int? _editingId;
+    private string _searchText = "";
+    private string? _roleFilter;
+    private string? _loadError;
 
-    private readonly List<UserItem> Users = new()
+    private bool CanView => SessionState.HasPermission(AdminPermissions.UserRead);
+    private bool CanManage => SessionState.HasPermission(AdminPermissions.UserManage);
+
+    private List<DashboardUserDto> VisibleUsers =>
+        _users
+            .Where(user =>
+                string.IsNullOrWhiteSpace(_searchText)
+                || user.Username.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+                || (user.FullName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (user.Email?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+                || user.Role.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+            .Where(user => _roleFilter switch
+            {
+                null => true,
+                InactiveFilter => user.Status == 0,
+                _ => string.Equals(user.Role, _roleFilter, StringComparison.OrdinalIgnoreCase)
+            })
+            .OrderByDescending(user => user.Status)
+            .ThenBy(user => user.FullName ?? user.Username)
+            .ToList();
+
+    private IReadOnlyList<UserSummaryItem> Summaries =>
+    [
+        new UserSummaryItem("Total Users", _users.Count.ToString(), "Accounts available in the dashboard database", "bi-people", "teal"),
+        new UserSummaryItem("Active", _users.Count(user => user.Status == 1).ToString(), "Users currently allowed to sign in", "bi-person-check", "green"),
+        new UserSummaryItem("Owners", _users.Count(user => string.Equals(user.Role, AdminRoles.User, StringComparison.OrdinalIgnoreCase)).ToString(), "Accounts that can own POIs and audio", "bi-person-workspace", "amber"),
+        new UserSummaryItem("Locked", _users.Count(user => user.Status == 0).ToString(), "Inactive users blocked from login", "bi-shield-lock", "rose")
+    ];
+
+    protected override async Task OnInitializedAsync()
     {
-        new UserItem { Name = "Amanda Harvey", Initials = "AH", Location = "Hanoi, Vietnam", Email = "amanda@example.com", Role = "Admin", Status = "Active", LastSeen = "2 mins ago", AvatarHue = 184 },
-        new UserItem { Name = "Anne Richard", Initials = "AR", Location = "Da Nang, Vietnam", Email = "anne@example.com", Role = "Owner", Status = "Pending", LastSeen = "12 mins ago", AvatarHue = 224 },
-        new UserItem { Name = "David Harrison", Initials = "DH", Location = "Ho Chi Minh City, Vietnam", Email = "david@example.com", Role = "Moderator", Status = "Active", LastSeen = "1 hour ago", AvatarHue = 154 },
-        new UserItem { Name = "Finch Hoot", Initials = "FH", Location = "Hue, Vietnam", Email = "finch@example.com", Role = "Owner", Status = "Locked", LastSeen = "3 hours ago", AvatarHue = 344 },
-        new UserItem { Name = "Bob Smith", Initials = "BS", Location = "Ninh Binh, Vietnam", Email = "bob@example.com", Role = "Owner", Status = "Active", LastSeen = "Yesterday", AvatarHue = 278 },
-    };
+        ResetForm();
+        await LoadUsersAsync();
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            _users.Clear();
+            _users.AddRange(await ApiClient.GetUsersAsync());
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "User load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void SetRoleFilter(string? role) => _roleFilter = role;
+
+    private string GetFilterChipClass(string? role) =>
+        string.Equals(_roleFilter, role, StringComparison.OrdinalIgnoreCase)
+            ? "filter-chip filter-chip--active"
+            : "filter-chip";
+
+    private void StartCreate()
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view users but cannot create them.", "Read-only access");
+            return;
+        }
+
+        _inviteMode = false;
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void StartInvite()
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view users but cannot invite them.", "Read-only access");
+            return;
+        }
+
+        _inviteMode = true;
+        _editingId = null;
+        ResetForm();
+        _formModel.Status = 0;
+    }
+
+    private void StartEdit(DashboardUserDto user)
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view users but cannot edit them.", "Read-only access");
+            return;
+        }
+
+        _inviteMode = false;
+        _editingId = user.Id;
+        var snapshot = UserFormModel.FromDto(user);
+        _formModel.Username = snapshot.Username;
+        _formModel.Password = "";
+        _formModel.FullName = snapshot.FullName;
+        _formModel.Role = snapshot.Role;
+        _formModel.Email = snapshot.Email;
+        _formModel.Phone = snapshot.Phone;
+        _formModel.Status = snapshot.Status;
+    }
+
+    private async Task SaveUserAsync()
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view users but cannot save changes.", "Read-only access");
+            return;
+        }
+
+        if (!_inviteMode && _editingId is null && string.IsNullOrWhiteSpace(_formModel.Password))
+        {
+            Notifications.Warning("Enter an initial password before creating a new user.", "Password required");
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            if (_inviteMode)
+            {
+                var inviteResult = await ApiClient.InviteUserAsync(_formModel);
+                Notifications.Success($"Invitation user created. Temporary password: {inviteResult.TemporaryPassword}", "Invite ready", 6000);
+            }
+            else if (_editingId is null)
+            {
+                await ApiClient.CreateUserAsync(_formModel);
+                Notifications.Success("User created successfully.", "User saved");
+            }
+            else
+            {
+                await ApiClient.UpdateUserAsync(_editingId.Value, _formModel);
+                Notifications.Success("User updated successfully.", "User saved");
+            }
+
+            await LoadUsersAsync();
+            ResetForm();
+            _editingId = null;
+            _inviteMode = false;
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "User save failed");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task ToggleUserStatusAsync(DashboardUserDto user)
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view users but cannot change their status.", "Read-only access");
+            return;
+        }
+
+        var nextStatus = user.Status == 1 ? 0 : 1;
+        var actionLabel = nextStatus == 1 ? "unlock" : "block";
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Do you want to {actionLabel} '{user.Username}'?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var updateModel = UserFormModel.FromDto(user);
+            updateModel.Status = nextStatus;
+            await ApiClient.UpdateUserAsync(user.Id, updateModel);
+            Notifications.Info($"'{user.Username}' is now {GetStatusLabel(nextStatus).ToLowerInvariant()}.", "User updated");
+            await LoadUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Status update failed");
+        }
+    }
+
+    private void CancelEdit()
+    {
+        _inviteMode = false;
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void ResetForm()
+    {
+        _formModel.Username = "";
+        _formModel.Password = "";
+        _formModel.FullName = "";
+        _formModel.Role = AdminRoles.User;
+        _formModel.Email = "";
+        _formModel.Phone = "";
+        _formModel.Status = 1;
+    }
+
+    private void SetStatus(int status) => _formModel.Status = status;
+
+    private string GetEditorTitle() => _inviteMode
+        ? "Invite User"
+        : _editingId is null
+            ? "Create User"
+            : "Edit User";
+
+    private string GetEditorSubtitle() => CanManage
+        ? "All buttons now call live API actions"
+        : "Read-only for your current role";
+
+    private string GetPasswordHint() => _inviteMode
+        ? "The API generates a temporary password for invited users."
+        : _editingId is null
+            ? "Set an initial password for the new account."
+            : "Leave blank to keep the current password.";
+
+    private string GetSaveButtonLabel() =>
+        _isSaving
+            ? "Saving..."
+            : _inviteMode
+                ? "Create Invitation"
+                : _editingId is null
+                    ? "Create User"
+                    : "Save Changes";
+
+    private static int GetAvatarHue(DashboardUserDto user) =>
+        Math.Abs(HashCode.Combine(user.Username, user.Role)) % 360;
+
+    private static string GetInitials(DashboardUserDto user)
+    {
+        var source = user.FullName ?? user.Username;
+        var parts = source.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+        {
+            return "ST";
+        }
+
+        return string.Concat(parts.Take(2).Select(part => char.ToUpperInvariant(part[0])));
+    }
+
+    private static string GetMetaLine(DashboardUserDto user)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(user.Phone))
+        {
+            parts.Add(user.Phone);
+        }
+
+        parts.Add($"Created {user.CreatedAt:dd/MM/yyyy}");
+        return string.Join(" · ", parts);
+    }
 
     private string GetSummaryCardClass(string tone) => tone switch
     {
@@ -147,38 +505,21 @@
     private string GetRoleClass(string role) => role switch
     {
         "Admin" => "role-pill role-pill--dark",
-        "Moderator" => "role-pill role-pill--blue",
+        "Developer" => "role-pill role-pill--blue",
         _ => "role-pill role-pill--soft"
     };
 
-    private string GetStatusClass(string status) => status switch
-    {
-        "Active" => "status-pill status-pill--active",
-        "Pending" => "status-pill status-pill--pending",
-        "Locked" => "status-pill status-pill--locked",
-        _ => "status-pill"
-    };
+    private string GetStatusClass(int status) => status == 1
+        ? "status-pill status-pill--active"
+        : "status-pill status-pill--locked";
 
-    private string GetActionLabel(UserItem user) => user.Status == "Locked" ? "Unlock" : "Block";
+    private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
 
-    public class UserSummary
-    {
-        public string Label { get; set; } = "";
-        public string Value { get; set; } = "";
-        public string Copy { get; set; } = "";
-        public string Icon { get; set; } = "";
-        public string Tone { get; set; } = "";
-    }
+    private static string GetActionLabel(DashboardUserDto user) => user.Status == 1 ? "Block" : "Unlock";
 
-    public class UserItem
-    {
-        public string Name { get; set; } = "";
-        public string Initials { get; set; } = "";
-        public string Location { get; set; } = "";
-        public string Email { get; set; } = "";
-        public string Role { get; set; } = "";
-        public string Status { get; set; } = "";
-        public string LastSeen { get; set; } = "";
-        public int AvatarHue { get; set; }
-    }
+    private static string GetChipClass(int status, int currentStatus) => status == currentStatus
+        ? "management-chip management-chip--selected"
+        : "management-chip";
+
+    private sealed record UserSummaryItem(string Label, string Value, string Copy, string Icon, string Tone);
 }

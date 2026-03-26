@@ -85,7 +85,7 @@
                             <input class="form-check-input" type="checkbox" id="rememberMe">
                             <label class="form-check-label" for="rememberMe">Remember me</label>
                         </div>
-                        <a href="#" class="login-text-link">Forgot password?</a>
+                        <a href="#" class="login-text-link" @onclick="ShowForgotPasswordHelp" @onclick:preventDefault="true">Forgot password?</a>
                     </div>
 
                     @if (!string.IsNullOrWhiteSpace(_errorMessage))
@@ -100,7 +100,7 @@
                 </EditForm>
 
                 <div class="login-footer" data-reveal>
-                    <small>Start the API app before logging in.</small>
+                    <small>Start the API app before logging in. Seeded demo accounts: admin, editor, developer, analyst, owner.</small>
                 </div>
             </div>
         </section>
@@ -134,13 +134,18 @@
 
         if (!isAuthenticated)
         {
-            _errorMessage = "Invalid credentials. Use the static admin/admin account.";
+            _errorMessage = AuthService.LastErrorMessage ?? "Invalid credentials.";
             Notifications.Warning(_errorMessage, "Login failed");
             _isSubmitting = false;
             return;
         }
 
-        Notifications.Success("Welcome back, admin.", "Login successful");
+        Notifications.Success("Welcome back to the admin workspace.", "Login successful");
         Navigation.NavigateTo("/dashboard");
+    }
+
+    private void ShowForgotPasswordHelp()
+    {
+        Notifications.Info("Use one of the seeded demo accounts for now, or reset the password from the User Management page with an Admin account.", "Password help", 5000);
     }
 }

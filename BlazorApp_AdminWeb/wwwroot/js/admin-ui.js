@@ -15,6 +15,21 @@
         remove: (key) => window.localStorage.removeItem(key)
     };
 
+    admin.download = {
+        text: (fileName, content, contentType) => {
+            const blob = new Blob([content ?? ""], {
+                type: contentType || "text/plain;charset=utf-8"
+            });
+
+            const objectUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = objectUrl;
+            anchor.download = fileName || "download.txt";
+            anchor.click();
+            URL.revokeObjectURL(objectUrl);
+        }
+    };
+
     const getLanguagePrefix = (language) => {
         const value = (language ?? "").trim().toLowerCase();
         return value.split("-")[0];

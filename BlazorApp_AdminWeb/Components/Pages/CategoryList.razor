@@ -2,9 +2,21 @@
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
+@inject AdminSessionState SessionState
 
 <PageTitle>Category Management</PageTitle>
 
+@if (!CanView)
+{
+    <div class="management-page category-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view categories.</div>
+        </div>
+    </div>
+}
+else
+{
 <div class="management-page category-page">
     <section class="management-hero" data-reveal>
         <div>
@@ -110,8 +122,8 @@
                             </div>
 
                             <div class="management-inline-actions">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">Edit</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(category.Status == 0)" @onclick="() => DeleteCategoryAsync(category)">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(!CanManage)" @onclick="() => StartEdit(category)">Edit</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || category.Status == 0)" @onclick="() => DeleteCategoryAsync(category)">
                                     @(category.Status == 0 ? "Inactive" : "Archive")
                                 </button>
                             </div>
@@ -153,15 +165,16 @@
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !CanManage)">
                         @(_isSaving ? "Saving..." : _editingId is null ? "Create Category" : "Save Changes")
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(CanManage ? (_editingId is null ? "Reset" : "Cancel Edit") : "Read Only")</button>
                 </div>
             </EditForm>
         </section>
     </div>
 </div>
+}
 
 @code {
     private readonly CategoryFormModel _formModel = new();
@@ -171,6 +184,8 @@
     private int? _editingId;
     private string _searchText = "";
     private string? _loadError;
+    private bool CanView => SessionState.HasPermission(AdminPermissions.CategoryRead);
+    private bool CanManage => SessionState.HasPermission(AdminPermissions.CategoryManage);
 
     private IEnumerable<CategoryDto> FilteredCategories =>
         _categories.Where(category =>
@@ -217,6 +232,12 @@
 
     private void StartEdit(CategoryDto category)
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view categories but cannot edit them.", "Read-only access");
+            return;
+        }
+
         _editingId = category.Id;
         var snapshot = CategoryFormModel.FromDto(category);
         _formModel.Name = snapshot.Name;
@@ -226,6 +247,12 @@
 
     private async Task SaveCategoryAsync()
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view categories but cannot save changes.", "Read-only access");
+            return;
+        }
+
         _isSaving = true;
 
         try
@@ -256,6 +283,12 @@
 
     private async Task DeleteCategoryAsync(CategoryDto category)
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view categories but cannot archive them.", "Read-only access");
+            return;
+        }
+
         var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive category '{category.Name}' and mark it inactive?");
         if (!confirmed)
         {

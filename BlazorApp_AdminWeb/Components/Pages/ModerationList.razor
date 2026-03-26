@@ -1,64 +1,201 @@
 @page "/moderation"
-@using BlazorApp_AdminWeb.Components.Layout
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject AdminSessionState SessionState
 
 <PageTitle>Moderation Queue</PageTitle>
 
+@if (!CanView)
+{
+    <div class="management-error">
+        <strong>Access denied.</strong>
+        <div>Your current role cannot view moderation items.</div>
+    </div>
+}
+else
+{
 <h3>Content Moderation</h3>
-<p class="text-muted">Review and approve user-submitted content.</p>
+<p class="text-muted">Review inactive POIs and audio items before restoring them to the live POC database.</p>
 
 <div class="card border-0 shadow-sm mt-4">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Type</th>
-                    <th>Content Name</th>
-                    <th>Submitted By</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th class="text-end">Decision</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in ModerationItems)
-                {
+    @if (_isLoading)
+    {
+        <div class="management-error">
+            <strong>Loading moderation items...</strong>
+            <div>The admin API is loading inactive POIs and audio records.</div>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <div class="management-error">
+            <strong>Unable to load moderation items.</strong>
+            <div>@_loadError</div>
+        </div>
+    }
+    else if (!_items.Any())
+    {
+        <div class="app-empty-state">
+            There are no inactive locations or audio items waiting for review.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
                     <tr>
-                        <td>
-                            @if(item.Type == "POI")
-                            {
-                                <span class="badge bg-info text-dark">POI</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-secondary">Audio</span>
-                            }
-                        </td>
-                        <td class="fw-bold">@item.Name</td>
-                        <td>@item.SubmittedBy</td>
-                        <td>@item.DateFormatted</td>
-                        <td>
-                            <span class="badge @GetStatusBadge(item.Status)">@item.Status</span>
-                        </td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-success me-1"><i class="bi bi-check-lg"></i> Approve</button>
-                            <button class="btn btn-sm btn-danger"><i class="bi bi-x-lg"></i> Reject</button>
-                        </td>
+                        <th>Type</th>
+                        <th>Content Name</th>
+                        <th>Submitted By</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th class="text-end">Decision</th>
                     </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody>
+                    @foreach (var item in _items)
+                    {
+                        <tr>
+                            <td>
+                                @if (item.Type == "POI")
+                                {
+                                    <span class="badge bg-info text-dark">POI</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Audio</span>
+                                }
+                            </td>
+                            <td class="fw-bold">@item.Name</td>
+                            <td>@item.SubmittedBy</td>
+                            <td>@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                <span class="badge @GetStatusBadge(item.Status)">@item.Status</span>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-success me-1" disabled="@(!CanManage)" @onclick="() => ApproveAsync(item)"><i class="bi bi-check-lg"></i> Approve</button>
+                                <button class="btn btn-sm btn-danger" disabled="@(!CanManage)" @onclick="() => RejectAsync(item)"><i class="bi bi-x-lg"></i> Reject</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 </div>
+}
 
 @code {
-    private List<ModItem> ModerationItems = new()
+    private readonly List<ModerationRow> _items = new();
+    private bool _isLoading = true;
+    private string? _loadError;
+    private bool CanView => SessionState.HasPermission(AdminPermissions.ModerationView);
+    private bool CanManage => SessionState.HasPermission(AdminPermissions.ModerationManage);
+
+    protected override async Task OnInitializedAsync()
     {
-        new ModItem { Type = "POI", Name = "Hidden Cafe Alley", SubmittedBy = "explorer99", Date = DateTime.Now.AddDays(-1), Status = "Pending" },
-        new ModItem { Type = "Audio", Name = "Street Sound Ambience", SubmittedBy = "soundhunter", Date = DateTime.Now.AddDays(-2), Status = "Pending" },
-        new ModItem { Type = "POI", Name = "Old Well", SubmittedBy = "local_guide", Date = DateTime.Now.AddHours(-5), Status = "Approved" },
-        new ModItem { Type = "Audio", Name = "Wrong Description", SubmittedBy = "newbie", Date = DateTime.Now.AddDays(-5), Status = "Rejected" },
-        new ModItem { Type = "POI", Name = "New Art Gallery", SubmittedBy = "art_lover", Date = DateTime.Now.AddMinutes(-30), Status = "Pending" },
-    };
+        await LoadItemsAsync();
+    }
+
+    private async Task LoadItemsAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            var locationsTask = ApiClient.GetLocationsAsync();
+            var audioTask = ApiClient.GetAudioAsync();
+
+            await Task.WhenAll(locationsTask, audioTask);
+
+            _items.Clear();
+
+            _items.AddRange((await locationsTask)
+                .Where(item => item.Status == 0)
+                .Select(item => new ModerationRow
+                {
+                    Type = "POI",
+                    Id = item.Id,
+                    Name = item.Name,
+                    SubmittedBy = item.OwnerName ?? "Unassigned",
+                    SubmittedAt = item.UpdatedAt ?? item.CreatedAt,
+                    Status = "Pending",
+                    Location = item
+                }));
+
+            _items.AddRange((await audioTask)
+                .Where(item => item.Status == 0)
+                .Select(item => new ModerationRow
+                {
+                    Type = "Audio",
+                    Id = item.Id,
+                    Name = item.Title,
+                    SubmittedBy = item.LocationName,
+                    SubmittedAt = item.UpdatedAt ?? item.CreatedAt,
+                    Status = "Pending",
+                    Audio = item
+                }));
+
+            _items.Sort((left, right) => right.SubmittedAt.CompareTo(left.SubmittedAt));
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Moderation load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ApproveAsync(ModerationRow item)
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view moderation items but cannot approve them.", "Read-only access");
+            return;
+        }
+
+        try
+        {
+            if (item.Location is not null)
+            {
+                var form = LocationFormModel.FromDto(item.Location, []);
+                form.CategoryId = item.Location.CategoryId;
+                form.Status = 1;
+                await ApiClient.UpdateLocationAsync(item.Location.Id, form);
+            }
+            else if (item.Audio is not null)
+            {
+                var form = AudioFormModel.FromDto(item.Audio);
+                form.Status = 1;
+                await ApiClient.UpdateAudioAsync(item.Audio.Id, form);
+            }
+
+            Notifications.Success($"'{item.Name}' was restored to active status.", "Moderation approved");
+            _items.Remove(item);
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Approve failed");
+        }
+    }
+
+    private Task RejectAsync(ModerationRow item)
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view moderation items but cannot reject them.", "Read-only access");
+            return Task.CompletedTask;
+        }
+
+        item.Status = "Rejected";
+        Notifications.Info($"'{item.Name}' remains inactive and was removed from the current moderation queue.", "Moderation rejected");
+        _items.Remove(item);
+        return Task.CompletedTask;
+    }
 
     private string GetStatusBadge(string status) => status switch
     {
@@ -68,13 +205,15 @@
         _ => "bg-secondary"
     };
 
-    public class ModItem
+    private sealed class ModerationRow
     {
         public string Type { get; set; } = "";
+        public int Id { get; set; }
         public string Name { get; set; } = "";
         public string SubmittedBy { get; set; } = "";
-        public DateTime Date { get; set; }
+        public DateTime SubmittedAt { get; set; }
         public string Status { get; set; } = "";
-        public string DateFormatted => Date.ToString("dd/MM/yyyy HH:mm");
+        public LocationDto? Location { get; set; }
+        public AudioDto? Audio { get; set; }
     }
 }

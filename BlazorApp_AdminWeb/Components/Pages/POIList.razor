@@ -4,9 +4,21 @@
 @inject NotificationService Notifications
 @inject IJSRuntime JS
 @using Project_SharedClassLibrary.Constants
+@inject AdminSessionState SessionState
 
 <PageTitle>Location Management</PageTitle>
 
+@if (!CanView)
+{
+    <div class="management-page poi-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view locations.</div>
+        </div>
+    </div>
+}
+else
+{
 <div class="management-page poi-page">
     <section class="management-hero" data-reveal>
         <div>
@@ -19,7 +31,7 @@
         </div>
 
         <div class="management-hero__actions">
-            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
                 <i class="bi bi-arrow-clockwise me-2"></i>
                 Refresh
             </button>
@@ -146,8 +158,8 @@
                                     </td>
                                     <td class="text-end">
                                         <div class="management-inline-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(location)">Edit</button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(location.Status == 0)" @onclick="() => DeleteLocationAsync(location)">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(!CanManage)" @onclick="() => StartEdit(location)">Edit</button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || location.Status == 0)" @onclick="() => DeleteLocationAsync(location)">
                                                 @(location.Status == 0 ? "Inactive" : "Archive")
                                             </button>
                                         </div>
@@ -231,9 +243,21 @@
                     </div>
 
                     <div class="management-field">
-                        <label for="location-owner">Owner Name</label>
-                        <InputText id="location-owner" class="form-control" @bind-Value="_formModel.OwnerName" />
-                        <ValidationMessage For="() => _formModel.OwnerName" />
+                        <label for="location-owner">Owner</label>
+                        @if (CanSelectOwner)
+                        {
+                            <InputSelect id="location-owner" class="form-select" @bind-Value="_formModel.OwnerId">
+                                <option value="">Unassigned</option>
+                                @foreach (var owner in _owners)
+                                {
+                                    <option value="@owner.Id">@($"{owner.FullName ?? owner.Username} ({owner.Role})")</option>
+                                }
+                            </InputSelect>
+                        }
+                        else
+                        {
+                            <div class="management-muted">This location will stay assigned to your current account.</div>
+                        }
                     </div>
 
                     <div class="management-field">
@@ -246,6 +270,30 @@
                         <label for="location-lng">Longitude</label>
                         <InputNumber id="location-lng" class="form-control" @bind-Value="_formModel.Longitude" />
                         <ValidationMessage For="() => _formModel.Longitude" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-radius">Trigger Radius (m)</label>
+                        <InputNumber id="location-radius" class="form-control" @bind-Value="_formModel.Radius" />
+                        <ValidationMessage For="() => _formModel.Radius" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-standby-radius">Standby Radius (m)</label>
+                        <InputNumber id="location-standby-radius" class="form-control" @bind-Value="_formModel.StandbyRadius" />
+                        <ValidationMessage For="() => _formModel.StandbyRadius" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-priority">Priority</label>
+                        <InputNumber id="location-priority" class="form-control" @bind-Value="_formModel.Priority" />
+                        <ValidationMessage For="() => _formModel.Priority" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-debounce">Cooldown (sec)</label>
+                        <InputNumber id="location-debounce" class="form-control" @bind-Value="_formModel.DebounceSeconds" />
+                        <ValidationMessage For="() => _formModel.DebounceSeconds" />
                     </div>
 
                     <div class="management-field">
@@ -266,6 +314,32 @@
                         <ValidationMessage For="() => _formModel.Email" />
                     </div>
 
+                    <div class="management-field">
+                        <label for="location-ward">Ward</label>
+                        <InputText id="location-ward" class="form-control" @bind-Value="_formModel.Ward" />
+                        <ValidationMessage For="() => _formModel.Ward" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-city">City</label>
+                        <InputText id="location-city" class="form-control" @bind-Value="_formModel.City" />
+                        <ValidationMessage For="() => _formModel.City" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <label for="location-image-url">Cover Image URL</label>
+                        <InputText id="location-image-url" class="form-control" @bind-Value="_formModel.ImageUrl" />
+                        <ValidationMessage For="() => _formModel.ImageUrl" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <span class="management-field__label">GPS Trigger</span>
+                        <div class="management-chip-group">
+                            <button type="button" class="@GetBoolChipClass(true, _formModel.IsGpsTriggerEnabled)" @onclick="() => SetGpsTrigger(true)">Enabled</button>
+                            <button type="button" class="@GetBoolChipClass(false, _formModel.IsGpsTriggerEnabled)" @onclick="() => SetGpsTrigger(false)">Disabled</button>
+                        </div>
+                    </div>
+
                     <div class="management-field management-field--full">
                         <span class="management-field__label">Status</span>
                         <div class="management-chip-group">
@@ -276,7 +350,7 @@
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _categories.Count == 0)">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _categories.Count == 0 || !CanManage)">
                         @(_isSaving ? "Saving..." : _editingId is null ? "Create Location" : "Save Changes")
                     </button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
@@ -285,6 +359,7 @@
         </section>
     </div>
 </div>
+}
 
 @code {
     private const double DefaultLatitude = LocationDefaults.District4Latitude;
@@ -292,6 +367,7 @@
     private readonly LocationFormModel _formModel = new();
     private readonly List<LocationDto> _locations = new();
     private readonly List<CategoryDto> _categories = new();
+    private readonly List<DashboardUserDto> _owners = new();
     private DotNetObjectReference<POIList>? _mapReference;
     private bool _isLoading = true;
     private bool _isSaving;
@@ -303,6 +379,9 @@
     private string _selectedStatus = "";
     private string? _loadError;
     private ElementReference _mapElement;
+    private bool CanView => SessionState.HasPermission(AdminPermissions.LocationRead);
+    private bool CanManage => SessionState.HasPermission(AdminPermissions.LocationManage);
+    private bool CanSelectOwner => SessionState.HasPermission(AdminPermissions.UserRead) && CanManage;
 
     private IEnumerable<LocationDto> FilteredLocations =>
         _locations.Where(location =>
@@ -355,8 +434,11 @@
         {
             var categoriesTask = ApiClient.GetCategoriesAsync();
             var locationsTask = ApiClient.GetLocationsAsync();
+            var ownersTask = CanSelectOwner
+                ? ApiClient.GetUsersAsync()
+                : Task.FromResult<IReadOnlyList<DashboardUserDto>>([]);
 
-            await Task.WhenAll(categoriesTask, locationsTask);
+            await Task.WhenAll(categoriesTask, locationsTask, ownersTask);
 
             _categories.Clear();
             _categories.AddRange((await categoriesTask)
@@ -367,6 +449,11 @@
             _locations.AddRange((await locationsTask)
                 .OrderByDescending(item => item.Status)
                 .ThenBy(item => item.Name));
+
+            _owners.Clear();
+            _owners.AddRange((await ownersTask)
+                .Where(item => item.Status == 1)
+                .OrderBy(item => item.FullName ?? item.Username));
         }
         catch (Exception ex)
         {
@@ -430,6 +517,12 @@
 
     private void StartEdit(LocationDto location)
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view locations but cannot edit them.", "Read-only access");
+            return;
+        }
+
         _editingId = location.Id;
         _deviceLocationPending = false;
         var snapshot = LocationFormModel.FromDto(location, _categories);
@@ -438,6 +531,12 @@
 
     private async Task SaveLocationAsync()
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view locations but cannot save changes.", "Read-only access");
+            return;
+        }
+
         _isSaving = true;
 
         try
@@ -468,6 +567,12 @@
 
     private async Task DeleteLocationAsync(LocationDto location)
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view locations but cannot archive them.", "Read-only access");
+            return;
+        }
+
         var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive location '{location.Name}' and mark it inactive?");
         if (!confirmed)
         {
@@ -498,6 +603,10 @@
             EstablishedYear = DateTime.UtcNow.Year,
             Latitude = DefaultLatitude,
             Longitude = DefaultLongitude,
+            Radius = 30,
+            StandbyRadius = 12,
+            DebounceSeconds = 300,
+            IsGpsTriggerEnabled = true,
             Status = 1
         });
         _deviceLocationPending = true;
@@ -514,11 +623,19 @@
         _formModel.Name = model.Name;
         _formModel.Address = model.Address;
         _formModel.CategoryId = model.CategoryId;
+        _formModel.OwnerId = model.OwnerId;
         _formModel.EstablishedYear = model.EstablishedYear;
         _formModel.Description = model.Description;
         _formModel.Latitude = model.Latitude;
         _formModel.Longitude = model.Longitude;
-        _formModel.OwnerName = model.OwnerName;
+        _formModel.Radius = model.Radius;
+        _formModel.StandbyRadius = model.StandbyRadius;
+        _formModel.Priority = model.Priority;
+        _formModel.DebounceSeconds = model.DebounceSeconds;
+        _formModel.IsGpsTriggerEnabled = model.IsGpsTriggerEnabled;
+        _formModel.Ward = model.Ward;
+        _formModel.City = model.City;
+        _formModel.ImageUrl = model.ImageUrl;
         _formModel.WebURL = model.WebURL;
         _formModel.Phone = model.Phone;
         _formModel.Email = model.Email;
@@ -558,6 +675,8 @@
 
     private void SetStatus(int status) => _formModel.Status = status;
 
+    private void SetGpsTrigger(bool isEnabled) => _formModel.IsGpsTriggerEnabled = isEnabled;
+
     [JSInvokable]
     public Task ApplyLocationFromMap(double latitude, double longitude, string? address)
     {
@@ -583,6 +702,10 @@
         : "poi-row--inactive";
 
     private static string GetChipClass(int status, int currentStatus) => status == currentStatus
+        ? "management-chip management-chip--selected"
+        : "management-chip";
+
+    private static string GetBoolChipClass(bool value, bool currentValue) => value == currentValue
         ? "management-chip management-chip--selected"
         : "management-chip";
 

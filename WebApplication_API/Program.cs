@@ -12,6 +12,8 @@ builder.Services.AddValidation();
 builder.Services.AddControllers();
 builder.AddDataToDatabase();
 builder.Services.AddSingleton<SharedAudioFileStorageService>();
+builder.Services.AddSingleton<AdminSessionTokenService>();
+builder.Services.AddScoped<AdminRequestAuthorizationService>();
 
 builder.Services.AddCors(options =>
 {

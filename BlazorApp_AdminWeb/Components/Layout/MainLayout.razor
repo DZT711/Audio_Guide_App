@@ -2,6 +2,8 @@
 @inject AdminAuthService AuthService
 @inject NavigationManager Navigation
 @inject AdminShellState ShellState
+@inject AdminSessionState SessionState
+@implements IDisposable
 
 @if (!_authChecked)
 {
@@ -70,6 +72,8 @@ else if (_isAuthenticated)
             return;
         }
 
+        SessionState.Changed += HandleSessionChanged;
+
         try
         {
             _isAuthenticated = await AuthService.IsAuthenticatedAsync();
@@ -86,5 +90,23 @@ else if (_isAuthenticated)
         }
 
         StateHasChanged();
+    }
+
+    private void HandleSessionChanged()
+    {
+        _isAuthenticated = SessionState.IsAuthenticated;
+
+        if (!_isAuthenticated)
+        {
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        SessionState.Changed -= HandleSessionChanged;
     }
 }

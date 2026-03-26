@@ -1,289 +1,262 @@
-using System;
 using Microsoft.AspNetCore.Mvc;
-using WebApplication_API.Data;
 using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Security;
+using WebApplication_API.Data;
 using WebApplication_API.Model;
+using WebApplication_API.Services;
 
 namespace WebApplication_API.Controller;
 
 [ApiController]
 [Route("[controller]")]
-public class LocationController : ControllerBase
+public class LocationController(
+    DBContext context,
+    AdminRequestAuthorizationService authService) : ControllerBase
 {
-    private readonly DBContext _context;
-
-    public LocationController(DBContext context)
-    {
-        _context = context;
-    }
-
-    /// <summary>
-    /// Get all locations with categories
-    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAllLocations()
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.LocationRead);
+        if (!access.Succeeded)
         {
-            var locations = await _context.Locations
-                .Include(l => l.Category)
-                .ToListAsync();
-
-            var locationDTOs = new List<LocationDto>();
-            foreach (var location in locations)
-            {
-                var locationDTO = new LocationDto(
-                    location.Id,
-                    location.Name,
-                    location.Address,
-                    location.Category?.Name ?? "Unknown",
-                    location.EstablishedYear,
-                    location.Description,
-                    location.Latitude,
-                    location.Longitude,
-                    location.OwnerName,
-                    location.WebURL,
-                    location.Phone,
-                    location.Email,
-                    // location.NumOfAudio,
-                    // location.NumOfImg,
-                    // location.NumOfPeopleVisited,
-                    location.Status
-                );
-                locationDTOs.Add(locationDTO);
-            }
-
-            return Ok(locationDTOs);
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { message = "Error retrieving locations", error = ex.Message });
-        }
+
+        var locations = await BuildLocationQuery(access.User!)
+            .OrderByDescending(item => item.Status)
+            .ThenBy(item => item.Name)
+            .ToListAsync();
+
+        return Ok(locations.Select(item => item.ToDto()).ToList());
     }
 
-    /// <summary>
-    /// Get location by ID
-    /// </summary>
-    [HttpGet("{id}")]
-    public async Task<ActionResult<LocationDto>> GetLocationById(int id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetLocationById(int id)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.LocationRead);
+        if (!access.Succeeded)
         {
-            var location = await _context.Locations
-                .Include(l => l.Category)
-                .FirstOrDefaultAsync(l => l.Id == id);
-
-            if (location == null)
-                return NotFound(new { message = "Location not found" });
-
-            var locationDTO = new LocationDto(
-                location.Id,
-                location.Name,
-                location.Address,
-                location.Category?.Name ?? "Unknown",
-                location.EstablishedYear,
-                location.Description,
-                location.Latitude,
-                location.Longitude,
-                location.OwnerName,
-                location.WebURL,
-                location.Phone,
-                location.Email,
-                // location.NumOfAudio,
-                // location.NumOfImg,
-                // location.NumOfPeopleVisited,
-                location.Status
-            );
-
-            return Ok(locationDTO);
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        var location = await BuildLocationQuery(access.User!)
+            .FirstOrDefaultAsync(item => item.LocationId == id);
+
+        if (location is null)
         {
-            return StatusCode(500, new { message = "Error retrieving location", error = ex.Message });
+            return NotFound(new { message = "Location not found." });
         }
+
+        return Ok(location.ToDto());
     }
 
-    /// <summary>
-    /// Get locations by category ID
-    /// </summary>
-    [HttpGet("category/{categoryId}")]
-    public async Task<ActionResult<IEnumerable<LocationDto>>> GetLocationsByCategory(int categoryId)
+    [HttpGet("category/{categoryId:int}")]
+    public async Task<IActionResult> GetLocationsByCategory(int categoryId)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.LocationRead);
+        if (!access.Succeeded)
         {
-            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == categoryId);
-            if (category == null)
-                return NotFound(new { message = "Category not found" });
-
-            var locations = await _context.Locations
-                .Where(l => l.CategoryId == categoryId)
-                .ToListAsync();
-
-            var locationDTOs = locations.Select(l => new LocationDto(
-                l.Id,
-                l.Name,
-                l.Address,
-                category.Name,
-                l.EstablishedYear,
-                l.Description,
-                l.Latitude,
-                l.Longitude,
-                l.OwnerName,
-                l.WebURL,
-                l.Phone,
-                l.Email,
-                // l.NumOfAudio,
-                // l.NumOfImg,
-                // l.NumOfPeopleVisited,
-                l.Status
-            )).ToList();
-
-            return Ok(locationDTOs);
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        var categoryExists = await context.Categories.AnyAsync(item => item.CategoryId == categoryId);
+        if (!categoryExists)
         {
-            return StatusCode(500, new { message = "Error retrieving locations by category", error = ex.Message });
+            return NotFound(new { message = "Category not found." });
         }
+
+        var locations = await BuildLocationQuery(access.User!)
+            .Where(item => item.CategoryId == categoryId)
+            .OrderByDescending(item => item.Status)
+            .ThenBy(item => item.Name)
+            .ToListAsync();
+
+        return Ok(locations.Select(item => item.ToDto()).ToList());
     }
 
-    /// <summary>
-    /// Create new location
-    /// </summary>
     [HttpPost]
-    public async Task<ActionResult<LocationDto>> CreateLocation([FromBody] LocationUpsertRequest request)
+    public async Task<IActionResult> CreateLocation([FromBody] LocationUpsertRequest request)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.LocationManage);
+        if (!access.Succeeded)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == request.CategoryId);
-            if (category == null)
-                return NotFound(new { message = "Category not found" });
-
-            var location = new Location
-            {
-                CategoryId = request.CategoryId,
-                Name = request.Name,
-                Description = request.Description,
-                EstablishedYear = request.EstablishedYear,
-                Latitude = request.Latitude,
-                Longitude = request.Longitude,
-                Address = request.Address,
-                ImgURL = null,
-                OwnerName = request.OwnerName,
-                WebURL = request.WebURL,
-                Phone = request.Phone,
-                Email = request.Email,
-                // // NumOfAudio = createLocationDTO.NumOfAudio,
-                // // NumOfImg = createLocationDTO.NumOfImg,
-                // // NumOfPeopleVisited = createLocationDTO.NumOfPeopleVisited,
-                Status = request.Status
-            };
-
-            _context.Locations.Add(location);
-            // category.NumOfLocations += 1;
-            _context.Categories.Update(category);
-            await _context.SaveChangesAsync();
-
-            var locationDTO = new LocationDto(
-                location.Id,
-                location.Name,
-                location.Address,
-                category.Name,
-                location.EstablishedYear,
-                location.Description,
-                location.Latitude,
-                location.Longitude,
-                location.OwnerName,
-                location.WebURL,
-                location.Phone,
-                location.Email,
-                // location.NumOfAudio,
-                // location.NumOfImg,
-                // location.NumOfPeopleVisited,
-                location.Status
-            );
-
-            return CreatedAtAction(nameof(GetLocationById), new { id = location.Id }, locationDTO);
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        if (!ModelState.IsValid)
         {
-            return StatusCode(500, new { message = "Error creating location", error = ex.Message });
+            return ValidationProblem(ModelState);
         }
+
+        var category = await context.Categories.FirstOrDefaultAsync(item => item.CategoryId == request.CategoryId);
+        if (category is null)
+        {
+            return NotFound(new { message = "Category not found." });
+        }
+
+        var ownerId = await ResolveOwnerIdAsync(access.User!, request.OwnerId);
+        if (ownerId is null && request.OwnerId is not null && !IsOwnerScoped(access.User!))
+        {
+            return NotFound(new { message = "Owner account not found." });
+        }
+
+        var location = new Location
+        {
+            CategoryId = category.CategoryId,
+            OwnerId = ownerId,
+            Name = request.Name.Trim(),
+            Description = Normalize(request.Description),
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
+            Radius = request.Radius,
+            StandbyRadius = request.StandbyRadius,
+            Priority = request.Priority,
+            DebounceSeconds = request.DebounceSeconds,
+            IsGpsTriggerEnabled = request.IsGpsTriggerEnabled,
+            Address = Normalize(request.Address),
+            Ward = Normalize(request.Ward),
+            City = Normalize(request.City),
+            ImageUrl = Normalize(request.ImageUrl),
+            WebURL = Normalize(request.WebURL),
+            Email = Normalize(request.Email),
+            PhoneContact = Normalize(request.Phone),
+            EstablishedYear = request.EstablishedYear,
+            Status = request.Status,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        context.Locations.Add(location);
+        await context.SaveChangesAsync();
+
+        var savedLocation = await BuildLocationQuery(access.User!)
+            .FirstAsync(item => item.LocationId == location.LocationId);
+
+        return CreatedAtAction(nameof(GetLocationById), new { id = location.LocationId }, savedLocation.ToDto());
     }
 
-    /// <summary>
-    /// Update existing location
-    /// </summary>
-    [HttpPut("{id}")]
+    [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateLocation(int id, [FromBody] LocationUpsertRequest request)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.LocationManage);
+        if (!access.Succeeded)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var location = await _context.Locations.FirstOrDefaultAsync(l => l.Id == id);
-            if (location == null)
-                return NotFound(new { message = "Location not found" });
-
-            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == request.CategoryId);
-            if (category == null)
-                return NotFound(new { message = "Category not found" });
-
-            location.Name = request.Name;
-            location.Description = request.Description;
-            location.EstablishedYear = request.EstablishedYear;
-            location.Latitude = request.Latitude;
-            location.Longitude = request.Longitude;
-            location.Address = request.Address;
-            location.OwnerName = request.OwnerName;
-            location.WebURL = request.WebURL;
-            location.Phone = request.Phone;
-            location.Email = request.Email;
-            // location.NumOfAudio = updateLocationDTO.NumOfAudio;
-            // location.NumOfImg = updateLocationDTO.NumOfImg;
-            // location.NumOfPeopleVisited = updateLocationDTO.NumOfPeopleVisited;
-            location.Status = request.Status;
-            location.CategoryId = request.CategoryId;
-
-            _context.Locations.Update(location);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Location updated successfully" });
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        if (!ModelState.IsValid)
         {
-            return StatusCode(500, new { message = "Error updating location", error = ex.Message });
+            return ValidationProblem(ModelState);
         }
+
+        var location = await context.Locations.FirstOrDefaultAsync(item => item.LocationId == id);
+        if (location is null)
+        {
+            return NotFound(new { message = "Location not found." });
+        }
+
+        if (IsOwnerScoped(access.User!) && location.OwnerId != access.User!.UserId)
+        {
+            return StatusCode(403, new { message = "You can only update your own locations." });
+        }
+
+        var category = await context.Categories.FirstOrDefaultAsync(item => item.CategoryId == request.CategoryId);
+        if (category is null)
+        {
+            return NotFound(new { message = "Category not found." });
+        }
+
+        var ownerId = await ResolveOwnerIdAsync(access.User!, request.OwnerId);
+        if (ownerId is null && request.OwnerId is not null && !IsOwnerScoped(access.User!))
+        {
+            return NotFound(new { message = "Owner account not found." });
+        }
+
+        location.CategoryId = category.CategoryId;
+        location.OwnerId = ownerId;
+        location.Name = request.Name.Trim();
+        location.Description = Normalize(request.Description);
+        location.Latitude = request.Latitude;
+        location.Longitude = request.Longitude;
+        location.Radius = request.Radius;
+        location.StandbyRadius = request.StandbyRadius;
+        location.Priority = request.Priority;
+        location.DebounceSeconds = request.DebounceSeconds;
+        location.IsGpsTriggerEnabled = request.IsGpsTriggerEnabled;
+        location.Address = Normalize(request.Address);
+        location.Ward = Normalize(request.Ward);
+        location.City = Normalize(request.City);
+        location.ImageUrl = Normalize(request.ImageUrl);
+        location.WebURL = Normalize(request.WebURL);
+        location.Email = Normalize(request.Email);
+        location.PhoneContact = Normalize(request.Phone);
+        location.EstablishedYear = request.EstablishedYear;
+        location.Status = request.Status;
+        location.UpdatedAt = DateTime.UtcNow;
+
+        await context.SaveChangesAsync();
+        return Ok(new ApiMessageResponse { Message = "Location updated successfully." });
     }
 
-    /// <summary>
-    /// Archive location by ID
-    /// </summary>
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteLocation(int id)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.LocationManage);
+        if (!access.Succeeded)
         {
-            var location = await _context.Locations.FirstOrDefaultAsync(l => l.Id == id);
-            if (location == null)
-                return NotFound(new { message = "Location not found" });
-
-            if (location.Status == 0)
-                return Ok(new { message = "Location is already inactive" });
-
-            location.Status = 0;
-            _context.Locations.Update(location);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Location archived successfully" });
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        var location = await context.Locations.FirstOrDefaultAsync(item => item.LocationId == id);
+        if (location is null)
         {
-            return StatusCode(500, new { message = "Error archiving location", error = ex.Message });
+            return NotFound(new { message = "Location not found." });
         }
+
+        if (IsOwnerScoped(access.User!) && location.OwnerId != access.User!.UserId)
+        {
+            return StatusCode(403, new { message = "You can only archive your own locations." });
+        }
+
+        location.Status = 0;
+        location.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+
+        return Ok(new ApiMessageResponse { Message = "Location archived successfully." });
     }
+
+    private IQueryable<Location> BuildLocationQuery(DashboardUser currentUser)
+    {
+        var query = context.Locations
+            .Include(item => item.Category)
+            .Include(item => item.Owner)
+            .Include(item => item.AudioContents)
+            .AsQueryable();
+
+        return IsOwnerScoped(currentUser)
+            ? query.Where(item => item.OwnerId == currentUser.UserId)
+            : query;
+    }
+
+    private async Task<int?> ResolveOwnerIdAsync(DashboardUser currentUser, int? requestedOwnerId)
+    {
+        if (IsOwnerScoped(currentUser))
+        {
+            return currentUser.UserId;
+        }
+
+        if (requestedOwnerId is null or <= 0)
+        {
+            return null;
+        }
+
+        var owner = await context.DashboardUsers.FirstOrDefaultAsync(item => item.UserId == requestedOwnerId.Value);
+        return owner?.UserId;
+    }
+
+    private static bool IsOwnerScoped(DashboardUser user) =>
+        string.Equals(user.Role, AdminRoles.User, StringComparison.OrdinalIgnoreCase);
+
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

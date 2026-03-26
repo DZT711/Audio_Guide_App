@@ -3,9 +3,21 @@
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
+@inject AdminSessionState SessionState
 
 <PageTitle>Audio & Voice Management</PageTitle>
 
+@if (!CanView)
+{
+    <div class="management-page audio-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view audio items.</div>
+        </div>
+    </div>
+}
+else
+{
 <div class="management-page audio-page">
     <section class="management-hero" data-reveal>
         <div>
@@ -18,7 +30,7 @@
         </div>
 
         <div class="management-hero__actions">
-            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
                 <i class="bi bi-arrow-clockwise me-2"></i>
                 Refresh
             </button>
@@ -136,8 +148,8 @@
                             <div class="audio-card__footer">
                                 <small class="management-muted">@GetAudioStorageLabel(audio.AudioURL)</small>
                                 <div class="management-inline-actions">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">Edit</button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(audio.Status == 0)" @onclick="() => DeleteAudioAsync(audio)">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(!CanManage)" @onclick="() => StartEditAsync(audio)">Edit</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || audio.Status == 0)" @onclick="() => DeleteAudioAsync(audio)">
                                         @(audio.Status == 0 ? "Inactive" : "Archive")
                                     </button>
                                 </div>
@@ -168,14 +180,24 @@
 
                     <div class="management-field">
                         <label for="audio-location">Location</label>
-                        <InputSelect id="audio-location" class="form-select" @bind-Value="_formModel.LocationName">
-                            <option value="">Choose location</option>
+                        <InputSelect id="audio-location" class="form-select" @bind-Value="_formModel.LocationId">
+                            <option value="0">Choose location</option>
                             @foreach (var location in _locations)
                             {
-                                <option value="@location.Name">@location.Name</option>
+                                <option value="@location.Id">@location.Name</option>
                             }
                         </InputSelect>
-                        <ValidationMessage For="() => _formModel.LocationName" />
+                        <ValidationMessage For="() => _formModel.LocationId" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="audio-source-type">Source Type</label>
+                        <InputSelect id="audio-source-type" class="form-select" @bind-Value="_formModel.SourceType">
+                            <option value="TTS">TTS</option>
+                            <option value="Recorded">Recorded</option>
+                            <option value="Hybrid">Hybrid</option>
+                        </InputSelect>
+                        <ValidationMessage For="() => _formModel.SourceType" />
                     </div>
 
                     <div class="management-field management-field--full">
@@ -232,6 +254,18 @@
                         <ValidationMessage For="() => _formModel.Duration" />
                     </div>
 
+                    <div class="management-field">
+                        <label for="audio-voice-name">Voice Name</label>
+                        <InputText id="audio-voice-name" class="form-control" @bind-Value="_formModel.VoiceName" />
+                        <ValidationMessage For="() => _formModel.VoiceName" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="audio-priority">Priority</label>
+                        <InputNumber id="audio-priority" class="form-control" @bind-Value="_formModel.Priority" />
+                        <ValidationMessage For="() => _formModel.Priority" />
+                    </div>
+
                     <div class="management-field management-field--full">
                         <span class="management-field__label">Speech Profile</span>
                         <div class="management-chip-group">
@@ -274,6 +308,34 @@
                         </div>
                     </div>
 
+                    <div class="management-field">
+                        <label for="audio-playback-mode">Playback Mode</label>
+                        <InputSelect id="audio-playback-mode" class="form-select" @bind-Value="_formModel.PlaybackMode">
+                            <option value="Auto">Auto</option>
+                            <option value="Manual">Manual</option>
+                            <option value="QrOnly">QR Only</option>
+                        </InputSelect>
+                        <ValidationMessage For="() => _formModel.PlaybackMode" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="audio-interrupt-policy">Interrupt Policy</label>
+                        <InputSelect id="audio-interrupt-policy" class="form-select" @bind-Value="_formModel.InterruptPolicy">
+                            <option value="NotificationFirst">Notification First</option>
+                            <option value="NarrationFirst">Narration First</option>
+                            <option value="Queue">Queue</option>
+                        </InputSelect>
+                        <ValidationMessage For="() => _formModel.InterruptPolicy" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <span class="management-field__label">Download</span>
+                        <div class="management-chip-group">
+                            <button type="button" class="@GetBoolChipClass(true, _formModel.IsDownloadable)" @onclick="() => SetDownloadable(true)">Downloadable</button>
+                            <button type="button" class="@GetBoolChipClass(false, _formModel.IsDownloadable)" @onclick="() => SetDownloadable(false)">Online Only</button>
+                        </div>
+                    </div>
+
                     <div class="management-field management-field--full">
                         <span class="management-field__label">Status</span>
                         <div class="management-chip-group">
@@ -284,7 +346,7 @@
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _locations.Count == 0)">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _locations.Count == 0 || !CanManage)">
                         @(_isSaving ? "Saving..." : _editingId is null ? "Create Audio" : "Save Changes")
                     </button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
@@ -293,6 +355,7 @@
         </section>
     </div>
 </div>
+}
 
 @code {
     private const string MaleVoice = "Male";
@@ -312,6 +375,8 @@
     private bool _audioPreviewIsObjectUrl;
     private bool _isCheckingAudioPreview;
     private string? _loadError;
+    private bool CanView => SessionState.HasPermission(AdminPermissions.AudioRead);
+    private bool CanManage => SessionState.HasPermission(AdminPermissions.AudioManage);
 
     private IEnumerable<AudioDto> FilteredAudio =>
         _audioItems.Where(audio =>
@@ -375,6 +440,12 @@
 
     private void StartEdit(AudioDto audio)
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view audio but cannot edit it.", "Read-only access");
+            return;
+        }
+
         _editingId = audio.Id;
         var snapshot = AudioFormModel.FromDto(audio);
         ApplyForm(snapshot);
@@ -388,6 +459,12 @@
 
     private async Task SaveAudioAsync()
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view audio but cannot save changes.", "Read-only access");
+            return;
+        }
+
         if (!await EnsureAudioFileAvailableForSaveAsync())
         {
             return;
@@ -423,6 +500,12 @@
 
     private async Task DeleteAudioAsync(AudioDto audio)
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view audio but cannot archive it.", "Read-only access");
+            return;
+        }
+
         var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive audio '{audio.Title}' and mark it inactive?");
         if (!confirmed)
         {
@@ -482,7 +565,11 @@
     {
         ApplyForm(new AudioFormModel
         {
+            SourceType = "TTS",
             VoiceGender = "Female",
+            PlaybackMode = "Auto",
+            InterruptPolicy = "NotificationFirst",
+            IsDownloadable = true,
             Language = "vi-VN",
             Status = 1
         });
@@ -509,14 +596,20 @@
     private void ApplyForm(AudioFormModel model)
     {
         _formModel.Title = model.Title;
-        _formModel.LocationName = model.LocationName;
+        _formModel.LocationId = model.LocationId;
         _formModel.Description = model.Description;
         _formModel.AudioPath = model.AudioPath;
         _formModel.AudioFile = null;
         _formModel.Language = model.Language;
+        _formModel.SourceType = model.SourceType;
+        _formModel.VoiceName = model.VoiceName;
         _formModel.VoiceGender = model.VoiceGender;
         _formModel.Script = model.Script;
         _formModel.Duration = model.Duration;
+        _formModel.Priority = model.Priority;
+        _formModel.PlaybackMode = model.PlaybackMode;
+        _formModel.InterruptPolicy = model.InterruptPolicy;
+        _formModel.IsDownloadable = model.IsDownloadable;
         _formModel.Status = model.Status;
     }
 
@@ -532,6 +625,8 @@
 
     private void SelectFemaleVoice() => SetVoiceGender(FemaleVoice);
 
+    private void SetDownloadable(bool isDownloadable) => _formModel.IsDownloadable = isDownloadable;
+
     private void SetStatus(int status) => _formModel.Status = status;
 
     private string GetVoiceChipClass(string voiceGender) => string.Equals(_formModel.VoiceGender, voiceGender, StringComparison.OrdinalIgnoreCase)
@@ -545,7 +640,7 @@
         string.IsNullOrWhiteSpace(voiceGender) ? "Unspecified voice" : $"{voiceGender} voice";
 
     private static string GetAudioKind(AudioDto audio) =>
-        string.IsNullOrWhiteSpace(audio.Script) ? "Uploaded Audio" : "TTS / Script";
+        audio.SourceType;
 
     private static string GetAudioStorageLabel(string? audioPath)
     {
@@ -571,8 +666,17 @@
         ? "management-chip management-chip--selected"
         : "management-chip";
 
+    private static string GetBoolChipClass(bool value, bool currentValue) => value == currentValue
+        ? "management-chip management-chip--selected"
+        : "management-chip";
+
     private string GetAudioPreviewHint()
     {
+        if (_formModel.SourceType == "TTS" && _formModel.AudioFile is null && string.IsNullOrWhiteSpace(_formModel.AudioPath))
+        {
+            return "TTS-only entries do not require an uploaded file. Use the browser voice preview below.";
+        }
+
         if (_formModel.AudioFile is not null)
         {
             return $"Previewing the newly selected file: {_formModel.AudioFile.Name}";
@@ -588,6 +692,11 @@
 
     private async Task<bool> EnsureAudioFileAvailableForSaveAsync()
     {
+        if (_formModel.SourceType == "TTS")
+        {
+            return true;
+        }
+
         if (_formModel.AudioFile is not null)
         {
             return true;
@@ -633,6 +742,11 @@
                 _audioPreviewWarning = "The selected file could not be previewed, but you can still try to upload it.";
             }
 
+            return;
+        }
+
+        if (_formModel.SourceType == "TTS")
+        {
             return;
         }
 

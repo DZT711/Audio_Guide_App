@@ -5,4 +5,12 @@ public static class ApiRoutes
     public const string Categories = "Category";
     public const string Locations = "Location";
     public const string Audio = "Audio";
+    public const string AuthLogin = "Auth/login";
+    public const string AuthLogout = "Auth/logout";
+    public const string AuthMe = "Auth/me";
+    public const string Users = "DashboardUser";
+    public const string UserInvite = "DashboardUser/invite";
+    public const string DashboardOverview = "Dashboard/overview";
+    public const string DashboardSnapshot = "Dashboard/snapshot";
+    public const string Moderation = "Moderation";
 }

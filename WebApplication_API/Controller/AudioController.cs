@@ -1,7 +1,7 @@
-using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Security;
 using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Data;
 using WebApplication_API.Model;
@@ -11,202 +11,141 @@ namespace WebApplication_API.Controller;
 
 [ApiController]
 [Route("[controller]")]
-public class AudioController : ControllerBase
+public class AudioController(
+    DBContext context,
+    SharedAudioFileStorageService audioStorage,
+    AdminRequestAuthorizationService authService) : ControllerBase
 {
-    private readonly DBContext _context;
-    private readonly SharedAudioFileStorageService _audioStorage;
-
-    public AudioController(DBContext context, SharedAudioFileStorageService audioStorage)
-    {
-        _context = context;
-        _audioStorage = audioStorage;
-    }
-
-    /// <summary>
-    /// Get all audio content
-    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AudioDto>>> GetAllAudio()
+    public async Task<IActionResult> GetAllAudio()
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.AudioRead);
+        if (!access.Succeeded)
         {
-            var audioList = await _context.AudioContents.ToListAsync();
-
-            var audioDTOs = new List<AudioDto>();
-            foreach (var audio in audioList)
-            {
-                var location = await _context.Locations.FirstOrDefaultAsync(l => l.Id == audio.LocationId);
-                var audioDTOItem = new AudioDto(
-                    audio.Id,
-                    audio.Title,
-                    location?.Name ?? "Unknown",
-                    audio.Description ?? "",
-                    audio.FilePath,
-                    audio.Language ?? "",
-                    audio.VoiceGender ?? "",
-                    audio.Script ?? "",
-                    audio.Duration ?? 0,
-                    // audio.NumOfPeoplePlayed,
-                    audio.Status
-                );
-                audioDTOs.Add(audioDTOItem);
-            }
-
-            return Ok(audioDTOs);
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { message = "Error retrieving audio content", error = ex.Message });
-        }
+
+        var audioItems = await BuildAudioQuery(access.User!)
+            .OrderByDescending(item => item.Status)
+            .ThenBy(item => item.Title)
+            .ToListAsync();
+
+        return Ok(audioItems.Select(item => item.ToDto()).ToList());
     }
 
-    /// <summary>
-    /// Get audio content by ID
-    /// </summary>
-    [HttpGet("{id}")]
-    public async Task<ActionResult<AudioDto>> GetAudioById(int id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetAudioById(int id)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.AudioRead);
+        if (!access.Succeeded)
         {
-            var audio = await _context.AudioContents.FirstOrDefaultAsync(a => a.Id == id);
-
-            if (audio == null)
-                return NotFound(new { message = "Audio not found" });
-
-            var location = await _context.Locations.FirstOrDefaultAsync(l => l.Id == audio.LocationId);
-            var audioDTO = new AudioDto(
-                audio.Id,
-                audio.Title,
-                location?.Name ?? "Unknown",
-                audio.Description ?? "",
-                audio.FilePath,
-                audio.Language ?? "",
-                audio.VoiceGender ?? "",
-                audio.Script ?? "",
-                audio.Duration ?? 0,
-                audio.Status
-            );
-
-            return Ok(audioDTO);
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        var audio = await BuildAudioQuery(access.User!)
+            .FirstOrDefaultAsync(item => item.AudioId == id);
+
+        if (audio is null)
         {
-            return StatusCode(500, new { message = "Error retrieving audio", error = ex.Message });
+            return NotFound(new { message = "Audio item not found." });
         }
+
+        return Ok(audio.ToDto());
     }
 
-    /// <summary>
-    /// Get audio content by location ID
-    /// </summary>
-    [HttpGet("location/{locationId}")]
-    public async Task<ActionResult<IEnumerable<AudioDto>>> GetAudioByLocation(int locationId)
+    [HttpGet("location/{locationId:int}")]
+    public async Task<IActionResult> GetAudioByLocation(int locationId)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.AudioRead);
+        if (!access.Succeeded)
         {
-            var location = await _context.Locations.FirstOrDefaultAsync(l => l.Id == locationId);
-            if (location == null)
-                return NotFound(new { message = "Location not found" });
-
-            var audioList = await _context.AudioContents
-                .Where(a => a.LocationId == locationId)
-                .ToListAsync();
-
-            var audioDTOs = audioList.Select(a => new AudioDto(
-                a.Id,
-                a.Title,
-                location.Name,
-                a.Description ?? "",
-                a.FilePath,
-                a.Language ?? "",
-                a.VoiceGender ?? "",
-                a.Script ?? "",
-                a.Duration ?? 0,
-                a.Status
-            )).ToList();
-
-            return Ok(audioDTOs);
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { message = "Error retrieving audio by location", error = ex.Message });
-        }
+
+        var audioItems = await BuildAudioQuery(access.User!)
+            .Where(item => item.LocationId == locationId)
+            .OrderByDescending(item => item.Status)
+            .ThenBy(item => item.Title)
+            .ToListAsync();
+
+        return Ok(audioItems.Select(item => item.ToDto()).ToList());
     }
 
-    /// <summary>
-    /// Create new audio content
-    /// </summary>
     [HttpPost]
     [Consumes("multipart/form-data")]
-    public async Task<ActionResult<AudioDto>> CreateAudio(
+    public async Task<IActionResult> CreateAudio(
         [FromForm] AudioUpsertRequest request,
         [FromForm(Name = "AudioFile")] IFormFile? audioFile,
         CancellationToken cancellationToken)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.AudioManage);
+        if (!access.Succeeded)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            if (audioFile is null && string.IsNullOrWhiteSpace(request.AudioURL))
-            {
-                return BadRequest(new { message = "Choose an audio file to upload." });
-            }
-
-            var location = await _context.Locations
-                .FirstOrDefaultAsync(l => l.Name == request.LocationName, cancellationToken);
-
-            if (location == null)
-                return NotFound(new { message = "Location not found" });
-
-            var audioPath = SharedStoragePaths.NormalizePublicAudioPath(request.AudioURL);
-            if (audioFile is not null)
-            {
-                audioPath = await _audioStorage.SaveAudioAsync(audioFile, request.LocationName, request.Title, cancellationToken);
-            }
-
-            var audio = new Audio
-            {
-                LocationId = location.Id,
-                Title = request.Title,
-                FilePath = audioPath ?? string.Empty,
-                Language = request.Language,
-                Duration = request.Duration,
-                Script = request.Script,
-                Description = request.Description,
-                VoiceGender = request.VoiceGender,
-                Status = request.Status
-            };
-
-            _context.AudioContents.Add(audio);
-            // location.NumOfAudio += 1;
-            _context.Locations.Update(location);
-            await _context.SaveChangesAsync();
-
-            var audioDTO = new AudioDto(
-                audio.Id,
-                audio.Title,
-                location.Name,
-                audio.Description ?? "",
-                audio.FilePath,
-                audio.Language ?? "",
-                audio.VoiceGender ?? "",
-                audio.Script ?? "",
-                audio.Duration ?? 0,
-                audio.Status
-            );
-
-            return CreatedAtAction(nameof(GetAudioById), new { id = audio.Id }, audioDTO);
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        if (!ModelState.IsValid)
         {
-            return StatusCode(500, new { message = "Error creating audio", error = ex.Message });
+            return ValidationProblem(ModelState);
         }
+
+        var location = await context.Locations
+            .Include(item => item.Owner)
+            .FirstOrDefaultAsync(item => item.LocationId == request.LocationId, cancellationToken);
+
+        if (location is null)
+        {
+            return NotFound(new { message = "Location not found." });
+        }
+
+        if (IsOwnerScoped(access.User!) && location.OwnerId != access.User!.UserId)
+        {
+            return StatusCode(403, new { message = "You can only create audio for your own locations." });
+        }
+
+        var audioPath = NormalizeAudioPath(request.AudioURL);
+        if (audioFile is not null)
+        {
+            audioPath = await audioStorage.SaveAudioAsync(audioFile, location.Name, request.Title, cancellationToken);
+        }
+
+        var validationMessage = ValidateAudioPayload(request, audioPath);
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            return BadRequest(new { message = validationMessage });
+        }
+
+        var audio = new Audio
+        {
+            LocationId = location.LocationId,
+            LanguageCode = request.Language.Trim(),
+            Title = request.Title.Trim(),
+            Description = Normalize(request.Description),
+            SourceType = request.SourceType.Trim(),
+            Script = Normalize(request.Script),
+            FilePath = audioPath,
+            FileSizeBytes = audioFile is null ? request.FileSizeBytes : (int?)audioFile.Length,
+            DurationSeconds = request.Duration,
+            VoiceName = Normalize(request.VoiceName),
+            VoiceGender = Normalize(request.VoiceGender),
+            Priority = request.Priority,
+            PlaybackMode = request.PlaybackMode.Trim(),
+            InterruptPolicy = request.InterruptPolicy.Trim(),
+            IsDownloadable = request.IsDownloadable,
+            Status = request.Status,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        context.AudioContents.Add(audio);
+        await context.SaveChangesAsync(cancellationToken);
+
+        var savedAudio = await BuildAudioQuery(access.User!)
+            .FirstAsync(item => item.AudioId == audio.AudioId, cancellationToken);
+
+        return CreatedAtAction(nameof(GetAudioById), new { id = audio.AudioId }, savedAudio.ToDto());
     }
 
-    /// <summary>
-    /// Update existing audio content
-    /// </summary>
-    [HttpPut("{id}")]
+    [HttpPut("{id:int}")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UpdateAudio(
         int id,
@@ -214,82 +153,148 @@ public class AudioController : ControllerBase
         [FromForm(Name = "AudioFile")] IFormFile? audioFile,
         CancellationToken cancellationToken)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.AudioManage);
+        if (!access.Succeeded)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var audio = await _context.AudioContents.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
-
-            if (audio == null)
-                return NotFound(new { message = "Audio not found" });
-
-            var location = await _context.Locations
-                .FirstOrDefaultAsync(l => l.Name == request.LocationName, cancellationToken);
-
-            if (location == null)
-                return NotFound(new { message = "Location not found" });
-
-            var nextAudioPath = string.IsNullOrWhiteSpace(request.AudioURL)
-                ? SharedStoragePaths.NormalizePublicAudioPath(audio.FilePath)
-                : SharedStoragePaths.NormalizePublicAudioPath(request.AudioURL);
-            if (audioFile is not null)
-            {
-                nextAudioPath = await _audioStorage.SaveAudioAsync(audioFile, request.LocationName, request.Title, cancellationToken);
-                _audioStorage.DeleteIfManaged(audio.FilePath);
-            }
-
-            if (string.IsNullOrWhiteSpace(nextAudioPath))
-            {
-                return BadRequest(new { message = "Choose an audio file to upload." });
-            }
-
-            audio.Title = request.Title;
-            audio.FilePath = nextAudioPath;
-            audio.Language = request.Language;
-            audio.Duration = request.Duration;
-            audio.Description = request.Description;
-            audio.VoiceGender = request.VoiceGender;
-            audio.Script = request.Script;
-            audio.Status = request.Status;
-            audio.LocationId = location.Id;
-
-            _context.AudioContents.Update(audio);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Audio updated successfully" });
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        if (!ModelState.IsValid)
         {
-            return StatusCode(500, new { message = "Error updating audio", error = ex.Message });
+            return ValidationProblem(ModelState);
         }
+
+        var audio = await context.AudioContents
+            .Include(item => item.Location)
+            .ThenInclude(item => item!.Owner)
+            .FirstOrDefaultAsync(item => item.AudioId == id, cancellationToken);
+
+        if (audio is null)
+        {
+            return NotFound(new { message = "Audio item not found." });
+        }
+
+        if (IsOwnerScoped(access.User!) && audio.Location?.OwnerId != access.User!.UserId)
+        {
+            return StatusCode(403, new { message = "You can only update audio for your own locations." });
+        }
+
+        var location = await context.Locations
+            .Include(item => item.Owner)
+            .FirstOrDefaultAsync(item => item.LocationId == request.LocationId, cancellationToken);
+
+        if (location is null)
+        {
+            return NotFound(new { message = "Location not found." });
+        }
+
+        if (IsOwnerScoped(access.User!) && location.OwnerId != access.User!.UserId)
+        {
+            return StatusCode(403, new { message = "You can only assign audio to your own locations." });
+        }
+
+        var nextAudioPath = string.IsNullOrWhiteSpace(request.AudioURL)
+            ? NormalizeAudioPath(audio.FilePath)
+            : NormalizeAudioPath(request.AudioURL);
+
+        if (audioFile is not null)
+        {
+            nextAudioPath = await audioStorage.SaveAudioAsync(audioFile, location.Name, request.Title, cancellationToken);
+            audioStorage.DeleteIfManaged(audio.FilePath);
+        }
+
+        var validationMessage = ValidateAudioPayload(request, nextAudioPath);
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            return BadRequest(new { message = validationMessage });
+        }
+
+        audio.LocationId = location.LocationId;
+        audio.LanguageCode = request.Language.Trim();
+        audio.Title = request.Title.Trim();
+        audio.Description = Normalize(request.Description);
+        audio.SourceType = request.SourceType.Trim();
+        audio.Script = Normalize(request.Script);
+        audio.FilePath = nextAudioPath;
+        audio.FileSizeBytes = audioFile is null ? request.FileSizeBytes : (int?)audioFile.Length;
+        audio.DurationSeconds = request.Duration;
+        audio.VoiceName = Normalize(request.VoiceName);
+        audio.VoiceGender = Normalize(request.VoiceGender);
+        audio.Priority = request.Priority;
+        audio.PlaybackMode = request.PlaybackMode.Trim();
+        audio.InterruptPolicy = request.InterruptPolicy.Trim();
+        audio.IsDownloadable = request.IsDownloadable;
+        audio.Status = request.Status;
+        audio.UpdatedAt = DateTime.UtcNow;
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        return Ok(new ApiMessageResponse { Message = "Audio updated successfully." });
     }
 
-    /// <summary>
-    /// Archive audio content by ID
-    /// </summary>
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteAudio(int id)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.AudioManage);
+        if (!access.Succeeded)
         {
-            var audio = await _context.AudioContents.FirstOrDefaultAsync(a => a.Id == id);
-
-            if (audio == null)
-                return NotFound(new { message = "Audio not found" });
-
-            if (audio.Status == 0)
-                return Ok(new { message = "Audio is already inactive" });
-
-            audio.Status = 0;
-            _context.AudioContents.Update(audio);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Audio archived successfully" });
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        var audio = await context.AudioContents
+            .Include(item => item.Location)
+            .FirstOrDefaultAsync(item => item.AudioId == id);
+
+        if (audio is null)
         {
-            return StatusCode(500, new { message = "Error archiving audio", error = ex.Message });
+            return NotFound(new { message = "Audio item not found." });
         }
+
+        if (IsOwnerScoped(access.User!) && audio.Location?.OwnerId != access.User!.UserId)
+        {
+            return StatusCode(403, new { message = "You can only archive audio for your own locations." });
+        }
+
+        audio.Status = 0;
+        audio.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+
+        return Ok(new ApiMessageResponse { Message = "Audio archived successfully." });
     }
+
+    private IQueryable<Audio> BuildAudioQuery(DashboardUser currentUser)
+    {
+        var query = context.AudioContents
+            .Include(item => item.Location)
+            .ThenInclude(item => item!.Owner)
+            .AsQueryable();
+
+        return IsOwnerScoped(currentUser)
+            ? query.Where(item => item.Location!.OwnerId == currentUser.UserId)
+            : query;
+    }
+
+    private static string? ValidateAudioPayload(AudioUpsertRequest request, string? audioPath)
+    {
+        var sourceType = request.SourceType.Trim();
+        var hasScript = !string.IsNullOrWhiteSpace(request.Script);
+        var hasFile = !string.IsNullOrWhiteSpace(audioPath);
+
+        return sourceType switch
+        {
+            "TTS" when !hasScript => "TTS audio requires a script.",
+            "Recorded" when !hasFile => "Recorded audio requires an uploaded file or stored path.",
+            "Hybrid" when !hasScript || !hasFile => "Hybrid audio requires both a script and an uploaded file.",
+            _ => null
+        };
+    }
+
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string? NormalizeAudioPath(string? path) =>
+        string.IsNullOrWhiteSpace(path) ? null : SharedStoragePaths.NormalizePublicAudioPath(path);
+
+    private static bool IsOwnerScoped(DashboardUser user) =>
+        string.Equals(user.Role, AdminRoles.User, StringComparison.OrdinalIgnoreCase);
 }

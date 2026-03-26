@@ -2,6 +2,7 @@
 @inject NavigationManager Navigation
 @inject AdminAuthService AuthService
 @inject NotificationService Notifications
+@inject AdminSessionState SessionState
 
 <header class="admin-header">
     <div class="admin-header__leading">
@@ -22,7 +23,7 @@
     <div class="admin-header__actions">
         <span class="admin-header__context d-none d-md-inline-flex">
             <i class="bi bi-lightning-charge-fill"></i>
-            Static admin session
+            @GetHeaderContext()
         </span>
 
         <button type="button" class="btn btn-outline-secondary admin-header__logout" @onclick="LogoutAsync">
@@ -30,7 +31,7 @@
             Logout
         </button>
 
-        <div class="admin-header__avatar">A</div>
+        <div class="admin-header__avatar">@GetAvatarInitial()</div>
     </div>
 </header>
 
@@ -73,6 +74,22 @@
             "moderation" => "Moderation Queue",
             _ => "Admin"
         };
+    }
+
+    private string GetHeaderContext()
+    {
+        if (string.IsNullOrWhiteSpace(SessionState.Role))
+        {
+            return "Admin session";
+        }
+
+        return $"{SessionState.Role} · {SessionState.StatusLabel}";
+    }
+
+    private string GetAvatarInitial()
+    {
+        var value = SessionState.DisplayName;
+        return string.IsNullOrWhiteSpace(value) ? "A" : value[..1].ToUpperInvariant();
     }
 
     public void Dispose()
