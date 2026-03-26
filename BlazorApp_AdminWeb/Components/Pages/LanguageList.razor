@@ -1,0 +1,484 @@
+@page "/languages"
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject IJSRuntime JS
+@inject AdminSessionState SessionState
+
+<PageTitle>Language Management</PageTitle>
+
+@if (!CanView)
+{
+    <div class="management-page language-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view languages.</div>
+        </div>
+    </div>
+}
+else
+{
+<div class="management-page language-page">
+    <section class="management-hero" data-reveal>
+        <div>
+            <span class="management-hero__eyebrow">Locale Catalog</span>
+            <h1>Language Management</h1>
+            <p>
+                Control which audio languages are available in the admin web and whether browser preview
+                should prefer a native system voice for that locale.
+            </p>
+        </div>
+
+        <div class="management-hero__actions">
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
+                <i class="bi bi-arrow-clockwise me-2"></i>
+                Refresh
+            </button>
+        </div>
+    </section>
+
+    <div class="management-stat-grid" data-stagger data-stagger-step="80">
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-translate"></i></span>
+            <div>
+                <strong class="management-stat__value">@_languages.Count</strong>
+                <span class="management-stat__label">Total Languages</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
+            <div>
+                <strong class="management-stat__value">@_languages.Count(item => item.Status == 1)</strong>
+                <span class="management-stat__label">Active</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-volume-up"></i></span>
+            <div>
+                <strong class="management-stat__value">@_languages.Count(item => item.PreferNativeVoice && item.Status == 1)</strong>
+                <span class="management-stat__label">Native Voice On</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-star-fill"></i></span>
+            <div>
+                <strong class="management-stat__value">@_languages.Count(item => item.IsDefault && item.Status == 1)</strong>
+                <span class="management-stat__label">Default Language</span>
+            </div>
+        </article>
+    </div>
+
+    <div class="management-layout">
+        <section class="management-panel" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">Directory</span>
+                    <h2>Available Languages</h2>
+                </div>
+
+                <label class="management-search">
+                    <i class="bi bi-search"></i>
+                    <input class="form-control" type="search" placeholder="Search languages..." @bind="_searchText" @bind:event="oninput" />
+                </label>
+            </div>
+
+            @if (_isLoading)
+            {
+                <div class="language-skeleton-list">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <div class="language-skeleton-card">
+                            <div class="skeleton skeleton--title"></div>
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--line skeleton--line-short"></div>
+                        </div>
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(_loadError))
+            {
+                <div class="management-error">
+                    <strong>Unable to load languages.</strong>
+                    <div>@_loadError</div>
+                </div>
+            }
+            else if (!FilteredLanguages.Any())
+            {
+                <div class="app-empty-state">
+                    No languages match the current search.
+                </div>
+            }
+            else
+            {
+                <div class="language-list">
+                    @foreach (var language in FilteredLanguages)
+                    {
+                        <article class="@GetLanguageCardClass(language.Status)">
+                            <div class="language-card__copy">
+                                <div class="language-card__top">
+                                    <div>
+                                        <h3>@language.Name</h3>
+                                        <p>@language.Code</p>
+                                    </div>
+                                    <span class="@GetStatusClass(language.Status)">@GetStatusLabel(language.Status)</span>
+                                </div>
+
+                                <div class="language-card__meta">
+                                    <span class="language-card__tag">@(string.IsNullOrWhiteSpace(language.NativeName) ? "No native name" : language.NativeName)</span>
+                                    <span class="language-card__tag">@(language.PreferNativeVoice ? "Native voice preview" : "Flexible preview")</span>
+                                    @if (language.IsDefault)
+                                    {
+                                        <span class="language-card__tag language-card__tag--default">Default</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="management-inline-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(language)">@(CanManage ? "Edit" : "View")</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || language.Status == 0)" @onclick="() => PromptArchiveLanguage(language)">
+                                    @(language.Status == 0 ? "Inactive" : "Archive")
+                                </button>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="management-panel language-editor" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">@(CanManage ? "Editor" : "Read Only")</span>
+                    <h2>@(CanManage ? (_editingId is null ? "Create Language" : "Edit Language") : "Language Details")</h2>
+                </div>
+            </div>
+
+            @if (CanManage)
+            {
+            <EditForm Model="_formModel" OnValidSubmit="SaveLanguageAsync" class="management-form">
+                <DataAnnotationsValidator />
+
+                <div class="management-field">
+                    <label for="language-code">Language Code</label>
+                    <InputText id="language-code" class="form-control" @bind-Value="_formModel.Code" />
+                    <ValidationMessage For="() => _formModel.Code" />
+                </div>
+
+                <div class="management-field">
+                    <label for="language-name">Language Name</label>
+                    <InputText id="language-name" class="form-control" @bind-Value="_formModel.Name" />
+                    <ValidationMessage For="() => _formModel.Name" />
+                </div>
+
+                <div class="management-field management-field--full">
+                    <label for="language-native-name">Native Name</label>
+                    <InputText id="language-native-name" class="form-control" @bind-Value="_formModel.NativeName" />
+                    <ValidationMessage For="() => _formModel.NativeName" />
+                </div>
+
+                <div class="management-field management-field--full">
+                    <span class="management-field__label">Preview Voice Mode</span>
+                    <div class="management-chip-group">
+                        <button type="button" class="@GetBoolChipClass(true, _formModel.PreferNativeVoice)" @onclick="() => SetPreferNativeVoice(true)">Native voice</button>
+                        <button type="button" class="@GetBoolChipClass(false, _formModel.PreferNativeVoice)" @onclick="() => SetPreferNativeVoice(false)">Flexible fallback</button>
+                    </div>
+                    <span class="management-field__hint">Native voice keeps preview in the chosen language when possible. Flexible fallback can use another installed voice if the browser lacks a strong locale match.</span>
+                </div>
+
+                <div class="management-field management-field--full">
+                    <span class="management-field__label">Default Language</span>
+                    <div class="management-chip-group">
+                        <button type="button" class="@GetBoolChipClass(true, _formModel.IsDefault)" @onclick="() => SetDefaultLanguage(true)">Default</button>
+                        <button type="button" class="@GetBoolChipClass(false, _formModel.IsDefault)" @onclick="() => SetDefaultLanguage(false)">Normal</button>
+                    </div>
+                </div>
+
+                <div class="management-field management-field--full">
+                    <span class="management-field__label">Status</span>
+                    <div class="management-chip-group">
+                        <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
+                        <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                    </div>
+                </div>
+
+                <div class="management-actions">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !CanManage)">
+                        @(_isSaving ? "Saving..." : _editingId is null ? "Create Language" : "Save Changes")
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(CanManage ? (_editingId is null ? "Reset" : "Cancel Edit") : "Read Only")</button>
+                </div>
+            </EditForm>
+            }
+            else if (SelectedLanguageForDisplay is null)
+            {
+                <div class="app-empty-state">
+                    Select a language to review its details.
+                </div>
+            }
+            else
+            {
+                var selectedLanguage = SelectedLanguageForDisplay!;
+
+                <div class="language-readonly">
+                    <div class="language-readonly__notice">
+                        Language changes require an Admin or Developer account.
+                    </div>
+
+                    <div class="language-detail-card">
+                        <span>Code</span>
+                        <strong>@selectedLanguage.Code</strong>
+                        <small>@GetStatusLabel(selectedLanguage.Status)</small>
+                    </div>
+
+                    <div class="language-detail-card">
+                        <span>Name</span>
+                        <strong>@selectedLanguage.Name</strong>
+                        <small>@(string.IsNullOrWhiteSpace(selectedLanguage.NativeName) ? "No native name" : selectedLanguage.NativeName)</small>
+                    </div>
+
+                    <div class="language-detail-card">
+                        <span>Preview Mode</span>
+                        <strong>@(selectedLanguage.PreferNativeVoice ? "Native voice" : "Flexible fallback")</strong>
+                        <small>@(selectedLanguage.IsDefault ? "Default language" : "Standard catalog entry")</small>
+                    </div>
+                </div>
+            }
+        </section>
+    </div>
+</div>
+
+<AdminConfirmDialog Visible="@(_pendingArchivedLanguage is not null)"
+                    Eyebrow="Archive Language"
+                    Title="Archive this language?"
+                    Message="@GetPendingArchiveLanguageMessage()"
+                    ConfirmLabel="Archive Language"
+                    ConfirmButtonClass="btn btn-danger"
+                    OnConfirm="ConfirmArchiveLanguageAsync"
+                    OnCancel="CancelArchiveLanguage" />
+}
+
+@code {
+    private readonly LanguageFormModel _formModel = new();
+    private readonly List<LanguageDto> _languages = new();
+    private LanguageDto? _selectedLanguage;
+    private LanguageDto? _pendingArchivedLanguage;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private int? _editingId;
+    private string _searchText = "";
+    private string? _loadError;
+    private bool CanView => SessionState.HasPermission(AdminPermissions.LanguageRead);
+    private bool CanManage => SessionState.HasPermission(AdminPermissions.LanguageManage);
+    private LanguageDto? SelectedLanguageForDisplay => ResolveSelectedLanguage();
+
+    private IEnumerable<LanguageDto> FilteredLanguages =>
+        _languages.Where(language =>
+            string.IsNullOrWhiteSpace(_searchText)
+            || language.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+            || language.Code.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+            || (language.NativeName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLanguagesAsync();
+    }
+
+    private async Task RefreshAsync() => await LoadLanguagesAsync();
+
+    private async Task LoadLanguagesAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            var languages = await ApiClient.GetLanguagesAsync();
+            _languages.Clear();
+            _languages.AddRange(languages
+                .OrderByDescending(item => item.Status)
+                .ThenByDescending(item => item.IsDefault)
+                .ThenBy(item => item.Name));
+
+            SyncSelectedLanguage();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Language load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void StartCreate()
+    {
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void StartEdit(LanguageDto language)
+    {
+        _selectedLanguage = language;
+        _editingId = language.Id;
+
+        if (!CanManage)
+        {
+            _editingId = null;
+            return;
+        }
+
+        var snapshot = LanguageFormModel.FromDto(language);
+        _formModel.Code = snapshot.Code;
+        _formModel.Name = snapshot.Name;
+        _formModel.NativeName = snapshot.NativeName;
+        _formModel.PreferNativeVoice = snapshot.PreferNativeVoice;
+        _formModel.IsDefault = snapshot.IsDefault;
+        _formModel.Status = snapshot.Status;
+    }
+
+    private async Task SaveLanguageAsync()
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view languages but cannot save changes.", "Read-only access");
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            if (_editingId is null)
+            {
+                await ApiClient.CreateLanguageAsync(_formModel);
+                Notifications.Success("Language created successfully.", "Language saved");
+            }
+            else
+            {
+                await ApiClient.UpdateLanguageAsync(_editingId.Value, _formModel);
+                Notifications.Success("Language updated successfully.", "Language saved");
+            }
+
+            await LoadLanguagesAsync();
+            StartCreate();
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Language save failed");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void PromptArchiveLanguage(LanguageDto language)
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view languages but cannot archive them.", "Read-only access");
+            return;
+        }
+
+        _pendingArchivedLanguage = language;
+    }
+
+    private async Task ConfirmArchiveLanguageAsync()
+    {
+        if (!CanManage || _pendingArchivedLanguage is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await ApiClient.DeleteLanguageAsync(_pendingArchivedLanguage.Id);
+            Notifications.Info($"'{_pendingArchivedLanguage.Name}' is now inactive.", "Language archived");
+            await LoadLanguagesAsync();
+
+            if (_editingId == _pendingArchivedLanguage.Id)
+            {
+                StartCreate();
+            }
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Delete failed");
+        }
+        finally
+        {
+            CancelArchiveLanguage();
+        }
+    }
+
+    private void ResetForm()
+    {
+        _formModel.Code = "vi-VN";
+        _formModel.Name = "";
+        _formModel.NativeName = "";
+        _formModel.PreferNativeVoice = true;
+        _formModel.IsDefault = _languages.All(item => !item.IsDefault || item.Status == 0);
+        _formModel.Status = 1;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void SetPreferNativeVoice(bool preferNativeVoice) => _formModel.PreferNativeVoice = preferNativeVoice;
+
+    private void SetDefaultLanguage(bool isDefault) => _formModel.IsDefault = isDefault;
+
+    private void SetStatus(int status) => _formModel.Status = status;
+
+    private LanguageDto? ResolveSelectedLanguage()
+    {
+        if (_selectedLanguage is not null)
+        {
+            return _languages.FirstOrDefault(item => item.Id == _selectedLanguage.Id) ?? _selectedLanguage;
+        }
+
+        return FilteredLanguages.FirstOrDefault() ?? _languages.FirstOrDefault();
+    }
+
+    private void SyncSelectedLanguage()
+    {
+        if (_selectedLanguage is not null)
+        {
+            _selectedLanguage = _languages.FirstOrDefault(item => item.Id == _selectedLanguage.Id);
+        }
+
+        if (!CanManage && _selectedLanguage is null)
+        {
+            _selectedLanguage = _languages.FirstOrDefault();
+        }
+    }
+
+    private static string GetStatusClass(int status) => status == 1
+        ? "management-status management-status--active"
+        : "management-status management-status--inactive";
+
+    private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
+
+    private static string GetChipClass(int status, int currentStatus) => status == currentStatus
+        ? "management-chip management-chip--selected"
+        : "management-chip";
+
+    private static string GetBoolChipClass(bool value, bool currentValue) => value == currentValue
+        ? "management-chip management-chip--selected"
+        : "management-chip";
+
+    private static string GetLanguageCardClass(int status) => status == 1
+        ? "language-card"
+        : "language-card language-card--inactive";
+
+    private string GetPendingArchiveLanguageMessage() =>
+        _pendingArchivedLanguage is null
+            ? string.Empty
+            : $"'{_pendingArchivedLanguage.Name}' will become inactive and can no longer be assigned to new or edited audio items.";
+
+    private void CancelArchiveLanguage() => _pendingArchivedLanguage = null;
+}

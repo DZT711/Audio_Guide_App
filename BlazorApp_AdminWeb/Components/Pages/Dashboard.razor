@@ -1,8 +1,90 @@
 @page "/dashboard"
-@using BlazorApp_AdminWeb.Components.Layout
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject IJSRuntime JS
+@inject AdminSessionState SessionState
 
 <PageTitle>Dashboard</PageTitle>
 
+@if (!CanView)
+{
+    <div class="dashboard-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view the dashboard.</div>
+        </div>
+    </div>
+}
+else if (_isLoading)
+{
+    <div class="dashboard-page">
+        <section class="dashboard-hero" data-reveal>
+            <div class="dashboard-hero__content">
+                <div class="skeleton skeleton--pill"></div>
+                <div class="skeleton skeleton--title"></div>
+                <div class="skeleton skeleton--line"></div>
+                <div class="skeleton skeleton--line skeleton--line-short"></div>
+            </div>
+            <div class="dashboard-hero__stats">
+                @for (var i = 0; i < 3; i++)
+                {
+                    <article class="hero-stat">
+                        <div class="skeleton skeleton--title"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </article>
+                }
+            </div>
+        </section>
+
+        <div class="row g-4">
+            @for (var i = 0; i < 4; i++)
+            {
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="skeleton-card"></div>
+                </div>
+            }
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-xxl-8">
+                <section class="dashboard-panel">
+                    <div class="skeleton-table-row">
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </div>
+                    <div class="skeleton-table-row">
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </div>
+                </section>
+            </div>
+            <div class="col-12 col-xxl-4">
+                <section class="dashboard-panel">
+                    @for (var i = 0; i < 3; i++)
+                    {
+                        <div class="skeleton skeleton--title"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    }
+                </section>
+            </div>
+        </div>
+    </div>
+}
+else if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <div class="dashboard-page">
+        <div class="management-error">
+            <strong>Unable to load dashboard data.</strong>
+            <div>@_loadError</div>
+        </div>
+    </div>
+}
+else
+{
 <div class="dashboard-page">
     <section class="dashboard-hero" data-reveal>
         <div class="dashboard-hero__content">
@@ -14,13 +96,23 @@
             </p>
 
             <div class="dashboard-hero__actions">
-                <a class="btn btn-light btn-lg" href="/users">
-                    <i class="bi bi-people me-2"></i>
-                    Manage Users
-                </a>
-                <button class="btn btn-outline-light btn-lg" type="button">
+                @if (CanViewUsers)
+                {
+                    <a class="btn btn-light btn-lg" href="/users">
+                        <i class="bi bi-people me-2"></i>
+                        Manage Users
+                    </a>
+                }
+                else
+                {
+                    <button class="btn btn-light btn-lg" type="button" @onclick="ShowUserAccessNotice">
+                        <i class="bi bi-people me-2"></i>
+                        Manage Users
+                    </button>
+                }
+                <button class="btn btn-outline-light btn-lg" type="button" disabled="@(!CanExport || _isExporting)" @onclick="ExportSnapshotAsync">
                     <i class="bi bi-download me-2"></i>
-                    Export Snapshot
+                    @(_isExporting ? "Exporting..." : "Export Snapshot")
                 </button>
             </div>
         </div>
@@ -71,7 +163,14 @@
                         <span class="dashboard-panel__eyebrow">Live Feed</span>
                         <h2>Recent Activity</h2>
                     </div>
-                    <a class="btn btn-outline-secondary btn-sm" href="/moderation">View All</a>
+                    @if (CanViewModeration)
+                    {
+                        <a class="btn btn-outline-secondary btn-sm" href="/moderation">View All</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-outline-secondary btn-sm" href="/audio">View Audio</a>
+                    }
                 </div>
 
                 <div class="table-responsive">
@@ -145,94 +244,85 @@
         </div>
     </div>
 </div>
+}
 
 @code {
-    private readonly List<DashboardMetric> Metrics = new()
+    private List<DashboardMetricDto> Metrics { get; set; } = [];
+    private List<DashboardActivityDto> Activities { get; set; } = [];
+    private List<FocusItemDto> FocusItems { get; set; } = [];
+    private bool _isLoading = true;
+    private bool _isExporting;
+    private string? _loadError;
+    private bool CanView => SessionState.HasPermission(AdminPermissions.DashboardView);
+    private bool CanExport => SessionState.HasPermission(AdminPermissions.DashboardExport);
+    private bool CanViewUsers => SessionState.HasPermission(AdminPermissions.UserRead);
+    private bool CanViewModeration => SessionState.HasPermission(AdminPermissions.ModerationView);
+
+    protected override async Task OnInitializedAsync()
     {
-        new DashboardMetric
+        await LoadOverviewAsync();
+    }
+
+    private async Task LoadOverviewAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
         {
-            Title = "Total POIs",
-            Value = "128",
-            Trend = "+5.0%",
-            TrendTone = "positive",
-            Icon = "bi-geo-alt",
-            Description = "Published locations available across curated routes.",
-            AccentStart = "#0f766e",
-            AccentEnd = "#14b8a6"
-        },
-        new DashboardMetric
-        {
-            Title = "Total Audios",
-            Value = "345",
-            Trend = "+12%",
-            TrendTone = "positive",
-            Icon = "bi-headphones",
-            Description = "Fresh narrations uploaded and queued for distribution.",
-            AccentStart = "#1d4ed8",
-            AccentEnd = "#38bdf8"
-        },
-        new DashboardMetric
-        {
-            Title = "Total Users",
-            Value = "2,450",
-            Trend = "-2%",
-            TrendTone = "warning",
-            Icon = "bi-people",
-            Description = "Active admins and business owners in the platform.",
-            AccentStart = "#7c3aed",
-            AccentEnd = "#c084fc"
-        },
-        new DashboardMetric
-        {
-            Title = "Pending Items",
-            Value = "12",
-            Trend = "Action now",
-            TrendTone = "negative",
-            Icon = "bi-hourglass-split",
-            Description = "Moderation and content changes waiting for approval.",
-            AccentStart = "#dc2626",
-            AccentEnd = "#fb7185"
+            var overview = await ApiClient.GetDashboardOverviewAsync();
+            Metrics = overview.Metrics.ToList();
+            Activities = overview.Activities.ToList();
+            FocusItems = overview.FocusItems.ToList();
         }
-    };
-
-    private readonly List<ActivityLog> Activities = new()
-    {
-        new ActivityLog { UserName = "Amanda Harvey", UserInitials = "AH", Action = "Created POI", TargetName = "Hanoi Old Quarter", TimeAgo = "2 mins ago", Status = "Completed" },
-        new ActivityLog { UserName = "Anne Richard", UserInitials = "AR", Action = "Uploaded Audio", TargetName = "Pho Bat Dan Guide", TimeAgo = "15 mins ago", Status = "Processing" },
-        new ActivityLog { UserName = "David Harrison", UserInitials = "DH", Action = "Updated Profile", TargetName = "Self", TimeAgo = "1 hour ago", Status = "Completed" },
-        new ActivityLog { UserName = "Finch Hoot", UserInitials = "FH", Action = "Deleted POI", TargetName = "Cafe Giang", TimeAgo = "3 hours ago", Status = "Failed" },
-        new ActivityLog { UserName = "Bob Smith", UserInitials = "BS", Action = "Requested Review", TargetName = "Walking Tour Script", TimeAgo = "1 day ago", Status = "Pending" },
-    };
-
-    private readonly List<FocusItem> FocusItems = new()
-    {
-        new FocusItem
+        catch (Exception ex)
         {
-            Title = "Moderation Queue",
-            Description = "12 items are waiting for editorial review before they go live.",
-            Progress = 68,
-            Icon = "bi-shield-check",
-            Tone = "amber"
-        },
-        new FocusItem
-        {
-            Title = "Audio Localization",
-            Description = "Vietnamese and English voice tracks are being aligned this sprint.",
-            Progress = 84,
-            Icon = "bi-translate",
-            Tone = "teal"
-        },
-        new FocusItem
-        {
-            Title = "Partner Onboarding",
-            Description = "New tourism businesses are halfway through account verification.",
-            Progress = 52,
-            Icon = "bi-person-workspace",
-            Tone = "blue"
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Dashboard load failed");
         }
-    };
+        finally
+        {
+            _isLoading = false;
+        }
+    }
 
-    private string GetMetricStyle(DashboardMetric metric) => $"--metric-start:{metric.AccentStart}; --metric-end:{metric.AccentEnd};";
+    private async Task ExportSnapshotAsync()
+    {
+        if (!CanExport)
+        {
+            Notifications.Warning("Your role can view the dashboard but cannot export it.", "Export blocked");
+            return;
+        }
+
+        _isExporting = true;
+        try
+        {
+            var snapshot = await ApiClient.GetDashboardSnapshotAsync();
+            var payload = JsonSerializer.Serialize(snapshot, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            {
+                WriteIndented = true
+            });
+
+            var fileName = $"smart-tourism-snapshot-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+            await JS.InvokeVoidAsync("smartTourAdmin.download.text", fileName, payload, "application/json");
+            Notifications.Success("The dashboard snapshot was exported as JSON.", "Export ready");
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Export failed");
+        }
+        finally
+        {
+            _isExporting = false;
+        }
+    }
+
+    private void ShowUserAccessNotice()
+    {
+        Notifications.Info("Your current role can open the dashboard but cannot access the user management screen.", "Limited access");
+    }
+
+    private string GetMetricStyle(DashboardMetricDto metric) => $"--metric-start:{metric.AccentStart}; --metric-end:{metric.AccentEnd};";
 
     private string GetTrendClass(string tone) => tone switch
     {
@@ -259,34 +349,4 @@
         _ => "focus-card"
     };
 
-    public class DashboardMetric
-    {
-        public string Title { get; set; } = "";
-        public string Value { get; set; } = "";
-        public string Trend { get; set; } = "";
-        public string TrendTone { get; set; } = "";
-        public string Icon { get; set; } = "";
-        public string Description { get; set; } = "";
-        public string AccentStart { get; set; } = "";
-        public string AccentEnd { get; set; } = "";
-    }
-
-    public class ActivityLog
-    {
-        public string UserName { get; set; } = "";
-        public string UserInitials { get; set; } = "";
-        public string Action { get; set; } = "";
-        public string TargetName { get; set; } = "";
-        public string TimeAgo { get; set; } = "";
-        public string Status { get; set; } = "";
-    }
-
-    public class FocusItem
-    {
-        public string Title { get; set; } = "";
-        public string Description { get; set; } = "";
-        public int Progress { get; set; }
-        public string Icon { get; set; } = "";
-        public string Tone { get; set; } = "";
-    }
 }

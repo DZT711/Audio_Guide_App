@@ -3,32 +3,150 @@ using Project_SharedClassLibrary.Validation;
 
 namespace Project_SharedClassLibrary.Contracts;
 
-public record CategoryUpsertRequest(
-    [Required][StringLength(100)] string Name,
-    [StringLength(255)] string Description,
-    [Required][Range(0, 1)] int Status);
+public sealed class CategoryUpsertRequest
+{
+    [Required]
+    [StringLength(100)]
+    public string Name { get; set; } = "";
 
-public record LocationUpsertRequest(
-    [Required][StringLength(100)] string Name,
-    [StringLength(500)] string Address,
-    [Required][Range(0, int.MaxValue)] int CategoryId,
-    [YearRange] int EstablishedYear,
-    [StringLength(255)] string Description,
-    [Required][Range(-90, 90)] double Latitude,
-    [Required][Range(-180, 180)] double Longitude,
-    [StringLength(100)] string OwnerName,
-    [StringLength(255)] string WebURL,
-    [StringLength(20)] string Phone,
-    [EmailAddress] string Email,
-    [Required][Range(0, 1)] int Status);
+    [StringLength(2000)]
+    public string? Description { get; set; }
 
-public record AudioUpsertRequest(
-    [Required][StringLength(100)] string Title,
-    [Required][StringLength(100)] string LocationName,
-    [StringLength(255)] string? Description,
-    [StringLength(255)] string? AudioURL,
-    [StringLength(50)] string? Language,
-    [StringLength(50)] string? VoiceGender,
-    [StringLength(4000)] string? Script,
-    [Range(0, int.MaxValue)] int Duration,
-    [Required][Range(0, 1)] int Status);
+    [Range(0, 1)]
+    public int Status { get; set; } = 1;
+}
+
+public sealed class LanguageUpsertRequest
+{
+    [Required]
+    [StringLength(20)]
+    public string Code { get; set; } = "vi-VN";
+
+    [Required]
+    [StringLength(100)]
+    public string Name { get; set; } = "";
+
+    [StringLength(100)]
+    public string? NativeName { get; set; }
+
+    public bool PreferNativeVoice { get; set; } = true;
+
+    public bool IsDefault { get; set; }
+
+    [Range(0, 1)]
+    public int Status { get; set; } = 1;
+}
+
+public sealed class LocationUpsertRequest
+{
+    [Required]
+    [StringLength(200)]
+    public string Name { get; set; } = "";
+
+    [StringLength(5000)]
+    public string? Description { get; set; }
+
+    [Range(1, int.MaxValue)]
+    public int CategoryId { get; set; }
+
+    [Range(0, int.MaxValue)]
+    public int? OwnerId { get; set; }
+
+    [Required]
+    [Range(-90, 90)]
+    public double Latitude { get; set; }
+
+    [Required]
+    [Range(-180, 180)]
+    public double Longitude { get; set; }
+
+    [Range(1, 5000)]
+    public double Radius { get; set; } = 30;
+
+    [Range(1, 5000)]
+    public double StandbyRadius { get; set; } = 12;
+
+    [Range(0, int.MaxValue)]
+    public int Priority { get; set; }
+
+    [Range(0, 86400)]
+    public int DebounceSeconds { get; set; } = 300;
+
+    public bool IsGpsTriggerEnabled { get; set; } = true;
+
+    [StringLength(1000)]
+    public string? Address { get; set; }
+
+    [StringLength(500)]
+    public string? WebURL { get; set; }
+
+    [EmailAddress]
+    public string? Email { get; set; }
+
+    [StringLength(30)]
+    public string? Phone { get; set; }
+
+    public List<string> RetainedImageUrls { get; set; } = [];
+
+    [YearRange]
+    public int EstablishedYear { get; set; } = DateTime.UtcNow.Year;
+
+    [Range(0, 1)]
+    public int Status { get; set; } = 1;
+}
+
+public sealed class AudioUpsertRequest
+{
+    [Required]
+    [Range(1, int.MaxValue)]
+    public int LocationId { get; set; }
+
+    [Required]
+    [StringLength(20)]
+    public string Language { get; set; } = "vi-VN";
+
+    [Required]
+    [StringLength(200)]
+    public string Title { get; set; } = "";
+
+    [StringLength(2000)]
+    public string? Description { get; set; }
+
+    [Required]
+    [StringLength(20)]
+    public string SourceType { get; set; } = "TTS";
+
+    [StringLength(8000)]
+    public string? Script { get; set; }
+
+    [StringLength(500)]
+    public string? AudioURL { get; set; }
+
+    [Range(0, int.MaxValue)]
+    public int? FileSizeBytes { get; set; }
+
+    [Range(0, int.MaxValue)]
+    public int Duration { get; set; }
+
+    [StringLength(100)]
+    public string? VoiceName { get; set; }
+
+    [StringLength(20)]
+    public string? VoiceGender { get; set; }
+
+    [Range(0, int.MaxValue)]
+    public int Priority { get; set; }
+
+    [Required]
+    [StringLength(32)]
+    public string PlaybackMode { get; set; } = "Auto";
+
+    [Required]
+    [StringLength(32)]
+    public string InterruptPolicy { get; set; } = "NotificationFirst";
+
+    public bool IsDownloadable { get; set; } = true;
+
+    [Range(0, 1)]
+    public int Status { get; set; } = 1;
+}

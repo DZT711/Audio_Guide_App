@@ -15,49 +15,187 @@
         remove: (key) => window.localStorage.removeItem(key)
     };
 
-    const getLanguagePrefix = (language) => {
-        const value = (language ?? "").trim().toLowerCase();
-        return value.split("-")[0];
+    admin.download = {
+        text: (fileName, content, contentType) => {
+            const blob = new Blob([content ?? ""], {
+                type: contentType || "text/plain;charset=utf-8"
+            });
+
+            const objectUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = objectUrl;
+            anchor.download = fileName || "download.txt";
+            anchor.click();
+            URL.revokeObjectURL(objectUrl);
+        }
     };
+
+    admin.mail = {
+        composeInvite: async (email, subject, body) => {
+            const normalizedEmail = (email ?? "").trim();
+            if (!normalizedEmail) {
+                return false;
+            }
+
+            const subjectValue = (subject ?? "").trim();
+            const bodyValue = (body ?? "").trim();
+
+            try {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(bodyValue);
+                }
+            } catch {
+            }
+
+            const mailtoUrl = `mailto:${encodeURIComponent(normalizedEmail)}?subject=${encodeURIComponent(subjectValue)}&body=${encodeURIComponent(bodyValue)}`;
+            window.location.href = mailtoUrl;
+            return true;
+        }
+    };
+
+    const normalizeLanguageCode = (language) => {
+        const normalized = (language ?? "").trim().replace(/_/g, "-").toLowerCase();
+        if (!normalized) {
+            return "";
+        }
+
+        const parts = normalized.split("-").filter(Boolean);
+        if (!parts.length) {
+            return "";
+        }
+
+        const prefix = parts[0] === "vn" ? "vi" : parts[0];
+        if (parts.length === 1) {
+            return prefix;
+        }
+
+        const region = prefix === "vi" && parts[1] === "vi" ? "vn" : parts[1];
+        return [prefix, region, ...parts.slice(2)].join("-");
+    };
+
+    const getLanguagePrefix = (language) => normalizeLanguageCode(language).split("-")[0];
 
     const getVoiceKeywords = (voiceGender) => {
         if ((voiceGender ?? "").toLowerCase() === "male") {
-            return ["male", "david", "guy", "man", "nam"];
+            return ["male", "david", "mark", "james", "guy", "andrew", "christopher", "roger", "ryan", "daniel", "man", "nam", "hung", "namminh"];
         }
 
         if ((voiceGender ?? "").toLowerCase() === "female") {
-            return ["female", "zira", "aria", "susan", "woman", "nu"];
+            return ["female", "zira", "aria", "susan", "samantha", "victoria", "jenny", "sonia", "anna", "woman", "nu", "hoaimy"];
         }
 
         return [];
     };
 
-    const pickVoice = (language, voiceGender) => {
+    const getVoiceSignature = (voice) =>
+        `${voice?.name ?? ""} ${voice?.voiceURI ?? ""}`.trim().toLowerCase();
+
+    const loadVoicesAsync = async () => {
         if (!("speechSynthesis" in window)) {
-            return null;
+            return [];
         }
 
-        const voices = window.speechSynthesis.getVoices();
+        const existingVoices = window.speechSynthesis.getVoices();
+        if (existingVoices.length) {
+            return existingVoices;
+        }
+
+        return await new Promise((resolve) => {
+            let settled = false;
+            let timeoutId = 0;
+
+            const complete = () => {
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+                window.speechSynthesis.removeEventListener("voiceschanged", handleVoicesChanged);
+                window.clearTimeout(timeoutId);
+                resolve(window.speechSynthesis.getVoices());
+            };
+
+            const handleVoicesChanged = () => complete();
+
+            timeoutId = window.setTimeout(complete, 750);
+            window.speechSynthesis.addEventListener("voiceschanged", handleVoicesChanged, { once: true });
+            window.speechSynthesis.getVoices();
+        });
+    };
+
+    const matchesVoiceGender = (voiceSignature, voiceGender) => {
+        const keywords = getVoiceKeywords(voiceGender);
+        return !keywords.length || keywords.some((keyword) => voiceSignature.includes(keyword));
+    };
+
+    const scoreVoice = (voice, language, voiceGender, preferNativeVoice) => {
+        const requestedLanguage = normalizeLanguageCode(language);
+        const requestedPrefix = getLanguagePrefix(requestedLanguage);
+        const voiceLanguage = normalizeLanguageCode(voice?.lang);
+        const voicePrefix = getLanguagePrefix(voiceLanguage);
+        const voiceSignature = getVoiceSignature(voice);
+        let score = 0;
+
+        if (requestedLanguage && voiceLanguage === requestedLanguage) {
+            score += preferNativeVoice ? 80 : 45;
+        } else if (requestedPrefix && voicePrefix === requestedPrefix) {
+            score += preferNativeVoice ? 58 : 30;
+        } else {
+            score -= 100;
+        }
+
+        if (matchesVoiceGender(voiceSignature, voiceGender)) {
+            score += 28;
+        }
+
+        if (voice?.default) {
+            score += 10;
+        }
+
+        if (voice?.localService) {
+            score += preferNativeVoice ? 16 : 6;
+        }
+
+        return score;
+    };
+
+    const pickVoice = async (language, voiceGender, preferNativeVoice) => {
+        const voices = await loadVoicesAsync();
         if (!voices.length) {
             return null;
         }
 
-        const languagePrefix = getLanguagePrefix(language);
-        const matchingVoices = languagePrefix
-            ? voices.filter((voice) => (voice.lang ?? "").toLowerCase().startsWith(languagePrefix))
-            : voices;
+        const requestedPrefix = getLanguagePrefix(language);
+        const localizedVoices = voices.filter((voice) => getLanguagePrefix(voice?.lang) === requestedPrefix);
+        if (!localizedVoices.length) {
+            return null;
+        }
 
-        const keywords = getVoiceKeywords(voiceGender);
-        const genderMatch = matchingVoices.find((voice) => {
-            const voiceName = (voice.name ?? "").toLowerCase();
-            return keywords.some((keyword) => voiceName.includes(keyword));
+        const genderKeywords = getVoiceKeywords(voiceGender);
+        const matchingGenderVoices = !genderKeywords.length
+            ? localizedVoices
+            : localizedVoices.filter((voice) => matchesVoiceGender(getVoiceSignature(voice), voiceGender));
+
+        if (!matchingGenderVoices.length) {
+            return null;
+        }
+
+        const rankedVoices = [...matchingGenderVoices].sort((left, right) => {
+            const scoreDelta = scoreVoice(right, language, voiceGender, preferNativeVoice)
+                - scoreVoice(left, language, voiceGender, preferNativeVoice);
+
+            if (scoreDelta !== 0) {
+                return scoreDelta;
+            }
+
+            return getVoiceSignature(left).localeCompare(getVoiceSignature(right));
         });
 
-        return genderMatch ?? matchingVoices[0] ?? voices[0];
+        return rankedVoices[0] ?? null;
     };
 
     admin.tts = {
-        preview: (text, language, voiceGender) => {
+        preview: async (text, language, voiceGender, preferNativeVoice) => {
             const script = (text ?? "").trim();
 
             if (!script || !("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") {
@@ -69,11 +207,13 @@
             const utterance = new SpeechSynthesisUtterance(script);
             utterance.lang = (language ?? "").trim() || navigator.language || "en-US";
 
-            const preferredVoice = pickVoice(utterance.lang, voiceGender);
-            if (preferredVoice) {
-                utterance.voice = preferredVoice;
+            const preferredVoice = await pickVoice(utterance.lang, voiceGender, !!preferNativeVoice);
+            if (!preferredVoice) {
+                return false;
             }
 
+            utterance.voice = preferredVoice;
+            utterance.lang = preferredVoice.lang || utterance.lang;
             window.speechSynthesis.speak(utterance);
             return true;
         },
@@ -101,8 +241,21 @@
             if (url) {
                 URL.revokeObjectURL(url);
             }
+        },
+        pauseElement: (element) => {
+            if (!element || typeof element.pause !== "function") {
+                return;
+            }
+
+            element.pause();
+
+            if (typeof element.currentTime === "number") {
+                element.currentTime = 0;
+            }
         }
     };
+
+    admin.filePreview = admin.audioPreview;
 
     const roundCoordinate = (value) => {
         const numericValue = Number(value);

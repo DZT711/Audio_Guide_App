@@ -2,9 +2,21 @@
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
+@inject AdminSessionState SessionState
 
 <PageTitle>Category Management</PageTitle>
 
+@if (!CanView)
+{
+    <div class="management-page category-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view categories.</div>
+        </div>
+    </div>
+}
+else
+{
 <div class="management-page category-page">
     <section class="management-hero" data-reveal>
         <div>
@@ -110,8 +122,8 @@
                             </div>
 
                             <div class="management-inline-actions">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">Edit</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(category.Status == 0)" @onclick="() => DeleteCategoryAsync(category)">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">@(CanManage ? "Edit" : "View")</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || category.Status == 0)" @onclick="() => PromptArchiveCategory(category)">
                                     @(category.Status == 0 ? "Inactive" : "Archive")
                                 </button>
                             </div>
@@ -124,11 +136,13 @@
         <section class="management-panel category-editor" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">Editor</span>
-                    <h2>@(_editingId is null ? "Create Category" : "Edit Category")</h2>
+                    <span class="management-panel__eyebrow">@(CanManage ? "Editor" : "Read Only")</span>
+                    <h2>@(CanManage ? (_editingId is null ? "Create Category" : "Edit Category") : "Category Details")</h2>
                 </div>
             </div>
 
+            @if (CanManage)
+            {
             <EditForm Model="_formModel" OnValidSubmit="SaveCategoryAsync" class="management-form">
                 <DataAnnotationsValidator />
 
@@ -153,24 +167,67 @@
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !CanManage)">
                         @(_isSaving ? "Saving..." : _editingId is null ? "Create Category" : "Save Changes")
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(CanManage ? (_editingId is null ? "Reset" : "Cancel Edit") : "Read Only")</button>
                 </div>
             </EditForm>
+            }
+            else if (SelectedCategoryForDisplay is null)
+            {
+                <div class="app-empty-state">
+                    Select a category to review its details.
+                </div>
+            }
+            else
+            {
+                var selectedCategory = SelectedCategoryForDisplay!;
+
+                <div class="category-readonly">
+                    <div class="category-readonly__notice">
+                        Category changes require an Admin or Developer account.
+                    </div>
+
+                    <div class="category-detail-card">
+                        <span>Name</span>
+                        <strong>@selectedCategory.Name</strong>
+                        <small>@GetStatusLabel(selectedCategory.Status)</small>
+                    </div>
+
+                    <div class="category-detail-card">
+                        <span>Description</span>
+                        <strong>@(string.IsNullOrWhiteSpace(selectedCategory.Description) ? "No description provided yet." : selectedCategory.Description)</strong>
+                    </div>
+                </div>
+            }
         </section>
     </div>
 </div>
 
+<AdminConfirmDialog Visible="@(_pendingArchivedCategory is not null)"
+                    Eyebrow="Archive Category"
+                    Title="Archive this category?"
+                    Message="@GetPendingArchiveCategoryMessage()"
+                    ConfirmLabel="Archive Category"
+                    ConfirmButtonClass="btn btn-danger"
+                    OnConfirm="ConfirmArchiveCategoryAsync"
+                    OnCancel="CancelArchiveCategory" />
+}
+
 @code {
     private readonly CategoryFormModel _formModel = new();
     private readonly List<CategoryDto> _categories = new();
+    private CategoryDto? _selectedCategory;
+    private CategoryDto? _pendingArchivedCategory;
     private bool _isLoading = true;
     private bool _isSaving;
     private int? _editingId;
     private string _searchText = "";
     private string? _loadError;
+    private bool CanView => SessionState.HasPermission(AdminPermissions.CategoryRead);
+    private bool CanManage => SessionState.HasPermission(AdminPermissions.CategoryManage);
+    private CategoryDto? SelectedCategoryForDisplay => ResolveSelectedCategory();
 
     private IEnumerable<CategoryDto> FilteredCategories =>
         _categories.Where(category =>
@@ -197,6 +254,8 @@
             _categories.AddRange(categories
                 .OrderByDescending(item => item.Status)
                 .ThenBy(item => item.Name));
+
+            SyncSelectedCategory();
         }
         catch (Exception ex)
         {
@@ -217,7 +276,15 @@
 
     private void StartEdit(CategoryDto category)
     {
+        _selectedCategory = category;
         _editingId = category.Id;
+
+        if (!CanManage)
+        {
+            _editingId = null;
+            return;
+        }
+
         var snapshot = CategoryFormModel.FromDto(category);
         _formModel.Name = snapshot.Name;
         _formModel.Description = snapshot.Description;
@@ -226,6 +293,12 @@
 
     private async Task SaveCategoryAsync()
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view categories but cannot save changes.", "Read-only access");
+            return;
+        }
+
         _isSaving = true;
 
         try
@@ -254,21 +327,31 @@
         }
     }
 
-    private async Task DeleteCategoryAsync(CategoryDto category)
+    private void PromptArchiveCategory(CategoryDto category)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive category '{category.Name}' and mark it inactive?");
-        if (!confirmed)
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view categories but cannot archive them.", "Read-only access");
+            return;
+        }
+
+        _pendingArchivedCategory = category;
+    }
+
+    private async Task ConfirmArchiveCategoryAsync()
+    {
+        if (!CanManage || _pendingArchivedCategory is null)
         {
             return;
         }
 
         try
         {
-            await ApiClient.DeleteCategoryAsync(category.Id);
-            Notifications.Info($"'{category.Name}' is now inactive.", "Category archived");
+            await ApiClient.DeleteCategoryAsync(_pendingArchivedCategory.Id);
+            Notifications.Info($"'{_pendingArchivedCategory.Name}' is now inactive.", "Category archived");
             await LoadCategoriesAsync();
 
-            if (_editingId == category.Id)
+            if (_editingId == _pendingArchivedCategory.Id)
             {
                 StartCreate();
             }
@@ -276,6 +359,10 @@
         catch (Exception ex)
         {
             Notifications.Error(ex.Message, "Delete failed");
+        }
+        finally
+        {
+            CancelArchiveCategory();
         }
     }
 
@@ -294,6 +381,29 @@
 
     private void SetStatus(int status) => _formModel.Status = status;
 
+    private CategoryDto? ResolveSelectedCategory()
+    {
+        if (_selectedCategory is not null)
+        {
+            return _categories.FirstOrDefault(item => item.Id == _selectedCategory.Id) ?? _selectedCategory;
+        }
+
+        return FilteredCategories.FirstOrDefault() ?? _categories.FirstOrDefault();
+    }
+
+    private void SyncSelectedCategory()
+    {
+        if (_selectedCategory is not null)
+        {
+            _selectedCategory = _categories.FirstOrDefault(item => item.Id == _selectedCategory.Id);
+        }
+
+        if (!CanManage && _selectedCategory is null)
+        {
+            _selectedCategory = _categories.FirstOrDefault();
+        }
+    }
+
     private static string GetStatusClass(int status) => status == 1
         ? "management-status management-status--active"
         : "management-status management-status--inactive";
@@ -307,4 +417,11 @@
     private static string GetCategoryCardClass(int status) => status == 1
         ? "category-card"
         : "category-card category-card--inactive";
+
+    private string GetPendingArchiveCategoryMessage() =>
+        _pendingArchivedCategory is null
+            ? string.Empty
+            : $"'{_pendingArchivedCategory.Name}' will become inactive and will no longer be available for new or edited location assignments.";
+
+    private void CancelArchiveCategory() => _pendingArchivedCategory = null;
 }

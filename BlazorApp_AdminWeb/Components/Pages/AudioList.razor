@@ -3,9 +3,21 @@
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
+@inject AdminSessionState SessionState
 
 <PageTitle>Audio & Voice Management</PageTitle>
 
+@if (!CanView)
+{
+    <div class="management-page audio-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view audio items.</div>
+        </div>
+    </div>
+}
+else
+{
 <div class="management-page audio-page">
     <section class="management-hero" data-reveal>
         <div>
@@ -18,7 +30,7 @@
         </div>
 
         <div class="management-hero__actions">
-            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
                 <i class="bi bi-arrow-clockwise me-2"></i>
                 Refresh
             </button>
@@ -127,7 +139,7 @@
 
                             <div class="audio-card__meta">
                                 <span class="audio-card__tag">@GetAudioKind(audio)</span>
-                                <span class="audio-card__tag">@($"{audio.Language} / {GetVoiceLabel(audio.VoiceGender)}")</span>
+                                <span class="audio-card__tag">@($"{GetAudioLanguageLabel(audio)} / {GetVoiceLabel(audio.VoiceGender)}")</span>
                                 <span class="audio-card__tag">@($"{audio.Duration} sec")</span>
                             </div>
 
@@ -136,8 +148,8 @@
                             <div class="audio-card__footer">
                                 <small class="management-muted">@GetAudioStorageLabel(audio.AudioURL)</small>
                                 <div class="management-inline-actions">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">Edit</button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(audio.Status == 0)" @onclick="() => DeleteAudioAsync(audio)">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">@(CanManage ? "Edit" : "View")</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || audio.Status == 0)" @onclick="() => PromptArchiveAudio(audio)">
                                         @(audio.Status == 0 ? "Inactive" : "Archive")
                                     </button>
                                 </div>
@@ -151,11 +163,13 @@
         <section class="management-panel audio-editor" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">Editor</span>
-                    <h2>@(_editingId is null ? "Create Audio" : "Edit Audio")</h2>
+                    <span class="management-panel__eyebrow">@(CanManage ? "Editor" : "Read Only")</span>
+                    <h2>@(CanManage ? (_editingId is null ? "Create Audio" : "Edit Audio") : "Audio Details")</h2>
                 </div>
             </div>
 
+            @if (CanManage)
+            {
             <EditForm Model="_formModel" OnValidSubmit="SaveAudioAsync" class="management-form">
                 <DataAnnotationsValidator />
 
@@ -168,14 +182,25 @@
 
                     <div class="management-field">
                         <label for="audio-location">Location</label>
-                        <InputSelect id="audio-location" class="form-select" @bind-Value="_formModel.LocationName">
-                            <option value="">Choose location</option>
-                            @foreach (var location in _locations)
+                        <InputSelect id="audio-location" class="form-select" @bind-Value="_formModel.LocationId">
+                            <option value="0">Choose location</option>
+                            @foreach (var location in ActiveLocationOptions)
                             {
-                                <option value="@location.Name">@location.Name</option>
+                                <option value="@location.Id">@location.Name</option>
                             }
                         </InputSelect>
-                        <ValidationMessage For="() => _formModel.LocationName" />
+                        <ValidationMessage For="() => _formModel.LocationId" />
+                        <span class="management-field__hint">@GetLocationSelectionHint()</span>
+                    </div>
+
+                    <div class="management-field">
+                        <label for="audio-source-type">Source Type</label>
+                        <InputSelect id="audio-source-type" class="form-select" @bind-Value="_formModel.SourceType">
+                            <option value="TTS">TTS</option>
+                            <option value="Recorded">Recorded</option>
+                            <option value="Hybrid">Hybrid</option>
+                        </InputSelect>
+                        <ValidationMessage For="() => _formModel.SourceType" />
                     </div>
 
                     <div class="management-field management-field--full">
@@ -220,16 +245,41 @@
                         }
                     </div>
 
-                    <div class="management-field">
+                    <div class="management-field audio-field audio-field--language">
                         <label for="audio-language">Language</label>
-                        <InputText id="audio-language" class="form-control" @bind-Value="_formModel.Language" />
+                        <InputSelect id="audio-language" class="form-select" @bind-Value="_formModel.Language" disabled="@(!HasLanguageCatalog)">
+                            @if (!HasLanguageCatalog)
+                            {
+                                <option value="">No language available</option>
+                            }
+                            else
+                            {
+                                @foreach (var language in LanguageOptions)
+                                {
+                                    <option value="@language.Code">@GetLanguageOptionLabel(language)</option>
+                                }
+                            }
+                        </InputSelect>
                         <ValidationMessage For="() => _formModel.Language" />
+                        <span class="management-field__hint">@GetSelectedLanguageHint()</span>
                     </div>
 
-                    <div class="management-field">
+                    <div class="management-field audio-field audio-field--duration">
                         <label for="audio-duration">Duration (sec)</label>
                         <InputNumber id="audio-duration" class="form-control" @bind-Value="_formModel.Duration" />
                         <ValidationMessage For="() => _formModel.Duration" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="audio-voice-name">Voice Name</label>
+                        <InputText id="audio-voice-name" class="form-control" @bind-Value="_formModel.VoiceName" />
+                        <ValidationMessage For="() => _formModel.VoiceName" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="audio-priority">Priority</label>
+                        <InputNumber id="audio-priority" class="form-control" @bind-Value="_formModel.Priority" />
+                        <ValidationMessage For="() => _formModel.Priority" />
                     </div>
 
                     <div class="management-field management-field--full">
@@ -258,7 +308,8 @@
                         <div class="audio-preview">
                             <div>
                                 <span class="management-field__label">Voice Preview</span>
-                                <div class="management-field__hint">The preview uses your browser's built-in speech engine, so the exact voice can vary by device.</div>
+                                @* <div class="management-field__hint">The preview is generated from the API using the selected TTS language.</div> *@
+                                <div class="management-field__hint">@GetCurrentPreviewModeHint()</div>
                             </div>
 
                             <div class="audio-preview__actions">
@@ -272,6 +323,54 @@
                                 </button>
                             </div>
                         </div>
+
+                        @if (_isGeneratingTtsPreview)
+                        {
+                            <div class="management-muted mt-3">Generating TTS preview...</div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_ttsPreviewUrl))
+                        {
+                            <div class="audio-file-preview mt-3">
+                                <div>
+                                    <span class="management-field__label">Generated TTS Preview</span>
+                                    <div class="management-field__hint">This preview uses the current script and language selection.</div>
+                                </div>
+                                <audio @key="_ttsPreviewUrl" @ref="_ttsPreviewElement" class="audio-file-preview__player" controls autoplay preload="auto" src="@_ttsPreviewUrl"></audio>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(_ttsPreviewWarning))
+                        {
+                            <span class="management-field__hint audio-file-preview__warning">@_ttsPreviewWarning</span>
+                        }
+                    </div>
+
+                    <div class="management-field">
+                        <label for="audio-playback-mode">Playback Mode</label>
+                        <InputSelect id="audio-playback-mode" class="form-select" @bind-Value="_formModel.PlaybackMode">
+                            <option value="Auto">Auto</option>
+                            <option value="Manual">Manual</option>
+                            <option value="QrOnly">QR Only</option>
+                        </InputSelect>
+                        <ValidationMessage For="() => _formModel.PlaybackMode" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="audio-interrupt-policy">Interrupt Policy</label>
+                        <InputSelect id="audio-interrupt-policy" class="form-select" @bind-Value="_formModel.InterruptPolicy">
+                            <option value="NotificationFirst">Notification First</option>
+                            <option value="NarrationFirst">Narration First</option>
+                            <option value="Queue">Queue</option>
+                        </InputSelect>
+                        <ValidationMessage For="() => _formModel.InterruptPolicy" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <span class="management-field__label">Download</span>
+                        <div class="management-chip-group">
+                            <button type="button" class="@GetBoolChipClass(true, _formModel.IsDownloadable)" @onclick="() => SetDownloadable(true)">Downloadable</button>
+                            <button type="button" class="@GetBoolChipClass(false, _formModel.IsDownloadable)" @onclick="() => SetDownloadable(false)">Online Only</button>
+                        </div>
                     </div>
 
                     <div class="management-field management-field--full">
@@ -284,15 +383,147 @@
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _locations.Count == 0)">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveLocations || !HasLanguageCatalog || !CanManage)">
                         @(_isSaving ? "Saving..." : _editingId is null ? "Create Audio" : "Save Changes")
                     </button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
                 </div>
             </EditForm>
+            }
+            else if (SelectedAudioForDisplay is null)
+            {
+                <div class="app-empty-state">
+                    Select an audio item to review its details.
+                </div>
+            }
+            else
+            {
+                var selectedAudio = SelectedAudioForDisplay!;
+
+                <div class="audio-readonly">
+                    <div class="audio-readonly__notice">
+                        Changes to your own audio items require an Admin or Developer account.
+                    </div>
+
+                    <div class="audio-file-preview">
+                        <div>
+                            <span class="management-field__label">Audio File Preview</span>
+                            <div class="management-field__hint">@GetAudioPreviewHint()</div>
+                        </div>
+
+                        @if (_isCheckingAudioPreview)
+                        {
+                            <div class="management-muted">Checking the audio file before previewing it.</div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_audioPreviewUrl))
+                        {
+                            <audio @key="_audioPreviewUrl" class="audio-file-preview__player" controls preload="metadata" src="@_audioPreviewUrl"></audio>
+                        }
+                        else
+                        {
+                            <div class="management-muted">This item does not currently expose a stored audio file preview.</div>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_audioPreviewWarning))
+                    {
+                        <span class="management-field__hint audio-file-preview__warning">@_audioPreviewWarning</span>
+                    }
+
+                    <div class="audio-preview mt-3">
+                        <div>
+                            <span class="management-field__label">Voice Preview</span>
+                            <div class="management-field__hint">The preview is generated from the API using the selected TTS language.</div>
+                            <div class="management-field__hint">@GetCurrentPreviewModeHint()</div>
+                        </div>
+
+                        <div class="audio-preview__actions">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@string.IsNullOrWhiteSpace(_formModel.Script)" @onclick="TryTtsPreviewAsync">
+                                <i class="bi bi-play-circle me-1"></i>
+                                Try Test
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="StopTtsPreviewAsync">
+                                <i class="bi bi-stop-circle me-1"></i>
+                                Stop
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (_isGeneratingTtsPreview)
+                    {
+                        <div class="management-muted mt-3">Generating TTS preview...</div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_ttsPreviewUrl))
+                    {
+                        <div class="audio-file-preview mt-3">
+                            <div>
+                                <span class="management-field__label">Generated TTS Preview</span>
+                                <div class="management-field__hint">This preview uses the current script and language selection.</div>
+                            </div>
+                            <audio @key="_ttsPreviewUrl" @ref="_ttsPreviewElement" class="audio-file-preview__player" controls autoplay preload="auto" src="@_ttsPreviewUrl"></audio>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(_ttsPreviewWarning))
+                    {
+                        <span class="management-field__hint audio-file-preview__warning">@_ttsPreviewWarning</span>
+                    }
+
+                    <div class="audio-detail-grid">
+                        <article class="audio-detail-card">
+                            <span>Title</span>
+                            <strong>@selectedAudio.Title</strong>
+                            <small>@selectedAudio.LocationName</small>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Status</span>
+                            <strong>@GetStatusLabel(selectedAudio.Status)</strong>
+                            <small>@selectedAudio.SourceType</small>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Voice</span>
+                            <strong>@GetVoiceLabel(selectedAudio.VoiceGender)</strong>
+                            <small>@GetAudioLanguageDetail(selectedAudio)</small>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Duration</span>
+                            <strong>@($"{selectedAudio.Duration} sec")</strong>
+                            <small>@selectedAudio.PlaybackMode</small>
+                        </article>
+                        <article class="audio-detail-card audio-detail-card--wide">
+                            <span>Description</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedAudio.Description) ? "No description provided." : selectedAudio.Description)</strong>
+                        </article>
+                        <article class="audio-detail-card audio-detail-card--wide">
+                            <span>Script</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedAudio.Script) ? "No script provided." : selectedAudio.Script)</strong>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Priority</span>
+                            <strong>@selectedAudio.Priority</strong>
+                            <small>@selectedAudio.InterruptPolicy</small>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Download</span>
+                            <strong>@(selectedAudio.IsDownloadable ? "Downloadable" : "Online only")</strong>
+                            <small>@GetAudioStorageLabel(selectedAudio.AudioURL)</small>
+                        </article>
+                    </div>
+                </div>
+            }
         </section>
     </div>
 </div>
+
+<AdminConfirmDialog Visible="@(_pendingArchivedAudio is not null)"
+                    Eyebrow="Archive Audio"
+                    Title="Archive this audio item?"
+                    Message="@GetPendingArchiveAudioMessage()"
+                    ConfirmLabel="Archive Audio"
+                    ConfirmButtonClass="btn btn-danger"
+                    OnConfirm="ConfirmArchiveAudioAsync"
+                    OnCancel="CancelArchiveAudio" />
+}
 
 @code {
     private const string MaleVoice = "Male";
@@ -300,7 +531,10 @@
     private const long MaxAudioPreviewBytes = 25L * 1024 * 1024;
     private readonly AudioFormModel _formModel = new();
     private readonly List<AudioDto> _audioItems = new();
+    private readonly List<LanguageDto> _languages = new();
     private readonly List<LocationDto> _locations = new();
+    private AudioDto? _selectedAudio;
+    private AudioDto? _pendingArchivedAudio;
     private bool _isLoading = true;
     private bool _isSaving;
     private int? _editingId;
@@ -311,14 +545,37 @@
     private string? _audioPreviewWarning;
     private bool _audioPreviewIsObjectUrl;
     private bool _isCheckingAudioPreview;
+    private string? _ttsPreviewUrl;
+    private string? _ttsPreviewWarning;
+    private bool _ttsPreviewIsObjectUrl;
+    private bool _isGeneratingTtsPreview;
+    private ElementReference _ttsPreviewElement;
     private string? _loadError;
+    private bool CanView => SessionState.HasPermission(AdminPermissions.AudioRead);
+    private bool CanManage => SessionState.HasPermission(AdminPermissions.AudioManage);
+    private bool CanLoadLanguages => SessionState.HasPermission(AdminPermissions.LanguageRead);
+    private IEnumerable<LocationDto> ActiveLocationOptions => _locations
+        .Where(item => item.Status == 1)
+        .OrderBy(item => item.Name);
+    private bool HasActiveLocations => ActiveLocationOptions.Any();
+    private bool HasLanguageCatalog => LanguageOptions.Any();
+    private AudioDto? SelectedAudioForDisplay => ResolveSelectedAudio();
+    private LanguageDto? SelectedLanguage =>
+        _languages.FirstOrDefault(item => string.Equals(item.Code, _formModel.Language, StringComparison.OrdinalIgnoreCase));
+    private IEnumerable<LanguageDto> LanguageOptions =>
+        _languages
+            .Where(item => item.Status == 1)
+            .OrderByDescending(item => item.IsDefault)
+            .ThenBy(item => item.Name);
 
     private IEnumerable<AudioDto> FilteredAudio =>
         _audioItems.Where(audio =>
                 string.IsNullOrWhiteSpace(_searchText)
                 || audio.Title.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
                 || audio.LocationName.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
-                || audio.Language.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+                || audio.Language.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+                || (audio.LanguageName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (audio.NativeLanguageName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
             .Where(audio =>
                 string.IsNullOrWhiteSpace(_voiceFilter)
                 || IsVoice(audio, _voiceFilter))
@@ -343,8 +600,11 @@
         {
             var audioTask = ApiClient.GetAudioAsync();
             var locationsTask = ApiClient.GetLocationsAsync();
+            var languagesTask = CanLoadLanguages
+                ? ApiClient.GetLanguagesAsync()
+                : Task.FromResult<IReadOnlyList<LanguageDto>>([]);
 
-            await Task.WhenAll(audioTask, locationsTask);
+            await Task.WhenAll(audioTask, locationsTask, languagesTask);
 
             _audioItems.Clear();
             _audioItems.AddRange((await audioTask)
@@ -355,6 +615,29 @@
             _locations.AddRange((await locationsTask)
                 .OrderByDescending(item => item.Status)
                 .ThenBy(item => item.Name));
+
+            _languages.Clear();
+            _languages.AddRange((await languagesTask)
+                .OrderByDescending(item => item.Status)
+                .ThenByDescending(item => item.IsDefault)
+                .ThenBy(item => item.Name));
+
+            EnsureFormLocationSelection();
+            EnsureFormLanguageSelection();
+
+            SyncSelectedAudio();
+
+            if (!CanManage && SelectedAudioForDisplay is not null)
+            {
+                ApplyForm(AudioFormModel.FromDto(SelectedAudioForDisplay));
+                await ClearTtsPreviewAsync();
+                await RefreshAudioPreviewAsync();
+            }
+            else if (!CanManage)
+            {
+                await ClearTtsPreviewAsync();
+                await ClearAudioPreviewAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -370,12 +653,14 @@
     private void StartCreate()
     {
         _editingId = null;
+        _selectedAudio = null;
         ResetForm();
     }
 
     private void StartEdit(AudioDto audio)
     {
-        _editingId = audio.Id;
+        _selectedAudio = audio;
+        _editingId = CanManage ? audio.Id : null;
         var snapshot = AudioFormModel.FromDto(audio);
         ApplyForm(snapshot);
     }
@@ -383,11 +668,18 @@
     private async Task StartEditAsync(AudioDto audio)
     {
         StartEdit(audio);
+        await ClearTtsPreviewAsync();
         await RefreshAudioPreviewAsync();
     }
 
     private async Task SaveAudioAsync()
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view audio but cannot save changes.", "Read-only access");
+            return;
+        }
+
         if (!await EnsureAudioFileAvailableForSaveAsync())
         {
             return;
@@ -421,21 +713,31 @@
         }
     }
 
-    private async Task DeleteAudioAsync(AudioDto audio)
+    private void PromptArchiveAudio(AudioDto audio)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive audio '{audio.Title}' and mark it inactive?");
-        if (!confirmed)
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view audio but cannot archive it.", "Read-only access");
+            return;
+        }
+
+        _pendingArchivedAudio = audio;
+    }
+
+    private async Task ConfirmArchiveAudioAsync()
+    {
+        if (!CanManage || _pendingArchivedAudio is null)
         {
             return;
         }
 
         try
         {
-            await ApiClient.DeleteAudioAsync(audio.Id);
-            Notifications.Info($"'{audio.Title}' is now inactive.", "Audio archived");
+            await ApiClient.DeleteAudioAsync(_pendingArchivedAudio.Id);
+            Notifications.Info($"'{_pendingArchivedAudio.Title}' is now inactive.", "Audio archived");
             await LoadDataAsync();
 
-            if (_editingId == audio.Id)
+            if (_editingId == _pendingArchivedAudio.Id)
             {
                 await StartCreateAsync();
             }
@@ -444,26 +746,72 @@
         {
             Notifications.Error(ex.Message, "Delete failed");
         }
+        finally
+        {
+            CancelArchiveAudio();
+        }
     }
 
     private async Task TryTtsPreviewAsync()
     {
         try
         {
-            var isSupported = await JS.InvokeAsync<bool>(
-                "smartTourAdmin.tts.preview",
-                _formModel.Script,
-                _formModel.Language,
-                _formModel.VoiceGender);
-
-            if (!isSupported)
+            if (string.IsNullOrWhiteSpace(_formModel.Script))
             {
                 Notifications.Warning("Speech preview is unavailable or the script is empty.", "Preview unavailable");
+                return;
             }
+
+            _isGeneratingTtsPreview = true;
+            _ttsPreviewWarning = null;
+
+            await ClearTtsPreviewAsync();
+
+            var previewRequest = new AudioTtsPreviewRequest
+            {
+                Text = _formModel.Script,
+                Language = _formModel.Language,
+                VoiceGender = _formModel.VoiceGender,
+                PreferNativeVoice = GetPreferNativeVoiceForPreview()
+            };
+
+            var previewResult = await ApiClient.GenerateAudioTtsPreviewAsync(previewRequest);
+
+            if (ShouldUseBrowserVoicePreview(previewResult.Provider))
+            {
+                if (await TryBrowserVoicePreviewAsync())
+                {
+                    _ttsPreviewWarning = $"Using the browser-installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} for {GetSelectedPreviewLanguageLabel()} so the preview stays aligned with the selected language.";
+                    return;
+                }
+
+                _ttsPreviewWarning = $"No installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} matched {GetSelectedPreviewLanguageLabel()} on this device. Using generated audio for the selected language instead.";
+            }
+
+            await using var previewStream = previewResult.Stream;
+            using var streamReference = new DotNetStreamReference(previewStream);
+
+            _ttsPreviewUrl = await JS.InvokeAsync<string>(
+                "smartTourAdmin.audioPreview.createObjectUrlFromStream",
+                streamReference,
+                previewResult.ContentType);
+
+            _ttsPreviewIsObjectUrl = !string.IsNullOrWhiteSpace(_ttsPreviewUrl);
         }
-        catch (JSException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or JSException or TaskCanceledException)
         {
+            if (await TryBrowserVoicePreviewAsync())
+            {
+                _ttsPreviewWarning = $"The API preview is unavailable, so the browser-installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} for {GetSelectedPreviewLanguageLabel()} is being used instead.";
+                return;
+            }
+
+            _ttsPreviewWarning = ex.Message;
             Notifications.Error(ex.Message, "Voice preview failed");
+        }
+        finally
+        {
+            _isGeneratingTtsPreview = false;
         }
     }
 
@@ -471,6 +819,7 @@
     {
         try
         {
+            await JS.InvokeVoidAsync("smartTourAdmin.audioPreview.pauseElement", _ttsPreviewElement);
             await JS.InvokeVoidAsync("smartTourAdmin.tts.stop");
         }
         catch (JSException)
@@ -482,8 +831,12 @@
     {
         ApplyForm(new AudioFormModel
         {
+            SourceType = "TTS",
             VoiceGender = "Female",
-            Language = "vi-VN",
+            PlaybackMode = "Auto",
+            InterruptPolicy = "NotificationFirst",
+            IsDownloadable = true,
+            Language = GetDefaultLanguageCode(),
             Status = 1
         });
     }
@@ -497,27 +850,37 @@
     private async Task StartCreateAsync()
     {
         StartCreate();
+        await ClearTtsPreviewAsync();
         await RefreshAudioPreviewAsync();
     }
 
     private async Task CancelEditAsync()
     {
         CancelEdit();
+        await ClearTtsPreviewAsync();
         await RefreshAudioPreviewAsync();
     }
 
     private void ApplyForm(AudioFormModel model)
     {
         _formModel.Title = model.Title;
-        _formModel.LocationName = model.LocationName;
+        _formModel.LocationId = model.LocationId;
         _formModel.Description = model.Description;
         _formModel.AudioPath = model.AudioPath;
         _formModel.AudioFile = null;
         _formModel.Language = model.Language;
+        _formModel.SourceType = model.SourceType;
+        _formModel.VoiceName = model.VoiceName;
         _formModel.VoiceGender = model.VoiceGender;
         _formModel.Script = model.Script;
         _formModel.Duration = model.Duration;
+        _formModel.Priority = model.Priority;
+        _formModel.PlaybackMode = model.PlaybackMode;
+        _formModel.InterruptPolicy = model.InterruptPolicy;
+        _formModel.IsDownloadable = model.IsDownloadable;
         _formModel.Status = model.Status;
+        EnsureFormLocationSelection();
+        EnsureFormLanguageSelection();
     }
 
     private async Task HandleAudioFileSelected(InputFileChangeEventArgs eventArgs)
@@ -532,7 +895,32 @@
 
     private void SelectFemaleVoice() => SetVoiceGender(FemaleVoice);
 
+    private void SetDownloadable(bool isDownloadable) => _formModel.IsDownloadable = isDownloadable;
+
     private void SetStatus(int status) => _formModel.Status = status;
+
+    private AudioDto? ResolveSelectedAudio()
+    {
+        if (_selectedAudio is not null)
+        {
+            return _audioItems.FirstOrDefault(item => item.Id == _selectedAudio.Id) ?? _selectedAudio;
+        }
+
+        return FilteredAudio.FirstOrDefault() ?? _audioItems.FirstOrDefault();
+    }
+
+    private void SyncSelectedAudio()
+    {
+        if (_selectedAudio is not null)
+        {
+            _selectedAudio = _audioItems.FirstOrDefault(item => item.Id == _selectedAudio.Id);
+        }
+
+        if (!CanManage && _selectedAudio is null)
+        {
+            _selectedAudio = _audioItems.FirstOrDefault();
+        }
+    }
 
     private string GetVoiceChipClass(string voiceGender) => string.Equals(_formModel.VoiceGender, voiceGender, StringComparison.OrdinalIgnoreCase)
         ? "management-chip management-chip--selected"
@@ -544,8 +932,16 @@
     private static string GetVoiceLabel(string? voiceGender) =>
         string.IsNullOrWhiteSpace(voiceGender) ? "Unspecified voice" : $"{voiceGender} voice";
 
+    private static string GetAudioLanguageLabel(AudioDto audio) =>
+        string.IsNullOrWhiteSpace(audio.LanguageName) ? audio.Language : $"{audio.LanguageName} ({audio.Language})";
+
+    private static string GetAudioLanguageDetail(AudioDto audio) =>
+        string.IsNullOrWhiteSpace(audio.NativeLanguageName)
+            ? GetAudioLanguageLabel(audio)
+            : $"{audio.NativeLanguageName} · {audio.Language}";
+
     private static string GetAudioKind(AudioDto audio) =>
-        string.IsNullOrWhiteSpace(audio.Script) ? "Uploaded Audio" : "TTS / Script";
+        audio.SourceType;
 
     private static string GetAudioStorageLabel(string? audioPath)
     {
@@ -571,8 +967,148 @@
         ? "management-chip management-chip--selected"
         : "management-chip";
 
+    private static string GetBoolChipClass(bool value, bool currentValue) => value == currentValue
+        ? "management-chip management-chip--selected"
+        : "management-chip";
+
+    private string GetLanguageOptionLabel(LanguageDto language)
+    {
+        var parts = new List<string> { $"{language.Name} ({language.Code})" };
+        if (!string.IsNullOrWhiteSpace(language.NativeName))
+        {
+            parts.Add(language.NativeName);
+        }
+
+        if (language.IsDefault)
+        {
+            parts.Add("Default");
+        }
+
+        if (language.Status == 0)
+        {
+            parts.Add("Inactive");
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    private string GetSelectedLanguageHint()
+    {
+        var language = SelectedLanguage;
+        if (language is null)
+        {
+            return "Archived languages are hidden. Add or reactivate a language before saving audio.";
+        }
+
+        var nativeName = string.IsNullOrWhiteSpace(language.NativeName)
+            ? language.Name
+            : language.NativeName;
+        return $"{nativeName} is selected. Preview will prefer a same-language {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} when available, then fall back to generated audio for {language.Code}.";
+    }
+
+    private string GetCurrentPreviewModeHint()
+    {
+        var language = SelectedLanguage;
+        if (language is null)
+        {
+            var selectedAudio = SelectedAudioForDisplay;
+            if (selectedAudio is null)
+            {
+                return "Voice preview follows the current language code.";
+            }
+
+            return $"Hybrid preview is enabled for {GetAudioLanguageLabel(selectedAudio)}. Browser voice is used only when the locale and gender match the selected audio language.";
+        }
+
+        return $"Hybrid preview is enabled for {language.Name}. Browser voice is used only when the locale and gender match; otherwise generated audio stays in {language.Code}.";
+    }
+
+    private string GetSelectedPreviewLanguageLabel()
+    {
+        var language = SelectedLanguage;
+        if (language is not null)
+        {
+            var displayName = string.IsNullOrWhiteSpace(language.NativeName)
+                ? language.Name
+                : language.NativeName;
+            return $"{displayName} ({language.Code})";
+        }
+
+        return _formModel.Language;
+    }
+
+    private bool GetPreferNativeVoiceForPreview() =>
+        SelectedLanguage?.PreferNativeVoice
+        ?? SelectedAudioForDisplay?.PreferNativeVoice
+        ?? true;
+
+    private bool ShouldUseBrowserVoicePreview(string? provider) =>
+        string.Equals(provider, "FreeTranslate", StringComparison.OrdinalIgnoreCase);
+
+    private async Task<bool> TryBrowserVoicePreviewAsync()
+    {
+        var isSupported = await JS.InvokeAsync<bool>(
+            "smartTourAdmin.tts.preview",
+            _formModel.Script,
+            _formModel.Language,
+            _formModel.VoiceGender,
+            GetPreferNativeVoiceForPreview());
+
+        return isSupported;
+    }
+
+    private string GetDefaultLanguageCode() =>
+        _languages.FirstOrDefault(item => item.IsDefault && item.Status == 1)?.Code
+        ?? _languages.FirstOrDefault(item => item.Status == 1)?.Code
+        ?? "vi-VN";
+
+    private string GetLocationSelectionHint() =>
+        HasActiveLocations
+            ? _formModel.LocationId > 0
+                ? "Only active locations are available for audio assignments."
+                : "Archived locations are hidden. Choose an active location before saving."
+            : "Activate at least one location before saving audio.";
+
+    private void EnsureFormLocationSelection()
+    {
+        if (_locations.Count == 0)
+        {
+            _formModel.LocationId = 0;
+            return;
+        }
+
+        var selectedLocationIsActive = _locations.Any(item =>
+            item.Status == 1 && item.Id == _formModel.LocationId);
+
+        if (!selectedLocationIsActive)
+        {
+            _formModel.LocationId = 0;
+        }
+    }
+
+    private void EnsureFormLanguageSelection()
+    {
+        if (_languages.Count == 0)
+        {
+            return;
+        }
+
+        var selectedLanguageExists = _languages.Any(item =>
+            item.Status == 1 && string.Equals(item.Code, _formModel.Language, StringComparison.OrdinalIgnoreCase));
+
+        if (!selectedLanguageExists)
+        {
+            _formModel.Language = GetDefaultLanguageCode();
+        }
+    }
+
     private string GetAudioPreviewHint()
     {
+        if (_formModel.SourceType == "TTS" && _formModel.AudioFile is null && string.IsNullOrWhiteSpace(_formModel.AudioPath))
+        {
+            return "TTS-only entries do not require an uploaded file. Use the generated TTS preview below.";
+        }
+
         if (_formModel.AudioFile is not null)
         {
             return $"Previewing the newly selected file: {_formModel.AudioFile.Name}";
@@ -583,11 +1119,16 @@
             return $"Previewing the stored audio path: {_formModel.AudioPath}";
         }
 
-        return "This preview is for uploaded audio files only. The browser speech preview below is unchanged.";
+        return "This preview is for uploaded audio files only. The generated TTS preview below is separate.";
     }
 
     private async Task<bool> EnsureAudioFileAvailableForSaveAsync()
     {
+        if (_formModel.SourceType == "TTS")
+        {
+            return true;
+        }
+
         if (_formModel.AudioFile is not null)
         {
             return true;
@@ -636,6 +1177,11 @@
             return;
         }
 
+        if (_formModel.SourceType == "TTS")
+        {
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(_formModel.AudioPath))
         {
             return;
@@ -678,11 +1224,45 @@
         _audioPreviewIsObjectUrl = false;
     }
 
+    private async Task ClearTtsPreviewAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.tts.stop");
+        }
+        catch (JSException)
+        {
+        }
+
+        if (_ttsPreviewIsObjectUrl && !string.IsNullOrWhiteSpace(_ttsPreviewUrl))
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("smartTourAdmin.audioPreview.revokeObjectUrl", _ttsPreviewUrl);
+            }
+            catch (JSException)
+            {
+            }
+        }
+
+        _ttsPreviewUrl = null;
+        _ttsPreviewWarning = null;
+        _ttsPreviewIsObjectUrl = false;
+    }
+
+    private string GetPendingArchiveAudioMessage() =>
+        _pendingArchivedAudio is null
+            ? string.Empty
+            : $"'{_pendingArchivedAudio.Title}' will become inactive and stop accepting new edits until it is restored to active status.";
+
+    private void CancelArchiveAudio() => _pendingArchivedAudio = null;
+
     public async ValueTask DisposeAsync()
     {
         try
         {
             await StopTtsPreviewAsync();
+            await ClearTtsPreviewAsync();
             await ClearAudioPreviewAsync();
         }
         catch (JSDisconnectedException)

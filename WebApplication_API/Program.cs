@@ -1,6 +1,7 @@
 using Microsoft.Extensions.FileProviders;
 using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Data;
+using WebApplication_API.ModelBinding;
 using WebApplication_API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,9 +10,19 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddValidation();
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.ModelBinderProviders.Insert(0, new FlexibleDoubleModelBinderProvider());
+});
 builder.AddDataToDatabase();
 builder.Services.AddSingleton<SharedAudioFileStorageService>();
+builder.Services.AddSingleton<SharedImageFileStorageService>();
+builder.Services.AddHttpClient<TtsPreviewService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
+builder.Services.AddSingleton<AdminSessionTokenService>();
+builder.Services.AddScoped<AdminRequestAuthorizationService>();
 
 builder.Services.AddCors(options =>
 {
@@ -25,13 +36,20 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 var sharedAudioDirectory = SharedStoragePaths.GetAudioDirectory(app.Environment.ContentRootPath);
+var sharedImageDirectory = SharedStoragePaths.GetImageDirectory(app.Environment.ContentRootPath);
 Directory.CreateDirectory(sharedAudioDirectory);
+Directory.CreateDirectory(sharedImageDirectory);
 
 app.UseCors("AllowBlazor");
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(sharedAudioDirectory),
     RequestPath = SharedStoragePaths.AudioRequestPath
+});
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(sharedImageDirectory),
+    RequestPath = SharedStoragePaths.ImageRequestPath
 });
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -1,172 +1,142 @@
-using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Security;
 using WebApplication_API.Data;
-using WebApplication_API.Model;
+using WebApplication_API.Services;
 
 namespace WebApplication_API.Controller;
 
 [ApiController]
 [Route("[controller]")]
-public class CategoryController : ControllerBase
+public class CategoryController(
+    DBContext context,
+    AdminRequestAuthorizationService authService) : ControllerBase
 {
-    private readonly DBContext _context;
-
-    public CategoryController(DBContext context)
-    {
-        _context = context;
-    }
-
-    /// <summary>
-    /// Get all categories
-    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<CategoryDto>>> GetAllCategories()
+    public async Task<IActionResult> GetAllCategories()
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.CategoryRead);
+        if (!access.Succeeded)
         {
-            var categories = await _context.Categories.ToListAsync();
-            var categoryDTOs = categories.Select(c => new CategoryDto(
-                c.Id,
-                c.Name,
-                c.Description,
-                // c.NumOfLocations,
-                c.Status
-            )).ToList();
+            return access.ToFailureResult();
+        }
 
-            return Ok(categoryDTOs);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { message = "Error retrieving categories", error = ex.Message });
-        }
+        var categories = await context.Categories
+            .OrderByDescending(item => item.Status)
+            .ThenBy(item => item.Name)
+            .ToListAsync();
+
+        return Ok(categories.Select(item => item.ToDto()).ToList());
     }
 
-    /// <summary>
-    /// Get category by ID
-    /// </summary>
-    [HttpGet("{id}")]
-    public async Task<ActionResult<CategoryDto>> GetCategoryById(int id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetCategoryById(int id)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.CategoryRead);
+        if (!access.Succeeded)
         {
-            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
-
-            if (category == null)
-                return NotFound(new { message = "Category not found" });
-
-            var categoryDTO = new CategoryDto(
-                category.Id,
-                category.Name,
-                category.Description,
-                // category.NumOfLocations,
-                category.Status
-            );
-
-            return Ok(categoryDTO);
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        var category = await context.Categories.FirstOrDefaultAsync(item => item.CategoryId == id);
+        if (category is null)
         {
-            return StatusCode(500, new { message = "Error retrieving category", error = ex.Message });
+            return NotFound(new { message = "Category not found." });
         }
+
+        return Ok(category.ToDto());
     }
 
-    /// <summary>
-    /// Create a new category
-    /// </summary>
     [HttpPost]
-    public async Task<ActionResult<CategoryDto>> CreateCategory([FromBody] CategoryUpsertRequest request)
+    public async Task<IActionResult> CreateCategory([FromBody] CategoryUpsertRequest request)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.CategoryManage);
+        if (!access.Succeeded)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var category = new Category
-            {
-                Name = request.Name,
-                Description = request.Description,
-                // // NumOfLocations = createCategoryDTO.NumOfLocations,
-                Status = request.Status
-            };
-
-            _context.Categories.Add(category);
-            await _context.SaveChangesAsync();
-
-            var categoryDTO = new CategoryDto(
-                category.Id,
-                category.Name,
-                category.Description,
-                // category.NumOfLocations,
-                category.Status
-            );
-
-            return CreatedAtAction(nameof(GetCategoryById), new { id = category.Id }, categoryDTO);
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        if (!ModelState.IsValid)
         {
-            return StatusCode(500, new { message = "Error creating category", error = ex.Message });
+            return ValidationProblem(ModelState);
         }
+
+        var duplicateExists = await context.Categories.AnyAsync(item => item.Name == request.Name.Trim());
+        if (duplicateExists)
+        {
+            return Conflict(new { message = "A category with the same name already exists." });
+        }
+
+        var category = new WebApplication_API.Model.Category
+        {
+            Name = request.Name.Trim(),
+            Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+            Status = request.Status,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        context.Categories.Add(category);
+        await context.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetCategoryById), new { id = category.CategoryId }, category.ToDto());
     }
 
-    /// <summary>
-    /// Update an existing category
-    /// </summary>
-    [HttpPut("{id}")]
+    [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateCategory(int id, [FromBody] CategoryUpsertRequest request)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.CategoryManage);
+        if (!access.Succeeded)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
-
-            if (category == null)
-                return NotFound(new { message = "Category not found" });
-
-            category.Name = request.Name;
-            category.Description = request.Description;
-            // // category.NumOfLocations = updateCategoryDTO.NumOfLocations;
-            category.Status = request.Status;
-
-            _context.Categories.Update(category);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Category updated successfully" });
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        if (!ModelState.IsValid)
         {
-            return StatusCode(500, new { message = "Error updating category", error = ex.Message });
+            return ValidationProblem(ModelState);
         }
+
+        var category = await context.Categories.FirstOrDefaultAsync(item => item.CategoryId == id);
+        if (category is null)
+        {
+            return NotFound(new { message = "Category not found." });
+        }
+
+        var duplicateExists = await context.Categories.AnyAsync(item =>
+            item.CategoryId != id && item.Name == request.Name.Trim());
+        if (duplicateExists)
+        {
+            return Conflict(new { message = "A category with the same name already exists." });
+        }
+
+        category.Name = request.Name.Trim();
+        category.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+        category.Status = request.Status;
+        category.UpdatedAt = DateTime.UtcNow;
+
+        await context.SaveChangesAsync();
+        return Ok(new ApiMessageResponse { Message = "Category updated successfully." });
     }
 
-    /// <summary>
-    /// Archive a category by ID
-    /// </summary>
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteCategory(int id)
     {
-        try
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.CategoryManage);
+        if (!access.Succeeded)
         {
-            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
-
-            if (category == null)
-                return NotFound(new { message = "Category not found" });
-
-            if (category.Status == 0)
-                return Ok(new { message = "Category is already inactive" });
-
-            category.Status = 0;
-            _context.Categories.Update(category);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Category archived successfully" });
+            return access.ToFailureResult();
         }
-        catch (Exception ex)
+
+        var category = await context.Categories.FirstOrDefaultAsync(item => item.CategoryId == id);
+        if (category is null)
         {
-            return StatusCode(500, new { message = "Error archiving category", error = ex.Message });
+            return NotFound(new { message = "Category not found." });
         }
+
+        category.Status = 0;
+        category.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+
+        return Ok(new ApiMessageResponse { Message = "Category archived successfully." });
     }
 }

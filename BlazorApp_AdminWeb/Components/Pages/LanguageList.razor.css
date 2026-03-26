@@ -1,0 +1,117 @@
+.language-page .management-layout {
+    align-items: start;
+}
+
+.language-skeleton-list,
+.language-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.language-skeleton-card,
+.language-card {
+    padding: 1.1rem 1.15rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.84);
+}
+
+.language-card {
+    display: grid;
+    gap: 1rem;
+}
+
+.language-card--inactive {
+    border-color: rgba(245, 158, 11, 0.28);
+    background: linear-gradient(180deg, rgba(255, 251, 235, 0.94) 0%, rgba(255, 255, 255, 0.86) 100%);
+}
+
+.language-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-bottom: 0.45rem;
+}
+
+.language-card__top h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.language-card__top p {
+    margin: 0.35rem 0 0;
+    color: var(--app-muted);
+}
+
+.language-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.language-card__tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.08);
+    color: #0f766e;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.language-card__tag--default {
+    background: rgba(37, 99, 235, 0.1);
+    color: #1d4ed8;
+}
+
+.language-readonly {
+    display: grid;
+    gap: 1rem;
+}
+
+.language-readonly__notice {
+    padding: 0.95rem 1rem;
+    border-radius: 16px;
+    background: rgba(15, 118, 110, 0.08);
+    color: #0f766e;
+    font-weight: 600;
+}
+
+.language-detail-card {
+    display: grid;
+    gap: 0.4rem;
+    padding: 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.language-detail-card span {
+    color: var(--app-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.language-detail-card strong {
+    line-height: 1.6;
+}
+
+.language-detail-card small {
+    color: var(--app-muted);
+}
+
+.language-editor {
+    position: sticky;
+    top: 1.5rem;
+}
+
+@media (max-width: 1199.98px) {
+    .language-editor {
+        position: static;
+    }
+}

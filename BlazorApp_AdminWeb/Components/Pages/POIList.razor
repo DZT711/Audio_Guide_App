@@ -4,9 +4,21 @@
 @inject NotificationService Notifications
 @inject IJSRuntime JS
 @using Project_SharedClassLibrary.Constants
+@inject AdminSessionState SessionState
 
 <PageTitle>Location Management</PageTitle>
 
+@if (!CanView)
+{
+    <div class="management-page poi-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view locations.</div>
+        </div>
+    </div>
+}
+else
+{
 <div class="management-page poi-page">
     <section class="management-hero" data-reveal>
         <div>
@@ -19,7 +31,7 @@
         </div>
 
         <div class="management-hero__actions">
-            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
                 <i class="bi bi-arrow-clockwise me-2"></i>
                 Refresh
             </button>
@@ -44,7 +56,7 @@
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-diagram-3"></i></span>
             <div>
-                <strong class="management-stat__value">@_categories.Count</strong>
+                <strong class="management-stat__value">@CategoryOptions.Count()</strong>
                 <span class="management-stat__label">Linked Categories</span>
             </div>
         </article>
@@ -73,9 +85,9 @@
 
                     <select class="form-select management-filter" @bind="_selectedCategoryName">
                         <option value="">All categories</option>
-                        @foreach (var category in _categories)
+                        @foreach (var categoryName in CategoryOptions)
                         {
-                            <option value="@category.Name">@category.Name</option>
+                            <option value="@categoryName">@categoryName</option>
                         }
                     </select>
 
@@ -146,8 +158,8 @@
                                     </td>
                                     <td class="text-end">
                                         <div class="management-inline-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(location)">Edit</button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(location.Status == 0)" @onclick="() => DeleteLocationAsync(location)">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(location)">@(CanManage ? "Edit" : "View")</button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || location.Status == 0)" @onclick="() => PromptArchiveLocation(location)">
                                                 @(location.Status == 0 ? "Inactive" : "Archive")
                                             </button>
                                         </div>
@@ -163,11 +175,13 @@
         <section class="management-panel poi-editor" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">Editor</span>
-                    <h2>@(_editingId is null ? "Create Location" : "Edit Location")</h2>
+                    <span class="management-panel__eyebrow">@(CanManage ? "Editor" : "Read Only")</span>
+                    <h2>@(CanManage ? (_editingId is null ? "Create Location" : "Edit Location") : "Location Details")</h2>
                 </div>
             </div>
 
+            @if (CanManage)
+            {
             <EditForm Model="_formModel" OnValidSubmit="SaveLocationAsync" class="management-form">
                 <DataAnnotationsValidator />
 
@@ -182,12 +196,13 @@
                         <label for="location-category">Category</label>
                         <InputSelect id="location-category" class="form-select" @bind-Value="_formModel.CategoryId">
                             <option value="0">Choose category</option>
-                            @foreach (var category in _categories)
+                            @foreach (var category in ActiveCategories)
                             {
                                 <option value="@category.Id">@category.Name</option>
                             }
                         </InputSelect>
                         <ValidationMessage For="() => _formModel.CategoryId" />
+                        <span class="management-field__hint">@GetCategoryFieldHint()</span>
                     </div>
 
                     <div class="management-field management-field--full">
@@ -231,9 +246,21 @@
                     </div>
 
                     <div class="management-field">
-                        <label for="location-owner">Owner Name</label>
-                        <InputText id="location-owner" class="form-control" @bind-Value="_formModel.OwnerName" />
-                        <ValidationMessage For="() => _formModel.OwnerName" />
+                        <label for="location-owner">Owner</label>
+                        @if (CanSelectOwner)
+                        {
+                            <InputSelect id="location-owner" class="form-select" @bind-Value="_formModel.OwnerId">
+                                <option value="">Unassigned</option>
+                                @foreach (var owner in _owners)
+                                {
+                                    <option value="@owner.Id">@($"{owner.FullName ?? owner.Username} ({owner.Role})")</option>
+                                }
+                            </InputSelect>
+                        }
+                        else
+                        {
+                            <div class="management-muted">This location will stay assigned to your current account.</div>
+                        }
                     </div>
 
                     <div class="management-field">
@@ -246,6 +273,30 @@
                         <label for="location-lng">Longitude</label>
                         <InputNumber id="location-lng" class="form-control" @bind-Value="_formModel.Longitude" />
                         <ValidationMessage For="() => _formModel.Longitude" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-radius">Trigger Radius (m)</label>
+                        <InputNumber id="location-radius" class="form-control" @bind-Value="_formModel.Radius" />
+                        <ValidationMessage For="() => _formModel.Radius" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-standby-radius">Standby Radius (m)</label>
+                        <InputNumber id="location-standby-radius" class="form-control" @bind-Value="_formModel.StandbyRadius" />
+                        <ValidationMessage For="() => _formModel.StandbyRadius" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-priority">Priority</label>
+                        <InputNumber id="location-priority" class="form-control" @bind-Value="_formModel.Priority" />
+                        <ValidationMessage For="() => _formModel.Priority" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="location-debounce">Cooldown (sec)</label>
+                        <InputNumber id="location-debounce" class="form-control" @bind-Value="_formModel.DebounceSeconds" />
+                        <ValidationMessage For="() => _formModel.DebounceSeconds" />
                     </div>
 
                     <div class="management-field">
@@ -267,6 +318,72 @@
                     </div>
 
                     <div class="management-field management-field--full">
+                        <label for="location-images">Location Images</label>
+                        <InputFile @key="_imageInputVersion" id="location-images" class="form-control" OnChange="HandleLocationImagesSelected" accept="image/*" multiple />
+                        <span class="management-field__hint">Upload one or more images. Files are stored automatically in `Project_SharedClassLibrary/SharedStorage/Images`.</span>
+                        <span class="management-field__hint">Use the `X` button on a preview tile to remove a stored image or cancel a pending upload before saving.</span>
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <div class="poi-image-preview">
+                            <div>
+                                <span class="management-field__label">Image Preview</span>
+                                <div class="management-field__hint">@GetImagePreviewHint()</div>
+                            </div>
+
+                            @if (_isPreparingImagePreview)
+                            {
+                                <div class="management-muted">Preparing image previews...</div>
+                            }
+                            else if (_formModel.ExistingImageUrls.Count > 0 || _imagePreviewUrls.Count > 0)
+                            {
+                                <div class="poi-image-grid">
+                                    @foreach (var storedImageUrl in _formModel.ExistingImageUrls)
+                                    {
+                                        var resolvedStoredImageUrl = ApiClient.ResolveImageUrl(storedImageUrl);
+                                        if (string.IsNullOrWhiteSpace(resolvedStoredImageUrl))
+                                        {
+                                            continue;
+                                        }
+
+                                        <div class="poi-image-tile">
+                                            <img class="poi-image-thumb" src="@resolvedStoredImageUrl" alt="Stored location image" />
+                                            <button type="button" class="poi-image-remove" title="Remove image" aria-label="Remove image" @onclick="() => RemoveStoredImage(storedImageUrl)">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+                                    }
+
+                                    @for (var imageIndex = 0; imageIndex < _imagePreviewUrls.Count; imageIndex++)
+                                    {
+                                        var currentImageIndex = imageIndex;
+                                        var previewUrl = _imagePreviewUrls[imageIndex];
+
+                                        <div class="poi-image-tile">
+                                            <img class="poi-image-thumb" src="@previewUrl" alt="New location image" />
+                                            <button type="button" class="poi-image-remove" title="Remove upload" aria-label="Remove upload" @onclick="() => RemovePendingImageAsync(currentImageIndex)">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="management-muted">Upload images or edit a location that already has stored photos.</div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <span class="management-field__label">GPS Trigger</span>
+                        <div class="management-chip-group">
+                            <button type="button" class="@GetBoolChipClass(true, _formModel.IsGpsTriggerEnabled)" @onclick="() => SetGpsTrigger(true)">Enabled</button>
+                            <button type="button" class="@GetBoolChipClass(false, _formModel.IsGpsTriggerEnabled)" @onclick="() => SetGpsTrigger(false)">Disabled</button>
+                        </div>
+                    </div>
+
+                    <div class="management-field management-field--full">
                         <span class="management-field__label">Status</span>
                         <div class="management-chip-group">
                             <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
@@ -276,15 +393,98 @@
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _categories.Count == 0)">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveCategories || !CanManage)">
                         @(_isSaving ? "Saving..." : _editingId is null ? "Create Location" : "Save Changes")
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
                 </div>
             </EditForm>
+            }
+            else if (SelectedLocationForDisplay is null)
+            {
+                <div class="app-empty-state">
+                    Select a location to review its details.
+                </div>
+            }
+            else
+            {
+                var selectedLocation = SelectedLocationForDisplay!;
+                var imageUrls = GetResolvedImageUrls(selectedLocation);
+
+                <div class="poi-readonly">
+                    <div class="poi-readonly__notice">
+                        Changes to your own locations require an Admin or Developer account.
+                    </div>
+
+                    @if (imageUrls.Count > 0)
+                    {
+                        <div class="poi-image-grid">
+                            @foreach (var imageUrl in imageUrls)
+                            {
+                                <img class="poi-image-thumb" src="@imageUrl" alt="@selectedLocation.Name" />
+                            }
+                        </div>
+                    }
+
+                    <div class="poi-detail-grid">
+                        <article class="poi-detail-card">
+                            <span>Name</span>
+                            <strong>@selectedLocation.Name</strong>
+                            <small>@selectedLocation.Category</small>
+                        </article>
+                        <article class="poi-detail-card">
+                            <span>Status</span>
+                            <strong>@GetStatusLabel(selectedLocation.Status)</strong>
+                            <small>@(selectedLocation.OwnerName ?? "No owner assigned")</small>
+                        </article>
+                        <article class="poi-detail-card poi-detail-card--wide">
+                            <span>Address</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.Address) ? "No address" : selectedLocation.Address)</strong>
+                        </article>
+                        <article class="poi-detail-card">
+                            <span>Coordinates</span>
+                            <strong>@($"{selectedLocation.Latitude:F6}, {selectedLocation.Longitude:F6}")</strong>
+                            <small>@($"{selectedLocation.Radius:F0}m trigger / {selectedLocation.StandbyRadius:F0}m standby")</small>
+                        </article>
+                        <article class="poi-detail-card">
+                            <span>Priority</span>
+                            <strong>@selectedLocation.Priority</strong>
+                            <small>@($"{selectedLocation.DebounceSeconds}s cooldown")</small>
+                        </article>
+                        <article class="poi-detail-card">
+                            <span>Contact</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.Phone) ? "No phone" : selectedLocation.Phone)</strong>
+                            <small>@(string.IsNullOrWhiteSpace(selectedLocation.Email) ? "No email" : selectedLocation.Email)</small>
+                        </article>
+                        <article class="poi-detail-card poi-detail-card--wide">
+                            <span>Description</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.Description) ? "No description provided." : selectedLocation.Description)</strong>
+                        </article>
+                        <article class="poi-detail-card">
+                            <span>Website</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.WebURL) ? "No website" : selectedLocation.WebURL)</strong>
+                        </article>
+                        <article class="poi-detail-card">
+                            <span>Audio</span>
+                            <strong>@selectedLocation.AudioCount linked files</strong>
+                            <small>@(selectedLocation.IsGpsTriggerEnabled ? "GPS trigger enabled" : "GPS trigger disabled")</small>
+                        </article>
+                    </div>
+                </div>
+            }
         </section>
     </div>
 </div>
+
+<AdminConfirmDialog Visible="@(_pendingArchivedLocation is not null)"
+                    Eyebrow="Archive Location"
+                    Title="Archive this location?"
+                    Message="@GetPendingArchiveLocationMessage()"
+                    ConfirmLabel="Archive Location"
+                    ConfirmButtonClass="btn btn-danger"
+                    OnConfirm="ConfirmArchiveLocationAsync"
+                    OnCancel="CancelArchiveLocation" />
+}
 
 @code {
     private const double DefaultLatitude = LocationDefaults.District4Latitude;
@@ -292,17 +492,39 @@
     private readonly LocationFormModel _formModel = new();
     private readonly List<LocationDto> _locations = new();
     private readonly List<CategoryDto> _categories = new();
+    private readonly List<DashboardUserDto> _owners = new();
+    private readonly List<string> _imagePreviewUrls = new();
+    private readonly HashSet<string> _imageObjectUrls = new(StringComparer.OrdinalIgnoreCase);
     private DotNetObjectReference<POIList>? _mapReference;
+    private LocationDto? _selectedLocation;
+    private LocationDto? _pendingArchivedLocation;
     private bool _isLoading = true;
     private bool _isSaving;
+    private bool _isPreparingImagePreview;
     private bool _deviceLocationPending = true;
     private bool _mapSyncPending;
+    private int _imageInputVersion;
     private int? _editingId;
     private string _searchText = "";
     private string _selectedCategoryName = "";
     private string _selectedStatus = "";
     private string? _loadError;
     private ElementReference _mapElement;
+    private bool CanView => SessionState.HasPermission(AdminPermissions.LocationRead);
+    private bool CanManage => SessionState.HasPermission(AdminPermissions.LocationManage);
+    private bool CanSelectOwner => SessionState.HasPermission(AdminPermissions.UserRead) && CanManage;
+    private LocationDto? SelectedLocationForDisplay => ResolveSelectedLocation();
+    private IEnumerable<CategoryDto> ActiveCategories => _categories
+        .Where(item => item.Status == 1)
+        .OrderBy(item => item.Name);
+    private bool HasActiveCategories => ActiveCategories.Any();
+    private IEnumerable<string> CategoryOptions => _categories.Count > 0
+        ? _categories.Select(item => item.Name)
+        : _locations
+            .Select(item => item.Category)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(item => item, StringComparer.OrdinalIgnoreCase);
 
     private IEnumerable<LocationDto> FilteredLocations =>
         _locations.Where(location =>
@@ -320,24 +542,25 @@
     protected override async Task OnInitializedAsync()
     {
         ResetForm();
+        await RefreshLocationImagePreviewsAsync();
         await LoadDataAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && CanManage)
         {
             _mapReference = DotNetObjectReference.Create(this);
             await InitializeMapAsync();
         }
 
-        if (_mapSyncPending)
+        if (CanManage && _mapSyncPending)
         {
             _mapSyncPending = false;
             await SyncMapAsync();
         }
 
-        if (_deviceLocationPending && _editingId is null)
+        if (CanManage && _deviceLocationPending && _editingId is null)
         {
             _deviceLocationPending = false;
             await TryUseDeviceLocationAsync(showFallbackNotice: false);
@@ -353,10 +576,15 @@
 
         try
         {
-            var categoriesTask = ApiClient.GetCategoriesAsync();
+            var categoriesTask = CanManage || SessionState.HasPermission(AdminPermissions.CategoryRead)
+                ? ApiClient.GetCategoriesAsync()
+                : Task.FromResult<IReadOnlyList<CategoryDto>>([]);
             var locationsTask = ApiClient.GetLocationsAsync();
+            var ownersTask = CanSelectOwner
+                ? ApiClient.GetUsersAsync()
+                : Task.FromResult<IReadOnlyList<DashboardUserDto>>([]);
 
-            await Task.WhenAll(categoriesTask, locationsTask);
+            await Task.WhenAll(categoriesTask, locationsTask, ownersTask);
 
             _categories.Clear();
             _categories.AddRange((await categoriesTask)
@@ -367,6 +595,14 @@
             _locations.AddRange((await locationsTask)
                 .OrderByDescending(item => item.Status)
                 .ThenBy(item => item.Name));
+
+            _owners.Clear();
+            _owners.AddRange((await ownersTask)
+                .Where(item => item.Status == 1)
+                .OrderBy(item => item.FullName ?? item.Username));
+
+            EnsureFormCategorySelection();
+            SyncSelectedLocation();
         }
         catch (Exception ex)
         {
@@ -422,22 +658,38 @@
 
     private async Task CenterMapOnCoordinatesAsync() => await SyncMapAsync();
 
-    private void StartCreate()
+    private async Task StartCreateAsync()
     {
         _editingId = null;
+        _selectedLocation = null;
         ResetForm();
+        await RefreshLocationImagePreviewsAsync();
     }
 
-    private void StartEdit(LocationDto location)
+    private async Task StartEditAsync(LocationDto location)
     {
+        _selectedLocation = location;
+
+        if (!CanManage)
+        {
+            return;
+        }
+
         _editingId = location.Id;
         _deviceLocationPending = false;
         var snapshot = LocationFormModel.FromDto(location, _categories);
         ApplyForm(snapshot);
+        await RefreshLocationImagePreviewsAsync();
     }
 
     private async Task SaveLocationAsync()
     {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view locations but cannot save changes.", "Read-only access");
+            return;
+        }
+
         _isSaving = true;
 
         try
@@ -454,7 +706,7 @@
             }
 
             await LoadDataAsync();
-            StartCreate();
+            await StartCreateAsync();
         }
         catch (Exception ex)
         {
@@ -466,28 +718,42 @@
         }
     }
 
-    private async Task DeleteLocationAsync(LocationDto location)
+    private void PromptArchiveLocation(LocationDto location)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive location '{location.Name}' and mark it inactive?");
-        if (!confirmed)
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view locations but cannot archive them.", "Read-only access");
+            return;
+        }
+
+        _pendingArchivedLocation = location;
+    }
+
+    private async Task ConfirmArchiveLocationAsync()
+    {
+        if (!CanManage || _pendingArchivedLocation is null)
         {
             return;
         }
 
         try
         {
-            await ApiClient.DeleteLocationAsync(location.Id);
-            Notifications.Info($"'{location.Name}' is now inactive.", "Location archived");
+            await ApiClient.DeleteLocationAsync(_pendingArchivedLocation.Id);
+            Notifications.Info($"'{_pendingArchivedLocation.Name}' is now inactive.", "Location archived");
             await LoadDataAsync();
 
-            if (_editingId == location.Id)
+            if (_editingId == _pendingArchivedLocation.Id)
             {
-                StartCreate();
+                await StartCreateAsync();
             }
         }
         catch (Exception ex)
         {
             Notifications.Error(ex.Message, "Delete failed");
+        }
+        finally
+        {
+            CancelArchiveLocation();
         }
     }
 
@@ -498,15 +764,18 @@
             EstablishedYear = DateTime.UtcNow.Year,
             Latitude = DefaultLatitude,
             Longitude = DefaultLongitude,
+            Radius = 30,
+            StandbyRadius = 12,
+            DebounceSeconds = 300,
+            IsGpsTriggerEnabled = true,
             Status = 1
         });
-        _deviceLocationPending = true;
+        _deviceLocationPending = CanManage;
     }
 
-    private void CancelEdit()
+    private async Task CancelEditAsync()
     {
-        _editingId = null;
-        ResetForm();
+        await StartCreateAsync();
     }
 
     private void ApplyForm(LocationFormModel model)
@@ -514,19 +783,65 @@
         _formModel.Name = model.Name;
         _formModel.Address = model.Address;
         _formModel.CategoryId = model.CategoryId;
+        _formModel.OwnerId = model.OwnerId;
         _formModel.EstablishedYear = model.EstablishedYear;
         _formModel.Description = model.Description;
         _formModel.Latitude = model.Latitude;
         _formModel.Longitude = model.Longitude;
-        _formModel.OwnerName = model.OwnerName;
+        _formModel.Radius = model.Radius;
+        _formModel.StandbyRadius = model.StandbyRadius;
+        _formModel.Priority = model.Priority;
+        _formModel.DebounceSeconds = model.DebounceSeconds;
+        _formModel.IsGpsTriggerEnabled = model.IsGpsTriggerEnabled;
         _formModel.WebURL = model.WebURL;
         _formModel.Phone = model.Phone;
         _formModel.Email = model.Email;
         _formModel.Status = model.Status;
-        _mapSyncPending = true;
+        _formModel.ExistingImageUrls = model.ExistingImageUrls.ToList();
+        _formModel.ImageFiles = [];
+        EnsureFormCategorySelection();
+        _imageInputVersion++;
+        _mapSyncPending = CanManage;
     }
 
     private async Task UseDeviceLocationAsync() => await TryUseDeviceLocationAsync(showFallbackNotice: true);
+
+    private async Task HandleLocationImagesSelected(InputFileChangeEventArgs eventArgs)
+    {
+        _formModel.ImageFiles = eventArgs.GetMultipleFiles().ToList();
+        await RefreshLocationImagePreviewsAsync();
+    }
+
+    private void RemoveStoredImage(string imageUrl)
+    {
+        if (!CanManage)
+        {
+            return;
+        }
+
+        _formModel.ExistingImageUrls = _formModel.ExistingImageUrls
+            .Where(item => !string.Equals(item, imageUrl, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private async Task RemovePendingImageAsync(int imageIndex)
+    {
+        if (!CanManage)
+        {
+            return;
+        }
+
+        var nextFiles = _formModel.ImageFiles.ToList();
+        if (imageIndex < 0 || imageIndex >= nextFiles.Count)
+        {
+            return;
+        }
+
+        nextFiles.RemoveAt(imageIndex);
+        _formModel.ImageFiles = nextFiles;
+        _imageInputVersion++;
+        await RefreshLocationImagePreviewsAsync();
+    }
 
     private async Task TryUseDeviceLocationAsync(bool showFallbackNotice)
     {
@@ -558,6 +873,117 @@
 
     private void SetStatus(int status) => _formModel.Status = status;
 
+    private string GetCategoryFieldHint()
+    {
+        if (!HasActiveCategories)
+        {
+            return "Activate or create at least one category before saving a location.";
+        }
+
+        return _formModel.CategoryId > 0
+            ? "Only active categories are available for location assignments."
+            : "Archived categories are hidden. Choose an active category before saving.";
+    }
+
+    private void SetGpsTrigger(bool isEnabled) => _formModel.IsGpsTriggerEnabled = isEnabled;
+
+    private string GetImagePreviewHint()
+    {
+        if (_formModel.ImageFiles.Count > 0)
+        {
+            return $"{_formModel.ImageFiles.Count} new image file(s) selected for upload.";
+        }
+
+        if (_formModel.ExistingImageUrls.Count > 0)
+        {
+            return $"{_formModel.ExistingImageUrls.Count} stored image(s) linked to this location.";
+        }
+
+        return "Stored images and newly selected uploads are previewed here.";
+    }
+
+    private List<string> GetResolvedImageUrls(LocationDto? location) =>
+        location?.ImageUrls
+            .Select(ApiClient.ResolveImageUrl)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .ToList() ?? [];
+
+    private LocationDto? ResolveSelectedLocation()
+    {
+        if (_selectedLocation is not null)
+        {
+            return _locations.FirstOrDefault(item => item.Id == _selectedLocation.Id) ?? _selectedLocation;
+        }
+
+        return FilteredLocations.FirstOrDefault() ?? _locations.FirstOrDefault();
+    }
+
+    private void SyncSelectedLocation()
+    {
+        if (_selectedLocation is not null)
+        {
+            _selectedLocation = _locations.FirstOrDefault(item => item.Id == _selectedLocation.Id);
+        }
+
+        if (!CanManage && _selectedLocation is null)
+        {
+            _selectedLocation = _locations.FirstOrDefault();
+        }
+    }
+
+    private async Task RefreshLocationImagePreviewsAsync()
+    {
+        _isPreparingImagePreview = true;
+
+        try
+        {
+            await ClearLocationImagePreviewsAsync();
+
+            foreach (var imageFile in _formModel.ImageFiles)
+            {
+                await using var sourceStream = imageFile.OpenReadStream(15L * 1024 * 1024);
+                using var streamReference = new DotNetStreamReference(sourceStream);
+
+                var objectUrl = await JS.InvokeAsync<string>(
+                    "smartTourAdmin.filePreview.createObjectUrlFromStream",
+                    streamReference,
+                    imageFile.ContentType);
+
+                if (!string.IsNullOrWhiteSpace(objectUrl))
+                {
+                    _imagePreviewUrls.Add(objectUrl);
+                    _imageObjectUrls.Add(objectUrl);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or JSException)
+        {
+            Notifications.Warning("Some location images could not be previewed, but you can still save them.", "Preview unavailable");
+        }
+        finally
+        {
+            _isPreparingImagePreview = false;
+        }
+    }
+
+    private async Task ClearLocationImagePreviewsAsync()
+    {
+        foreach (var objectUrl in _imageObjectUrls)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("smartTourAdmin.filePreview.revokeObjectUrl", objectUrl);
+            }
+            catch (JSException)
+            {
+            }
+        }
+
+        _imageObjectUrls.Clear();
+        _imagePreviewUrls.Clear();
+    }
+
     [JSInvokable]
     public Task ApplyLocationFromMap(double latitude, double longitude, string? address)
     {
@@ -586,11 +1012,44 @@
         ? "management-chip management-chip--selected"
         : "management-chip";
 
+    private static string GetBoolChipClass(bool value, bool currentValue) => value == currentValue
+        ? "management-chip management-chip--selected"
+        : "management-chip";
+
+    private void EnsureFormCategorySelection()
+    {
+        if (_categories.Count == 0)
+        {
+            _formModel.CategoryId = 0;
+            return;
+        }
+
+        var isActiveCategorySelected = _categories.Any(item =>
+            item.Status == 1 && item.Id == _formModel.CategoryId);
+
+        if (!isActiveCategorySelected)
+        {
+            _formModel.CategoryId = 0;
+        }
+    }
+
+    private string GetPendingArchiveLocationMessage() =>
+        _pendingArchivedLocation is null
+            ? string.Empty
+            : $"'{_pendingArchivedLocation.Name}' will become inactive and its audio items will stop accepting new changes until the location is active again.";
+
+    private void CancelArchiveLocation() => _pendingArchivedLocation = null;
+
     public async ValueTask DisposeAsync()
     {
         try
         {
-            await JS.InvokeVoidAsync("smartTourAdmin.map.disposeLocationPicker", _mapElement);
+            if (CanManage)
+            {
+                await JS.InvokeVoidAsync("smartTourAdmin.map.disposeLocationPicker", _mapElement);
+            }
+
+            await ClearLocationImagePreviewsAsync();
         }
         catch (JSException)
         {
