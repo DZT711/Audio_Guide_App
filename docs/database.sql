@@ -25,10 +25,10 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE Categories (
     CategoryId INTEGER PRIMARY KEY AUTOINCREMENT,
     Name TEXT NOT NULL UNIQUE,
-    Description TEXT,
+    Description LONGTEXT,
     Status INTEGER NOT NULL DEFAULT 1 CHECK (Status IN (0, 1)),
-    CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TEXT
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME
 );
 
 -- Function:
@@ -39,13 +39,13 @@ CREATE TABLE DashboardUsers (
     Username TEXT NOT NULL UNIQUE,
     PasswordHash TEXT NOT NULL,
     FullName TEXT,
-    Role TEXT NOT NULL DEFAULT 'Owner'
-        CHECK (Role IN ('Admin', 'Owner', 'Editor', 'DataAnalyst', 'Developer')),
+    Role TEXT NOT NULL DEFAULT 'User'
+        CHECK (Role IN ('Admin', 'User', 'Editor', 'DataAnalyst', 'Developer')),
     Email TEXT UNIQUE,
     Phone TEXT UNIQUE,
     Status INTEGER NOT NULL DEFAULT 1 CHECK (Status IN (0, 1)),
-    CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TEXT
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME
 );
 
 -- Function:
@@ -57,7 +57,7 @@ CREATE TABLE Locations (
     CategoryId INTEGER,
     OwnerId INTEGER,
     Name TEXT NOT NULL,
-    Description TEXT,
+    Description LONGTEXT,
     Latitude REAL NOT NULL,
     Longitude REAL NOT NULL,
     Radius REAL NOT NULL DEFAULT 30.0,
@@ -65,9 +65,9 @@ CREATE TABLE Locations (
     Priority INTEGER NOT NULL DEFAULT 0,
     DebounceSeconds INTEGER NOT NULL DEFAULT 300,
     IsGpsTriggerEnabled INTEGER NOT NULL DEFAULT 1 CHECK (IsGpsTriggerEnabled IN (0, 1)),
-    Address TEXT,
+    Address LONGTEXT,
     Ward TEXT,
-    District TEXT,
+    -- District TEXT,
     City TEXT,
     ImageUrl TEXT,
     WebURL TEXT,
@@ -75,8 +75,8 @@ CREATE TABLE Locations (
     PhoneContact TEXT,
     EstablishedYear INTEGER,
     Status INTEGER NOT NULL DEFAULT 1 CHECK (Status IN (0, 1)),
-    CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TEXT,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME,
     FOREIGN KEY (CategoryId) REFERENCES Categories(CategoryId),
     FOREIGN KEY (OwnerId) REFERENCES DashboardUsers(UserId)
 );
@@ -90,7 +90,7 @@ CREATE TABLE AudioContents (
     LocationId INTEGER NOT NULL,
     LanguageCode TEXT NOT NULL DEFAULT 'vi-VN',
     Title TEXT NOT NULL,
-    Description TEXT,
+    Description LONGTEXT,
     SourceType TEXT NOT NULL DEFAULT 'TTS'
         CHECK (SourceType IN ('TTS', 'Recorded', 'Hybrid')),
     Script TEXT,
@@ -98,7 +98,7 @@ CREATE TABLE AudioContents (
     FileSizeBytes INTEGER,
     DurationSeconds INTEGER,
     VoiceName TEXT,
-    VoiceGender TEXT CHECK (VoiceGender IN ('Male', 'Female', 'Unknown')),
+    VoiceGender TEXT CHECK (VoiceGender IN ('Male', 'Female')),
     Priority INTEGER NOT NULL DEFAULT 0,
     PlaybackMode TEXT NOT NULL DEFAULT 'Auto'
         CHECK (PlaybackMode IN ('Auto', 'Manual', 'QrOnly')),
@@ -106,8 +106,8 @@ CREATE TABLE AudioContents (
         CHECK (InterruptPolicy IN ('NotificationFirst', 'NarrationFirst', 'Queue')),
     IsDownloadable INTEGER NOT NULL DEFAULT 1 CHECK (IsDownloadable IN (0, 1)),
     Status INTEGER NOT NULL DEFAULT 1 CHECK (Status IN (0, 1)),
-    CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TEXT,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME,
     FOREIGN KEY (LocationId) REFERENCES Locations(LocationId) ON DELETE CASCADE,
     CONSTRAINT CK_Audio_SourcePayload CHECK (
         (SourceType = 'TTS' AND Script IS NOT NULL) OR
@@ -123,9 +123,9 @@ CREATE TABLE LocationImages (
     ImageId INTEGER PRIMARY KEY AUTOINCREMENT,
     LocationId INTEGER NOT NULL,
     ImageUrl TEXT NOT NULL,
-    Description TEXT,
+    Description LONGTEXT,
     SortOrder INTEGER NOT NULL DEFAULT 0,
-    CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (LocationId) REFERENCES Locations(LocationId) ON DELETE CASCADE
 );
 
@@ -164,7 +164,7 @@ CREATE TABLE LocationTrackingEvents (
     SpeedMetersPerSecond REAL,
     BatteryPercent INTEGER,
     IsForeground INTEGER NOT NULL DEFAULT 1 CHECK (IsForeground IN (0, 1)),
-    CapturedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    CapturedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IX_Locations_CategoryId ON Locations(CategoryId);
@@ -190,7 +190,7 @@ CREATE TABLE AppDevices (
     PreferredLanguageCode TEXT,
     LastKnownCountryCode TEXT,
     LastSeenAt TEXT,
-    CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Function:
@@ -213,7 +213,7 @@ CREATE TABLE PlaybackCooldown (
 CREATE TABLE LocalSettings (
     SettingKey TEXT PRIMARY KEY,
     SettingValue TEXT,
-    UpdatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Function:
@@ -246,7 +246,7 @@ CREATE TABLE Languages (
     NativeName TEXT,
     IsDefault INTEGER NOT NULL DEFAULT 0 CHECK (IsDefault IN (0, 1)),
     Status INTEGER NOT NULL DEFAULT 1 CHECK (Status IN (0, 1)),
-    CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Function:
@@ -273,12 +273,12 @@ CREATE TABLE Tours (
     TourId INTEGER PRIMARY KEY AUTOINCREMENT,
     OwnerId INTEGER,
     Name TEXT NOT NULL,
-    Description TEXT,
+    Description LONGTEXT,
     EstimatedDurationMinutes INTEGER,
     CoverImageUrl TEXT,
     Status INTEGER NOT NULL DEFAULT 1 CHECK (Status IN (0, 1)),
-    CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TEXT,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME,
     FOREIGN KEY (OwnerId) REFERENCES DashboardUsers(UserId)
 );
 
@@ -312,7 +312,7 @@ CREATE TABLE QRProfiles (
     StartAt TEXT,
     EndAt TEXT,
     Status INTEGER NOT NULL DEFAULT 1 CHECK (Status IN (0, 1)),
-    CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (LocationId) REFERENCES Locations(LocationId),
     FOREIGN KEY (TourId) REFERENCES Tours(TourId),
     FOREIGN KEY (AudioId) REFERENCES AudioContents(AudioId)
@@ -332,8 +332,8 @@ CREATE TABLE ChangeRequests (
     AdminNote TEXT,
     Status TEXT NOT NULL DEFAULT 'Pending'
         CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
-    CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TEXT,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME,
     FOREIGN KEY (OwnerId) REFERENCES DashboardUsers(UserId)
 );
 
