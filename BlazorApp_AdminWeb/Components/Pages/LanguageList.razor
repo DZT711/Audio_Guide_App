@@ -134,7 +134,7 @@ else
 
                             <div class="management-inline-actions">
                                 <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(language)">@(CanManage ? "Edit" : "View")</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || language.Status == 0)" @onclick="() => DeleteLanguageAsync(language)">
+                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || language.Status == 0)" @onclick="() => PromptArchiveLanguage(language)">
                                     @(language.Status == 0 ? "Inactive" : "Archive")
                                 </button>
                             </div>
@@ -245,12 +245,22 @@ else
         </section>
     </div>
 </div>
+
+<AdminConfirmDialog Visible="@(_pendingArchivedLanguage is not null)"
+                    Eyebrow="Archive Language"
+                    Title="Archive this language?"
+                    Message="@GetPendingArchiveLanguageMessage()"
+                    ConfirmLabel="Archive Language"
+                    ConfirmButtonClass="btn btn-danger"
+                    OnConfirm="ConfirmArchiveLanguageAsync"
+                    OnCancel="CancelArchiveLanguage" />
 }
 
 @code {
     private readonly LanguageFormModel _formModel = new();
     private readonly List<LanguageDto> _languages = new();
     private LanguageDto? _selectedLanguage;
+    private LanguageDto? _pendingArchivedLanguage;
     private bool _isLoading = true;
     private bool _isSaving;
     private int? _editingId;
@@ -363,7 +373,7 @@ else
         }
     }
 
-    private async Task DeleteLanguageAsync(LanguageDto language)
+    private void PromptArchiveLanguage(LanguageDto language)
     {
         if (!CanManage)
         {
@@ -371,19 +381,23 @@ else
             return;
         }
 
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive language '{language.Name}' and mark it inactive?");
-        if (!confirmed)
+        _pendingArchivedLanguage = language;
+    }
+
+    private async Task ConfirmArchiveLanguageAsync()
+    {
+        if (!CanManage || _pendingArchivedLanguage is null)
         {
             return;
         }
 
         try
         {
-            await ApiClient.DeleteLanguageAsync(language.Id);
-            Notifications.Info($"'{language.Name}' is now inactive.", "Language archived");
+            await ApiClient.DeleteLanguageAsync(_pendingArchivedLanguage.Id);
+            Notifications.Info($"'{_pendingArchivedLanguage.Name}' is now inactive.", "Language archived");
             await LoadLanguagesAsync();
 
-            if (_editingId == language.Id)
+            if (_editingId == _pendingArchivedLanguage.Id)
             {
                 StartCreate();
             }
@@ -391,6 +405,10 @@ else
         catch (Exception ex)
         {
             Notifications.Error(ex.Message, "Delete failed");
+        }
+        finally
+        {
+            CancelArchiveLanguage();
         }
     }
 
@@ -456,4 +474,11 @@ else
     private static string GetLanguageCardClass(int status) => status == 1
         ? "language-card"
         : "language-card language-card--inactive";
+
+    private string GetPendingArchiveLanguageMessage() =>
+        _pendingArchivedLanguage is null
+            ? string.Empty
+            : $"'{_pendingArchivedLanguage.Name}' will become inactive and can no longer be assigned to new or edited audio items.";
+
+    private void CancelArchiveLanguage() => _pendingArchivedLanguage = null;
 }

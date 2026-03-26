@@ -1,0 +1,128 @@
+.moderation-page .management-layout {
+    align-items: start;
+}
+
+.moderation-list,
+.moderation-skeleton-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.moderation-card,
+.moderation-skeleton-card {
+    padding: 1.1rem 1.15rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.84);
+}
+
+.moderation-card--delete {
+    border-color: rgba(245, 158, 11, 0.28);
+    background: linear-gradient(180deg, rgba(255, 251, 235, 0.94) 0%, rgba(255, 255, 255, 0.86) 100%);
+}
+
+.moderation-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+}
+
+.moderation-card__title {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.moderation-card__header small,
+.moderation-card .audio-card__description {
+    color: var(--app-muted);
+}
+
+.moderation-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin: 1rem 0 0.85rem;
+}
+
+.audio-card__tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.08);
+    color: #0f766e;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.audio-readonly {
+    display: grid;
+    gap: 1rem;
+}
+
+.audio-readonly__notice {
+    padding: 0.95rem 1rem;
+    border-radius: 16px;
+    background: rgba(15, 118, 110, 0.08);
+    color: #0f766e;
+    font-weight: 600;
+}
+
+.audio-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.audio-detail-card {
+    display: grid;
+    gap: 0.4rem;
+    padding: 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.audio-detail-card span {
+    color: var(--app-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.audio-detail-card strong {
+    line-height: 1.6;
+}
+
+.audio-detail-card small {
+    color: var(--app-muted);
+}
+
+.audio-detail-card--wide {
+    grid-column: 1 / -1;
+}
+
+.moderation-detail {
+    position: sticky;
+    top: 1.5rem;
+}
+
+@media (max-width: 1199.98px) {
+    .moderation-detail {
+        position: static;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .moderation-card__header,
+    .audio-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .moderation-card__header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

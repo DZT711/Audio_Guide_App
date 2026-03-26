@@ -149,7 +149,7 @@ else
                                 <small class="management-muted">@GetAudioStorageLabel(audio.AudioURL)</small>
                                 <div class="management-inline-actions">
                                     <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">@(CanManage ? "Edit" : "View")</button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || audio.Status == 0)" @onclick="() => DeleteAudioAsync(audio)">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || audio.Status == 0)" @onclick="() => PromptArchiveAudio(audio)">
                                         @(audio.Status == 0 ? "Inactive" : "Archive")
                                     </button>
                                 </div>
@@ -184,12 +184,13 @@ else
                         <label for="audio-location">Location</label>
                         <InputSelect id="audio-location" class="form-select" @bind-Value="_formModel.LocationId">
                             <option value="0">Choose location</option>
-                            @foreach (var location in _locations)
+                            @foreach (var location in ActiveLocationOptions)
                             {
                                 <option value="@location.Id">@location.Name</option>
                             }
                         </InputSelect>
                         <ValidationMessage For="() => _formModel.LocationId" />
+                        <span class="management-field__hint">@GetLocationSelectionHint()</span>
                     </div>
 
                     <div class="management-field">
@@ -260,7 +261,7 @@ else
                             }
                         </InputSelect>
                         <ValidationMessage For="() => _formModel.Language" />
-                        @* <span class="management-field__hint">@GetSelectedLanguageHint()</span> *@
+                        <span class="management-field__hint">@GetSelectedLanguageHint()</span>
                     </div>
 
                     <div class="management-field audio-field audio-field--duration">
@@ -382,7 +383,7 @@ else
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _locations.Count == 0 || !HasLanguageCatalog || !CanManage)">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveLocations || !HasLanguageCatalog || !CanManage)">
                         @(_isSaving ? "Saving..." : _editingId is null ? "Create Audio" : "Save Changes")
                     </button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
@@ -513,6 +514,15 @@ else
         </section>
     </div>
 </div>
+
+<AdminConfirmDialog Visible="@(_pendingArchivedAudio is not null)"
+                    Eyebrow="Archive Audio"
+                    Title="Archive this audio item?"
+                    Message="@GetPendingArchiveAudioMessage()"
+                    ConfirmLabel="Archive Audio"
+                    ConfirmButtonClass="btn btn-danger"
+                    OnConfirm="ConfirmArchiveAudioAsync"
+                    OnCancel="CancelArchiveAudio" />
 }
 
 @code {
@@ -524,6 +534,7 @@ else
     private readonly List<LanguageDto> _languages = new();
     private readonly List<LocationDto> _locations = new();
     private AudioDto? _selectedAudio;
+    private AudioDto? _pendingArchivedAudio;
     private bool _isLoading = true;
     private bool _isSaving;
     private int? _editingId;
@@ -543,13 +554,17 @@ else
     private bool CanView => SessionState.HasPermission(AdminPermissions.AudioRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.AudioManage);
     private bool CanLoadLanguages => SessionState.HasPermission(AdminPermissions.LanguageRead);
+    private IEnumerable<LocationDto> ActiveLocationOptions => _locations
+        .Where(item => item.Status == 1)
+        .OrderBy(item => item.Name);
+    private bool HasActiveLocations => ActiveLocationOptions.Any();
     private bool HasLanguageCatalog => LanguageOptions.Any();
     private AudioDto? SelectedAudioForDisplay => ResolveSelectedAudio();
     private LanguageDto? SelectedLanguage =>
         _languages.FirstOrDefault(item => string.Equals(item.Code, _formModel.Language, StringComparison.OrdinalIgnoreCase));
     private IEnumerable<LanguageDto> LanguageOptions =>
         _languages
-            .Where(item => item.Status == 1 || string.Equals(item.Code, _formModel.Language, StringComparison.OrdinalIgnoreCase))
+            .Where(item => item.Status == 1)
             .OrderByDescending(item => item.IsDefault)
             .ThenBy(item => item.Name);
 
@@ -607,6 +622,7 @@ else
                 .ThenByDescending(item => item.IsDefault)
                 .ThenBy(item => item.Name));
 
+            EnsureFormLocationSelection();
             EnsureFormLanguageSelection();
 
             SyncSelectedAudio();
@@ -697,7 +713,7 @@ else
         }
     }
 
-    private async Task DeleteAudioAsync(AudioDto audio)
+    private void PromptArchiveAudio(AudioDto audio)
     {
         if (!CanManage)
         {
@@ -705,19 +721,23 @@ else
             return;
         }
 
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive audio '{audio.Title}' and mark it inactive?");
-        if (!confirmed)
+        _pendingArchivedAudio = audio;
+    }
+
+    private async Task ConfirmArchiveAudioAsync()
+    {
+        if (!CanManage || _pendingArchivedAudio is null)
         {
             return;
         }
 
         try
         {
-            await ApiClient.DeleteAudioAsync(audio.Id);
-            Notifications.Info($"'{audio.Title}' is now inactive.", "Audio archived");
+            await ApiClient.DeleteAudioAsync(_pendingArchivedAudio.Id);
+            Notifications.Info($"'{_pendingArchivedAudio.Title}' is now inactive.", "Audio archived");
             await LoadDataAsync();
 
-            if (_editingId == audio.Id)
+            if (_editingId == _pendingArchivedAudio.Id)
             {
                 await StartCreateAsync();
             }
@@ -725,6 +745,10 @@ else
         catch (Exception ex)
         {
             Notifications.Error(ex.Message, "Delete failed");
+        }
+        finally
+        {
+            CancelArchiveAudio();
         }
     }
 
@@ -855,6 +879,7 @@ else
         _formModel.InterruptPolicy = model.InterruptPolicy;
         _formModel.IsDownloadable = model.IsDownloadable;
         _formModel.Status = model.Status;
+        EnsureFormLocationSelection();
         EnsureFormLanguageSelection();
     }
 
@@ -967,19 +992,19 @@ else
         return string.Join(" · ", parts);
     }
 
-    @* private string GetSelectedLanguageHint()
+    private string GetSelectedLanguageHint()
     {
         var language = SelectedLanguage;
         if (language is null)
         {
-            return "Add at least one active language in Language Management before saving audio.";
+            return "Archived languages are hidden. Add or reactivate a language before saving audio.";
         }
 
         var nativeName = string.IsNullOrWhiteSpace(language.NativeName)
             ? language.Name
             : language.NativeName;
         return $"{nativeName} is selected. Preview will prefer a same-language {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} when available, then fall back to generated audio for {language.Code}.";
-    } *@
+    }
 
     private string GetCurrentPreviewModeHint()
     {
@@ -1037,6 +1062,30 @@ else
         ?? _languages.FirstOrDefault(item => item.Status == 1)?.Code
         ?? "vi-VN";
 
+    private string GetLocationSelectionHint() =>
+        HasActiveLocations
+            ? _formModel.LocationId > 0
+                ? "Only active locations are available for audio assignments."
+                : "Archived locations are hidden. Choose an active location before saving."
+            : "Activate at least one location before saving audio.";
+
+    private void EnsureFormLocationSelection()
+    {
+        if (_locations.Count == 0)
+        {
+            _formModel.LocationId = 0;
+            return;
+        }
+
+        var selectedLocationIsActive = _locations.Any(item =>
+            item.Status == 1 && item.Id == _formModel.LocationId);
+
+        if (!selectedLocationIsActive)
+        {
+            _formModel.LocationId = 0;
+        }
+    }
+
     private void EnsureFormLanguageSelection()
     {
         if (_languages.Count == 0)
@@ -1045,7 +1094,7 @@ else
         }
 
         var selectedLanguageExists = _languages.Any(item =>
-            string.Equals(item.Code, _formModel.Language, StringComparison.OrdinalIgnoreCase));
+            item.Status == 1 && string.Equals(item.Code, _formModel.Language, StringComparison.OrdinalIgnoreCase));
 
         if (!selectedLanguageExists)
         {
@@ -1200,6 +1249,13 @@ else
         _ttsPreviewWarning = null;
         _ttsPreviewIsObjectUrl = false;
     }
+
+    private string GetPendingArchiveAudioMessage() =>
+        _pendingArchivedAudio is null
+            ? string.Empty
+            : $"'{_pendingArchivedAudio.Title}' will become inactive and stop accepting new edits until it is restored to active status.";
+
+    private void CancelArchiveAudio() => _pendingArchivedAudio = null;
 
     public async ValueTask DisposeAsync()
     {

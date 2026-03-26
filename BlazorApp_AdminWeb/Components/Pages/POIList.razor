@@ -159,7 +159,7 @@ else
                                     <td class="text-end">
                                         <div class="management-inline-actions">
                                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(location)">@(CanManage ? "Edit" : "View")</button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || location.Status == 0)" @onclick="() => DeleteLocationAsync(location)">
+                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || location.Status == 0)" @onclick="() => PromptArchiveLocation(location)">
                                                 @(location.Status == 0 ? "Inactive" : "Archive")
                                             </button>
                                         </div>
@@ -196,12 +196,13 @@ else
                         <label for="location-category">Category</label>
                         <InputSelect id="location-category" class="form-select" @bind-Value="_formModel.CategoryId">
                             <option value="0">Choose category</option>
-                            @foreach (var category in _categories)
+                            @foreach (var category in ActiveCategories)
                             {
                                 <option value="@category.Id">@category.Name</option>
                             }
                         </InputSelect>
                         <ValidationMessage For="() => _formModel.CategoryId" />
+                        <span class="management-field__hint">@GetCategoryFieldHint()</span>
                     </div>
 
                     <div class="management-field management-field--full">
@@ -392,7 +393,7 @@ else
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _categories.Count == 0 || !CanManage)">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveCategories || !CanManage)">
                         @(_isSaving ? "Saving..." : _editingId is null ? "Create Location" : "Save Changes")
                     </button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
@@ -474,6 +475,15 @@ else
         </section>
     </div>
 </div>
+
+<AdminConfirmDialog Visible="@(_pendingArchivedLocation is not null)"
+                    Eyebrow="Archive Location"
+                    Title="Archive this location?"
+                    Message="@GetPendingArchiveLocationMessage()"
+                    ConfirmLabel="Archive Location"
+                    ConfirmButtonClass="btn btn-danger"
+                    OnConfirm="ConfirmArchiveLocationAsync"
+                    OnCancel="CancelArchiveLocation" />
 }
 
 @code {
@@ -487,6 +497,7 @@ else
     private readonly HashSet<string> _imageObjectUrls = new(StringComparer.OrdinalIgnoreCase);
     private DotNetObjectReference<POIList>? _mapReference;
     private LocationDto? _selectedLocation;
+    private LocationDto? _pendingArchivedLocation;
     private bool _isLoading = true;
     private bool _isSaving;
     private bool _isPreparingImagePreview;
@@ -503,6 +514,10 @@ else
     private bool CanManage => SessionState.HasPermission(AdminPermissions.LocationManage);
     private bool CanSelectOwner => SessionState.HasPermission(AdminPermissions.UserRead) && CanManage;
     private LocationDto? SelectedLocationForDisplay => ResolveSelectedLocation();
+    private IEnumerable<CategoryDto> ActiveCategories => _categories
+        .Where(item => item.Status == 1)
+        .OrderBy(item => item.Name);
+    private bool HasActiveCategories => ActiveCategories.Any();
     private IEnumerable<string> CategoryOptions => _categories.Count > 0
         ? _categories.Select(item => item.Name)
         : _locations
@@ -586,6 +601,7 @@ else
                 .Where(item => item.Status == 1)
                 .OrderBy(item => item.FullName ?? item.Username));
 
+            EnsureFormCategorySelection();
             SyncSelectedLocation();
         }
         catch (Exception ex)
@@ -702,7 +718,7 @@ else
         }
     }
 
-    private async Task DeleteLocationAsync(LocationDto location)
+    private void PromptArchiveLocation(LocationDto location)
     {
         if (!CanManage)
         {
@@ -710,19 +726,23 @@ else
             return;
         }
 
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive location '{location.Name}' and mark it inactive?");
-        if (!confirmed)
+        _pendingArchivedLocation = location;
+    }
+
+    private async Task ConfirmArchiveLocationAsync()
+    {
+        if (!CanManage || _pendingArchivedLocation is null)
         {
             return;
         }
 
         try
         {
-            await ApiClient.DeleteLocationAsync(location.Id);
-            Notifications.Info($"'{location.Name}' is now inactive.", "Location archived");
+            await ApiClient.DeleteLocationAsync(_pendingArchivedLocation.Id);
+            Notifications.Info($"'{_pendingArchivedLocation.Name}' is now inactive.", "Location archived");
             await LoadDataAsync();
 
-            if (_editingId == location.Id)
+            if (_editingId == _pendingArchivedLocation.Id)
             {
                 await StartCreateAsync();
             }
@@ -730,6 +750,10 @@ else
         catch (Exception ex)
         {
             Notifications.Error(ex.Message, "Delete failed");
+        }
+        finally
+        {
+            CancelArchiveLocation();
         }
     }
 
@@ -775,6 +799,7 @@ else
         _formModel.Status = model.Status;
         _formModel.ExistingImageUrls = model.ExistingImageUrls.ToList();
         _formModel.ImageFiles = [];
+        EnsureFormCategorySelection();
         _imageInputVersion++;
         _mapSyncPending = CanManage;
     }
@@ -847,6 +872,18 @@ else
     }
 
     private void SetStatus(int status) => _formModel.Status = status;
+
+    private string GetCategoryFieldHint()
+    {
+        if (!HasActiveCategories)
+        {
+            return "Activate or create at least one category before saving a location.";
+        }
+
+        return _formModel.CategoryId > 0
+            ? "Only active categories are available for location assignments."
+            : "Archived categories are hidden. Choose an active category before saving.";
+    }
 
     private void SetGpsTrigger(bool isEnabled) => _formModel.IsGpsTriggerEnabled = isEnabled;
 
@@ -978,6 +1015,30 @@ else
     private static string GetBoolChipClass(bool value, bool currentValue) => value == currentValue
         ? "management-chip management-chip--selected"
         : "management-chip";
+
+    private void EnsureFormCategorySelection()
+    {
+        if (_categories.Count == 0)
+        {
+            _formModel.CategoryId = 0;
+            return;
+        }
+
+        var isActiveCategorySelected = _categories.Any(item =>
+            item.Status == 1 && item.Id == _formModel.CategoryId);
+
+        if (!isActiveCategorySelected)
+        {
+            _formModel.CategoryId = 0;
+        }
+    }
+
+    private string GetPendingArchiveLocationMessage() =>
+        _pendingArchivedLocation is null
+            ? string.Empty
+            : $"'{_pendingArchivedLocation.Name}' will become inactive and its audio items will stop accepting new changes until the location is active again.";
+
+    private void CancelArchiveLocation() => _pendingArchivedLocation = null;
 
     public async ValueTask DisposeAsync()
     {

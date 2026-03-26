@@ -1,3 +1,7 @@
+.audio-page .management-field {
+    align-content: start;
+}
+
 .audio-page .management-layout {
     align-items: start;
 }
@@ -67,9 +71,9 @@
 }
 
 .audio-preview {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: start;
     gap: 1rem;
     padding: 1rem 1.1rem;
     border: 1px solid rgba(15, 118, 110, 0.14);
@@ -98,6 +102,16 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.65rem;
+    align-self: start;
+    flex-shrink: 0;
+}
+
+.audio-preview__actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 6.9rem;
+    white-space: nowrap;
 }
 
 .audio-readonly {
@@ -171,11 +185,16 @@
     .audio-preview,
     .audio-card__header,
     .audio-card__footer {
+        display: flex;
         flex-direction: column;
         align-items: flex-start;
     }
 
     .audio-detail-grid {
         grid-template-columns: 1fr;
+    }
+
+    .audio-preview__actions .btn {
+        min-width: 0;
     }
 }

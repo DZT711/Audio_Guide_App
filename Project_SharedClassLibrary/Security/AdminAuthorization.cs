@@ -38,6 +38,16 @@ public static class AdminPermissions
 
 public static class AdminRolePolicies
 {
+    private static readonly IReadOnlyDictionary<string, int> RolePriority =
+        new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            [AdminRoles.User] = 1,
+            [AdminRoles.Editor] = 2,
+            [AdminRoles.DataAnalyst] = 2,
+            [AdminRoles.Admin] = 3,
+            [AdminRoles.Developer] = 4
+        };
+
     private static readonly IReadOnlyDictionary<string, HashSet<string>> RolePermissions =
         new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
         {
@@ -72,6 +82,7 @@ public static class AdminRolePolicies
                 AdminPermissions.AudioRead,
                 AdminPermissions.AudioManage,
                 AdminPermissions.UserRead,
+                AdminPermissions.UserManage,
                 AdminPermissions.ModerationView,
                 AdminPermissions.ModerationManage,
                 AdminPermissions.AnalyticsView
@@ -122,13 +133,47 @@ public static class AdminRolePolicies
         string.Equals(role, AdminRoles.Admin, StringComparison.OrdinalIgnoreCase)
         || string.Equals(role, AdminRoles.Developer, StringComparison.OrdinalIgnoreCase);
 
+    public static int GetRolePriority(string? role) =>
+        string.IsNullOrWhiteSpace(role)
+            ? 0
+            : RolePriority.TryGetValue(role, out var value)
+                ? value
+                : 0;
+
     public static bool CanManageUserRole(string? actorRole, string? targetRole)
     {
-        if (!string.Equals(actorRole, AdminRoles.Admin, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(actorRole, AdminRoles.Admin, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(actorRole, AdminRoles.Developer, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
         return AdminRoles.All.Contains(targetRole ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public static bool CanSetUserStatus(
+        string? actorRole,
+        int actorUserId,
+        int? targetUserId,
+        string? targetRole,
+        int nextStatus)
+    {
+        if (!HasPermission(actorRole, AdminPermissions.UserManage))
+        {
+            return false;
+        }
+
+        if (nextStatus == 1)
+        {
+            return true;
+        }
+
+        if (targetUserId.HasValue && actorUserId == targetUserId.Value)
+        {
+            return false;
+        }
+
+        return !string.Equals(actorRole, AdminRoles.Admin, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(targetRole, AdminRoles.Developer, StringComparison.OrdinalIgnoreCase);
     }
 }

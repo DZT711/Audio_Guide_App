@@ -103,6 +103,8 @@ public static class AdminMappings
             Id = audio.AudioId,
             LocationId = audio.LocationId,
             LocationName = audio.Location?.Name ?? "Unknown",
+            OwnerId = audio.Location?.OwnerId,
+            OwnerName = audio.Location?.Owner?.FullName ?? audio.Location?.Owner?.Username,
             Language = audio.LanguageCode,
             LanguageName = language?.LangName,
             NativeLanguageName = language?.NativeName,

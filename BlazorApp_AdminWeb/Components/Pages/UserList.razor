@@ -143,7 +143,7 @@ else
                                 <td class="text-end">
                                     <div class="row-actions justify-content-end">
                                         <button class="btn btn-sm btn-outline-secondary" type="button" disabled="@(!CanManage)" @onclick="() => StartEdit(user)">Edit</button>
-                                        <button class="btn btn-sm btn-outline-danger" type="button" disabled="@(!CanManage)" @onclick="() => ToggleUserStatusAsync(user)">@GetActionLabel(user)</button>
+                                        <button class="btn btn-sm btn-outline-danger" type="button" disabled="@(!CanToggleUserStatus(user))" title="@GetActionDisabledReason(user)" @onclick="() => PromptUserStatusChange(user)">@GetActionLabel(user)</button>
                                     </div>
                                 </td>
                             </tr>
@@ -193,7 +193,7 @@ else
 
                 <div class="management-field">
                     <label for="user-role">Role</label>
-                    <InputSelect id="user-role" class="form-select" @bind-Value="_formModel.Role">
+                    <InputSelect id="user-role" class="form-select" @bind-Value="_formModel.Role" @bind-Value:after="HandleRoleChanged">
                         @foreach (var role in AdminRoles.All)
                         {
                             <option value="@role">@role</option>
@@ -210,9 +210,10 @@ else
                 <div class="management-field management-field--full">
                     <span class="management-field__label">Status</span>
                     <div class="management-chip-group">
-                        <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
-                        <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                        <button type="button" class="@GetChipClass(1, _formModel.Status)" disabled="@(!CanSetFormStatus(1))" @onclick="() => SetStatus(1)">Active</button>
+                        <button type="button" class="@GetChipClass(0, _formModel.Status)" disabled="@(!CanSetFormStatus(0))" @onclick="() => SetStatus(0)">Inactive</button>
                     </div>
+                    <span class="management-field__hint">@GetStatusEditorHint()</span>
                 </div>
             </div>
 
@@ -225,6 +226,15 @@ else
         </EditForm>
     </section>
 </div>
+
+<AdminConfirmDialog Visible="@(_pendingStatusUser is not null)"
+                    Eyebrow="Account Status"
+                    Title="@GetPendingStatusTitle()"
+                    Message="@GetPendingStatusMessage()"
+                    ConfirmLabel="@GetPendingStatusConfirmLabel()"
+                    ConfirmButtonClass="btn btn-danger"
+                    OnConfirm="ConfirmPendingStatusAsync"
+                    OnCancel="CancelPendingStatus" />
 }
 
 @code {
@@ -235,12 +245,15 @@ else
     private bool _isSaving;
     private bool _inviteMode;
     private int? _editingId;
+    private DashboardUserDto? _pendingStatusUser;
+    private int _pendingStatusValue = 1;
     private string _searchText = "";
     private string? _roleFilter;
     private string? _loadError;
 
     private bool CanView => SessionState.HasPermission(AdminPermissions.UserRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.UserManage);
+    private int CurrentUserId => SessionState.CurrentUser?.UserId ?? 0;
 
     private List<DashboardUserDto> VisibleUsers =>
         _users
@@ -370,7 +383,10 @@ else
             if (_inviteMode)
             {
                 var inviteResult = await ApiClient.InviteUserAsync(_formModel);
-                Notifications.Success($"Invitation user created. Temporary password: {inviteResult.TemporaryPassword}", "Invite ready", 6000);
+                var inviteSubject = "Smart Tourism Admin Invitation";
+                var inviteBody = BuildInviteEmailBody(inviteResult);
+                await JS.InvokeVoidAsync("smartTourAdmin.mail.composeInvite", inviteResult.User.Email, inviteSubject, inviteBody);
+                Notifications.Success("Invitation created. A prefilled email draft was opened and the message body was copied to the clipboard.", "Invite ready", 6000);
             }
             else if (_editingId is null)
             {
@@ -398,33 +414,40 @@ else
         }
     }
 
-    private async Task ToggleUserStatusAsync(DashboardUserDto user)
+    private void PromptUserStatusChange(DashboardUserDto user)
     {
-        if (!CanManage)
+        if (!CanToggleUserStatus(user))
         {
-            Notifications.Warning("Your role can view users but cannot change their status.", "Read-only access");
+            Notifications.Warning(GetActionDisabledReason(user), "Status change unavailable");
             return;
         }
 
-        var nextStatus = user.Status == 1 ? 0 : 1;
-        var actionLabel = nextStatus == 1 ? "unlock" : "block";
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Do you want to {actionLabel} '{user.Username}'?");
-        if (!confirmed)
+        _pendingStatusUser = user;
+        _pendingStatusValue = user.Status == 1 ? 0 : 1;
+    }
+
+    private async Task ConfirmPendingStatusAsync()
+    {
+        if (_pendingStatusUser is null)
         {
             return;
         }
 
         try
         {
-            var updateModel = UserFormModel.FromDto(user);
-            updateModel.Status = nextStatus;
-            await ApiClient.UpdateUserAsync(user.Id, updateModel);
-            Notifications.Info($"'{user.Username}' is now {GetStatusLabel(nextStatus).ToLowerInvariant()}.", "User updated");
+            var updateModel = UserFormModel.FromDto(_pendingStatusUser);
+            updateModel.Status = _pendingStatusValue;
+            await ApiClient.UpdateUserAsync(_pendingStatusUser.Id, updateModel);
+            Notifications.Info($"'{_pendingStatusUser.Username}' is now {GetStatusLabel(_pendingStatusValue).ToLowerInvariant()}.", "User updated");
             await LoadUsersAsync();
         }
         catch (Exception ex)
         {
             Notifications.Error(ex.Message, "Status update failed");
+        }
+        finally
+        {
+            CancelPendingStatus();
         }
     }
 
@@ -446,7 +469,23 @@ else
         _formModel.Status = 1;
     }
 
-    private void SetStatus(int status) => _formModel.Status = status;
+    private void SetStatus(int status)
+    {
+        if (!CanSetFormStatus(status))
+        {
+            return;
+        }
+
+        _formModel.Status = status;
+    }
+
+    private void HandleRoleChanged()
+    {
+        if (_formModel.Status == 0 && !CanSetFormStatus(0))
+        {
+            _formModel.Status = 1;
+        }
+    }
 
     private string GetEditorTitle() => _inviteMode
         ? "Invite User"
@@ -523,6 +562,99 @@ else
     private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
 
     private static string GetActionLabel(DashboardUserDto user) => user.Status == 1 ? "Block" : "Unlock";
+
+    private bool CanToggleUserStatus(DashboardUserDto user) =>
+        CanManage && AdminRolePolicies.CanSetUserStatus(
+            SessionState.Role,
+            CurrentUserId,
+            user.Id,
+            user.Role,
+            user.Status == 1 ? 0 : 1);
+
+    private bool CanSetFormStatus(int status) =>
+        CanManage && AdminRolePolicies.CanSetUserStatus(
+            SessionState.Role,
+            CurrentUserId,
+            _editingId,
+            _formModel.Role,
+            status);
+
+    private string GetActionDisabledReason(DashboardUserDto user)
+    {
+        if (!CanManage)
+        {
+            return "Your role does not allow user management.";
+        }
+
+        if (user.Status == 0)
+        {
+            return string.Empty;
+        }
+
+        if (user.Id == CurrentUserId)
+        {
+            return "You cannot block your own account.";
+        }
+
+        return string.Equals(SessionState.Role, AdminRoles.Admin, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(user.Role, AdminRoles.Developer, StringComparison.OrdinalIgnoreCase)
+                ? "Admin accounts cannot block Developer accounts."
+                : string.Empty;
+    }
+
+    private string GetStatusEditorHint()
+    {
+        if (!CanManage)
+        {
+            return "Your current role can review users but cannot change account status.";
+        }
+
+        if (CanSetFormStatus(0))
+        {
+            return "Active and inactive status changes are available for this account.";
+        }
+
+        if (_editingId == CurrentUserId)
+        {
+            return "You cannot block your own account.";
+        }
+
+        return string.Equals(SessionState.Role, AdminRoles.Admin, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(_formModel.Role, AdminRoles.Developer, StringComparison.OrdinalIgnoreCase)
+                ? "Admin accounts cannot set Developer accounts to inactive."
+                : "This account cannot be switched to inactive from your current role.";
+    }
+
+    private string GetPendingStatusTitle() =>
+        _pendingStatusValue == 1 ? "Unlock this account?" : "Block this account?";
+
+    private string GetPendingStatusMessage() =>
+        _pendingStatusUser is null
+            ? string.Empty
+            : _pendingStatusValue == 1
+                ? $"'{_pendingStatusUser.Username}' will be able to sign in again."
+                : $"'{_pendingStatusUser.Username}' will be blocked from signing in until another privileged user restores access.";
+
+    private string GetPendingStatusConfirmLabel() => _pendingStatusValue == 1 ? "Unlock Account" : "Block Account";
+
+    private void CancelPendingStatus()
+    {
+        _pendingStatusUser = null;
+        _pendingStatusValue = 1;
+    }
+
+    private static string BuildInviteEmailBody(DashboardUserInviteResultDto inviteResult) =>
+        $"""
+        Hello {inviteResult.User.FullName ?? inviteResult.User.Username},
+
+        Your Smart Tourism admin account is ready.
+
+        Username: {inviteResult.User.Username}
+        Temporary password: {inviteResult.TemporaryPassword}
+        Role: {inviteResult.User.Role}
+
+        Open the Smart Tourism admin web and sign in with these credentials, then change the password after your first login.
+        """;
 
     private static string GetChipClass(int status, int currentStatus) => status == currentStatus
         ? "management-chip management-chip--selected"

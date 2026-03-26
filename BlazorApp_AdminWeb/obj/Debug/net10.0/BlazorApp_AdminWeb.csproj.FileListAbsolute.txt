@@ -136,6 +136,8 @@ D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_Ad
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.genruntimeconfig.cache
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\ref\BlazorApp_AdminWeb.dll
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\LanguageList.razor.rz.scp.css
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\r008phjwfc-{0}-y6g14lcyrk-y6g14lcyrk.gz
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-lic8hy985u-lic8hy985u.gz
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-lic8hy985u-lic8hy985u.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\AdminConfirmDialog.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\ModerationList.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\r008phjwfc-{0}-nmo8rtqf16-nmo8rtqf16.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-cuq6qfzoth-cuq6qfzoth.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-cuq6qfzoth-cuq6qfzoth.gz

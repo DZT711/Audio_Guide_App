@@ -1,3 +1,7 @@
+.poi-page .management-field {
+    align-content: start;
+}
+
 .poi-page .management-layout {
     align-items: start;
 }
@@ -24,10 +28,22 @@
 }
 
 .location-picker__header {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content max-content;
     align-items: flex-start;
-    justify-content: space-between;
     gap: 1rem;
+}
+
+.location-picker__header > div:first-child {
+    min-width: 0;
+}
+
+.location-picker__header > .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    white-space: nowrap;
 }
 
 .location-picker__map {
@@ -150,7 +166,7 @@
 
 @media (max-width: 575.98px) {
     .location-picker__header {
-        flex-direction: column;
+        grid-template-columns: 1fr;
     }
 
     .location-picker__map {

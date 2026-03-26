@@ -86,7 +86,13 @@ public class DashboardUserController(
             return BadRequest(new { message = "Password is required when creating a user." });
         }
 
-        var validationMessage = await ValidateUserRequestAsync(request, null);
+        var validationMessage = await ValidateUserRequestAsync(access.User!, request, null);
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            return BadRequest(new { message = validationMessage });
+        }
+
+        validationMessage = ValidateInactiveStatusRequest(access.User!, null, request.Role, request.Status);
         if (!string.IsNullOrWhiteSpace(validationMessage))
         {
             return BadRequest(new { message = validationMessage });
@@ -140,7 +146,13 @@ public class DashboardUserController(
             Status = 0
         };
 
-        var validationMessage = await ValidateUserRequestAsync(upsertRequest, null);
+        var validationMessage = await ValidateUserRequestAsync(access.User!, upsertRequest, null);
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            return BadRequest(new { message = validationMessage });
+        }
+
+        validationMessage = ValidateInactiveStatusRequest(access.User!, null, upsertRequest.Role, upsertRequest.Status);
         if (!string.IsNullOrWhiteSpace(validationMessage))
         {
             return BadRequest(new { message = validationMessage });
@@ -189,7 +201,13 @@ public class DashboardUserController(
             return NotFound(new { message = "User not found." });
         }
 
-        var validationMessage = await ValidateUserRequestAsync(request, user.UserId);
+        var validationMessage = await ValidateUserRequestAsync(access.User!, request, user.UserId);
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            return BadRequest(new { message = validationMessage });
+        }
+
+        validationMessage = ValidateInactiveStatusRequest(access.User!, user, request.Role, request.Status);
         if (!string.IsNullOrWhiteSpace(validationMessage))
         {
             return BadRequest(new { message = validationMessage });
@@ -227,6 +245,12 @@ public class DashboardUserController(
             return NotFound(new { message = "User not found." });
         }
 
+        var validationMessage = ValidateInactiveStatusRequest(access.User!, user, user.Role, 0);
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            return BadRequest(new { message = validationMessage });
+        }
+
         user.Status = 0;
         user.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
@@ -234,11 +258,19 @@ public class DashboardUserController(
         return Ok(new ApiMessageResponse { Message = "User archived successfully." });
     }
 
-    private async Task<string?> ValidateUserRequestAsync(DashboardUserUpsertRequest request, int? existingUserId)
+    private async Task<string?> ValidateUserRequestAsync(
+        DashboardUser actor,
+        DashboardUserUpsertRequest request,
+        int? existingUserId)
     {
         if (!AdminRoles.All.Contains(request.Role.Trim(), StringComparer.OrdinalIgnoreCase))
         {
             return "The selected role is invalid.";
+        }
+
+        if (!AdminRolePolicies.CanManageUserRole(actor.Role, request.Role))
+        {
+            return "You do not have permission to assign the selected role.";
         }
 
         var normalizedUsername = request.Username.Trim();
@@ -270,6 +302,33 @@ public class DashboardUserController(
         }
 
         return null;
+    }
+
+    private static string? ValidateInactiveStatusRequest(
+        DashboardUser actor,
+        DashboardUser? targetUser,
+        string? targetRole,
+        int nextStatus)
+    {
+        if (nextStatus != 0 || targetUser?.Status == 0)
+        {
+            return null;
+        }
+
+        if (targetUser is not null && actor.UserId == targetUser.UserId)
+        {
+            return "You cannot block your own account.";
+        }
+
+        if (AdminRolePolicies.CanSetUserStatus(actor.Role, actor.UserId, targetUser?.UserId, targetRole, nextStatus))
+        {
+            return null;
+        }
+
+        return string.Equals(actor.Role, AdminRoles.Admin, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(targetRole, AdminRoles.Developer, StringComparison.OrdinalIgnoreCase)
+                ? "Admin accounts cannot block Developer accounts."
+                : "You do not have permission to block this account.";
     }
 
     private static string? Normalize(string? value) =>

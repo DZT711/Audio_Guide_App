@@ -1,0 +1,68 @@
+@if (Visible)
+{
+    <div class="admin-confirm__backdrop" @onclick="HandleCancel">
+        <section class="admin-confirm__panel" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+            <div class="admin-confirm__copy">
+                @if (!string.IsNullOrWhiteSpace(Eyebrow))
+                {
+                    <span class="admin-confirm__eyebrow">@Eyebrow</span>
+                }
+
+                <h3>@Title</h3>
+
+                @if (!string.IsNullOrWhiteSpace(Message))
+                {
+                    <p>@Message</p>
+                }
+            </div>
+
+            @if (ChildContent is not null)
+            {
+                <div class="admin-confirm__body">
+                    @ChildContent
+                </div>
+            }
+
+            <div class="admin-confirm__actions">
+                <button type="button" class="btn btn-outline-secondary" @onclick="HandleCancel">@CancelLabel</button>
+                <button type="button" class="@ConfirmButtonClass" @onclick="HandleConfirm">@ConfirmLabel</button>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public string Eyebrow { get; set; } = "Confirm";
+
+    [Parameter]
+    public string Title { get; set; } = "Confirm action";
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public string ConfirmLabel { get; set; } = "Continue";
+
+    [Parameter]
+    public string CancelLabel { get; set; } = "Cancel";
+
+    [Parameter]
+    public string ConfirmButtonClass { get; set; } = "btn btn-danger";
+
+    [Parameter]
+    public EventCallback OnConfirm { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private Task HandleConfirm() => OnConfirm.InvokeAsync();
+
+    private Task HandleCancel() => OnCancel.InvokeAsync();
+}

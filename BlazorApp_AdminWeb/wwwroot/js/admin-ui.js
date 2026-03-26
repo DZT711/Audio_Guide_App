@@ -30,6 +30,29 @@
         }
     };
 
+    admin.mail = {
+        composeInvite: async (email, subject, body) => {
+            const normalizedEmail = (email ?? "").trim();
+            if (!normalizedEmail) {
+                return false;
+            }
+
+            const subjectValue = (subject ?? "").trim();
+            const bodyValue = (body ?? "").trim();
+
+            try {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(bodyValue);
+                }
+            } catch {
+            }
+
+            const mailtoUrl = `mailto:${encodeURIComponent(normalizedEmail)}?subject=${encodeURIComponent(subjectValue)}&body=${encodeURIComponent(bodyValue)}`;
+            window.location.href = mailtoUrl;
+            return true;
+        }
+    };
+
     const normalizeLanguageCode = (language) => {
         const normalized = (language ?? "").trim().replace(/_/g, "-").toLowerCase();
         if (!normalized) {

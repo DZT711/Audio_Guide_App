@@ -107,6 +107,11 @@ public class LocationController(
             return NotFound(new { message = "Category not found." });
         }
 
+        if (category.Status != 1)
+        {
+            return BadRequest(new { message = "Inactive categories cannot be assigned to locations." });
+        }
+
         var ownerId = await ResolveOwnerIdAsync(access.User!, request.OwnerId);
         if (ownerId is null && request.OwnerId is not null && !IsOwnerScoped(access.User!))
         {
@@ -186,6 +191,11 @@ public class LocationController(
         if (category is null)
         {
             return NotFound(new { message = "Category not found." });
+        }
+
+        if (category.Status != 1)
+        {
+            return BadRequest(new { message = "Inactive categories cannot be assigned to locations." });
         }
 
         var ownerId = await ResolveOwnerIdAsync(access.User!, request.OwnerId);

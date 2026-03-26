@@ -133,6 +133,11 @@ public class AudioController(
             return NotFound(new { message = "Location not found." });
         }
 
+        if (location.Status != 1)
+        {
+            return BadRequest(new { message = "Inactive locations cannot be assigned to audio." });
+        }
+
         if (IsOwnerScoped(access.User!) && location.OwnerId != access.User!.UserId)
         {
             return StatusCode(403, new { message = "You can only create audio for your own locations." });
@@ -143,6 +148,11 @@ public class AudioController(
         if (language is null)
         {
             return NotFound(new { message = "Language not found." });
+        }
+
+        if (language.Status != 1)
+        {
+            return BadRequest(new { message = "Inactive languages cannot be assigned to audio." });
         }
 
         var audioPath = NormalizeAudioPath(request.AudioURL);
@@ -230,6 +240,11 @@ public class AudioController(
             return NotFound(new { message = "Location not found." });
         }
 
+        if (location.Status != 1)
+        {
+            return BadRequest(new { message = "Inactive locations cannot be assigned to audio." });
+        }
+
         if (IsOwnerScoped(access.User!) && location.OwnerId != access.User!.UserId)
         {
             return StatusCode(403, new { message = "You can only assign audio to your own locations." });
@@ -240,6 +255,11 @@ public class AudioController(
         if (language is null)
         {
             return NotFound(new { message = "Language not found." });
+        }
+
+        if (language.Status != 1)
+        {
+            return BadRequest(new { message = "Inactive languages cannot be assigned to audio." });
         }
 
         var nextAudioPath = string.IsNullOrWhiteSpace(request.AudioURL)

@@ -14,95 +14,293 @@
 }
 else
 {
-<h3>Content Moderation</h3>
-<p class="text-muted">Review inactive POIs and audio items before restoring them to the live POC database.</p>
+<div class="management-page moderation-page">
+    <section class="management-hero" data-reveal>
+        <div>
+            <span class="management-hero__eyebrow">Moderation</span>
+            <h1>Content Moderation</h1>
+            <p>
+                Review pending location and audio requests, inspect the request details, and decide
+                whether to restore or keep the submitted item inactive.
+            </p>
+        </div>
 
-<div class="card border-0 shadow-sm mt-4">
-    @if (_isLoading)
-    {
-        <div class="p-4">
-            @for (var i = 0; i < 4; i++)
+        <div class="management-hero__actions">
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
+                <i class="bi bi-arrow-clockwise me-2"></i>
+                Refresh
+            </button>
+        </div>
+    </section>
+
+    <div class="management-stat-grid" data-stagger data-stagger-step="80">
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-inboxes"></i></span>
+            <div>
+                <strong class="management-stat__value">@_items.Count</strong>
+                <span class="management-stat__label">Pending Requests</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-geo-alt"></i></span>
+            <div>
+                <strong class="management-stat__value">@_items.Count(item => item.Type == "POI")</strong>
+                <span class="management-stat__label">Location Requests</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-mic"></i></span>
+            <div>
+                <strong class="management-stat__value">@_items.Count(item => item.Type == "Audio")</strong>
+                <span class="management-stat__label">Audio Requests</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-funnel"></i></span>
+            <div>
+                <strong class="management-stat__value">@VisibleItems.Count()</strong>
+                <span class="management-stat__label">Matching Filters</span>
+            </div>
+        </article>
+    </div>
+
+    <div class="management-layout">
+        <section class="management-panel" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">Queue</span>
+                    <h2>Pending Requests</h2>
+                </div>
+
+                <div class="management-toolbar">
+                    <label class="management-search">
+                        <i class="bi bi-search"></i>
+                        <input class="form-control" type="search" placeholder="Search item or actor..." @bind="_searchText" @bind:event="oninput" />
+                    </label>
+
+                    <select class="form-select management-filter" @bind="_typeFilter">
+                        <option value="">All types</option>
+                        <option value="POI">Locations</option>
+                        <option value="Audio">Audio</option>
+                    </select>
+
+                    <select class="form-select management-filter" @bind="_actionFilter">
+                        <option value="">All actions</option>
+                        <option value="Add">Add</option>
+                        <option value="Edit">Edit</option>
+                        <option value="Delete">Delete</option>
+                    </select>
+                </div>
+            </div>
+
+            @if (_isLoading)
             {
-                <div class="skeleton-table-row">
-                    <div class="skeleton skeleton--line"></div>
-                    <div class="skeleton skeleton--line"></div>
-                    <div class="skeleton skeleton--line"></div>
-                    <div class="skeleton skeleton--line"></div>
+                <div class="moderation-skeleton-list">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <article class="moderation-skeleton-card">
+                            <div class="skeleton skeleton--title"></div>
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--line skeleton--line-short"></div>
+                        </article>
+                    }
                 </div>
             }
-        </div>
-    }
-    else if (!string.IsNullOrWhiteSpace(_loadError))
-    {
-        <div class="management-error">
-            <strong>Unable to load moderation items.</strong>
-            <div>@_loadError</div>
-        </div>
-    }
-    else if (!_items.Any())
-    {
-        <div class="app-empty-state">
-            There are no inactive locations or audio items waiting for review.
-        </div>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Type</th>
-                        <th>Content Name</th>
-                        <th>Submitted By</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th class="text-end">Decision</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in _items)
+            else if (!string.IsNullOrWhiteSpace(_loadError))
+            {
+                <div class="management-error">
+                    <strong>Unable to load moderation items.</strong>
+                    <div>@_loadError</div>
+                </div>
+            }
+            else if (!VisibleItems.Any())
+            {
+                <div class="app-empty-state">
+                    No moderation items match the current filters.
+                </div>
+            }
+            else
+            {
+                <div class="moderation-list">
+                    @foreach (var item in VisibleItems)
                     {
-                        <tr>
-                            <td>
-                                @if (item.Type == "POI")
-                                {
-                                    <span class="badge bg-info text-dark">POI</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-secondary">Audio</span>
-                                }
-                            </td>
-                            <td class="fw-bold">@item.Name</td>
-                            <td>@item.SubmittedBy</td>
-                            <td>@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</td>
-                            <td>
-                                <span class="badge @GetStatusBadge(item.Status)">@item.Status</span>
-                            </td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-success me-1" disabled="@(!CanManage)" @onclick="() => ApproveAsync(item)"><i class="bi bi-check-lg"></i> Approve</button>
-                                <button class="btn btn-sm btn-danger" disabled="@(!CanManage)" @onclick="() => RejectAsync(item)"><i class="bi bi-x-lg"></i> Reject</button>
-                            </td>
-                        </tr>
+                        <article class="@GetModerationCardClass(item)">
+                            <div class="moderation-card__header">
+                                <div>
+                                    <div class="moderation-card__title">@item.Name</div>
+                                    <small>@item.ActorName</small>
+                                </div>
+                                <span class="@GetActionClass(item.ActionType)">@item.ActionType</span>
+                            </div>
+
+                            <div class="moderation-card__meta">
+                                <span class="audio-card__tag">@item.Type</span>
+                                <span class="audio-card__tag">@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                                <span class="audio-card__tag">@item.Status</span>
+                            </div>
+
+                            <p class="audio-card__description">@item.Summary</p>
+
+                            <div class="management-inline-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => SelectItem(item)">Details</button>
+                                <button type="button" class="btn btn-sm btn-outline-success" disabled="@(!CanManage)" @onclick="() => ApproveAsync(item)">Approve</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage)" @onclick="() => RejectAsync(item)">Reject</button>
+                            </div>
+                        </article>
                     }
-                </tbody>
-            </table>
-        </div>
-    }
+                </div>
+            }
+        </section>
+
+        <section class="management-panel moderation-detail" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">Details</span>
+                    <h2>@(SelectedItem is null ? "Select a Request" : "Request Details")</h2>
+                </div>
+            </div>
+
+            @if (SelectedItem is null)
+            {
+                <div class="app-empty-state">
+                    Choose a moderation request to inspect its full details before deciding.
+                </div>
+            }
+            else
+            {
+                var item = SelectedItem;
+
+                <div class="audio-readonly">
+                    <div class="audio-readonly__notice">
+                        Review the request details first, then approve to apply the moderation decision or reject to keep the item out of the active catalog.
+                    </div>
+
+                    <div class="audio-detail-grid">
+                        <article class="audio-detail-card">
+                            <span>Item</span>
+                            <strong>@item.Name</strong>
+                            <small>@item.Type</small>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Action</span>
+                            <strong>@item.ActionType</strong>
+                            <small>@item.Status</small>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Actor</span>
+                            <strong>@item.ActorName</strong>
+                            <small>@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Decision Flow</span>
+                            <strong>@GetDecisionSummary(item)</strong>
+                            <small>@item.Summary</small>
+                        </article>
+
+                        @if (item.Location is not null)
+                        {
+                            <article class="audio-detail-card">
+                                <span>Category</span>
+                                <strong>@item.Location.Category</strong>
+                                <small>@(string.IsNullOrWhiteSpace(item.Location.Address) ? "No address" : item.Location.Address)</small>
+                            </article>
+                            <article class="audio-detail-card">
+                                <span>Coordinates</span>
+                                <strong>@($"{item.Location.Latitude:F6}, {item.Location.Longitude:F6}")</strong>
+                                <small>@($"{item.Location.Radius:F0}m trigger / {item.Location.StandbyRadius:F0}m standby")</small>
+                            </article>
+                            <article class="audio-detail-card audio-detail-card--wide">
+                                <span>Description</span>
+                                <strong>@(string.IsNullOrWhiteSpace(item.Location.Description) ? "No description provided." : item.Location.Description)</strong>
+                            </article>
+                            <article class="audio-detail-card">
+                                <span>Media</span>
+                                <strong>@item.Location.ImageUrls.Count image(s)</strong>
+                                <small>@($"{item.Location.AudioCount} linked audio item(s)")</small>
+                            </article>
+                            <article class="audio-detail-card">
+                                <span>Contact</span>
+                                <strong>@(string.IsNullOrWhiteSpace(item.Location.Phone) ? "No phone" : item.Location.Phone)</strong>
+                                <small>@(string.IsNullOrWhiteSpace(item.Location.Email) ? "No email" : item.Location.Email)</small>
+                            </article>
+                        }
+                        else if (item.Audio is not null)
+                        {
+                            <article class="audio-detail-card">
+                                <span>Location</span>
+                                <strong>@item.Audio.LocationName</strong>
+                                <small>@(string.IsNullOrWhiteSpace(item.Audio.OwnerName) ? "No actor" : item.Audio.OwnerName)</small>
+                            </article>
+                            <article class="audio-detail-card">
+                                <span>Language</span>
+                                <strong>@GetAudioLanguageLabel(item.Audio)</strong>
+                                <small>@GetVoiceLabel(item.Audio.VoiceGender)</small>
+                            </article>
+                            <article class="audio-detail-card">
+                                <span>Source</span>
+                                <strong>@item.Audio.SourceType</strong>
+                                <small>@($"{item.Audio.Duration} sec")</small>
+                            </article>
+                            <article class="audio-detail-card">
+                                <span>Stored Audio</span>
+                                <strong>@(string.IsNullOrWhiteSpace(item.Audio.AudioURL) ? "No stored file" : System.IO.Path.GetFileName(item.Audio.AudioURL))</strong>
+                                <small>@(string.IsNullOrWhiteSpace(item.Audio.VoiceName) ? "No named voice" : item.Audio.VoiceName)</small>
+                            </article>
+                            <article class="audio-detail-card audio-detail-card--wide">
+                                <span>Description</span>
+                                <strong>@(string.IsNullOrWhiteSpace(item.Audio.Description) ? "No description provided." : item.Audio.Description)</strong>
+                            </article>
+                            <article class="audio-detail-card audio-detail-card--wide">
+                                <span>Script</span>
+                                <strong>@(string.IsNullOrWhiteSpace(item.Audio.Script) ? "No script provided." : item.Audio.Script)</strong>
+                            </article>
+                        }
+                    </div>
+
+                    <div class="management-actions">
+                        <button type="button" class="btn btn-success" disabled="@(!CanManage)" @onclick="() => ApproveAsync(item)">Approve</button>
+                        <button type="button" class="btn btn-outline-danger" disabled="@(!CanManage)" @onclick="() => RejectAsync(item)">Reject</button>
+                    </div>
+                </div>
+            }
+        </section>
+    </div>
 </div>
 }
 
 @code {
     private readonly List<ModerationRow> _items = new();
+    private ModerationRow? _selectedItem;
     private bool _isLoading = true;
+    private string _searchText = "";
+    private string _typeFilter = "";
+    private string _actionFilter = "";
     private string? _loadError;
     private bool CanView => SessionState.HasPermission(AdminPermissions.ModerationView);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.ModerationManage);
+    private ModerationRow? SelectedItem => ResolveSelectedItem();
+
+    private IEnumerable<ModerationRow> VisibleItems =>
+        _items
+            .Where(item =>
+                string.IsNullOrWhiteSpace(_searchText)
+                || item.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+                || item.ActorName.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+                || item.Type.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+            .Where(item =>
+                string.IsNullOrWhiteSpace(_typeFilter)
+                || string.Equals(item.Type, _typeFilter, StringComparison.OrdinalIgnoreCase))
+            .Where(item =>
+                string.IsNullOrWhiteSpace(_actionFilter)
+                || string.Equals(item.ActionType, _actionFilter, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(item => item.SubmittedAt);
 
     protected override async Task OnInitializedAsync()
     {
         await LoadItemsAsync();
     }
+
+    private async Task RefreshAsync() => await LoadItemsAsync();
 
     private async Task LoadItemsAsync()
     {
@@ -125,9 +323,11 @@ else
                     Type = "POI",
                     Id = item.Id,
                     Name = item.Name,
-                    SubmittedBy = item.OwnerName ?? "Unassigned",
+                    ActorName = item.OwnerName ?? "Unassigned",
                     SubmittedAt = item.UpdatedAt ?? item.CreatedAt,
                     Status = "Pending",
+                    ActionType = ResolveActionType(item.CreatedAt, item.UpdatedAt),
+                    Summary = $"Category: {item.Category}. {(string.IsNullOrWhiteSpace(item.Address) ? "No address" : item.Address)}",
                     Location = item
                 }));
 
@@ -138,13 +338,15 @@ else
                     Type = "Audio",
                     Id = item.Id,
                     Name = item.Title,
-                    SubmittedBy = item.LocationName,
+                    ActorName = item.OwnerName ?? "Unassigned",
                     SubmittedAt = item.UpdatedAt ?? item.CreatedAt,
                     Status = "Pending",
+                    ActionType = ResolveActionType(item.CreatedAt, item.UpdatedAt),
+                    Summary = $"{item.LocationName} · {GetAudioLanguageLabel(item)} · {item.SourceType}",
                     Audio = item
                 }));
 
-            _items.Sort((left, right) => right.SubmittedAt.CompareTo(left.SubmittedAt));
+            SyncSelectedItem();
         }
         catch (Exception ex)
         {
@@ -157,6 +359,8 @@ else
         }
     }
 
+    private void SelectItem(ModerationRow item) => _selectedItem = item;
+
     private async Task ApproveAsync(ModerationRow item)
     {
         if (!CanManage)
@@ -167,10 +371,17 @@ else
 
         try
         {
+            if (item.ActionType == "Delete")
+            {
+                Notifications.Success($"Archive request for '{item.Name}' was accepted.", "Moderation approved");
+                _items.Remove(item);
+                SyncSelectedItem();
+                return;
+            }
+
             if (item.Location is not null)
             {
                 var form = LocationFormModel.FromDto(item.Location, []);
-                form.CategoryId = item.Location.CategoryId;
                 form.Status = 1;
                 await ApiClient.UpdateLocationAsync(item.Location.Id, form);
             }
@@ -183,6 +394,7 @@ else
 
             Notifications.Success($"'{item.Name}' was restored to active status.", "Moderation approved");
             _items.Remove(item);
+            await LoadItemsAsync();
         }
         catch (Exception ex)
         {
@@ -190,36 +402,117 @@ else
         }
     }
 
-    private Task RejectAsync(ModerationRow item)
+    private async Task RejectAsync(ModerationRow item)
     {
         if (!CanManage)
         {
             Notifications.Warning("Your role can view moderation items but cannot reject them.", "Read-only access");
-            return Task.CompletedTask;
+            return;
         }
 
-        item.Status = "Rejected";
-        Notifications.Info($"'{item.Name}' remains inactive and was removed from the current moderation queue.", "Moderation rejected");
-        _items.Remove(item);
-        return Task.CompletedTask;
+        try
+        {
+            if (item.ActionType == "Delete")
+            {
+                if (item.Location is not null)
+                {
+                    var form = LocationFormModel.FromDto(item.Location, []);
+                    form.Status = 1;
+                    await ApiClient.UpdateLocationAsync(item.Location.Id, form);
+                }
+                else if (item.Audio is not null)
+                {
+                    var form = AudioFormModel.FromDto(item.Audio);
+                    form.Status = 1;
+                    await ApiClient.UpdateAudioAsync(item.Audio.Id, form);
+                }
+
+                Notifications.Info($"Archive request for '{item.Name}' was rejected and the item was restored to active status.", "Moderation rejected");
+            }
+            else
+            {
+                Notifications.Info($"'{item.Name}' remains inactive and was removed from the current moderation queue.", "Moderation rejected");
+                _items.Remove(item);
+                SyncSelectedItem();
+                return;
+            }
+
+            _items.Remove(item);
+            await LoadItemsAsync();
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Reject failed");
+        }
     }
 
-    private string GetStatusBadge(string status) => status switch
+    private ModerationRow? ResolveSelectedItem()
     {
-        "Pending" => "bg-warning text-dark",
-        "Approved" => "bg-success",
-        "Rejected" => "bg-danger",
-        _ => "bg-secondary"
+        if (_selectedItem is not null)
+        {
+            return _items.FirstOrDefault(item => item.Type == _selectedItem.Type && item.Id == _selectedItem.Id) ?? _selectedItem;
+        }
+
+        return VisibleItems.FirstOrDefault() ?? _items.FirstOrDefault();
+    }
+
+    private void SyncSelectedItem()
+    {
+        if (_selectedItem is not null)
+        {
+            _selectedItem = _items.FirstOrDefault(item => item.Type == _selectedItem.Type && item.Id == _selectedItem.Id);
+        }
+
+        _selectedItem ??= VisibleItems.FirstOrDefault() ?? _items.FirstOrDefault();
+    }
+
+    private static string ResolveActionType(DateTime createdAt, DateTime? updatedAt)
+    {
+        if (updatedAt is null)
+        {
+            return "Add";
+        }
+
+        return updatedAt.Value - createdAt <= TimeSpan.FromMinutes(2)
+            ? "Edit"
+            : "Delete";
+    }
+
+    private static string GetModerationCardClass(ModerationRow item) =>
+        item.ActionType == "Delete"
+            ? "audio-card audio-card--inactive moderation-card moderation-card--delete"
+            : "audio-card moderation-card";
+
+    private static string GetActionClass(string actionType) => actionType switch
+    {
+        "Add" => "management-status management-status--active",
+        "Edit" => "management-status management-status--pending",
+        "Delete" => "management-status management-status--inactive",
+        _ => "management-status management-status--info"
     };
+
+    private static string GetDecisionSummary(ModerationRow item) => item.ActionType switch
+    {
+        "Delete" => "Approve keeps the item inactive. Reject restores it to active status.",
+        _ => "Approve restores the item to active status. Reject keeps it inactive."
+    };
+
+    private static string GetVoiceLabel(string? voiceGender) =>
+        string.IsNullOrWhiteSpace(voiceGender) ? "Unspecified voice" : $"{voiceGender} voice";
+
+    private static string GetAudioLanguageLabel(AudioDto audio) =>
+        string.IsNullOrWhiteSpace(audio.LanguageName) ? audio.Language : $"{audio.LanguageName} ({audio.Language})";
 
     private sealed class ModerationRow
     {
         public string Type { get; set; } = "";
         public int Id { get; set; }
         public string Name { get; set; } = "";
-        public string SubmittedBy { get; set; } = "";
+        public string ActorName { get; set; } = "";
         public DateTime SubmittedAt { get; set; }
         public string Status { get; set; } = "";
+        public string ActionType { get; set; } = "";
+        public string Summary { get; set; } = "";
         public LocationDto? Location { get; set; }
         public AudioDto? Audio { get; set; }
     }

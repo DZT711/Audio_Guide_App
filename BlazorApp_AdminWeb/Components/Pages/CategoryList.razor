@@ -123,7 +123,7 @@ else
 
                             <div class="management-inline-actions">
                                 <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">@(CanManage ? "Edit" : "View")</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || category.Status == 0)" @onclick="() => DeleteCategoryAsync(category)">
+                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || category.Status == 0)" @onclick="() => PromptArchiveCategory(category)">
                                     @(category.Status == 0 ? "Inactive" : "Archive")
                                 </button>
                             </div>
@@ -204,12 +204,22 @@ else
         </section>
     </div>
 </div>
+
+<AdminConfirmDialog Visible="@(_pendingArchivedCategory is not null)"
+                    Eyebrow="Archive Category"
+                    Title="Archive this category?"
+                    Message="@GetPendingArchiveCategoryMessage()"
+                    ConfirmLabel="Archive Category"
+                    ConfirmButtonClass="btn btn-danger"
+                    OnConfirm="ConfirmArchiveCategoryAsync"
+                    OnCancel="CancelArchiveCategory" />
 }
 
 @code {
     private readonly CategoryFormModel _formModel = new();
     private readonly List<CategoryDto> _categories = new();
     private CategoryDto? _selectedCategory;
+    private CategoryDto? _pendingArchivedCategory;
     private bool _isLoading = true;
     private bool _isSaving;
     private int? _editingId;
@@ -317,7 +327,7 @@ else
         }
     }
 
-    private async Task DeleteCategoryAsync(CategoryDto category)
+    private void PromptArchiveCategory(CategoryDto category)
     {
         if (!CanManage)
         {
@@ -325,19 +335,23 @@ else
             return;
         }
 
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Archive category '{category.Name}' and mark it inactive?");
-        if (!confirmed)
+        _pendingArchivedCategory = category;
+    }
+
+    private async Task ConfirmArchiveCategoryAsync()
+    {
+        if (!CanManage || _pendingArchivedCategory is null)
         {
             return;
         }
 
         try
         {
-            await ApiClient.DeleteCategoryAsync(category.Id);
-            Notifications.Info($"'{category.Name}' is now inactive.", "Category archived");
+            await ApiClient.DeleteCategoryAsync(_pendingArchivedCategory.Id);
+            Notifications.Info($"'{_pendingArchivedCategory.Name}' is now inactive.", "Category archived");
             await LoadCategoriesAsync();
 
-            if (_editingId == category.Id)
+            if (_editingId == _pendingArchivedCategory.Id)
             {
                 StartCreate();
             }
@@ -345,6 +359,10 @@ else
         catch (Exception ex)
         {
             Notifications.Error(ex.Message, "Delete failed");
+        }
+        finally
+        {
+            CancelArchiveCategory();
         }
     }
 
@@ -399,4 +417,11 @@ else
     private static string GetCategoryCardClass(int status) => status == 1
         ? "category-card"
         : "category-card category-card--inactive";
+
+    private string GetPendingArchiveCategoryMessage() =>
+        _pendingArchivedCategory is null
+            ? string.Empty
+            : $"'{_pendingArchivedCategory.Name}' will become inactive and will no longer be available for new or edited location assignments.";
+
+    private void CancelArchiveCategory() => _pendingArchivedCategory = null;
 }

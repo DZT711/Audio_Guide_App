@@ -56,6 +56,8 @@ public sealed class AudioDto
     public int Id { get; init; }
     public int LocationId { get; init; }
     public string LocationName { get; init; } = "";
+    public int? OwnerId { get; init; }
+    public string? OwnerName { get; init; }
     public string Language { get; init; } = "vi-VN";
     public string? LanguageName { get; init; }
     public string? NativeLanguageName { get; init; }

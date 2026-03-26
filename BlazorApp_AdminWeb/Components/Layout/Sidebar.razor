@@ -55,23 +55,26 @@
         }
     </div>
 
-    <div class="sidebar-group">
-        <span class="sidebar-group__label">Admin Section</span>
-        @if (SessionState.HasPermission(AdminPermissions.UserRead))
-        {
-            <NavLink class="sidebar-link" href="/users" title="Users" aria-label="Users" @attributes="GetDismissAttributes()">
-                <i class="bi bi-people-fill"></i>
-                <span class="sidebar-link__text">Users</span>
-            </NavLink>
-        }
-        @if (SessionState.HasPermission(AdminPermissions.ModerationView))
-        {
-            <NavLink class="sidebar-link" href="/moderation" title="Moderation" aria-label="Moderation" @attributes="GetDismissAttributes()">
-                <i class="bi bi-shield-check"></i>
-                <span class="sidebar-link__text">Moderation</span>
-            </NavLink>
-        }
-    </div>
+    @if (CanViewAdminSection)
+    {
+        <div class="sidebar-group">
+            <span class="sidebar-group__label">Admin Section</span>
+            @if (SessionState.HasPermission(AdminPermissions.UserRead))
+            {
+                <NavLink class="sidebar-link" href="/users" title="Users" aria-label="Users" @attributes="GetDismissAttributes()">
+                    <i class="bi bi-people-fill"></i>
+                    <span class="sidebar-link__text">Users</span>
+                </NavLink>
+            }
+            @if (SessionState.HasPermission(AdminPermissions.ModerationView))
+            {
+                <NavLink class="sidebar-link" href="/moderation" title="Moderation" aria-label="Moderation" @attributes="GetDismissAttributes()">
+                    <i class="bi bi-shield-check"></i>
+                    <span class="sidebar-link__text">Moderation</span>
+                </NavLink>
+            }
+        </div>
+    }
 
     <div class="sidebar-profile">
         <div class="sidebar-profile__avatar">@GetAvatarInitial()</div>
@@ -108,4 +111,8 @@
         string.IsNullOrWhiteSpace(SessionState.Role)
             ? "Admin session"
             : $"{SessionState.Role} · {SessionState.StatusLabel}";
+
+    private bool CanViewAdminSection =>
+        SessionState.HasPermission(AdminPermissions.UserRead)
+        || SessionState.HasPermission(AdminPermissions.ModerationView);
 }
