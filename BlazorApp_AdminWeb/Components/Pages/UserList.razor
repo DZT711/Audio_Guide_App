@@ -83,9 +83,16 @@ else
 
         @if (_isLoading)
         {
-            <div class="management-error">
-                <strong>Loading users...</strong>
-                <div>The admin API is loading role and status data.</div>
+            <div class="users-skeleton-table">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <div class="skeleton-table-row">
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </div>
+                }
             </div>
         }
         else if (!string.IsNullOrWhiteSpace(_loadError))

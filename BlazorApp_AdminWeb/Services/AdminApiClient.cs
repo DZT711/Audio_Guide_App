@@ -13,6 +13,7 @@ namespace BlazorApp_AdminWeb.Services;
 public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sessionState)
 {
     private const long MaxAudioUploadBytes = 25L * 1024 * 1024;
+    private const long MaxImageUploadBytes = 15L * 1024 * 1024;
 
     public async Task<AdminLoginResponse> LoginAsync(string userName, string password)
     {
@@ -119,9 +120,8 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
     {
         ApplyAuthHeader();
 
-        using var response = await httpClient.PostAsJsonAsync(
-            ApiRoutes.Locations,
-            CreateLocationRequest(model));
+        using var content = CreateLocationContent(model);
+        using var response = await httpClient.PostAsync(ApiRoutes.Locations, content);
 
         await EnsureSuccessAsync(response, "Unable to create location.");
     }
@@ -130,9 +130,8 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
     {
         ApplyAuthHeader();
 
-        using var response = await httpClient.PutAsJsonAsync(
-            $"{ApiRoutes.Locations}/{id}",
-            CreateLocationRequest(model));
+        using var content = CreateLocationContent(model);
+        using var response = await httpClient.PutAsync($"{ApiRoutes.Locations}/{id}", content);
 
         await EnsureSuccessAsync(response, "Unable to update location.");
     }
@@ -216,7 +215,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
     public async Task<string?> ResolvePlayableAudioUrlAsync(string? audioPath, CancellationToken cancellationToken = default)
     {
-        foreach (var candidate in GetAudioUrlCandidates(audioPath))
+        foreach (var candidate in GetContentUrlCandidates(audioPath, SharedStoragePaths.NormalizePublicAudioPath))
         {
             if (await UrlExistsAsync(candidate, cancellationToken))
             {
@@ -226,6 +225,11 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
         return null;
     }
+
+    public string? ResolveImageUrl(string? imagePath) =>
+        GetContentUrlCandidates(imagePath, SharedStoragePaths.NormalizePublicImagePath)
+            .Select(candidate => candidate.ToString())
+            .FirstOrDefault();
 
     private async Task<IReadOnlyList<T>> GetListAsync<T>(string route, string fallbackMessage)
     {
@@ -248,30 +252,43 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             Status = model.Status
         };
 
-    private static LocationUpsertRequest CreateLocationRequest(LocationFormModel model) =>
-        new()
+    private static MultipartFormDataContent CreateLocationContent(LocationFormModel model)
+    {
+        var content = new MultipartFormDataContent();
+
+        AddString(content, nameof(model.Name), model.Name);
+        AddString(content, nameof(model.Description), model.Description);
+        AddString(content, nameof(model.CategoryId), model.CategoryId.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.OwnerId), model.OwnerId?.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.Latitude), model.Latitude.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.Longitude), model.Longitude.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.Radius), model.Radius.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.StandbyRadius), model.StandbyRadius.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.Priority), model.Priority.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.DebounceSeconds), model.DebounceSeconds.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.IsGpsTriggerEnabled), model.IsGpsTriggerEnabled.ToString());
+        AddString(content, nameof(model.Address), model.Address);
+        AddString(content, nameof(model.WebURL), model.WebURL);
+        AddString(content, nameof(model.Email), model.Email);
+        AddString(content, nameof(model.Phone), model.Phone);
+        AddString(content, nameof(model.EstablishedYear), model.EstablishedYear.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.Status), model.Status.ToString(CultureInfo.InvariantCulture));
+
+        foreach (var imageFile in model.ImageFiles)
         {
-            Name = model.Name,
-            Description = model.Description,
-            CategoryId = model.CategoryId,
-            OwnerId = model.OwnerId,
-            Latitude = model.Latitude,
-            Longitude = model.Longitude,
-            Radius = model.Radius,
-            StandbyRadius = model.StandbyRadius,
-            Priority = model.Priority,
-            DebounceSeconds = model.DebounceSeconds,
-            IsGpsTriggerEnabled = model.IsGpsTriggerEnabled,
-            Address = string.IsNullOrWhiteSpace(model.Address) ? null : model.Address,
-            Ward = string.IsNullOrWhiteSpace(model.Ward) ? null : model.Ward,
-            City = string.IsNullOrWhiteSpace(model.City) ? null : model.City,
-            ImageUrl = string.IsNullOrWhiteSpace(model.ImageUrl) ? null : model.ImageUrl,
-            WebURL = string.IsNullOrWhiteSpace(model.WebURL) ? null : model.WebURL,
-            Email = string.IsNullOrWhiteSpace(model.Email) ? null : model.Email,
-            Phone = string.IsNullOrWhiteSpace(model.Phone) ? null : model.Phone,
-            EstablishedYear = model.EstablishedYear,
-            Status = model.Status
-        };
+            var stream = imageFile.OpenReadStream(MaxImageUploadBytes);
+            var fileContent = new StreamContent(stream);
+
+            if (!string.IsNullOrWhiteSpace(imageFile.ContentType))
+            {
+                fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(imageFile.ContentType);
+            }
+
+            content.Add(fileContent, "ImageFiles", Path.GetFileName(imageFile.Name));
+        }
+
+        return content;
+    }
 
     private static MultipartFormDataContent CreateAudioContent(AudioFormModel model)
     {
@@ -314,15 +331,15 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         content.Add(new StringContent(value ?? string.Empty), name);
     }
 
-    private IEnumerable<Uri> GetAudioUrlCandidates(string? audioPath)
+    private IEnumerable<Uri> GetContentUrlCandidates(string? contentPath, Func<string?, string?> normalizePath)
     {
-        if (string.IsNullOrWhiteSpace(audioPath) || httpClient.BaseAddress is null)
+        if (string.IsNullOrWhiteSpace(contentPath) || httpClient.BaseAddress is null)
         {
             yield break;
         }
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var candidate in BuildCandidates(audioPath))
+        foreach (var candidate in BuildCandidates(contentPath, normalizePath))
         {
             if (seen.Add(candidate.AbsoluteUri))
             {
@@ -331,9 +348,9 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         }
     }
 
-    private IEnumerable<Uri> BuildCandidates(string audioPath)
+    private IEnumerable<Uri> BuildCandidates(string contentPath, Func<string?, string?> normalizePath)
     {
-        var trimmedPath = audioPath.Trim();
+        var trimmedPath = contentPath.Trim();
         if (Uri.TryCreate(trimmedPath, UriKind.Absolute, out var absoluteUri))
         {
             yield return absoluteUri;
@@ -342,7 +359,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
         yield return new Uri(httpClient.BaseAddress!, trimmedPath);
 
-        var normalizedManagedPath = SharedStoragePaths.NormalizePublicAudioPath(trimmedPath);
+        var normalizedManagedPath = normalizePath(trimmedPath);
         if (!string.Equals(normalizedManagedPath, trimmedPath, StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(normalizedManagedPath))
         {

@@ -12,6 +12,7 @@ builder.Services.AddValidation();
 builder.Services.AddControllers();
 builder.AddDataToDatabase();
 builder.Services.AddSingleton<SharedAudioFileStorageService>();
+builder.Services.AddSingleton<SharedImageFileStorageService>();
 builder.Services.AddSingleton<AdminSessionTokenService>();
 builder.Services.AddScoped<AdminRequestAuthorizationService>();
 
@@ -27,13 +28,20 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 var sharedAudioDirectory = SharedStoragePaths.GetAudioDirectory(app.Environment.ContentRootPath);
+var sharedImageDirectory = SharedStoragePaths.GetImageDirectory(app.Environment.ContentRootPath);
 Directory.CreateDirectory(sharedAudioDirectory);
+Directory.CreateDirectory(sharedImageDirectory);
 
 app.UseCors("AllowBlazor");
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(sharedAudioDirectory),
     RequestPath = SharedStoragePaths.AudioRequestPath
+});
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(sharedImageDirectory),
+    RequestPath = SharedStoragePaths.ImageRequestPath
 });
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -18,9 +18,59 @@
 else if (_isLoading)
 {
     <div class="dashboard-page">
-        <div class="management-error">
-            <strong>Loading dashboard data...</strong>
-            <div>The admin API is being queried for metrics, activity, and telemetry.</div>
+        <section class="dashboard-hero" data-reveal>
+            <div class="dashboard-hero__content">
+                <div class="skeleton skeleton--pill"></div>
+                <div class="skeleton skeleton--title"></div>
+                <div class="skeleton skeleton--line"></div>
+                <div class="skeleton skeleton--line skeleton--line-short"></div>
+            </div>
+            <div class="dashboard-hero__stats">
+                @for (var i = 0; i < 3; i++)
+                {
+                    <article class="hero-stat">
+                        <div class="skeleton skeleton--title"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </article>
+                }
+            </div>
+        </section>
+
+        <div class="row g-4">
+            @for (var i = 0; i < 4; i++)
+            {
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="skeleton-card"></div>
+                </div>
+            }
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-xxl-8">
+                <section class="dashboard-panel">
+                    <div class="skeleton-table-row">
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </div>
+                    <div class="skeleton-table-row">
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </div>
+                </section>
+            </div>
+            <div class="col-12 col-xxl-4">
+                <section class="dashboard-panel">
+                    @for (var i = 0; i < 3; i++)
+                    {
+                        <div class="skeleton skeleton--title"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    }
+                </section>
+            </div>
         </div>
     </div>
 }
@@ -113,7 +163,14 @@ else
                         <span class="dashboard-panel__eyebrow">Live Feed</span>
                         <h2>Recent Activity</h2>
                     </div>
-                    <a class="btn btn-outline-secondary btn-sm" href="/moderation">View All</a>
+                    @if (CanViewModeration)
+                    {
+                        <a class="btn btn-outline-secondary btn-sm" href="/moderation">View All</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-outline-secondary btn-sm" href="/audio">View Audio</a>
+                    }
                 </div>
 
                 <div class="table-responsive">
@@ -199,6 +256,7 @@ else
     private bool CanView => SessionState.HasPermission(AdminPermissions.DashboardView);
     private bool CanExport => SessionState.HasPermission(AdminPermissions.DashboardExport);
     private bool CanViewUsers => SessionState.HasPermission(AdminPermissions.UserRead);
+    private bool CanViewModeration => SessionState.HasPermission(AdminPermissions.ModerationView);
 
     protected override async Task OnInitializedAsync()
     {

@@ -209,6 +209,11 @@
     --bs-table-bg: transparent;
 }
 
+.users-skeleton-table {
+    display: grid;
+    gap: 0.35rem;
+}
+
 .users-table thead th {
     padding: 0.95rem 1rem;
     border-bottom-width: 1px;

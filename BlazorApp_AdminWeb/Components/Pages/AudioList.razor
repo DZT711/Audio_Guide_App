@@ -148,7 +148,7 @@ else
                             <div class="audio-card__footer">
                                 <small class="management-muted">@GetAudioStorageLabel(audio.AudioURL)</small>
                                 <div class="management-inline-actions">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(!CanManage)" @onclick="() => StartEditAsync(audio)">Edit</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">@(CanManage ? "Edit" : "View")</button>
                                     <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || audio.Status == 0)" @onclick="() => DeleteAudioAsync(audio)">
                                         @(audio.Status == 0 ? "Inactive" : "Archive")
                                     </button>
@@ -163,11 +163,13 @@ else
         <section class="management-panel audio-editor" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">Editor</span>
-                    <h2>@(_editingId is null ? "Create Audio" : "Edit Audio")</h2>
+                    <span class="management-panel__eyebrow">@(CanManage ? "Editor" : "Read Only")</span>
+                    <h2>@(CanManage ? (_editingId is null ? "Create Audio" : "Edit Audio") : "Audio Details")</h2>
                 </div>
             </div>
 
+            @if (CanManage)
+            {
             <EditForm Model="_formModel" OnValidSubmit="SaveAudioAsync" class="management-form">
                 <DataAnnotationsValidator />
 
@@ -352,6 +354,107 @@ else
                     <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
                 </div>
             </EditForm>
+            }
+            else if (SelectedAudioForDisplay is null)
+            {
+                <div class="app-empty-state">
+                    Select an audio item to review its details.
+                </div>
+            }
+            else
+            {
+                var selectedAudio = SelectedAudioForDisplay!;
+
+                <div class="audio-readonly">
+                    <div class="audio-readonly__notice">
+                        Changes to your own audio items require an Admin or Developer account.
+                    </div>
+
+                    <div class="audio-file-preview">
+                        <div>
+                            <span class="management-field__label">Audio File Preview</span>
+                            <div class="management-field__hint">@GetAudioPreviewHint()</div>
+                        </div>
+
+                        @if (_isCheckingAudioPreview)
+                        {
+                            <div class="management-muted">Checking the audio file before previewing it.</div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_audioPreviewUrl))
+                        {
+                            <audio @key="_audioPreviewUrl" class="audio-file-preview__player" controls preload="metadata" src="@_audioPreviewUrl"></audio>
+                        }
+                        else
+                        {
+                            <div class="management-muted">This item does not currently expose a stored audio file preview.</div>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_audioPreviewWarning))
+                    {
+                        <span class="management-field__hint audio-file-preview__warning">@_audioPreviewWarning</span>
+                    }
+
+                    <div class="audio-preview mt-3">
+                        <div>
+                            <span class="management-field__label">Voice Preview</span>
+                            <div class="management-field__hint">Browser speech preview still works for TTS-backed content.</div>
+                        </div>
+
+                        <div class="audio-preview__actions">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@string.IsNullOrWhiteSpace(_formModel.Script)" @onclick="TryTtsPreviewAsync">
+                                <i class="bi bi-play-circle me-1"></i>
+                                Try Test
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="StopTtsPreviewAsync">
+                                <i class="bi bi-stop-circle me-1"></i>
+                                Stop
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="audio-detail-grid">
+                        <article class="audio-detail-card">
+                            <span>Title</span>
+                            <strong>@selectedAudio.Title</strong>
+                            <small>@selectedAudio.LocationName</small>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Status</span>
+                            <strong>@GetStatusLabel(selectedAudio.Status)</strong>
+                            <small>@selectedAudio.SourceType</small>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Voice</span>
+                            <strong>@GetVoiceLabel(selectedAudio.VoiceGender)</strong>
+                            <small>@selectedAudio.Language</small>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Duration</span>
+                            <strong>@($"{selectedAudio.Duration} sec")</strong>
+                            <small>@selectedAudio.PlaybackMode</small>
+                        </article>
+                        <article class="audio-detail-card audio-detail-card--wide">
+                            <span>Description</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedAudio.Description) ? "No description provided." : selectedAudio.Description)</strong>
+                        </article>
+                        <article class="audio-detail-card audio-detail-card--wide">
+                            <span>Script</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedAudio.Script) ? "No script provided." : selectedAudio.Script)</strong>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Priority</span>
+                            <strong>@selectedAudio.Priority</strong>
+                            <small>@selectedAudio.InterruptPolicy</small>
+                        </article>
+                        <article class="audio-detail-card">
+                            <span>Download</span>
+                            <strong>@(selectedAudio.IsDownloadable ? "Downloadable" : "Online only")</strong>
+                            <small>@GetAudioStorageLabel(selectedAudio.AudioURL)</small>
+                        </article>
+                    </div>
+                </div>
+            }
         </section>
     </div>
 </div>
@@ -364,6 +467,7 @@ else
     private readonly AudioFormModel _formModel = new();
     private readonly List<AudioDto> _audioItems = new();
     private readonly List<LocationDto> _locations = new();
+    private AudioDto? _selectedAudio;
     private bool _isLoading = true;
     private bool _isSaving;
     private int? _editingId;
@@ -377,6 +481,7 @@ else
     private string? _loadError;
     private bool CanView => SessionState.HasPermission(AdminPermissions.AudioRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.AudioManage);
+    private AudioDto? SelectedAudioForDisplay => ResolveSelectedAudio();
 
     private IEnumerable<AudioDto> FilteredAudio =>
         _audioItems.Where(audio =>
@@ -420,6 +525,18 @@ else
             _locations.AddRange((await locationsTask)
                 .OrderByDescending(item => item.Status)
                 .ThenBy(item => item.Name));
+
+            SyncSelectedAudio();
+
+            if (!CanManage && SelectedAudioForDisplay is not null)
+            {
+                ApplyForm(AudioFormModel.FromDto(SelectedAudioForDisplay));
+                await RefreshAudioPreviewAsync();
+            }
+            else if (!CanManage)
+            {
+                await ClearAudioPreviewAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -435,18 +552,14 @@ else
     private void StartCreate()
     {
         _editingId = null;
+        _selectedAudio = null;
         ResetForm();
     }
 
     private void StartEdit(AudioDto audio)
     {
-        if (!CanManage)
-        {
-            Notifications.Warning("Your role can view audio but cannot edit it.", "Read-only access");
-            return;
-        }
-
-        _editingId = audio.Id;
+        _selectedAudio = audio;
+        _editingId = CanManage ? audio.Id : null;
         var snapshot = AudioFormModel.FromDto(audio);
         ApplyForm(snapshot);
     }
@@ -628,6 +741,29 @@ else
     private void SetDownloadable(bool isDownloadable) => _formModel.IsDownloadable = isDownloadable;
 
     private void SetStatus(int status) => _formModel.Status = status;
+
+    private AudioDto? ResolveSelectedAudio()
+    {
+        if (_selectedAudio is not null)
+        {
+            return _audioItems.FirstOrDefault(item => item.Id == _selectedAudio.Id) ?? _selectedAudio;
+        }
+
+        return FilteredAudio.FirstOrDefault() ?? _audioItems.FirstOrDefault();
+    }
+
+    private void SyncSelectedAudio()
+    {
+        if (_selectedAudio is not null)
+        {
+            _selectedAudio = _audioItems.FirstOrDefault(item => item.Id == _selectedAudio.Id);
+        }
+
+        if (!CanManage && _selectedAudio is null)
+        {
+            _selectedAudio = _audioItems.FirstOrDefault();
+        }
+    }
 
     private string GetVoiceChipClass(string voiceGender) => string.Equals(_formModel.VoiceGender, voiceGender, StringComparison.OrdinalIgnoreCase)
         ? "management-chip management-chip--selected"

@@ -74,15 +74,6 @@ public sealed class LocationFormModel
 
     public bool IsGpsTriggerEnabled { get; set; } = true;
 
-    [StringLength(100)]
-    public string Ward { get; set; } = "";
-
-    [StringLength(100)]
-    public string City { get; set; } = "";
-
-    [StringLength(500)]
-    public string ImageUrl { get; set; } = "";
-
     [StringLength(500)]
     public string WebURL { get; set; } = "";
 
@@ -94,6 +85,10 @@ public sealed class LocationFormModel
 
     [Range(0, 1)]
     public int Status { get; set; } = 1;
+
+    public IReadOnlyList<string> ExistingImageUrls { get; set; } = [];
+
+    public IReadOnlyList<IBrowserFile> ImageFiles { get; set; } = [];
 
     public static LocationFormModel FromDto(LocationDto dto, IEnumerable<CategoryDto> categories) => new()
     {
@@ -112,13 +107,11 @@ public sealed class LocationFormModel
         Priority = dto.Priority,
         DebounceSeconds = dto.DebounceSeconds,
         IsGpsTriggerEnabled = dto.IsGpsTriggerEnabled,
-        Ward = dto.Ward ?? "",
-        City = dto.City ?? "",
-        ImageUrl = dto.ImageUrl ?? "",
         WebURL = dto.WebURL ?? "",
         Phone = dto.Phone ?? "",
         Email = dto.Email ?? "",
-        Status = dto.Status
+        Status = dto.Status,
+        ExistingImageUrls = dto.ImageUrls.ToList()
     };
 }
 

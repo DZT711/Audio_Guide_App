@@ -64,9 +64,16 @@ public static class AdminMappings
             DebounceSeconds = location.DebounceSeconds,
             IsGpsTriggerEnabled = location.IsGpsTriggerEnabled,
             Address = location.Address,
-            Ward = location.Ward,
-            City = location.City,
-            ImageUrl = location.ImageUrl,
+            CoverImageUrl = location.Images
+                .OrderBy(item => item.SortOrder)
+                .ThenBy(item => item.ImageId)
+                .Select(item => item.ImageUrl)
+                .FirstOrDefault(),
+            ImageUrls = location.Images
+                .OrderBy(item => item.SortOrder)
+                .ThenBy(item => item.ImageId)
+                .Select(item => item.ImageUrl)
+                .ToList(),
             WebURL = location.WebURL,
             Email = location.Email,
             Phone = location.PhoneContact,

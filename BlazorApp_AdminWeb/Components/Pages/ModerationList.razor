@@ -20,9 +20,16 @@ else
 <div class="card border-0 shadow-sm mt-4">
     @if (_isLoading)
     {
-        <div class="management-error">
-            <strong>Loading moderation items...</strong>
-            <div>The admin API is loading inactive POIs and audio records.</div>
+        <div class="p-4">
+            @for (var i = 0; i < 4; i++)
+            {
+                <div class="skeleton-table-row">
+                    <div class="skeleton skeleton--line"></div>
+                    <div class="skeleton skeleton--line"></div>
+                    <div class="skeleton skeleton--line"></div>
+                    <div class="skeleton skeleton--line"></div>
+                </div>
+            }
         </div>
     }
     else if (!string.IsNullOrWhiteSpace(_loadError))

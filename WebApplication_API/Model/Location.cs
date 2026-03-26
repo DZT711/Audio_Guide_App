@@ -35,15 +35,6 @@ public class Location
 
     public string? Address { get; set; }
 
-    [MaxLength(100)]
-    public string? Ward { get; set; }
-
-    [MaxLength(100)]
-    public string? City { get; set; }
-
-    [MaxLength(500)]
-    public string? ImageUrl { get; set; }
-
     [MaxLength(500)]
     public string? WebURL { get; set; }
 

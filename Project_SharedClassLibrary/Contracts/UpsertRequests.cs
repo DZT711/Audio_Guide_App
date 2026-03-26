@@ -56,15 +56,6 @@ public sealed class LocationUpsertRequest
     [StringLength(1000)]
     public string? Address { get; set; }
 
-    [StringLength(100)]
-    public string? Ward { get; set; }
-
-    [StringLength(100)]
-    public string? City { get; set; }
-
-    [StringLength(500)]
-    public string? ImageUrl { get; set; }
-
     [StringLength(500)]
     public string? WebURL { get; set; }
 

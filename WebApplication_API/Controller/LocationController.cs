@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Security;
+using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Data;
 using WebApplication_API.Model;
 using WebApplication_API.Services;
@@ -12,6 +13,7 @@ namespace WebApplication_API.Controller;
 [Route("[controller]")]
 public class LocationController(
     DBContext context,
+    SharedImageFileStorageService imageStorage,
     AdminRequestAuthorizationService authService) : ControllerBase
 {
     [HttpGet]
@@ -76,7 +78,11 @@ public class LocationController(
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateLocation([FromBody] LocationUpsertRequest request)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CreateLocation(
+        [FromForm] LocationUpsertRequest request,
+        [FromForm(Name = "ImageFiles")] List<IFormFile>? imageFiles,
+        CancellationToken cancellationToken)
     {
         var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.LocationManage);
         if (!access.Succeeded)
@@ -87,6 +93,12 @@ public class LocationController(
         if (!ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
+        }
+
+        var invalidImageFileName = GetInvalidImageFileName(imageFiles);
+        if (!string.IsNullOrWhiteSpace(invalidImageFileName))
+        {
+            return BadRequest(new { message = $"'{invalidImageFileName}' is not a supported image file." });
         }
 
         var category = await context.Categories.FirstOrDefaultAsync(item => item.CategoryId == request.CategoryId);
@@ -115,9 +127,6 @@ public class LocationController(
             DebounceSeconds = request.DebounceSeconds,
             IsGpsTriggerEnabled = request.IsGpsTriggerEnabled,
             Address = Normalize(request.Address),
-            Ward = Normalize(request.Ward),
-            City = Normalize(request.City),
-            ImageUrl = Normalize(request.ImageUrl),
             WebURL = Normalize(request.WebURL),
             Email = Normalize(request.Email),
             PhoneContact = Normalize(request.Phone),
@@ -127,16 +136,23 @@ public class LocationController(
         };
 
         context.Locations.Add(location);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
+
+        await AddImagesAsync(location, imageFiles, cancellationToken);
 
         var savedLocation = await BuildLocationQuery(access.User!)
-            .FirstAsync(item => item.LocationId == location.LocationId);
+            .FirstAsync(item => item.LocationId == location.LocationId, cancellationToken);
 
         return CreatedAtAction(nameof(GetLocationById), new { id = location.LocationId }, savedLocation.ToDto());
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdateLocation(int id, [FromBody] LocationUpsertRequest request)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UpdateLocation(
+        int id,
+        [FromForm] LocationUpsertRequest request,
+        [FromForm(Name = "ImageFiles")] List<IFormFile>? imageFiles,
+        CancellationToken cancellationToken)
     {
         var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.LocationManage);
         if (!access.Succeeded)
@@ -149,7 +165,13 @@ public class LocationController(
             return ValidationProblem(ModelState);
         }
 
-        var location = await context.Locations.FirstOrDefaultAsync(item => item.LocationId == id);
+        var invalidImageFileName = GetInvalidImageFileName(imageFiles);
+        if (!string.IsNullOrWhiteSpace(invalidImageFileName))
+        {
+            return BadRequest(new { message = $"'{invalidImageFileName}' is not a supported image file." });
+        }
+
+        var location = await context.Locations.FirstOrDefaultAsync(item => item.LocationId == id, cancellationToken);
         if (location is null)
         {
             return NotFound(new { message = "Location not found." });
@@ -184,9 +206,6 @@ public class LocationController(
         location.DebounceSeconds = request.DebounceSeconds;
         location.IsGpsTriggerEnabled = request.IsGpsTriggerEnabled;
         location.Address = Normalize(request.Address);
-        location.Ward = Normalize(request.Ward);
-        location.City = Normalize(request.City);
-        location.ImageUrl = Normalize(request.ImageUrl);
         location.WebURL = Normalize(request.WebURL);
         location.Email = Normalize(request.Email);
         location.PhoneContact = Normalize(request.Phone);
@@ -194,7 +213,8 @@ public class LocationController(
         location.Status = request.Status;
         location.UpdatedAt = DateTime.UtcNow;
 
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
+        await AddImagesAsync(location, imageFiles, cancellationToken);
         return Ok(new ApiMessageResponse { Message = "Location updated successfully." });
     }
 
@@ -230,6 +250,7 @@ public class LocationController(
         var query = context.Locations
             .Include(item => item.Category)
             .Include(item => item.Owner)
+            .Include(item => item.Images)
             .Include(item => item.AudioContents)
             .AsQueryable();
 
@@ -254,8 +275,69 @@ public class LocationController(
         return owner?.UserId;
     }
 
+    private async Task AddImagesAsync(Location location, IEnumerable<IFormFile>? imageFiles, CancellationToken cancellationToken)
+    {
+        if (imageFiles is null)
+        {
+            return;
+        }
+
+        var files = imageFiles
+            .Where(item => item is not null && item.Length > 0)
+            .ToList();
+
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        var currentSortOrder = await context.LocationImages
+            .Where(item => item.LocationId == location.LocationId)
+            .Select(item => (int?)item.SortOrder)
+            .MaxAsync(cancellationToken) ?? -1;
+
+        foreach (var file in files)
+        {
+            currentSortOrder++;
+            var publicPath = await imageStorage.SaveImageAsync(file, location.Name, currentSortOrder, cancellationToken);
+            context.LocationImages.Add(new LocationImage
+            {
+                LocationId = location.LocationId,
+                ImageUrl = SharedStoragePaths.NormalizePublicImagePath(publicPath) ?? publicPath,
+                SortOrder = currentSortOrder,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string? GetInvalidImageFileName(IEnumerable<IFormFile>? imageFiles) =>
+        imageFiles?
+            .Where(item => item is not null && item.Length > 0)
+            .FirstOrDefault(item => !IsSupportedImageFile(item))
+            ?.FileName;
+
     private static bool IsOwnerScoped(DashboardUser user) =>
         string.Equals(user.Role, AdminRoles.User, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSupportedImageFile(IFormFile file)
+    {
+        if (!string.IsNullOrWhiteSpace(file.ContentType)
+            && file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        return extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".webp", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".gif", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".bmp", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".svg", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

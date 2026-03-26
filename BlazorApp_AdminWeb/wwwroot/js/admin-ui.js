@@ -119,6 +119,8 @@
         }
     };
 
+    admin.filePreview = admin.audioPreview;
+
     const roundCoordinate = (value) => {
         const numericValue = Number(value);
         if (!Number.isFinite(numericValue)) {

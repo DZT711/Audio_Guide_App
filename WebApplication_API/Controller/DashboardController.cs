@@ -46,6 +46,7 @@ public class DashboardController(
         var locations = await context.Locations
             .Include(item => item.Category)
             .Include(item => item.Owner)
+            .Include(item => item.Images)
             .Include(item => item.AudioContents)
             .Where(item => !ownerScoped || item.OwnerId == currentUser.UserId)
             .OrderBy(item => item.Name)
@@ -97,10 +98,13 @@ public class DashboardController(
         var activeLocations = await locationsQuery.CountAsync(item => item.Status == 1);
         var totalAudio = await audioQuery.CountAsync();
         var activeAudio = await audioQuery.CountAsync(item => item.Status == 1);
-        var totalUsers = AdminRolePolicies.HasPermission(currentUser.Role, AdminPermissions.UserRead)
+        var canViewUsers = AdminRolePolicies.HasPermission(currentUser.Role, AdminPermissions.UserRead);
+        var totalUsers = canViewUsers
             ? await context.DashboardUsers.CountAsync()
             : 1;
-        var activeUsers = await context.DashboardUsers.CountAsync(item => item.Status == 1);
+        var activeUsers = canViewUsers
+            ? await context.DashboardUsers.CountAsync(item => item.Status == 1)
+            : currentUser.Status == 1 ? 1 : 0;
         var totalPlaybackEvents = await context.PlaybackEvents.CountAsync();
         var totalTrackingEvents = await context.LocationTrackingEvents.CountAsync();
 
@@ -130,12 +134,14 @@ public class DashboardController(
             },
             new()
             {
-                Title = "Dashboard Users",
-                Value = totalUsers.ToString(),
-                Trend = $"{activeUsers} active",
+                Title = canViewUsers ? "Dashboard Users" : "Your Access",
+                Value = canViewUsers ? totalUsers.ToString() : currentUser.Role,
+                Trend = canViewUsers ? $"{activeUsers} active" : currentUser.Status == 1 ? "Account active" : "Account inactive",
                 TrendTone = "warning",
-                Icon = "bi-people",
-                Description = "Accounts divided by role and status for the admin web.",
+                Icon = canViewUsers ? "bi-people" : "bi-person-badge",
+                Description = canViewUsers
+                    ? "Accounts divided by role and status for the admin web."
+                    : "Your current role and account status in the admin web.",
                 AccentStart = "#7c3aed",
                 AccentEnd = "#c084fc"
             },

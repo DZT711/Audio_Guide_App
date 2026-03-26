@@ -27,9 +27,8 @@ public sealed class LocationDto
     public int DebounceSeconds { get; init; }
     public bool IsGpsTriggerEnabled { get; init; }
     public string? Address { get; init; }
-    public string? Ward { get; init; }
-    public string? City { get; init; }
-    public string? ImageUrl { get; init; }
+    public string? CoverImageUrl { get; init; }
+    public IReadOnlyList<string> ImageUrls { get; init; } = [];
     public string? WebURL { get; init; }
     public string? Email { get; init; }
     public string? Phone { get; init; }

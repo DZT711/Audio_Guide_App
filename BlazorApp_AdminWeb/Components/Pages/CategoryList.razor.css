@@ -50,6 +50,44 @@
     line-height: 1.65;
 }
 
+.category-readonly {
+    display: grid;
+    gap: 1rem;
+}
+
+.category-readonly__notice {
+    padding: 0.95rem 1rem;
+    border-radius: 16px;
+    background: rgba(15, 118, 110, 0.08);
+    color: #0f766e;
+    font-weight: 600;
+}
+
+.category-detail-card {
+    display: grid;
+    gap: 0.4rem;
+    padding: 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.category-detail-card span {
+    color: var(--app-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.category-detail-card strong {
+    line-height: 1.6;
+}
+
+.category-detail-card small {
+    color: var(--app-muted);
+}
+
 .category-editor {
     position: sticky;
     top: 1.5rem;

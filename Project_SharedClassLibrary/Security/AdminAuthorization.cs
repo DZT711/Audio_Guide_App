@@ -74,33 +74,23 @@ public static class AdminRolePolicies
             [
                 AdminPermissions.DashboardView,
                 AdminPermissions.CategoryRead,
-                AdminPermissions.CategoryManage,
                 AdminPermissions.LocationRead,
-                AdminPermissions.LocationManage,
                 AdminPermissions.AudioRead,
-                AdminPermissions.AudioManage,
-                AdminPermissions.UserRead,
                 AdminPermissions.ModerationView
             ],
             [AdminRoles.DataAnalyst] =
             [
                 AdminPermissions.DashboardView,
                 AdminPermissions.DashboardExport,
-                AdminPermissions.CategoryRead,
                 AdminPermissions.LocationRead,
                 AdminPermissions.AudioRead,
-                AdminPermissions.UserRead,
-                AdminPermissions.ModerationView,
                 AdminPermissions.AnalyticsView
             ],
             [AdminRoles.User] =
             [
                 AdminPermissions.DashboardView,
-                AdminPermissions.CategoryRead,
                 AdminPermissions.LocationRead,
-                AdminPermissions.LocationManage,
-                AdminPermissions.AudioRead,
-                AdminPermissions.AudioManage
+                AdminPermissions.AudioRead
             ]
         };
 
@@ -124,7 +114,6 @@ public static class AdminRolePolicies
 
     public static bool IsPrivileged(string? role) =>
         string.Equals(role, AdminRoles.Admin, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(role, AdminRoles.Editor, StringComparison.OrdinalIgnoreCase)
         || string.Equals(role, AdminRoles.Developer, StringComparison.OrdinalIgnoreCase);
 
     public static bool CanManageUserRole(string? actorRole, string? targetRole)

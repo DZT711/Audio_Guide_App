@@ -75,9 +75,7 @@ public static class DataExtension
                     Priority = 10,
                     DebounceSeconds = 240,
                     IsGpsTriggerEnabled = true,
-                    Address = "1 Nguyen Tat Thanh, Ward 12",
-                    Ward = "Ward 12",
-                    City = "Ho Chi Minh City",
+                    Address = "1 Nguyen Tat Thanh, Ho Chi Minh City",
                     WebURL = "https://example.com/ben-nha-rong",
                     Email = "owner@smarttour.local",
                     PhoneContact = "0900000005",
@@ -97,12 +95,33 @@ public static class DataExtension
                     Priority = 5,
                     DebounceSeconds = 180,
                     IsGpsTriggerEnabled = true,
-                    Address = "Le Loi Street",
-                    Ward = "Ben Thanh",
-                    City = "Ho Chi Minh City",
+                    Address = "Le Loi Street, Ho Chi Minh City",
                     EstablishedYear = 2000,
                     Status = 1
                 });
+
+            await context.SaveChangesAsync();
+        }
+
+        if (!await context.LocationImages.AnyAsync())
+        {
+            var locations = await context.Locations
+                .OrderBy(item => item.LocationId)
+                .Take(2)
+                .ToListAsync();
+
+            for (var index = 0; index < locations.Count; index++)
+            {
+                var location = locations[index];
+                var imagePath = await EnsureSeedImageAsync(contentRootPath, location.Name, index + 1);
+                context.LocationImages.Add(new LocationImage
+                {
+                    LocationId = location.LocationId,
+                    ImageUrl = imagePath,
+                    SortOrder = 0,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
 
             await context.SaveChangesAsync();
         }
@@ -222,4 +241,37 @@ public static class DataExtension
             Phone = phone,
             Status = 1
         };
+
+    private static async Task<string> EnsureSeedImageAsync(string contentRootPath, string locationName, int seedIndex)
+    {
+        var imageDirectory = SharedStoragePaths.GetImageDirectory(contentRootPath);
+        Directory.CreateDirectory(imageDirectory);
+
+        var fileName = $"seed-location-{seedIndex:D2}.svg";
+        var fullPath = Path.Combine(imageDirectory, fileName);
+        if (!File.Exists(fullPath))
+        {
+            var escapedTitle = System.Security.SecurityElement.Escape(locationName) ?? "Location";
+            var svg = $$"""
+                <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+                    <defs>
+                        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#0f766e"/>
+                            <stop offset="100%" stop-color="#38bdf8"/>
+                        </linearGradient>
+                    </defs>
+                    <rect width="1200" height="800" fill="url(#bg)"/>
+                    <circle cx="980" cy="170" r="120" fill="rgba(255,255,255,0.22)"/>
+                    <circle cx="220" cy="660" r="170" fill="rgba(255,255,255,0.14)"/>
+                    <text x="90" y="320" fill="#ffffff" font-size="72" font-family="Segoe UI, Arial, sans-serif" font-weight="700">Smart Tourism</text>
+                    <text x="90" y="410" fill="#e2e8f0" font-size="42" font-family="Segoe UI, Arial, sans-serif">{{escapedTitle}}</text>
+                    <text x="90" y="490" fill="#ccfbf1" font-size="28" font-family="Segoe UI, Arial, sans-serif">Seed preview image stored in SharedLibraries</text>
+                </svg>
+                """;
+
+            await File.WriteAllTextAsync(fullPath, svg);
+        }
+
+        return SharedStoragePaths.ToPublicImagePath(fileName);
+    }
 }

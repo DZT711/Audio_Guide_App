@@ -122,7 +122,7 @@ else
                             </div>
 
                             <div class="management-inline-actions">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(!CanManage)" @onclick="() => StartEdit(category)">Edit</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">@(CanManage ? "Edit" : "View")</button>
                                 <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || category.Status == 0)" @onclick="() => DeleteCategoryAsync(category)">
                                     @(category.Status == 0 ? "Inactive" : "Archive")
                                 </button>
@@ -136,11 +136,13 @@ else
         <section class="management-panel category-editor" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">Editor</span>
-                    <h2>@(_editingId is null ? "Create Category" : "Edit Category")</h2>
+                    <span class="management-panel__eyebrow">@(CanManage ? "Editor" : "Read Only")</span>
+                    <h2>@(CanManage ? (_editingId is null ? "Create Category" : "Edit Category") : "Category Details")</h2>
                 </div>
             </div>
 
+            @if (CanManage)
+            {
             <EditForm Model="_formModel" OnValidSubmit="SaveCategoryAsync" class="management-form">
                 <DataAnnotationsValidator />
 
@@ -171,6 +173,34 @@ else
                     <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(CanManage ? (_editingId is null ? "Reset" : "Cancel Edit") : "Read Only")</button>
                 </div>
             </EditForm>
+            }
+            else if (SelectedCategoryForDisplay is null)
+            {
+                <div class="app-empty-state">
+                    Select a category to review its details.
+                </div>
+            }
+            else
+            {
+                var selectedCategory = SelectedCategoryForDisplay!;
+
+                <div class="category-readonly">
+                    <div class="category-readonly__notice">
+                        Category changes require an Admin or Developer account.
+                    </div>
+
+                    <div class="category-detail-card">
+                        <span>Name</span>
+                        <strong>@selectedCategory.Name</strong>
+                        <small>@GetStatusLabel(selectedCategory.Status)</small>
+                    </div>
+
+                    <div class="category-detail-card">
+                        <span>Description</span>
+                        <strong>@(string.IsNullOrWhiteSpace(selectedCategory.Description) ? "No description provided yet." : selectedCategory.Description)</strong>
+                    </div>
+                </div>
+            }
         </section>
     </div>
 </div>
@@ -179,6 +209,7 @@ else
 @code {
     private readonly CategoryFormModel _formModel = new();
     private readonly List<CategoryDto> _categories = new();
+    private CategoryDto? _selectedCategory;
     private bool _isLoading = true;
     private bool _isSaving;
     private int? _editingId;
@@ -186,6 +217,7 @@ else
     private string? _loadError;
     private bool CanView => SessionState.HasPermission(AdminPermissions.CategoryRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.CategoryManage);
+    private CategoryDto? SelectedCategoryForDisplay => ResolveSelectedCategory();
 
     private IEnumerable<CategoryDto> FilteredCategories =>
         _categories.Where(category =>
@@ -212,6 +244,8 @@ else
             _categories.AddRange(categories
                 .OrderByDescending(item => item.Status)
                 .ThenBy(item => item.Name));
+
+            SyncSelectedCategory();
         }
         catch (Exception ex)
         {
@@ -232,13 +266,15 @@ else
 
     private void StartEdit(CategoryDto category)
     {
+        _selectedCategory = category;
+        _editingId = category.Id;
+
         if (!CanManage)
         {
-            Notifications.Warning("Your role can view categories but cannot edit them.", "Read-only access");
+            _editingId = null;
             return;
         }
 
-        _editingId = category.Id;
         var snapshot = CategoryFormModel.FromDto(category);
         _formModel.Name = snapshot.Name;
         _formModel.Description = snapshot.Description;
@@ -326,6 +362,29 @@ else
     }
 
     private void SetStatus(int status) => _formModel.Status = status;
+
+    private CategoryDto? ResolveSelectedCategory()
+    {
+        if (_selectedCategory is not null)
+        {
+            return _categories.FirstOrDefault(item => item.Id == _selectedCategory.Id) ?? _selectedCategory;
+        }
+
+        return FilteredCategories.FirstOrDefault() ?? _categories.FirstOrDefault();
+    }
+
+    private void SyncSelectedCategory()
+    {
+        if (_selectedCategory is not null)
+        {
+            _selectedCategory = _categories.FirstOrDefault(item => item.Id == _selectedCategory.Id);
+        }
+
+        if (!CanManage && _selectedCategory is null)
+        {
+            _selectedCategory = _categories.FirstOrDefault();
+        }
+    }
 
     private static string GetStatusClass(int status) => status == 1
         ? "management-status management-status--active"
