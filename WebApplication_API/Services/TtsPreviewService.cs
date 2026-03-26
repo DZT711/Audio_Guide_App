@@ -152,36 +152,82 @@ public sealed class TtsPreviewService(
         return lastSpace > 60 ? candidate[..lastSpace] : candidate;
     }
 
-    private static string NormalizeLanguage(string language) =>
-        string.IsNullOrWhiteSpace(language) ? "" : language.Trim();
+    private static string NormalizeLanguage(string language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return "";
+        }
 
-    private static string ResolveFreeProviderLanguage(string language)
+        var parts = language.Trim()
+            .Replace('_', '-')
+            .Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+        {
+            return "";
+        }
+
+        var prefix = parts[0].ToLowerInvariant() switch
+        {
+            "vn" => "vi",
+            _ => parts[0].ToLowerInvariant()
+        };
+
+        if (parts.Length == 1)
+        {
+            return prefix switch
+            {
+                "vi" => "vi-VN",
+                "en" => "en-US",
+                _ => prefix
+            };
+        }
+
+        var region = parts[1].ToUpperInvariant();
+        if (prefix == "vi" && region == "VI")
+        {
+            region = "VN";
+        }
+
+        var normalized = $"{prefix}-{region}";
+        return parts.Length == 2
+            ? normalized
+            : $"{normalized}-{string.Join("-", parts[2..])}";
+    }
+
+    private static string GetLanguagePrefix(string language)
     {
         var normalized = NormalizeLanguage(language).ToLowerInvariant();
-        if (normalized.StartsWith("vi", StringComparison.OrdinalIgnoreCase))
-        {
-            return "vi";
-        }
-
-        if (normalized.StartsWith("en", StringComparison.OrdinalIgnoreCase))
-        {
-            return "en";
-        }
-
         var separatorIndex = normalized.IndexOf('-');
         return separatorIndex > 0 ? normalized[..separatorIndex] : normalized;
     }
 
+    private static string ResolveFreeProviderLanguage(string language)
+    {
+        var prefix = GetLanguagePrefix(language);
+        if (prefix == "vi")
+        {
+            return "vi";
+        }
+
+        if (prefix == "en")
+        {
+            return "en";
+        }
+
+        return prefix;
+    }
+
     private static string ResolveAzureVoice(string language, string? voiceGender)
     {
-        var normalizedLanguage = NormalizeLanguage(language).ToLowerInvariant();
+        var normalizedLanguage = GetLanguagePrefix(language);
         var isMale = string.Equals(voiceGender, "Male", StringComparison.OrdinalIgnoreCase);
 
         return normalizedLanguage switch
         {
-            var value when value.StartsWith("vi", StringComparison.OrdinalIgnoreCase) =>
+            "vi" =>
                 isMale ? "vi-VN-NamMinhNeural" : "vi-VN-HoaiMyNeural",
-            var value when value.StartsWith("en", StringComparison.OrdinalIgnoreCase) =>
+            "en" =>
                 isMale ? "en-US-GuyNeural" : "en-US-AriaNeural",
             _ => isMale ? "en-US-GuyNeural" : "en-US-AriaNeural"
         };

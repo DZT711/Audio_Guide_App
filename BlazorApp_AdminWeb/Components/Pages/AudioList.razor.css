@@ -113,6 +113,14 @@
     font-weight: 600;
 }
 
+.audio-field--duration label {
+    white-space: nowrap;
+}
+
+.audio-field--duration .form-control {
+    max-width: 10rem;
+}
+
 .audio-detail-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

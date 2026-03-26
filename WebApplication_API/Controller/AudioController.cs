@@ -92,6 +92,8 @@ public class AudioController(
         try
         {
             var preview = await ttsPreviewService.GeneratePreviewAsync(request, cancellationToken);
+            Response.Headers["X-SmartTour-Tts-Provider"] = preview.Provider;
+            Response.Headers["X-SmartTour-Tts-Voice"] = preview.VoiceName;
             return File(preview.Content, preview.ContentType);
         }
         catch (InvalidOperationException ex)

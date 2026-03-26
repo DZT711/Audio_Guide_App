@@ -221,7 +221,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to archive audio.");
     }
 
-    public async Task<(MemoryStream Stream, string ContentType)> GenerateAudioTtsPreviewAsync(
+    public async Task<AudioTtsPreviewResult> GenerateAudioTtsPreviewAsync(
         AudioTtsPreviewRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -231,8 +231,18 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to generate the TTS preview.");
 
         var contentType = response.Content.Headers.ContentType?.ToString() ?? "audio/mpeg";
+        var provider = response.Headers.TryGetValues("X-SmartTour-Tts-Provider", out var providerValues)
+            ? providerValues.FirstOrDefault() ?? ""
+            : "";
+        var voiceName = response.Headers.TryGetValues("X-SmartTour-Tts-Voice", out var voiceValues)
+            ? voiceValues.FirstOrDefault() ?? ""
+            : "";
         var payload = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-        return (new MemoryStream(payload, writable: false), contentType);
+        return new AudioTtsPreviewResult(
+            new MemoryStream(payload, writable: false),
+            contentType,
+            provider,
+            voiceName);
     }
 
     public async Task CreateUserAsync(UserFormModel model)
@@ -558,3 +568,9 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         return fallbackMessage;
     }
 }
+
+public sealed record AudioTtsPreviewResult(
+    MemoryStream Stream,
+    string ContentType,
+    string Provider,
+    string VoiceName);

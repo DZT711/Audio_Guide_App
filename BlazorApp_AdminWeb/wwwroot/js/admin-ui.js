@@ -30,17 +30,35 @@
         }
     };
 
-    const normalizeLanguageCode = (language) => (language ?? "").trim().toLowerCase();
+    const normalizeLanguageCode = (language) => {
+        const normalized = (language ?? "").trim().replace(/_/g, "-").toLowerCase();
+        if (!normalized) {
+            return "";
+        }
+
+        const parts = normalized.split("-").filter(Boolean);
+        if (!parts.length) {
+            return "";
+        }
+
+        const prefix = parts[0] === "vn" ? "vi" : parts[0];
+        if (parts.length === 1) {
+            return prefix;
+        }
+
+        const region = prefix === "vi" && parts[1] === "vi" ? "vn" : parts[1];
+        return [prefix, region, ...parts.slice(2)].join("-");
+    };
 
     const getLanguagePrefix = (language) => normalizeLanguageCode(language).split("-")[0];
 
     const getVoiceKeywords = (voiceGender) => {
         if ((voiceGender ?? "").toLowerCase() === "male") {
-            return ["male", "david", "mark", "james", "guy", "man", "nam", "hung"];
+            return ["male", "david", "mark", "james", "guy", "andrew", "christopher", "roger", "ryan", "daniel", "man", "nam", "hung", "namminh"];
         }
 
         if ((voiceGender ?? "").toLowerCase() === "female") {
-            return ["female", "zira", "aria", "susan", "samantha", "victoria", "anna", "woman", "nu", "hoaimy"];
+            return ["female", "zira", "aria", "susan", "samantha", "victoria", "jenny", "sonia", "anna", "woman", "nu", "hoaimy"];
         }
 
         return [];
@@ -82,25 +100,28 @@
         });
     };
 
+    const matchesVoiceGender = (voiceSignature, voiceGender) => {
+        const keywords = getVoiceKeywords(voiceGender);
+        return !keywords.length || keywords.some((keyword) => voiceSignature.includes(keyword));
+    };
+
     const scoreVoice = (voice, language, voiceGender, preferNativeVoice) => {
         const requestedLanguage = normalizeLanguageCode(language);
         const requestedPrefix = getLanguagePrefix(requestedLanguage);
         const voiceLanguage = normalizeLanguageCode(voice?.lang);
+        const voicePrefix = getLanguagePrefix(voiceLanguage);
         const voiceSignature = getVoiceSignature(voice);
-        const keywords = getVoiceKeywords(voiceGender);
         let score = 0;
 
         if (requestedLanguage && voiceLanguage === requestedLanguage) {
             score += preferNativeVoice ? 80 : 45;
-        } else if (requestedPrefix && (voiceLanguage === requestedPrefix || voiceLanguage.startsWith(`${requestedPrefix}-`))) {
+        } else if (requestedPrefix && voicePrefix === requestedPrefix) {
             score += preferNativeVoice ? 58 : 30;
-        } else if (!preferNativeVoice) {
-            score += 8;
         } else {
-            score -= 20;
+            score -= 100;
         }
 
-        if (keywords.some((keyword) => voiceSignature.includes(keyword))) {
+        if (matchesVoiceGender(voiceSignature, voiceGender)) {
             score += 28;
         }
 
@@ -121,7 +142,22 @@
             return null;
         }
 
-        const rankedVoices = [...voices].sort((left, right) => {
+        const requestedPrefix = getLanguagePrefix(language);
+        const localizedVoices = voices.filter((voice) => getLanguagePrefix(voice?.lang) === requestedPrefix);
+        if (!localizedVoices.length) {
+            return null;
+        }
+
+        const genderKeywords = getVoiceKeywords(voiceGender);
+        const matchingGenderVoices = !genderKeywords.length
+            ? localizedVoices
+            : localizedVoices.filter((voice) => matchesVoiceGender(getVoiceSignature(voice), voiceGender));
+
+        if (!matchingGenderVoices.length) {
+            return null;
+        }
+
+        const rankedVoices = [...matchingGenderVoices].sort((left, right) => {
             const scoreDelta = scoreVoice(right, language, voiceGender, preferNativeVoice)
                 - scoreVoice(left, language, voiceGender, preferNativeVoice);
 
@@ -149,11 +185,12 @@
             utterance.lang = (language ?? "").trim() || navigator.language || "en-US";
 
             const preferredVoice = await pickVoice(utterance.lang, voiceGender, !!preferNativeVoice);
-            if (preferredVoice) {
-                utterance.voice = preferredVoice;
-                utterance.lang = preferredVoice.lang || utterance.lang;
+            if (!preferredVoice) {
+                return false;
             }
 
+            utterance.voice = preferredVoice;
+            utterance.lang = preferredVoice.lang || utterance.lang;
             window.speechSynthesis.speak(utterance);
             return true;
         },

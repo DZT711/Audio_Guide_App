@@ -244,7 +244,7 @@ else
                         }
                     </div>
 
-                    <div class="management-field">
+                    <div class="management-field audio-field audio-field--language">
                         <label for="audio-language">Language</label>
                         <InputSelect id="audio-language" class="form-select" @bind-Value="_formModel.Language" disabled="@(!HasLanguageCatalog)">
                             @if (!HasLanguageCatalog)
@@ -263,7 +263,7 @@ else
                         <span class="management-field__hint">@GetSelectedLanguageHint()</span>
                     </div>
 
-                    <div class="management-field">
+                    <div class="management-field audio-field audio-field--duration">
                         <label for="audio-duration">Duration (sec)</label>
                         <InputNumber id="audio-duration" class="form-control" @bind-Value="_formModel.Duration" />
                         <ValidationMessage For="() => _formModel.Duration" />
@@ -751,19 +751,37 @@ else
                 PreferNativeVoice = GetPreferNativeVoiceForPreview()
             };
 
-            var (stream, contentType) = await ApiClient.GenerateAudioTtsPreviewAsync(previewRequest);
-            await using var previewStream = stream;
+            var previewResult = await ApiClient.GenerateAudioTtsPreviewAsync(previewRequest);
+
+            if (ShouldUseBrowserVoicePreview(previewResult.Provider))
+            {
+                if (await TryBrowserVoicePreviewAsync())
+                {
+                    _ttsPreviewWarning = $"Using the browser-installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} for {GetSelectedPreviewLanguageLabel()} so the preview stays aligned with the selected language.";
+                    return;
+                }
+
+                _ttsPreviewWarning = $"No installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} matched {GetSelectedPreviewLanguageLabel()} on this device. Using generated audio for the selected language instead.";
+            }
+
+            await using var previewStream = previewResult.Stream;
             using var streamReference = new DotNetStreamReference(previewStream);
 
             _ttsPreviewUrl = await JS.InvokeAsync<string>(
                 "smartTourAdmin.audioPreview.createObjectUrlFromStream",
                 streamReference,
-                contentType);
+                previewResult.ContentType);
 
             _ttsPreviewIsObjectUrl = !string.IsNullOrWhiteSpace(_ttsPreviewUrl);
         }
         catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or JSException or TaskCanceledException)
         {
+            if (await TryBrowserVoicePreviewAsync())
+            {
+                _ttsPreviewWarning = $"The API preview is unavailable, so the browser-installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} for {GetSelectedPreviewLanguageLabel()} is being used instead.";
+                return;
+            }
+
             _ttsPreviewWarning = ex.Message;
             Notifications.Error(ex.Message, "Voice preview failed");
         }
@@ -778,6 +796,7 @@ else
         try
         {
             await JS.InvokeVoidAsync("smartTourAdmin.audioPreview.pauseElement", _ttsPreviewElement);
+            await JS.InvokeVoidAsync("smartTourAdmin.tts.stop");
         }
         catch (JSException)
         {
@@ -959,8 +978,7 @@ else
         var nativeName = string.IsNullOrWhiteSpace(language.NativeName)
             ? language.Name
             : language.NativeName;
-        var previewMode = language.PreferNativeVoice ? "native voice preview" : "flexible fallback preview";
-        return $"{nativeName} is selected. Browser preview will use {previewMode}.";
+        return $"{nativeName} is selected. Preview will prefer a same-language {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} when available, then fall back to generated audio for {language.Code}.";
     }
 
     private string GetCurrentPreviewModeHint()
@@ -974,20 +992,45 @@ else
                 return "Voice preview follows the current language code.";
             }
 
-            return selectedAudio.PreferNativeVoice
-                ? $"Native voice preview is enabled for {GetAudioLanguageLabel(selectedAudio)}."
-                : $"Flexible fallback preview is enabled for {GetAudioLanguageLabel(selectedAudio)}.";
+            return $"Hybrid preview is enabled for {GetAudioLanguageLabel(selectedAudio)}. Browser voice is used only when the locale and gender match the selected audio language.";
         }
 
-        return language.PreferNativeVoice
-            ? $"Native voice preview is enabled for {language.Name}. The browser will stay in this locale when possible."
-            : $"Flexible fallback preview is enabled for {language.Name}. The browser can fall back to another installed voice if needed.";
+        return $"Hybrid preview is enabled for {language.Name}. Browser voice is used only when the locale and gender match; otherwise generated audio stays in {language.Code}.";
+    }
+
+    private string GetSelectedPreviewLanguageLabel()
+    {
+        var language = SelectedLanguage;
+        if (language is not null)
+        {
+            var displayName = string.IsNullOrWhiteSpace(language.NativeName)
+                ? language.Name
+                : language.NativeName;
+            return $"{displayName} ({language.Code})";
+        }
+
+        return _formModel.Language;
     }
 
     private bool GetPreferNativeVoiceForPreview() =>
         SelectedLanguage?.PreferNativeVoice
         ?? SelectedAudioForDisplay?.PreferNativeVoice
         ?? true;
+
+    private bool ShouldUseBrowserVoicePreview(string? provider) =>
+        string.Equals(provider, "FreeTranslate", StringComparison.OrdinalIgnoreCase);
+
+    private async Task<bool> TryBrowserVoicePreviewAsync()
+    {
+        var isSupported = await JS.InvokeAsync<bool>(
+            "smartTourAdmin.tts.preview",
+            _formModel.Script,
+            _formModel.Language,
+            _formModel.VoiceGender,
+            GetPreferNativeVoiceForPreview());
+
+        return isSupported;
+    }
 
     private string GetDefaultLanguageCode() =>
         _languages.FirstOrDefault(item => item.IsDefault && item.Status == 1)?.Code
@@ -1134,6 +1177,14 @@ else
 
     private async Task ClearTtsPreviewAsync()
     {
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.tts.stop");
+        }
+        catch (JSException)
+        {
+        }
+
         if (_ttsPreviewIsObjectUrl && !string.IsNullOrWhiteSpace(_ttsPreviewUrl))
         {
             try
