@@ -24,101 +24,116 @@ public sealed class WalkingRouteService(
             return CreateStationaryResult(to);
         }
 
-        try
+        var candidateBaseUris = GetCandidateBaseUris();
+        Exception? lastException = null;
+        var failures = new List<string>();
+
+        foreach (var candidateBaseUri in candidateBaseUris)
         {
-            using var response = await httpClient.GetAsync(
-                BuildRoutePath(from, to),
-                cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                logger.LogWarning(
-                    "Road routing request failed with status {StatusCode} for segment {FromLocationId}->{ToLocationId}. Falling back to straight-line distance.",
-                    response.StatusCode,
-                    from.LocationId,
-                    to.LocationId);
+                using var response = await httpClient.GetAsync(
+                    BuildRouteUri(candidateBaseUri, from, to),
+                    cancellationToken);
 
-                return CreateFallbackResult(from, to);
-            }
-
-            var payload = await response.Content.ReadFromJsonAsync<OsrmRouteResponse>(cancellationToken);
-            var route = payload?.Routes
-                ?.OrderBy(item => item.DistanceMeters)
-                .FirstOrDefault();
-
-            if (route is null)
-            {
-                logger.LogWarning(
-                    "Road routing response did not include a route for segment {FromLocationId}->{ToLocationId}. Falling back to straight-line distance.",
-                    from.LocationId,
-                    to.LocationId);
-
-                return CreateFallbackResult(from, to);
-            }
-
-            var geometry = route.Geometry?.Coordinates?
-                .Where(item => item.Count >= 2)
-                .Select(item => new TourRoutePointDto
+                if (!response.IsSuccessStatusCode)
                 {
-                    Latitude = item[1],
-                    Longitude = item[0]
-                })
-                .ToList() ?? [];
+                    failures.Add($"{candidateBaseUri} returned {(int)response.StatusCode}");
+                    continue;
+                }
 
-            if (geometry.Count == 0)
-            {
-                geometry =
-                [
-                    new TourRoutePointDto { Latitude = from.Latitude, Longitude = from.Longitude },
-                    new TourRoutePointDto { Latitude = to.Latitude, Longitude = to.Longitude }
-                ];
+                var route = await ReadBestRouteAsync(response, cancellationToken);
+                if (route is null)
+                {
+                    failures.Add($"{candidateBaseUri} returned no route");
+                    continue;
+                }
+
+                if (!UriEquals(candidateBaseUri, candidateBaseUris[0]))
+                {
+                    logger.LogInformation(
+                        "Walking route service switched to fallback endpoint {RouteEndpoint} for segment {FromLocationId}->{ToLocationId}.",
+                        candidateBaseUri,
+                        from.LocationId,
+                        to.LocationId);
+                }
+
+                var geometry = route.Geometry?.Coordinates?
+                    .Where(item => item.Count >= 2)
+                    .Select(item => new TourRoutePointDto
+                    {
+                        Latitude = item[1],
+                        Longitude = item[0]
+                    })
+                    .ToList() ?? [];
+
+                if (geometry.Count == 0)
+                {
+                    geometry =
+                    [
+                        new TourRoutePointDto { Latitude = from.Latitude, Longitude = from.Longitude },
+                        new TourRoutePointDto { Latitude = to.Latitude, Longitude = to.Longitude }
+                    ];
+                }
+
+                return new WalkingRouteSegmentResult(
+                    route.DistanceMeters / 1000d,
+                    geometry,
+                    UsesRoadRouting: true);
             }
-
-            return new WalkingRouteSegmentResult(
-                route.DistanceMeters / 1000d,
-                geometry,
-                UsesRoadRouting: true);
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                failures.Add($"{candidateBaseUri} timed out");
+            }
+            catch (HttpRequestException ex)
+            {
+                lastException = ex;
+                failures.Add($"{candidateBaseUri} request failed");
+            }
+            catch (NotSupportedException ex)
+            {
+                lastException = ex;
+                failures.Add($"{candidateBaseUri} returned an unsupported payload");
+            }
+            catch (JsonException ex)
+            {
+                lastException = ex;
+                failures.Add($"{candidateBaseUri} returned invalid JSON");
+            }
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+
+        if (lastException is not null)
         {
             logger.LogWarning(
-                "Road routing request timed out for segment {FromLocationId}->{ToLocationId}. Falling back to straight-line distance.",
+                lastException,
+                "Road routing request failed for segment {FromLocationId}->{ToLocationId}. Tried endpoints: {Endpoints}. Falling back to straight-line distance.",
                 from.LocationId,
-                to.LocationId);
-
-            return CreateFallbackResult(from, to);
+                to.LocationId,
+                string.Join(", ", candidateBaseUris.Select(item => item.ToString())));
         }
-        catch (HttpRequestException ex)
+        else
         {
             logger.LogWarning(
-                ex,
-                "Road routing request failed for segment {FromLocationId}->{ToLocationId}. Falling back to straight-line distance.",
+                "Road routing request failed for segment {FromLocationId}->{ToLocationId}. Tried endpoints: {Endpoints}. Failures: {Failures}. Falling back to straight-line distance.",
                 from.LocationId,
-                to.LocationId);
-
-            return CreateFallbackResult(from, to);
+                to.LocationId,
+                string.Join(", ", candidateBaseUris.Select(item => item.ToString())),
+                failures.Count == 0 ? "Unknown failure" : string.Join(" | ", failures));
         }
-        catch (NotSupportedException ex)
-        {
-            logger.LogWarning(
-                ex,
-                "Road routing response format was unsupported for segment {FromLocationId}->{ToLocationId}. Falling back to straight-line distance.",
-                from.LocationId,
-                to.LocationId);
 
-            return CreateFallbackResult(from, to);
-        }
-        catch (JsonException ex)
-        {
-            logger.LogWarning(
-                ex,
-                "Road routing response could not be parsed for segment {FromLocationId}->{ToLocationId}. Falling back to straight-line distance.",
-                from.LocationId,
-                to.LocationId);
-
-            return CreateFallbackResult(from, to);
-        }
+        return CreateFallbackResult(from, to);
     }
+
+    private async Task<OsrmRouteDto?> ReadBestRouteAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var payload = await response.Content.ReadFromJsonAsync<OsrmRouteResponse>(cancellationToken);
+        return payload?.Routes?
+            .OrderBy(item => item.DistanceMeters)
+            .FirstOrDefault();
+    }
+
+    private Uri BuildRouteUri(Uri baseUri, TourRoutePreviewStopRequest from, TourRoutePreviewStopRequest to) =>
+        new(baseUri, BuildRoutePath(from, to));
 
     private string BuildRoutePath(TourRoutePreviewStopRequest from, TourRoutePreviewStopRequest to)
     {
@@ -129,6 +144,60 @@ public sealed class WalkingRouteService(
 
         return $"route/v1/{_options.WalkingProfile}/{fromLongitude},{fromLatitude};{toLongitude},{toLatitude}?alternatives=false&overview=full&steps=false&geometries=geojson";
     }
+
+    private IReadOnlyList<Uri> GetCandidateBaseUris()
+    {
+        var candidates = new List<string>();
+        AddCandidate(candidates, _options.BaseUrl);
+
+        foreach (var fallbackBaseUrl in _options.FallbackBaseUrls)
+        {
+            AddCandidate(candidates, fallbackBaseUrl);
+        }
+
+        if (Uri.TryCreate(_options.BaseUrl, UriKind.Absolute, out var primaryBaseUri)
+            && string.Equals(primaryBaseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate(candidates, new UriBuilder(primaryBaseUri)
+            {
+                Scheme = Uri.UriSchemeHttp,
+                Port = -1
+            }.Uri.ToString());
+        }
+
+        if (candidates.Count == 0 && httpClient.BaseAddress is not null)
+        {
+            AddCandidate(candidates, httpClient.BaseAddress.ToString());
+        }
+
+        return candidates
+            .Select(item => Uri.TryCreate(item, UriKind.Absolute, out var baseUri) ? baseUri : null)
+            .Where(item => item is not null)
+            .Cast<Uri>()
+            .ToList();
+    }
+
+    private static void AddCandidate(ICollection<string> candidates, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var normalizedValue = value.Trim();
+        if (!normalizedValue.EndsWith('/'))
+        {
+            normalizedValue += "/";
+        }
+
+        if (!candidates.Contains(normalizedValue, StringComparer.OrdinalIgnoreCase))
+        {
+            candidates.Add(normalizedValue);
+        }
+    }
+
+    private static bool UriEquals(Uri left, Uri right) =>
+        string.Equals(left.ToString(), right.ToString(), StringComparison.OrdinalIgnoreCase);
 
     private static WalkingRouteSegmentResult CreateStationaryResult(TourRoutePreviewStopRequest stop) =>
         new(

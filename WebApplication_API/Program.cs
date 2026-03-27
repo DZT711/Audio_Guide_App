@@ -1,4 +1,8 @@
 using Microsoft.Extensions.FileProviders;
+using System.Net;
+using System.Net.Http;
+using System.Net.Security;
+using System.Security.Authentication;
 using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Data;
 using WebApplication_API.ModelBinding;
@@ -30,7 +34,17 @@ builder.Services.AddHttpClient<WalkingRouteService>((serviceProvider, client) =>
 
     client.BaseAddress = new Uri(options.BaseUrl);
     client.Timeout = TimeSpan.FromSeconds(Math.Max(5, options.RequestTimeoutSeconds));
+    client.DefaultRequestVersion = HttpVersion.Version11;
+    client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
     client.DefaultRequestHeaders.UserAgent.ParseAdd("SmartTourismRoutePlanner/1.0");
+})
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+    SslOptions = new SslClientAuthenticationOptions
+    {
+        EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+    }
 });
 builder.Services.AddScoped<TourRoutePlanningService>();
 builder.Services.AddSingleton<AdminSessionTokenService>();

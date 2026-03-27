@@ -242,7 +242,7 @@ else
 
                     <div class="management-field">
                         <label for="tour-start">Start Time</label>
-                        <InputText id="tour-start" class="form-control" type="time" Value="_formModel.StartTime" ValueChanged="HandleStartTimeChangedAsync" ValueExpression="() => _formModel.StartTime" />
+                        <input id="tour-start" class="form-control" type="time" step="60" value="@_startTimeInput" @onchange="HandleStartTimeChangedAsync" />
                         <ValidationMessage For="() => _formModel.StartTime" />
                     </div>
 
@@ -278,9 +278,9 @@ else
                                 <small>@GetDurationSummaryHint()</small>
                             </article>
                             <article class="tour-summary-card">
-                                <span>Expected Finish</span>
-                                <strong>@GetCalculatedFinishTimeLabel()</strong>
-                                <small>Based on the chosen start time.</small>
+                                <span>Expected Time</span>
+                                <strong>@GetCalculatedScheduleLabel()</strong>
+                                <small>Start time and calculated finish time.</small>
                             </article>
                         </div>
                     </div>
@@ -423,6 +423,7 @@ else
     private string _searchText = "";
     private string _selectedStatus = "";
     private string _locationSearchText = "";
+    private string _startTimeInput = TourDefaults.DefaultStartTime;
     private string? _loadError;
     private string? _routePreviewMessage;
     private ElementReference _mapElement;
@@ -750,9 +751,11 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task HandleStartTimeChangedAsync(string? value)
+    private async Task HandleStartTimeChangedAsync(ChangeEventArgs args)
     {
-        _formModel.StartTime = NormalizeTime(value) ?? value?.Trim() ?? string.Empty;
+        var value = args.Value?.ToString()?.Trim() ?? string.Empty;
+        _startTimeInput = value;
+        _formModel.StartTime = NormalizeTime(value) ?? value;
         await RefreshRoutePreviewAsync();
     }
 
@@ -772,6 +775,7 @@ else
         _formModel.Description = "";
         _formModel.WalkingSpeedKph = TourDefaults.DefaultWalkingSpeedKph;
         _formModel.StartTime = TourDefaults.DefaultStartTime;
+        _startTimeInput = TourDefaults.DefaultStartTime;
         _formModel.Status = 1;
         _formModel.StopLocationIds.Clear();
     }
@@ -782,6 +786,7 @@ else
         _formModel.Description = model.Description;
         _formModel.WalkingSpeedKph = TourDefaults.DefaultWalkingSpeedKph;
         _formModel.StartTime = model.StartTime;
+        _startTimeInput = NormalizeTime(model.StartTime) ?? model.StartTime;
         _formModel.Status = model.Status;
         _formModel.StopLocationIds = model.StopLocationIds.ToList();
     }
@@ -1144,8 +1149,18 @@ else
     private static string GetDurationSummaryHint() =>
         $"Calculated automatically with the default {TourDefaults.DefaultWalkingSpeedKph:0.#} km/h walking pace.";
 
-    private string GetCalculatedFinishTimeLabel() =>
-        _routePreview.FinishTime ?? "Set a valid start time";
+    private string GetCalculatedScheduleLabel()
+    {
+        var normalizedStartTime = NormalizeTime(_startTimeInput) ?? NormalizeTime(_routePreview.StartTime);
+        if (normalizedStartTime is null)
+        {
+            return "Set a valid start time";
+        }
+
+        return string.IsNullOrWhiteSpace(_routePreview.FinishTime)
+            ? $"{normalizedStartTime} - --:--"
+            : $"{normalizedStartTime} - {_routePreview.FinishTime}";
+    }
 
     private double GetSegmentDistanceKm(int currentIndex)
     {
