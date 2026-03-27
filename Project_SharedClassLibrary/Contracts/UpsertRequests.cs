@@ -179,6 +179,8 @@ public sealed class TourUpsertRequest : IValidatableObject
     [Range(0, 1)]
     public int Status { get; set; } = 1;
 
+    public TourRoutePreviewDto? RoutePreview { get; set; }
+
     public List<TourStopUpsertRequest> Stops { get; set; } = [];
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

@@ -205,25 +205,25 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to archive location.");
     }
 
-    public async Task<TourDto> CreateTourAsync(TourFormModel model)
+    public async Task<TourDto> CreateTourAsync(TourFormModel model, TourRoutePreviewDto? routePreview = null)
     {
         ApplyAuthHeader();
 
         using var response = await httpClient.PostAsJsonAsync(
             ApiRoutes.Tours,
-            CreateTourRequest(model));
+            CreateTourRequest(model, routePreview));
 
         await EnsureSuccessAsync(response, "Unable to create tour.");
         return await ReadJsonAsync<TourDto>(response, "Unable to read the created tour.");
     }
 
-    public async Task UpdateTourAsync(int id, TourFormModel model)
+    public async Task UpdateTourAsync(int id, TourFormModel model, TourRoutePreviewDto? routePreview = null)
     {
         ApplyAuthHeader();
 
         using var response = await httpClient.PutAsJsonAsync(
             $"{ApiRoutes.Tours}/{id}",
-            CreateTourRequest(model));
+            CreateTourRequest(model, routePreview));
 
         await EnsureSuccessAsync(response, "Unable to update tour.");
     }
@@ -379,7 +379,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             Status = model.Status
         };
 
-    private static TourUpsertRequest CreateTourRequest(TourFormModel model) =>
+    private static TourUpsertRequest CreateTourRequest(TourFormModel model, TourRoutePreviewDto? routePreview) =>
         new()
         {
             Name = model.Name,
@@ -387,6 +387,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             WalkingSpeedKph = model.WalkingSpeedKph,
             StartTime = string.IsNullOrWhiteSpace(model.StartTime) ? null : model.StartTime,
             Status = model.Status,
+            RoutePreview = routePreview,
             Stops = model.StopLocationIds
                 .Select((locationId, index) => new TourStopUpsertRequest
                 {

@@ -7,6 +7,11 @@
         lat: 10.754027,
         lng: 106.705412
     };
+    const routePlanningConfig = {
+        baseUrl: "https://routing.openstreetmap.de/routed-foot",
+        profile: "walking",
+        requestTimeoutMs: 15000
+    };
     const locationPickers = new WeakMap();
     const tourPlanners = new WeakMap();
 
@@ -409,6 +414,282 @@
         .filter((point) => Number.isFinite(Number(point?.latitude)) && Number.isFinite(Number(point?.longitude)))
         .map((point) => [Number(point.latitude), Number(point.longitude)]);
 
+    const roundDistanceKm = (value) => {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return 0;
+        }
+
+        return Math.round(numericValue * 100) / 100;
+    };
+
+    const normalizeTimeValue = (value) => {
+        const normalized = String(value ?? "").trim();
+        const match = normalized.match(/^(\d{1,2}):(\d{2})$/);
+        if (!match) {
+            return null;
+        }
+
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+        if (!Number.isInteger(hours)
+            || !Number.isInteger(minutes)
+            || hours < 0
+            || hours > 23
+            || minutes < 0
+            || minutes > 59) {
+            return null;
+        }
+
+        return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    };
+
+    const calculateFinishTime = (startTime, durationMinutes) => {
+        const normalizedStartTime = normalizeTimeValue(startTime);
+        if (!normalizedStartTime) {
+            return null;
+        }
+
+        const [hours, minutes] = normalizedStartTime.split(":").map(Number);
+        const totalMinutes = (hours * 60) + minutes + Math.max(0, Number(durationMinutes) || 0);
+        const normalizedTotalMinutes = ((totalMinutes % 1440) + 1440) % 1440;
+        const finishHours = Math.floor(normalizedTotalMinutes / 60);
+        const finishMinutes = normalizedTotalMinutes % 60;
+        return `${String(finishHours).padStart(2, "0")}:${String(finishMinutes).padStart(2, "0")}`;
+    };
+
+    const calculateWalkingDurationMinutes = (distanceKm, walkingSpeedKph) => {
+        const normalizedDistanceKm = Math.max(0, Number(distanceKm) || 0);
+        const normalizedWalkingSpeedKph = Number(walkingSpeedKph);
+        if (!Number.isFinite(normalizedWalkingSpeedKph) || normalizedWalkingSpeedKph <= 0) {
+            return 0;
+        }
+
+        return Math.ceil((normalizedDistanceKm / normalizedWalkingSpeedKph) * 60);
+    };
+
+    const toRadians = (value) => Number(value) * Math.PI / 180;
+
+    const calculateDistanceKm = (fromLatitude, fromLongitude, toLatitude, toLongitude) => {
+        const normalizedFromLatitude = Number(fromLatitude);
+        const normalizedFromLongitude = Number(fromLongitude);
+        const normalizedToLatitude = Number(toLatitude);
+        const normalizedToLongitude = Number(toLongitude);
+        if (!Number.isFinite(normalizedFromLatitude)
+            || !Number.isFinite(normalizedFromLongitude)
+            || !Number.isFinite(normalizedToLatitude)
+            || !Number.isFinite(normalizedToLongitude)) {
+            return 0;
+        }
+
+        const earthRadiusKm = 6371;
+        const latDelta = toRadians(normalizedToLatitude - normalizedFromLatitude);
+        const lonDelta = toRadians(normalizedToLongitude - normalizedFromLongitude);
+        const originLatitude = toRadians(normalizedFromLatitude);
+        const destinationLatitude = toRadians(normalizedToLatitude);
+        const haversine =
+            Math.sin(latDelta / 2) ** 2
+            + Math.cos(originLatitude) * Math.cos(destinationLatitude) * Math.sin(lonDelta / 2) ** 2;
+        const normalizedHaversine = Math.min(1, Math.max(0, haversine));
+        const arc = 2 * Math.atan2(Math.sqrt(normalizedHaversine), Math.sqrt(1 - normalizedHaversine));
+        return earthRadiusKm * arc;
+    };
+
+    const normalizeRouteStops = (stops) => (Array.isArray(stops) ? stops : [])
+        .map((stop, index) => ({
+            LocationId: Number(stop?.locationId ?? stop?.LocationId ?? 0),
+            SequenceOrder: Number(stop?.sequenceOrder ?? stop?.SequenceOrder ?? (index + 1)),
+            Latitude: Number(stop?.latitude ?? stop?.Latitude),
+            Longitude: Number(stop?.longitude ?? stop?.Longitude)
+        }))
+        .filter((stop) =>
+            stop.LocationId > 0
+            && Number.isFinite(stop.SequenceOrder)
+            && Number.isFinite(stop.Latitude)
+            && Number.isFinite(stop.Longitude))
+        .sort((left, right) => left.SequenceOrder - right.SequenceOrder || left.LocationId - right.LocationId);
+
+    const appendRoutePoint = (path, latitude, longitude) => {
+        const normalizedLatitude = Number(latitude);
+        const normalizedLongitude = Number(longitude);
+        if (!Number.isFinite(normalizedLatitude) || !Number.isFinite(normalizedLongitude)) {
+            return;
+        }
+
+        const lastPoint = path[path.length - 1];
+        if (lastPoint
+            && Math.abs(lastPoint.Latitude - normalizedLatitude) < 0.000001
+            && Math.abs(lastPoint.Longitude - normalizedLongitude) < 0.000001) {
+            return;
+        }
+
+        path.push({
+            Latitude: normalizedLatitude,
+            Longitude: normalizedLongitude
+        });
+    };
+
+    const buildStraightLinePreview = (stops, startTime, walkingSpeedKph, usesRoadRouting) => {
+        const normalizedStops = normalizeRouteStops(stops);
+        const normalizedStartTime = normalizeTimeValue(startTime);
+        const normalizedWalkingSpeedKph = Number.isFinite(Number(walkingSpeedKph)) && Number(walkingSpeedKph) > 0
+            ? Number(walkingSpeedKph)
+            : 5;
+        const segments = [];
+        const path = [];
+        let totalDistanceKm = 0;
+
+        normalizedStops.forEach((stop, index) => {
+            if (index === 0) {
+                segments.push({
+                    SequenceOrder: stop.SequenceOrder,
+                    LocationId: stop.LocationId,
+                    DistanceKm: 0
+                });
+                appendRoutePoint(path, stop.Latitude, stop.Longitude);
+                return;
+            }
+
+            const previousStop = normalizedStops[index - 1];
+            const distanceKm = calculateDistanceKm(
+                previousStop.Latitude,
+                previousStop.Longitude,
+                stop.Latitude,
+                stop.Longitude);
+
+            totalDistanceKm += distanceKm;
+            segments.push({
+                SequenceOrder: stop.SequenceOrder,
+                LocationId: stop.LocationId,
+                DistanceKm: roundDistanceKm(distanceKm)
+            });
+            appendRoutePoint(path, previousStop.Latitude, previousStop.Longitude);
+            appendRoutePoint(path, stop.Latitude, stop.Longitude);
+        });
+
+        const roundedDistanceKm = roundDistanceKm(totalDistanceKm);
+        const estimatedDurationMinutes = calculateWalkingDurationMinutes(roundedDistanceKm, normalizedWalkingSpeedKph);
+
+        return {
+            TotalDistanceKm: roundedDistanceKm,
+            EstimatedDurationMinutes: estimatedDurationMinutes,
+            WalkingSpeedKph: normalizedWalkingSpeedKph,
+            StartTime: normalizedStartTime,
+            FinishTime: calculateFinishTime(normalizedStartTime, estimatedDurationMinutes),
+            UsesRoadRouting: !!usesRoadRouting,
+            Segments: segments,
+            Path: path
+        };
+    };
+
+    const buildRoutingUrl = (stops) => {
+        const coordinates = stops
+            .map((stop) => `${stop.Longitude},${stop.Latitude}`)
+            .join(";");
+        const url = new URL(`${routePlanningConfig.baseUrl}/route/v1/${routePlanningConfig.profile}/${coordinates}`);
+        url.searchParams.set("alternatives", "false");
+        url.searchParams.set("overview", "full");
+        url.searchParams.set("steps", "false");
+        url.searchParams.set("geometries", "geojson");
+        return url;
+    };
+
+    const requestRoadRouteAsync = async (stops) => {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), routePlanningConfig.requestTimeoutMs);
+
+        try {
+            const response = await fetch(buildRoutingUrl(stops), {
+                method: "GET",
+                mode: "cors",
+                signal: controller.signal,
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
+
+            if (!response.ok) {
+                return null;
+            }
+
+            const payload = await response.json();
+            if (!Array.isArray(payload?.routes) || payload.routes.length === 0) {
+                return null;
+            }
+
+            return [...payload.routes]
+                .sort((left, right) => (Number(left?.distance) || Number.MAX_SAFE_INTEGER) - (Number(right?.distance) || Number.MAX_SAFE_INTEGER))[0] ?? null;
+        } finally {
+            window.clearTimeout(timeoutId);
+        }
+    };
+
+    const buildRoadRoutePreview = (stops, startTime, walkingSpeedKph, route) => {
+        const normalizedStops = normalizeRouteStops(stops);
+        if (normalizedStops.length <= 1) {
+            return buildStraightLinePreview(normalizedStops, startTime, walkingSpeedKph, true);
+        }
+
+        const legs = Array.isArray(route?.legs) ? route.legs : [];
+        const coordinates = Array.isArray(route?.geometry?.coordinates) ? route.geometry.coordinates : [];
+        if (legs.length !== normalizedStops.length - 1 || coordinates.length === 0) {
+            return buildStraightLinePreview(normalizedStops, startTime, walkingSpeedKph, false);
+        }
+
+        const path = [];
+        coordinates.forEach((coordinate) => {
+            if (!Array.isArray(coordinate) || coordinate.length < 2) {
+                return;
+            }
+
+            appendRoutePoint(path, coordinate[1], coordinate[0]);
+        });
+
+        if (path.length === 0) {
+            return buildStraightLinePreview(normalizedStops, startTime, walkingSpeedKph, false);
+        }
+
+        const segments = [{
+            SequenceOrder: normalizedStops[0].SequenceOrder,
+            LocationId: normalizedStops[0].LocationId,
+            DistanceKm: 0
+        }];
+        let totalDistanceKm = 0;
+
+        for (let index = 1; index < normalizedStops.length; index += 1) {
+            const leg = legs[index - 1];
+            const legDistanceKm = Number(leg?.distance) / 1000;
+            if (!Number.isFinite(legDistanceKm) || legDistanceKm < 0) {
+                return buildStraightLinePreview(normalizedStops, startTime, walkingSpeedKph, false);
+            }
+
+            totalDistanceKm += legDistanceKm;
+            segments.push({
+                SequenceOrder: normalizedStops[index].SequenceOrder,
+                LocationId: normalizedStops[index].LocationId,
+                DistanceKm: roundDistanceKm(legDistanceKm)
+            });
+        }
+
+        const roundedDistanceKm = roundDistanceKm(totalDistanceKm);
+        const normalizedStartTime = normalizeTimeValue(startTime);
+        const normalizedWalkingSpeedKph = Number.isFinite(Number(walkingSpeedKph)) && Number(walkingSpeedKph) > 0
+            ? Number(walkingSpeedKph)
+            : 5;
+        const estimatedDurationMinutes = calculateWalkingDurationMinutes(roundedDistanceKm, normalizedWalkingSpeedKph);
+
+        return {
+            TotalDistanceKm: roundedDistanceKm,
+            EstimatedDurationMinutes: estimatedDurationMinutes,
+            WalkingSpeedKph: normalizedWalkingSpeedKph,
+            StartTime: normalizedStartTime,
+            FinishTime: calculateFinishTime(normalizedStartTime, estimatedDurationMinutes),
+            UsesRoadRouting: true,
+            Segments: segments,
+            Path: path
+        };
+    };
+
     const fitPlannerBounds = (planner, state) => {
         const normalizedPoints = Array.isArray(state?.points) ? state.points : [];
         const routeLatLngs = getSelectedRouteLatLngs(normalizedPoints);
@@ -606,6 +887,23 @@
 
             renderTourPlanner(planner, points, true);
             return true;
+        },
+        calculateTourRoute: async (stops, startTime, walkingSpeedKph) => {
+            const normalizedStops = normalizeRouteStops(stops);
+            if (normalizedStops.length <= 1) {
+                return buildStraightLinePreview(normalizedStops, startTime, walkingSpeedKph, true);
+            }
+
+            try {
+                const route = await requestRoadRouteAsync(normalizedStops);
+                if (!route) {
+                    return buildStraightLinePreview(normalizedStops, startTime, walkingSpeedKph, false);
+                }
+
+                return buildRoadRoutePreview(normalizedStops, startTime, walkingSpeedKph, route);
+            } catch {
+                return buildStraightLinePreview(normalizedStops, startTime, walkingSpeedKph, false);
+            }
         },
         disposeTourPlanner: (element) => {
             const planner = tourPlanners.get(element);

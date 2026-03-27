@@ -4,9 +4,9 @@ public sealed class RoutePlanningOptions
 {
     public const string SectionName = "RoutePlanning";
 
-    public string BaseUrl { get; set; } = "https://router.project-osrm.org/";
+    public string BaseUrl { get; set; } = "https://routing.openstreetmap.de/routed-foot/";
 
-    public string WalkingProfile { get; set; } = "foot";
+    public string WalkingProfile { get; set; } = "walking";
 
     public int RequestTimeoutSeconds { get; set; } = 20;
 }

@@ -357,24 +357,25 @@ else
                                     <div class="tour-stop-sequence__list">
                                         @for (var index = 0; index < SelectedStopLocations.Count; index++)
                                         {
-                                            var stop = SelectedStopLocations[index];
-                                            <article class="tour-stop-card">
-                                                <div class="tour-stop-card__index">@(@index + 1)</div>
+                                            var currentIndex = index;
+                                            var stop = SelectedStopLocations[currentIndex];
+                                            <article class="tour-stop-card" @key="stop.Id">
+                                                <div class="tour-stop-card__index">@(currentIndex + 1)</div>
                                                 <div class="tour-stop-card__body">
                                                     <div class="tour-stop-card__top">
                                                         <strong>@stop.Name</strong>
                                                         <span class="@GetStatusClass(stop.Status)">@GetStatusLabel(stop.Status)</span>
                                                     </div>
                                                     <div class="management-muted">@(stop.OwnerName ?? "No owner")</div>
-                                                    @if (index > 0)
+                                                    @if (currentIndex > 0)
                                                     {
-                                                        <div class="tour-stop-card__segment">+ @GetSegmentDistanceKm(index).ToString("0.##") km from previous stop</div>
+                                                        <div class="tour-stop-card__segment">+ @GetSegmentDistanceKm(currentIndex).ToString("0.##") km from previous stop</div>
                                                     }
                                                 </div>
                                                 <div class="tour-stop-card__actions">
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(index == 0)" @onclick="() => MoveStopAsync(index, -1)"><i class="bi bi-arrow-up"></i></button>
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(index == SelectedStopLocations.Count - 1)" @onclick="() => MoveStopAsync(index, 1)"><i class="bi bi-arrow-down"></i></button>
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveStopAsync(index)"><i class="bi bi-x-lg"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(currentIndex == 0)" @onclick="() => MoveStopAsync(currentIndex, -1)"><i class="bi bi-arrow-up"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(currentIndex == SelectedStopLocations.Count - 1)" @onclick="() => MoveStopAsync(currentIndex, 1)"><i class="bi bi-arrow-down"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveStopAsync(currentIndex)"><i class="bi bi-x-lg"></i></button>
                                                 </div>
                                             </article>
                                         }
@@ -612,14 +613,14 @@ else
         {
             if (_editingId is null)
             {
-                var createdTour = await ApiClient.CreateTourAsync(_formModel);
+                var createdTour = await ApiClient.CreateTourAsync(_formModel, _routePreview);
                 Notifications.Success("Tour created successfully.", "Tour saved");
                 _selectedTour = createdTour;
                 await LoadDataAsync(createdTour.Id);
             }
             else
             {
-                await ApiClient.UpdateTourAsync(_editingId.Value, _formModel);
+                await ApiClient.UpdateTourAsync(_editingId.Value, _formModel, _routePreview);
                 Notifications.Success("Tour updated successfully.", "Tour saved");
                 await LoadDataAsync(_editingId.Value);
             }
@@ -823,11 +824,7 @@ else
 
         try
         {
-            var preview = await ApiClient.PreviewTourRouteAsync(new TourRoutePreviewRequest
-            {
-                StartTime = _formModel.StartTime,
-                Stops = previewStops.ToList()
-            }, cts.Token);
+            var preview = await TryBuildRoutePreviewAsync(previewStops, cts.Token);
 
             if (!ReferenceEquals(_routePreviewCts, cts) || cts.IsCancellationRequested)
             {
@@ -864,6 +861,95 @@ else
                 await InvokeAsync(StateHasChanged);
             }
         }
+    }
+
+    private async Task<TourRoutePreviewDto> TryBuildRoutePreviewAsync(
+        IReadOnlyList<TourRoutePreviewStopRequest> previewStops,
+        CancellationToken cancellationToken)
+    {
+        var browserPreview = await TryBuildBrowserRoutePreviewAsync(previewStops, cancellationToken);
+        var apiPreview = await ApiClient.PreviewTourRouteAsync(new TourRoutePreviewRequest
+        {
+            StartTime = _formModel.StartTime,
+            Stops = previewStops.ToList()
+        }, cancellationToken);
+
+        if (HasMatchingRoutePreview(previewStops, browserPreview) && browserPreview!.UsesRoadRouting)
+        {
+            return browserPreview;
+        }
+
+        if (HasMatchingRoutePreview(previewStops, apiPreview) && apiPreview.UsesRoadRouting)
+        {
+            return apiPreview;
+        }
+
+        return HasMatchingRoutePreview(previewStops, browserPreview)
+            ? browserPreview!
+            : HasMatchingRoutePreview(previewStops, apiPreview)
+                ? apiPreview
+            : BuildFallbackRoutePreview(previewStops, _formModel.StartTime, usesRoadRouting: false);
+    }
+
+    private async Task<TourRoutePreviewDto?> TryBuildBrowserRoutePreviewAsync(
+        IReadOnlyList<TourRoutePreviewStopRequest> previewStops,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await JS.InvokeAsync<TourRoutePreviewDto>(
+                "smartTourAdmin.map.calculateTourRoute",
+                cancellationToken,
+                previewStops,
+                _formModel.StartTime,
+                TourDefaults.DefaultWalkingSpeedKph);
+        }
+        catch (JSException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    private static bool HasMatchingRoutePreview(
+        IReadOnlyList<TourRoutePreviewStopRequest> previewStops,
+        TourRoutePreviewDto? preview)
+    {
+        if (preview is null
+            || preview.TotalDistanceKm < 0
+            || preview.EstimatedDurationMinutes < 0)
+        {
+            return false;
+        }
+
+        var orderedStops = previewStops
+            .OrderBy(item => item.SequenceOrder)
+            .ToList();
+        var orderedSegments = preview.Segments
+            .OrderBy(item => item.SequenceOrder)
+            .ToList();
+
+        if (orderedStops.Count != orderedSegments.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < orderedStops.Count; index++)
+        {
+            var stop = orderedStops[index];
+            var segment = orderedSegments[index];
+            if (segment.SequenceOrder != stop.SequenceOrder
+                || segment.LocationId != stop.LocationId
+                || segment.DistanceKm < 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private TourRoutePreviewDto BuildFallbackRoutePreview(

@@ -118,11 +118,12 @@ public class TourController(
         }
 
         var routePreviewStops = BuildPreviewStops(normalizedStops, locations);
-        var metrics = await routePlanningService.CalculatePreviewAsync(
-            routePreviewStops,
-            TourDefaults.DefaultWalkingSpeedKph,
-            request.StartTime,
-            cancellationToken);
+        var metrics = GetProvidedRoutePreview(normalizedStops, request.RoutePreview)
+            ?? await routePlanningService.CalculatePreviewAsync(
+                routePreviewStops,
+                TourDefaults.DefaultWalkingSpeedKph,
+                request.StartTime,
+                cancellationToken);
         var segmentLookup = metrics.Segments.ToDictionary(item => item.SequenceOrder);
         var tour = new Tour
         {
@@ -208,11 +209,12 @@ public class TourController(
         }
 
         var routePreviewStops = BuildPreviewStops(normalizedStops, locations);
-        var metrics = await routePlanningService.CalculatePreviewAsync(
-            routePreviewStops,
-            TourDefaults.DefaultWalkingSpeedKph,
-            request.StartTime,
-            cancellationToken);
+        var metrics = GetProvidedRoutePreview(normalizedStops, request.RoutePreview)
+            ?? await routePlanningService.CalculatePreviewAsync(
+                routePreviewStops,
+                TourDefaults.DefaultWalkingSpeedKph,
+                request.StartTime,
+                cancellationToken);
         var segmentLookup = metrics.Segments.ToDictionary(item => item.SequenceOrder);
 
         tour.Name = request.Name.Trim();
@@ -408,6 +410,54 @@ public class TourController(
                 Longitude = location.Longitude
             })
             .ToList();
+    }
+
+    private static TourRoutePreviewDto? GetProvidedRoutePreview(
+        IReadOnlyList<TourStopUpsertRequest> normalizedStops,
+        TourRoutePreviewDto? routePreview)
+    {
+        if (routePreview is null
+            || routePreview.TotalDistanceKm < 0
+            || routePreview.EstimatedDurationMinutes < 0)
+        {
+            return null;
+        }
+
+        var expectedStops = normalizedStops
+            .OrderBy(item => item.SequenceOrder)
+            .ToList();
+        var providedSegments = routePreview.Segments
+            .OrderBy(item => item.SequenceOrder)
+            .ToList();
+
+        if (expectedStops.Count != providedSegments.Count)
+        {
+            return null;
+        }
+
+        for (var index = 0; index < expectedStops.Count; index++)
+        {
+            var expectedStop = expectedStops[index];
+            var providedSegment = providedSegments[index];
+            if (providedSegment.SequenceOrder != expectedStop.SequenceOrder
+                || providedSegment.LocationId != expectedStop.LocationId
+                || providedSegment.DistanceKm < 0)
+            {
+                return null;
+            }
+        }
+
+        return new TourRoutePreviewDto
+        {
+            TotalDistanceKm = Math.Round(routePreview.TotalDistanceKm, 2, MidpointRounding.AwayFromZero),
+            EstimatedDurationMinutes = routePreview.EstimatedDurationMinutes,
+            WalkingSpeedKph = TourDefaults.DefaultWalkingSpeedKph,
+            StartTime = TourPlanningService.NormalizeTime(routePreview.StartTime),
+            FinishTime = TourPlanningService.NormalizeTime(routePreview.FinishTime),
+            UsesRoadRouting = routePreview.UsesRoadRouting,
+            Segments = providedSegments,
+            Path = routePreview.Path
+        };
     }
 
     private static bool IsOwnerScoped(DashboardUser user) =>
