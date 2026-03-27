@@ -143,3 +143,16 @@ D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\ref\BlazorAp
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-ey3jv3rxxm-ey3jv3rxxm.gz
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-ey3jv3rxxm-ey3jv3rxxm.gz
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\r008phjwfc-{0}-p20fkojr07-p20fkojr07.gz
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\EmbeddedAttribute.cs
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\ValidatableTypeAttribute.cs
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.csproj.AssemblyReference.cache
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\rpswa.dswa.cache.json
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfoInputs.cache
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfo.cs
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.csproj.CoreCompileInputs.cache
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.sourcelink.json
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.dll
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\refint\BlazorApp_AdminWeb.dll
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.pdb

@@ -436,9 +436,8 @@ else
     private bool CanManage => SessionState.HasPermission(AdminPermissions.TourManage);
 
     private IReadOnlyList<LocationDto> PlannerLocations => _locations
-        .Where(item => item.Status == 1 || _formModel.StopLocationIds.Contains(item.Id))
-        .OrderByDescending(item => item.Status)
-        .ThenBy(item => item.Name)
+        .Where(item => item.Status == 1)
+        .OrderBy(item => item.Name)
         .ToList();
 
     private IEnumerable<LocationDto> FilteredPlannerLocations =>
@@ -514,6 +513,7 @@ else
             _locations.AddRange((await locationsTask)
                 .OrderByDescending(item => item.Status)
                 .ThenBy(item => item.Name));
+            RemoveInactiveStopsFromForm();
 
             var selectedId = preferredTourId ?? _selectedTour?.Id;
             _selectedTour = selectedId.HasValue
@@ -593,6 +593,7 @@ else
             _isEditorOpen = true;
             _locationSearchText = "";
             ApplyForm(TourFormModel.FromDto(tour));
+            RemoveInactiveStopsFromForm(notifyWhenRemoved: true);
             await RefreshRoutePreviewAsync();
             QueueMapSync();
         }
@@ -782,6 +783,25 @@ else
         _formModel.StartTime = model.StartTime;
         _formModel.Status = model.Status;
         _formModel.StopLocationIds = model.StopLocationIds.ToList();
+    }
+
+    private void RemoveInactiveStopsFromForm(bool notifyWhenRemoved = false)
+    {
+        if (_formModel.StopLocationIds.Count == 0 || _locations.Count == 0)
+        {
+            return;
+        }
+
+        var activeLocationIds = _locations
+            .Where(item => item.Status == 1)
+            .Select(item => item.Id)
+            .ToHashSet();
+        var removedCount = _formModel.StopLocationIds.RemoveAll(locationId => !activeLocationIds.Contains(locationId));
+
+        if (notifyWhenRemoved && removedCount > 0)
+        {
+            Notifications.Warning("Inactive POIs were removed from this tour editor. Only active POIs can be edited in a route.", "Inactive POIs hidden");
+        }
     }
 
     private IReadOnlyList<TourRoutePreviewStopRequest> BuildRoutePreviewStops() => SelectedStopLocations

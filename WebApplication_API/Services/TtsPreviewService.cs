@@ -1,14 +1,9 @@
-using System.Net.Http.Headers;
-using System.Text;
-using System.Xml.Linq;
 using Project_SharedClassLibrary.Contracts;
 
 namespace WebApplication_API.Services;
 
 public sealed class TtsPreviewService(
-    HttpClient httpClient,
-    IConfiguration configuration,
-    ILogger<TtsPreviewService> logger)
+    HttpClient httpClient)
 {
     private const int MaxPreviewCharacters = 220;
 
@@ -26,19 +21,6 @@ public sealed class TtsPreviewService(
             throw new InvalidOperationException("A valid preview language is required.");
         }
 
-        try
-        {
-            var azureResult = await TryAzureAsync(previewText, normalizedLanguage, request.VoiceGender, cancellationToken);
-            if (azureResult is not null)
-            {
-                return azureResult;
-            }
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
-        {
-            logger.LogWarning(ex, "Azure TTS preview was unavailable. Falling back to the free provider.");
-        }
-
         var freeProviderResult = await TryFreeTranslateAsync(previewText, normalizedLanguage, cancellationToken);
         if (freeProviderResult is not null)
         {
@@ -46,66 +28,6 @@ public sealed class TtsPreviewService(
         }
 
         throw new InvalidOperationException("No TTS preview provider is available right now.");
-    }
-
-    private async Task<TtsPreviewResult?> TryAzureAsync(
-        string text,
-        string language,
-        string? voiceGender,
-        CancellationToken cancellationToken)
-    {
-        var azureKey = configuration["Tts:Azure:Key"] ?? configuration["AZURE_SPEECH_KEY"];
-        var azureRegion = configuration["Tts:Azure:Region"] ?? configuration["AZURE_SPEECH_REGION"];
-        if (string.IsNullOrWhiteSpace(azureKey) || string.IsNullOrWhiteSpace(azureRegion))
-        {
-            return null;
-        }
-
-        var tokenRequest = new HttpRequestMessage(
-            HttpMethod.Post,
-            $"https://{azureRegion}.api.cognitive.microsoft.com/sts/v1.0/issueToken");
-        tokenRequest.Headers.Add("Ocp-Apim-Subscription-Key", azureKey);
-
-        using var tokenResponse = await httpClient.SendAsync(tokenRequest, cancellationToken);
-        if (!tokenResponse.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException("Azure Speech token acquisition failed.");
-        }
-
-        var accessToken = await tokenResponse.Content.ReadAsStringAsync(cancellationToken);
-        if (string.IsNullOrWhiteSpace(accessToken))
-        {
-            throw new InvalidOperationException("Azure Speech returned an empty token.");
-        }
-
-        var voiceName = ResolveAzureVoice(language, voiceGender);
-        var ssml = BuildSsml(text, language, voiceName);
-
-        using var ttsRequest = new HttpRequestMessage(
-            HttpMethod.Post,
-            $"https://{azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1");
-        ttsRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        ttsRequest.Headers.Add("X-Microsoft-OutputFormat", "audio-16khz-32kbitrate-mono-mp3");
-        ttsRequest.Headers.Add("User-Agent", "SmartTourismAdmin");
-        ttsRequest.Content = new StringContent(ssml, Encoding.UTF8, "application/ssml+xml");
-
-        using var ttsResponse = await httpClient.SendAsync(ttsRequest, cancellationToken);
-        if (!ttsResponse.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException("Azure Speech synthesis failed.");
-        }
-
-        var audioBytes = await ttsResponse.Content.ReadAsByteArrayAsync(cancellationToken);
-        if (audioBytes.Length == 0)
-        {
-            throw new InvalidOperationException("Azure Speech returned an empty preview.");
-        }
-
-        return new TtsPreviewResult(
-            audioBytes,
-            ttsResponse.Content.Headers.ContentType?.ToString() ?? "audio/mpeg",
-            "AzureSpeech",
-            voiceName);
     }
 
     private async Task<TtsPreviewResult?> TryFreeTranslateAsync(
@@ -216,34 +138,6 @@ public sealed class TtsPreviewService(
         }
 
         return prefix;
-    }
-
-    private static string ResolveAzureVoice(string language, string? voiceGender)
-    {
-        var normalizedLanguage = GetLanguagePrefix(language);
-        var isMale = string.Equals(voiceGender, "Male", StringComparison.OrdinalIgnoreCase);
-
-        return normalizedLanguage switch
-        {
-            "vi" =>
-                isMale ? "vi-VN-NamMinhNeural" : "vi-VN-HoaiMyNeural",
-            "en" =>
-                isMale ? "en-US-GuyNeural" : "en-US-AriaNeural",
-            _ => isMale ? "en-US-GuyNeural" : "en-US-AriaNeural"
-        };
-    }
-
-    private static string BuildSsml(string text, string language, string voiceName)
-    {
-        var document = new XDocument(
-            new XElement("speak",
-                new XAttribute("version", "1.0"),
-                new XAttribute(XNamespace.Xml + "lang", language),
-                new XElement("voice",
-                    new XAttribute("name", voiceName),
-                    text)));
-
-        return document.ToString(SaveOptions.DisableFormatting);
     }
 }
 
