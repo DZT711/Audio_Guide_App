@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Components.Forms;
+using Project_SharedClassLibrary.Constants;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Security;
 
@@ -245,10 +246,10 @@ public sealed class TourFormModel : IValidatableObject
     public string Description { get; set; } = "";
 
     [Range(0.5d, 12d)]
-    public double WalkingSpeedKph { get; set; } = 4.5d;
+    public double WalkingSpeedKph { get; set; } = TourDefaults.DefaultWalkingSpeedKph;
 
     [RegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$", ErrorMessage = "Start time must use HH:mm.")]
-    public string StartTime { get; set; } = "08:00";
+    public string StartTime { get; set; } = TourDefaults.DefaultStartTime;
 
     [Range(0, 1)]
     public int Status { get; set; } = 1;
@@ -259,8 +260,8 @@ public sealed class TourFormModel : IValidatableObject
     {
         Name = dto.Name,
         Description = dto.Description ?? "",
-        WalkingSpeedKph = dto.WalkingSpeedKph <= 0 ? 4.5d : dto.WalkingSpeedKph,
-        StartTime = string.IsNullOrWhiteSpace(dto.StartTime) ? "08:00" : dto.StartTime!,
+        WalkingSpeedKph = dto.WalkingSpeedKph <= 0 ? TourDefaults.DefaultWalkingSpeedKph : dto.WalkingSpeedKph,
+        StartTime = string.IsNullOrWhiteSpace(dto.StartTime) ? TourDefaults.DefaultStartTime : dto.StartTime!,
         Status = dto.Status,
         StopLocationIds = dto.Stops
             .OrderBy(item => item.SequenceOrder)

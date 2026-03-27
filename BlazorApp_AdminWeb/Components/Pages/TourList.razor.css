@@ -2,9 +2,80 @@
     align-items: start;
 }
 
+.tour-layout--planner-modal {
+    grid-template-columns: 1fr;
+}
+
 .tour-editor {
     position: sticky;
     top: 1.5rem;
+}
+
+.tour-editor--modal {
+    position: static;
+    top: auto;
+    width: min(100%, 1120px);
+    max-height: calc(100vh - 3rem);
+    margin: 0;
+    overflow: auto;
+    box-shadow: 0 28px 62px rgba(15, 23, 42, 0.22);
+}
+
+.tour-editor-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: rgba(15, 23, 42, 0.42);
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+        opacity 220ms ease,
+        visibility 220ms ease;
+}
+
+.tour-editor-modal--open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.tour-editor__topbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1.2rem;
+}
+
+.tour-editor__topbar h2 {
+    margin: 0.45rem 0 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.tour-editor__hint-card,
+.tour-editor__notice {
+    padding: 0.95rem 1rem;
+    border-radius: 18px;
+}
+
+.tour-editor__hint-card {
+    border: 1px solid rgba(15, 118, 110, 0.12);
+    background: rgba(240, 253, 250, 0.9);
+    color: #0f766e;
+    font-weight: 600;
+}
+
+.tour-editor__notice {
+    border: 1px solid rgba(245, 158, 11, 0.18);
+    background: rgba(255, 251, 235, 0.96);
+    color: #92400e;
+    font-weight: 600;
 }
 
 .tour-name {
@@ -17,6 +88,14 @@
 
 .tour-row--inactive td {
     color: #7c6a3b;
+}
+
+.tour-row--selected {
+    --bs-table-bg: rgba(240, 249, 255, 0.88);
+}
+
+.tour-row--selected td {
+    border-color: rgba(56, 189, 248, 0.22);
 }
 
 .tour-skeleton-table {
@@ -73,6 +152,18 @@
     justify-content: space-between;
     gap: 1rem;
     align-items: flex-start;
+}
+
+.tour-planner__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.tour-planner__status {
+    color: #0f766e;
+    font-size: 0.84rem;
+    font-weight: 700;
 }
 
 .tour-planner__map {
@@ -187,12 +278,25 @@
     .tour-stop-layout {
         grid-template-columns: 1fr;
     }
+
+    .tour-editor-modal {
+        padding: 1rem;
+    }
 }
 
 @media (max-width: 575.98px) {
+    .tour-editor--modal {
+        max-height: calc(100vh - 1.5rem);
+    }
+
+    .tour-editor__topbar,
     .tour-planner__header,
     .tour-stop-catalog__header,
-    .tour-stop-card__top,
+    .tour-stop-card__top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
     .tour-stop-card {
         grid-template-columns: 1fr;
     }

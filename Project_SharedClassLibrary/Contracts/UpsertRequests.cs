@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Project_SharedClassLibrary.Constants;
 using Project_SharedClassLibrary.Validation;
 
 namespace Project_SharedClassLibrary.Contracts;
@@ -170,10 +171,10 @@ public sealed class TourUpsertRequest : IValidatableObject
     public string? Description { get; set; }
 
     [Range(0.5d, 12d)]
-    public double WalkingSpeedKph { get; set; } = 4.5d;
+    public double WalkingSpeedKph { get; set; } = TourDefaults.DefaultWalkingSpeedKph;
 
     [RegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$", ErrorMessage = "Start time must use HH:mm.")]
-    public string? StartTime { get; set; } = "08:00";
+    public string? StartTime { get; set; } = TourDefaults.DefaultStartTime;
 
     [Range(0, 1)]
     public int Status { get; set; } = 1;

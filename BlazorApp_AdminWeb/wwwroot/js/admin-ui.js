@@ -405,10 +405,20 @@
         .filter((point) => Number.isFinite(Number(point?.latitude)) && Number.isFinite(Number(point?.longitude)))
         .map((point) => [Number(point.latitude), Number(point.longitude)]);
 
-    const fitPlannerBounds = (planner, points) => {
-        const routeLatLngs = getSelectedRouteLatLngs(points);
-        const allLatLngs = getPlannerLatLngs(points);
-        const targetLatLngs = routeLatLngs.length ? routeLatLngs : allLatLngs;
+    const getRoutePathLatLngs = (state) => (Array.isArray(state?.routePath) ? state.routePath : [])
+        .filter((point) => Number.isFinite(Number(point?.latitude)) && Number.isFinite(Number(point?.longitude)))
+        .map((point) => [Number(point.latitude), Number(point.longitude)]);
+
+    const fitPlannerBounds = (planner, state) => {
+        const normalizedPoints = Array.isArray(state?.points) ? state.points : [];
+        const routeLatLngs = getSelectedRouteLatLngs(normalizedPoints);
+        const routedPathLatLngs = getRoutePathLatLngs(state);
+        const allLatLngs = getPlannerLatLngs(normalizedPoints);
+        const targetLatLngs = routedPathLatLngs.length
+            ? routedPathLatLngs
+            : routeLatLngs.length
+                ? routeLatLngs
+                : allLatLngs;
 
         if (!targetLatLngs.length) {
             planner.map.setView([defaultMapCenter.lat, defaultMapCenter.lng], 13);
@@ -423,8 +433,10 @@
         planner.map.fitBounds(L.latLngBounds(targetLatLngs).pad(0.2));
     };
 
-    const renderTourPlanner = (planner, points, fitBounds) => {
-        const normalizedPoints = Array.isArray(points) ? points : [];
+    const renderTourPlanner = (planner, state, fitBounds) => {
+        const normalizedPoints = Array.isArray(state?.points) ? state.points : [];
+        const routePathLatLngs = getRoutePathLatLngs(state);
+        const usesRoadRouting = state?.usesRoadRouting !== false;
         planner.layerGroup.clearLayers();
 
         normalizedPoints.forEach((point) => {
@@ -457,18 +469,20 @@
             planner.layerGroup.addLayer(marker);
         });
 
-        const routeLatLngs = getSelectedRouteLatLngs(normalizedPoints);
+        const routeLatLngs = routePathLatLngs.length
+            ? routePathLatLngs
+            : getSelectedRouteLatLngs(normalizedPoints);
         if (routeLatLngs.length > 1) {
             planner.layerGroup.addLayer(L.polyline(routeLatLngs, {
                 color: "#0f766e",
                 weight: 5,
                 opacity: 0.88,
-                dashArray: "10 8"
+                dashArray: usesRoadRouting ? undefined : "10 8"
             }));
         }
 
         if (fitBounds) {
-            fitPlannerBounds(planner, normalizedPoints);
+            fitPlannerBounds(planner, state);
         }
 
         planner.map.invalidateSize();

@@ -1,6 +1,7 @@
 namespace WebApplication_API.Data;
 
 using Microsoft.EntityFrameworkCore;
+using Project_SharedClassLibrary.Constants;
 using WebApplication_API.Model;
 
 public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
@@ -77,7 +78,7 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.HasKey(item => item.TourId);
             entity.HasIndex(item => item.OwnerId);
             entity.HasIndex(item => item.Status);
-            entity.Property(item => item.WalkingSpeedKph).HasDefaultValue(4.5d);
+            entity.Property(item => item.WalkingSpeedKph).HasDefaultValue(TourDefaults.DefaultWalkingSpeedKph);
             entity.Property(item => item.Status).HasDefaultValue(1);
 
             entity.HasOne(item => item.Owner)
@@ -92,6 +93,7 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.HasKey(item => new { item.TourId, item.LocationId });
             entity.HasIndex(item => item.LocationId);
             entity.HasIndex(item => new { item.TourId, item.SequenceOrder }).IsUnique();
+            entity.Property(item => item.SegmentDistanceKm).HasDefaultValue(0d);
 
             entity.HasOne(item => item.Tour)
                 .WithMany(item => item.Stops)

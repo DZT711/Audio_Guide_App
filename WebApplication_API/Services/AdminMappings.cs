@@ -141,10 +141,7 @@ public static class AdminMappings
             var location = stop.Location!;
             var segmentDistanceKm = previousLocation is null
                 ? 0d
-                : Math.Round(
-                    TourPlanningService.CalculateDistanceKm(previousLocation, location),
-                    2,
-                    MidpointRounding.AwayFromZero);
+                : Math.Round(stop.SegmentDistanceKm, 2, MidpointRounding.AwayFromZero);
 
             stopDtos.Add(new TourStopDto
             {

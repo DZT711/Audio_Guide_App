@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Project_SharedClassLibrary.Constants;
 
 namespace WebApplication_API.Model;
 
@@ -19,7 +20,7 @@ public class Tour
 
     public int EstimatedDurationMinutes { get; set; }
 
-    public double WalkingSpeedKph { get; set; } = 4.5d;
+    public double WalkingSpeedKph { get; set; } = TourDefaults.DefaultWalkingSpeedKph;
 
     [MaxLength(5)]
     public string? StartTime { get; set; }

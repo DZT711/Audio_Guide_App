@@ -11,4 +11,6 @@ public class TourLocation
     public Location? Location { get; set; }
 
     public int SequenceOrder { get; set; }
+
+    public double SegmentDistanceKm { get; set; }
 }

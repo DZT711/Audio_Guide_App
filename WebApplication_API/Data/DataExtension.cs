@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Project_SharedClassLibrary.Constants;
 using Project_SharedClassLibrary.Security;
 using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Model;
@@ -192,7 +193,10 @@ public static class DataExtension
 
             if (seededLocations.Count > 0)
             {
-                var metrics = TourPlanningService.CalculateMetrics(seededLocations, 4.5d, "08:00");
+                var metrics = TourPlanningService.CalculateMetrics(
+                    seededLocations,
+                    TourDefaults.DefaultWalkingSpeedKph,
+                    TourDefaults.DefaultStartTime);
                 var tour = new Tour
                 {
                     OwnerId = owner.UserId,
@@ -200,7 +204,7 @@ public static class DataExtension
                     Description = "A short curated walk connecting the seeded District 4 points of interest.",
                     TotalDistanceKm = metrics.TotalDistanceKm,
                     EstimatedDurationMinutes = metrics.EstimatedDurationMinutes,
-                    WalkingSpeedKph = 4.5d,
+                    WalkingSpeedKph = TourDefaults.DefaultWalkingSpeedKph,
                     StartTime = metrics.StartTime,
                     Status = 1,
                     CreatedAt = DateTime.UtcNow
@@ -211,7 +215,15 @@ public static class DataExtension
                     tour.Stops.Add(new TourLocation
                     {
                         LocationId = stop.location.LocationId,
-                        SequenceOrder = stop.index + 1
+                        SequenceOrder = stop.index + 1,
+                        SegmentDistanceKm = stop.index == 0
+                            ? 0d
+                            : Math.Round(
+                                TourPlanningService.CalculateDistanceKm(
+                                    seededLocations[stop.index - 1],
+                                    stop.location),
+                                2,
+                                MidpointRounding.AwayFromZero)
                     });
                 }
 

@@ -205,7 +205,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to archive location.");
     }
 
-    public async Task CreateTourAsync(TourFormModel model)
+    public async Task<TourDto> CreateTourAsync(TourFormModel model)
     {
         ApplyAuthHeader();
 
@@ -214,6 +214,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             CreateTourRequest(model));
 
         await EnsureSuccessAsync(response, "Unable to create tour.");
+        return await ReadJsonAsync<TourDto>(response, "Unable to read the created tour.");
     }
 
     public async Task UpdateTourAsync(int id, TourFormModel model)
@@ -233,6 +234,17 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
         using var response = await httpClient.DeleteAsync($"{ApiRoutes.Tours}/{id}");
         await EnsureSuccessAsync(response, "Unable to archive tour.");
+    }
+
+    public async Task<TourRoutePreviewDto> PreviewTourRouteAsync(
+        TourRoutePreviewRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PostAsJsonAsync(ApiRoutes.ToursPreview, request, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to preview the selected route.");
+        return await ReadJsonAsync<TourRoutePreviewDto>(response, "Unable to preview the selected route.");
     }
 
     public async Task CreateAudioAsync(AudioFormModel model)

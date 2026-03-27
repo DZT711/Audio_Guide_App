@@ -17,10 +17,22 @@ builder.Services.AddControllers(options =>
 builder.AddDataToDatabase();
 builder.Services.AddSingleton<SharedAudioFileStorageService>();
 builder.Services.AddSingleton<SharedImageFileStorageService>();
+builder.Services.Configure<RoutePlanningOptions>(builder.Configuration.GetSection(RoutePlanningOptions.SectionName));
 builder.Services.AddHttpClient<TtsPreviewService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(20);
 });
+builder.Services.AddHttpClient<WalkingRouteService>((serviceProvider, client) =>
+{
+    var options = serviceProvider
+        .GetRequiredService<Microsoft.Extensions.Options.IOptions<RoutePlanningOptions>>()
+        .Value;
+
+    client.BaseAddress = new Uri(options.BaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(Math.Max(5, options.RequestTimeoutSeconds));
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("SmartTourismRoutePlanner/1.0");
+});
+builder.Services.AddScoped<TourRoutePlanningService>();
 builder.Services.AddSingleton<AdminSessionTokenService>();
 builder.Services.AddScoped<AdminRequestAuthorizationService>();
 

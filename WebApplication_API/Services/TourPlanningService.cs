@@ -1,9 +1,13 @@
+using Project_SharedClassLibrary.Constants;
 using WebApplication_API.Model;
 
 namespace WebApplication_API.Services;
 
 public static class TourPlanningService
 {
+    public static TourMetrics CalculateMetrics(IEnumerable<Location> orderedLocations, string? startTime) =>
+        CalculateMetrics(orderedLocations, TourDefaults.DefaultWalkingSpeedKph, startTime);
+
     public static TourMetrics CalculateMetrics(IEnumerable<Location> orderedLocations, double walkingSpeedKph, string? startTime)
     {
         var locations = orderedLocations.ToList();
@@ -19,9 +23,7 @@ public static class TourPlanningService
         }
 
         totalDistanceKm = Math.Round(totalDistanceKm, 2, MidpointRounding.AwayFromZero);
-        var estimatedDurationMinutes = walkingSpeedKph <= 0
-            ? 0
-            : (int)Math.Ceiling(totalDistanceKm / walkingSpeedKph * 60d);
+        var estimatedDurationMinutes = CalculateDurationMinutes(totalDistanceKm, walkingSpeedKph);
 
         var normalizedStartTime = NormalizeTime(startTime);
         return new TourMetrics(
@@ -64,6 +66,11 @@ public static class TourPlanningService
         TryParseTime(value, out var parsedTime)
             ? parsedTime.ToString(@"hh\:mm")
             : null;
+
+    public static int CalculateDurationMinutes(double totalDistanceKm, double walkingSpeedKph) =>
+        walkingSpeedKph <= 0
+            ? 0
+            : (int)Math.Ceiling(Math.Max(0d, totalDistanceKm) / walkingSpeedKph * 60d);
 
     private static bool TryParseTime(string? value, out TimeSpan time)
     {

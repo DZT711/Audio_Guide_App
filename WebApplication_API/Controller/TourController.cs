@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Constants;
 using Project_SharedClassLibrary.Security;
 using WebApplication_API.Data;
 using WebApplication_API.Model;
@@ -12,7 +13,8 @@ namespace WebApplication_API.Controller;
 [Route("[controller]")]
 public class TourController(
     DBContext context,
-    AdminRequestAuthorizationService authService) : ControllerBase
+    AdminRequestAuthorizationService authService,
+    TourRoutePlanningService routePlanningService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetTours()
@@ -51,6 +53,36 @@ public class TourController(
         return Ok(tour.ToDto());
     }
 
+    [HttpPost("preview")]
+    public async Task<IActionResult> PreviewTourRoute([FromBody] TourRoutePreviewRequest request, CancellationToken cancellationToken)
+    {
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.TourManage);
+        if (!access.Succeeded)
+        {
+            return access.ToFailureResult();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var normalizedStops = NormalizePreviewStops(request.Stops);
+        var stopValidationMessage = ValidatePreviewStops(normalizedStops);
+        if (!string.IsNullOrWhiteSpace(stopValidationMessage))
+        {
+            return BadRequest(new { message = stopValidationMessage });
+        }
+
+        var preview = await routePlanningService.CalculatePreviewAsync(
+            normalizedStops,
+            TourDefaults.DefaultWalkingSpeedKph,
+            request.StartTime,
+            cancellationToken);
+
+        return Ok(preview);
+    }
+
     [HttpPost]
     public async Task<IActionResult> CreateTour([FromBody] TourUpsertRequest request, CancellationToken cancellationToken)
     {
@@ -85,8 +117,13 @@ public class TourController(
             return BadRequest(new { message = "Only active POIs can be added to a tour." });
         }
 
-        var orderedLocations = OrderLocations(normalizedStops, locations);
-        var metrics = TourPlanningService.CalculateMetrics(orderedLocations, request.WalkingSpeedKph, request.StartTime);
+        var routePreviewStops = BuildPreviewStops(normalizedStops, locations);
+        var metrics = await routePlanningService.CalculatePreviewAsync(
+            routePreviewStops,
+            TourDefaults.DefaultWalkingSpeedKph,
+            request.StartTime,
+            cancellationToken);
+        var segmentLookup = metrics.Segments.ToDictionary(item => item.SequenceOrder);
         var tour = new Tour
         {
             OwnerId = access.User!.UserId,
@@ -94,7 +131,7 @@ public class TourController(
             Description = Normalize(request.Description),
             TotalDistanceKm = metrics.TotalDistanceKm,
             EstimatedDurationMinutes = metrics.EstimatedDurationMinutes,
-            WalkingSpeedKph = request.WalkingSpeedKph,
+            WalkingSpeedKph = TourDefaults.DefaultWalkingSpeedKph,
             StartTime = metrics.StartTime,
             Status = request.Status,
             CreatedAt = DateTime.UtcNow
@@ -105,7 +142,10 @@ public class TourController(
             tour.Stops.Add(new TourLocation
             {
                 LocationId = stop.LocationId,
-                SequenceOrder = stop.SequenceOrder
+                SequenceOrder = stop.SequenceOrder,
+                SegmentDistanceKm = segmentLookup.TryGetValue(stop.SequenceOrder, out var segment)
+                    ? segment.DistanceKm
+                    : 0d
             });
         }
 
@@ -167,14 +207,19 @@ public class TourController(
             return BadRequest(new { message = "Only active POIs can be added to a tour." });
         }
 
-        var orderedLocations = OrderLocations(normalizedStops, locations);
-        var metrics = TourPlanningService.CalculateMetrics(orderedLocations, request.WalkingSpeedKph, request.StartTime);
+        var routePreviewStops = BuildPreviewStops(normalizedStops, locations);
+        var metrics = await routePlanningService.CalculatePreviewAsync(
+            routePreviewStops,
+            TourDefaults.DefaultWalkingSpeedKph,
+            request.StartTime,
+            cancellationToken);
+        var segmentLookup = metrics.Segments.ToDictionary(item => item.SequenceOrder);
 
         tour.Name = request.Name.Trim();
         tour.Description = Normalize(request.Description);
         tour.TotalDistanceKm = metrics.TotalDistanceKm;
         tour.EstimatedDurationMinutes = metrics.EstimatedDurationMinutes;
-        tour.WalkingSpeedKph = request.WalkingSpeedKph;
+        tour.WalkingSpeedKph = TourDefaults.DefaultWalkingSpeedKph;
         tour.StartTime = metrics.StartTime;
         tour.Status = request.Status;
         tour.UpdatedAt = DateTime.UtcNow;
@@ -198,6 +243,9 @@ public class TourController(
             if (existingStops.TryGetValue(stop.LocationId, out var existingStop))
             {
                 existingStop.SequenceOrder = stop.SequenceOrder;
+                existingStop.SegmentDistanceKm = segmentLookup.TryGetValue(stop.SequenceOrder, out var segment)
+                    ? segment.DistanceKm
+                    : 0d;
             }
             else
             {
@@ -205,7 +253,10 @@ public class TourController(
                 {
                     TourId = tour.TourId,
                     LocationId = stop.LocationId,
-                    SequenceOrder = stop.SequenceOrder
+                    SequenceOrder = stop.SequenceOrder,
+                    SegmentDistanceKm = segmentLookup.TryGetValue(stop.SequenceOrder, out var segment)
+                        ? segment.DistanceKm
+                        : 0d
                 });
             }
         }
@@ -282,7 +333,32 @@ public class TourController(
             })
             .ToList();
 
+    private static List<TourRoutePreviewStopRequest> NormalizePreviewStops(IEnumerable<TourRoutePreviewStopRequest> stops) =>
+        stops
+            .OrderBy(item => item.SequenceOrder)
+            .ThenBy(item => item.LocationId)
+            .Select((item, index) => new TourRoutePreviewStopRequest
+            {
+                LocationId = item.LocationId,
+                SequenceOrder = index + 1,
+                Latitude = item.Latitude,
+                Longitude = item.Longitude
+            })
+            .ToList();
+
     private static string? ValidateStops(IReadOnlyCollection<TourStopUpsertRequest> stops)
+    {
+        if (stops.Count == 0)
+        {
+            return "Choose at least one POI for the tour.";
+        }
+
+        return stops.GroupBy(item => item.LocationId).Any(group => group.Count() > 1)
+            ? "Each POI can only appear once in the same tour."
+            : null;
+    }
+
+    private static string? ValidatePreviewStops(IReadOnlyCollection<TourRoutePreviewStopRequest> stops)
     {
         if (stops.Count == 0)
         {
@@ -313,6 +389,24 @@ public class TourController(
         return normalizedStops
             .OrderBy(item => item.SequenceOrder)
             .Select(item => locationLookup[item.LocationId])
+            .ToList();
+    }
+
+    private static IReadOnlyList<TourRoutePreviewStopRequest> BuildPreviewStops(
+        IEnumerable<TourStopUpsertRequest> normalizedStops,
+        IEnumerable<Location> locations)
+    {
+        var locationLookup = locations.ToDictionary(item => item.LocationId);
+        return normalizedStops
+            .OrderBy(item => item.SequenceOrder)
+            .Select(item => locationLookup[item.LocationId])
+            .Select((location, index) => new TourRoutePreviewStopRequest
+            {
+                LocationId = location.LocationId,
+                SequenceOrder = index + 1,
+                Latitude = location.Latitude,
+                Longitude = location.Longitude
+            })
             .ToList();
     }
 
