@@ -150,3 +150,52 @@ public sealed class AudioUpsertRequest
     [Range(0, 1)]
     public int Status { get; set; } = 1;
 }
+
+public sealed class TourStopUpsertRequest
+{
+    [Range(1, int.MaxValue)]
+    public int LocationId { get; set; }
+
+    [Range(1, int.MaxValue)]
+    public int SequenceOrder { get; set; }
+}
+
+public sealed class TourUpsertRequest : IValidatableObject
+{
+    [Required]
+    [StringLength(200)]
+    public string Name { get; set; } = "";
+
+    [StringLength(5000)]
+    public string? Description { get; set; }
+
+    [Range(0.5d, 12d)]
+    public double WalkingSpeedKph { get; set; } = 4.5d;
+
+    [RegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$", ErrorMessage = "Start time must use HH:mm.")]
+    public string? StartTime { get; set; } = "08:00";
+
+    [Range(0, 1)]
+    public int Status { get; set; } = 1;
+
+    public List<TourStopUpsertRequest> Stops { get; set; } = [];
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (Stops.Count == 0)
+        {
+            yield return new ValidationResult("Choose at least one POI for the tour.", [nameof(Stops)]);
+        }
+
+        var duplicateIds = Stops
+            .GroupBy(item => item.LocationId)
+            .Where(group => group.Key > 0 && group.Count() > 1)
+            .Select(group => group.Key)
+            .ToList();
+
+        if (duplicateIds.Count > 0)
+        {
+            yield return new ValidationResult("Each POI can only appear once in the same tour.", [nameof(Stops)]);
+        }
+    }
+}

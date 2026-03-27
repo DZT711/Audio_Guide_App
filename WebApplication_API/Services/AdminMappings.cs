@@ -127,6 +127,88 @@ public static class AdminMappings
             UpdatedAt = audio.UpdatedAt
         };
 
+    public static TourDto ToDto(this Tour tour)
+    {
+        var orderedStops = tour.Stops
+            .Where(item => item.Location is not null)
+            .OrderBy(item => item.SequenceOrder)
+            .ToList();
+
+        var stopDtos = new List<TourStopDto>(orderedStops.Count);
+        Location? previousLocation = null;
+        foreach (var stop in orderedStops)
+        {
+            var location = stop.Location!;
+            var segmentDistanceKm = previousLocation is null
+                ? 0d
+                : Math.Round(
+                    TourPlanningService.CalculateDistanceKm(previousLocation, location),
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+            stopDtos.Add(new TourStopDto
+            {
+                LocationId = location.LocationId,
+                LocationName = location.Name,
+                OwnerId = location.OwnerId,
+                OwnerName = location.Owner?.FullName ?? location.Owner?.Username,
+                Category = location.Category?.Name ?? "Unassigned",
+                Address = location.Address,
+                Latitude = location.Latitude,
+                Longitude = location.Longitude,
+                SequenceOrder = stop.SequenceOrder,
+                SegmentDistanceKm = segmentDistanceKm,
+                Status = location.Status
+            });
+
+            previousLocation = location;
+        }
+
+        var finishTime = TourPlanningService.CalculateFinishTime(tour.StartTime, tour.EstimatedDurationMinutes);
+
+        return new TourDto
+        {
+            Id = tour.TourId,
+            OwnerId = tour.OwnerId,
+            OwnerName = tour.Owner?.FullName ?? tour.Owner?.Username,
+            Name = tour.Name,
+            Description = tour.Description,
+            TotalDistanceKm = Math.Round(tour.TotalDistanceKm, 2, MidpointRounding.AwayFromZero),
+            EstimatedDurationMinutes = tour.EstimatedDurationMinutes,
+            WalkingSpeedKph = tour.WalkingSpeedKph,
+            StartTime = TourPlanningService.NormalizeTime(tour.StartTime),
+            FinishTime = finishTime,
+            StopCount = stopDtos.Count,
+            Status = tour.Status,
+            CreatedAt = tour.CreatedAt,
+            UpdatedAt = tour.UpdatedAt,
+            Stops = stopDtos
+        };
+    }
+
+    public static UsageHistoryItemDto ToDto(this PlaybackEvent playbackEvent, IReadOnlyList<string>? tourNames = null) =>
+        new()
+        {
+            Id = playbackEvent.PlaybackEventId,
+            LocationId = playbackEvent.LocationId,
+            LocationName = playbackEvent.Location?.Name ?? "Unknown location",
+            OwnerId = playbackEvent.Location?.OwnerId,
+            OwnerName = playbackEvent.Location?.Owner?.FullName ?? playbackEvent.Location?.Owner?.Username,
+            AudioId = playbackEvent.AudioId,
+            AudioTitle = playbackEvent.Audio?.Title,
+            TriggerSource = playbackEvent.TriggerSource,
+            EventType = playbackEvent.EventType,
+            EventAt = playbackEvent.EventAt,
+            TimeAgo = playbackEvent.EventAt.ToRelativeTime(),
+            DeviceId = playbackEvent.DeviceId,
+            SessionId = playbackEvent.SessionId,
+            ListeningSeconds = playbackEvent.ListeningSeconds,
+            QueuePosition = playbackEvent.QueuePosition,
+            BatteryPercent = playbackEvent.BatteryPercent,
+            NetworkType = playbackEvent.NetworkType,
+            TourNames = tourNames ?? []
+        };
+
     public static string ToRelativeTime(this DateTime value)
     {
         var span = DateTime.UtcNow - value;

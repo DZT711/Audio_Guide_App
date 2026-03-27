@@ -55,11 +55,23 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
     public Task<IReadOnlyList<LocationDto>> GetLocationsAsync() =>
         GetListAsync<LocationDto>(ApiRoutes.Locations, "Unable to load locations.");
 
+    public Task<IReadOnlyList<TourDto>> GetToursAsync() =>
+        GetListAsync<TourDto>(ApiRoutes.Tours, "Unable to load tours.");
+
     public Task<IReadOnlyList<AudioDto>> GetAudioAsync() =>
         GetListAsync<AudioDto>(ApiRoutes.Audio, "Unable to load audio.");
 
     public Task<IReadOnlyList<DashboardUserDto>> GetUsersAsync() =>
         GetListAsync<DashboardUserDto>(ApiRoutes.Users, "Unable to load users.");
+
+    public async Task<UsageHistoryOverviewDto> GetUsageHistoryAsync()
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.GetAsync(ApiRoutes.UsageHistory);
+        await EnsureSuccessAsync(response, "Unable to load usage history.");
+        return await ReadJsonAsync<UsageHistoryOverviewDto>(response, "Unable to load usage history.");
+    }
 
     public async Task<DashboardOverviewDto> GetDashboardOverviewAsync()
     {
@@ -193,6 +205,36 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to archive location.");
     }
 
+    public async Task CreateTourAsync(TourFormModel model)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PostAsJsonAsync(
+            ApiRoutes.Tours,
+            CreateTourRequest(model));
+
+        await EnsureSuccessAsync(response, "Unable to create tour.");
+    }
+
+    public async Task UpdateTourAsync(int id, TourFormModel model)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PutAsJsonAsync(
+            $"{ApiRoutes.Tours}/{id}",
+            CreateTourRequest(model));
+
+        await EnsureSuccessAsync(response, "Unable to update tour.");
+    }
+
+    public async Task DeleteTourAsync(int id)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.DeleteAsync($"{ApiRoutes.Tours}/{id}");
+        await EnsureSuccessAsync(response, "Unable to archive tour.");
+    }
+
     public async Task CreateAudioAsync(AudioFormModel model)
     {
         ApplyAuthHeader();
@@ -323,6 +365,23 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             Email = string.IsNullOrWhiteSpace(model.Email) ? null : model.Email,
             Phone = string.IsNullOrWhiteSpace(model.Phone) ? null : model.Phone,
             Status = model.Status
+        };
+
+    private static TourUpsertRequest CreateTourRequest(TourFormModel model) =>
+        new()
+        {
+            Name = model.Name,
+            Description = string.IsNullOrWhiteSpace(model.Description) ? null : model.Description,
+            WalkingSpeedKph = model.WalkingSpeedKph,
+            StartTime = string.IsNullOrWhiteSpace(model.StartTime) ? null : model.StartTime,
+            Status = model.Status,
+            Stops = model.StopLocationIds
+                .Select((locationId, index) => new TourStopUpsertRequest
+                {
+                    LocationId = locationId,
+                    SequenceOrder = index + 1
+                })
+                .ToList()
         };
 
     private static MultipartFormDataContent CreateLocationContent(LocationFormModel model)

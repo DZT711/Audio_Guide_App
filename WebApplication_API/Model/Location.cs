@@ -56,5 +56,7 @@ public class Location
 
     public ICollection<LocationImage> Images { get; set; } = [];
 
+    public ICollection<TourLocation> TourStops { get; set; } = [];
+
     public ICollection<PlaybackEvent> PlaybackEvents { get; set; } = [];
 }

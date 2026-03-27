@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Security;
 using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Model;
+using WebApplication_API.Services;
 
 namespace WebApplication_API.Data;
 
@@ -179,6 +180,44 @@ public static class DataExtension
             });
 
             await context.SaveChangesAsync();
+        }
+
+        if (!await context.Tours.AnyAsync())
+        {
+            var owner = await context.DashboardUsers.FirstAsync(item => item.Username == "owner");
+            var seededLocations = await context.Locations
+                .OrderBy(item => item.LocationId)
+                .Take(2)
+                .ToListAsync();
+
+            if (seededLocations.Count > 0)
+            {
+                var metrics = TourPlanningService.CalculateMetrics(seededLocations, 4.5d, "08:00");
+                var tour = new Tour
+                {
+                    OwnerId = owner.UserId,
+                    Name = "District 4 Riverside Starter Tour",
+                    Description = "A short curated walk connecting the seeded District 4 points of interest.",
+                    TotalDistanceKm = metrics.TotalDistanceKm,
+                    EstimatedDurationMinutes = metrics.EstimatedDurationMinutes,
+                    WalkingSpeedKph = 4.5d,
+                    StartTime = metrics.StartTime,
+                    Status = 1,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                foreach (var stop in seededLocations.Select((location, index) => new { location, index }))
+                {
+                    tour.Stops.Add(new TourLocation
+                    {
+                        LocationId = stop.location.LocationId,
+                        SequenceOrder = stop.index + 1
+                    });
+                }
+
+                context.Tours.Add(tour);
+                await context.SaveChangesAsync();
+            }
         }
 
         if (!await context.PlaybackEvents.AnyAsync())

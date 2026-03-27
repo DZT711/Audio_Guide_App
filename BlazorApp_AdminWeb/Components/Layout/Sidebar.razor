@@ -21,6 +21,13 @@
                 <span class="sidebar-link__text">Dashboard</span>
             </NavLink>
         }
+        @if (SessionState.HasPermission(AdminPermissions.UsageHistoryView))
+        {
+            <NavLink class="sidebar-link" href="/usage" title="Usage History" aria-label="Usage History" @attributes="GetDismissAttributes()">
+                <i class="bi bi-clock-history"></i>
+                <span class="sidebar-link__text">Usage History</span>
+            </NavLink>
+        }
     </div>
 
     <div class="sidebar-group">
@@ -30,6 +37,13 @@
             <NavLink class="sidebar-link" href="/poi" title="Locations" aria-label="Locations" @attributes="GetDismissAttributes()">
                 <i class="bi bi-geo-alt-fill"></i>
                 <span class="sidebar-link__text">Locations</span>
+            </NavLink>
+        }
+        @if (SessionState.HasPermission(AdminPermissions.TourRead))
+        {
+            <NavLink class="sidebar-link" href="/tours" title="Tour Management" aria-label="Tour Management" @attributes="GetDismissAttributes()">
+                <i class="bi bi-signpost-split-fill"></i>
+                <span class="sidebar-link__text">Tour Management</span>
             </NavLink>
         }
         @if (SessionState.HasPermission(AdminPermissions.CategoryRead))

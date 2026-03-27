@@ -8,6 +8,7 @@
         lng: 106.705412
     };
     const locationPickers = new WeakMap();
+    const tourPlanners = new WeakMap();
 
     admin.storage = {
         get: (key) => window.localStorage.getItem(key),
@@ -257,6 +258,13 @@
 
     admin.filePreview = admin.audioPreview;
 
+    const escapeHtml = (value) => String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
+
     const roundCoordinate = (value) => {
         const numericValue = Number(value);
         if (!Number.isFinite(numericValue)) {
@@ -370,6 +378,102 @@
         });
     });
 
+    const createTourMarkerIcon = (point) => {
+        const isSelected = !!point?.isSelected;
+        const markerClass = isSelected
+            ? "tour-map-marker tour-map-marker--selected"
+            : "tour-map-marker tour-map-marker--available";
+        const label = isSelected
+            ? String(point?.order ?? "")
+            : "+";
+
+        return L.divIcon({
+            className: "tour-map-marker-shell",
+            html: `<div class="${markerClass}" title="${escapeHtml(point?.name)}">${escapeHtml(label)}</div>`,
+            iconSize: [36, 36],
+            iconAnchor: [18, 18]
+        });
+    };
+
+    const getPlannerLatLngs = (points) => points
+        .filter((point) => Number.isFinite(Number(point?.latitude)) && Number.isFinite(Number(point?.longitude)))
+        .map((point) => [Number(point.latitude), Number(point.longitude)]);
+
+    const getSelectedRouteLatLngs = (points) => points
+        .filter((point) => !!point?.isSelected)
+        .sort((left, right) => Number(left?.order ?? 0) - Number(right?.order ?? 0))
+        .filter((point) => Number.isFinite(Number(point?.latitude)) && Number.isFinite(Number(point?.longitude)))
+        .map((point) => [Number(point.latitude), Number(point.longitude)]);
+
+    const fitPlannerBounds = (planner, points) => {
+        const routeLatLngs = getSelectedRouteLatLngs(points);
+        const allLatLngs = getPlannerLatLngs(points);
+        const targetLatLngs = routeLatLngs.length ? routeLatLngs : allLatLngs;
+
+        if (!targetLatLngs.length) {
+            planner.map.setView([defaultMapCenter.lat, defaultMapCenter.lng], 13);
+            return;
+        }
+
+        if (targetLatLngs.length === 1) {
+            planner.map.setView(targetLatLngs[0], 15);
+            return;
+        }
+
+        planner.map.fitBounds(L.latLngBounds(targetLatLngs).pad(0.2));
+    };
+
+    const renderTourPlanner = (planner, points, fitBounds) => {
+        const normalizedPoints = Array.isArray(points) ? points : [];
+        planner.layerGroup.clearLayers();
+
+        normalizedPoints.forEach((point) => {
+            if (!Number.isFinite(Number(point?.latitude)) || !Number.isFinite(Number(point?.longitude))) {
+                return;
+            }
+
+            const marker = L.marker([Number(point.latitude), Number(point.longitude)], {
+                icon: createTourMarkerIcon(point),
+                keyboard: false
+            });
+
+            marker.bindPopup(`
+                <div class="tour-map-popup">
+                    <strong>${escapeHtml(point?.name)}</strong>
+                    <div>${escapeHtml(point?.ownerName || "Unassigned owner")}</div>
+                    <div>${point?.isSelected ? `Stop ${escapeHtml(point?.order)}` : "Click to add this POI"}</div>
+                </div>
+            `);
+
+            marker.on("click", () => {
+                if (!planner.dotNetRef || !point?.id) {
+                    return;
+                }
+
+                planner.dotNetRef.invokeMethodAsync("ToggleStopFromMap", Number(point.id)).catch(() => {
+                });
+            });
+
+            planner.layerGroup.addLayer(marker);
+        });
+
+        const routeLatLngs = getSelectedRouteLatLngs(normalizedPoints);
+        if (routeLatLngs.length > 1) {
+            planner.layerGroup.addLayer(L.polyline(routeLatLngs, {
+                color: "#0f766e",
+                weight: 5,
+                opacity: 0.88,
+                dashArray: "10 8"
+            }));
+        }
+
+        if (fitBounds) {
+            fitPlannerBounds(planner, normalizedPoints);
+        }
+
+        planner.map.invalidateSize();
+    };
+
     admin.map = {
         initializeLocationPicker: (element, dotNetRef, latitude, longitude) => {
             if (!element || typeof L === "undefined") {
@@ -443,6 +547,60 @@
 
             picker.map.remove();
             locationPickers.delete(element);
+        },
+        initializeTourPlanner: (element, dotNetRef, points) => {
+            if (!element || typeof L === "undefined") {
+                return false;
+            }
+
+            const existingPlanner = tourPlanners.get(element);
+            if (existingPlanner) {
+                existingPlanner.dotNetRef = dotNetRef;
+                renderTourPlanner(existingPlanner, points, true);
+                return true;
+            }
+
+            const map = L.map(element, {
+                zoomControl: true
+            });
+
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                attribution: "&copy; OpenStreetMap contributors"
+            }).addTo(map);
+
+            const planner = {
+                dotNetRef,
+                map,
+                layerGroup: L.layerGroup().addTo(map)
+            };
+
+            renderTourPlanner(planner, points, true);
+            tourPlanners.set(element, planner);
+
+            window.setTimeout(() => {
+                map.invalidateSize();
+            }, 0);
+
+            return true;
+        },
+        syncTourPlanner: (element, points) => {
+            const planner = tourPlanners.get(element);
+            if (!planner) {
+                return false;
+            }
+
+            renderTourPlanner(planner, points, true);
+            return true;
+        },
+        disposeTourPlanner: (element) => {
+            const planner = tourPlanners.get(element);
+            if (!planner) {
+                return;
+            }
+
+            planner.map.remove();
+            tourPlanners.delete(element);
         }
     };
 

@@ -235,6 +235,53 @@ public sealed class AudioFormModel : IValidatableObject
     }
 }
 
+public sealed class TourFormModel : IValidatableObject
+{
+    [Required]
+    [StringLength(200)]
+    public string Name { get; set; } = "";
+
+    [StringLength(5000)]
+    public string Description { get; set; } = "";
+
+    [Range(0.5d, 12d)]
+    public double WalkingSpeedKph { get; set; } = 4.5d;
+
+    [RegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$", ErrorMessage = "Start time must use HH:mm.")]
+    public string StartTime { get; set; } = "08:00";
+
+    [Range(0, 1)]
+    public int Status { get; set; } = 1;
+
+    public List<int> StopLocationIds { get; set; } = [];
+
+    public static TourFormModel FromDto(TourDto dto) => new()
+    {
+        Name = dto.Name,
+        Description = dto.Description ?? "",
+        WalkingSpeedKph = dto.WalkingSpeedKph <= 0 ? 4.5d : dto.WalkingSpeedKph,
+        StartTime = string.IsNullOrWhiteSpace(dto.StartTime) ? "08:00" : dto.StartTime!,
+        Status = dto.Status,
+        StopLocationIds = dto.Stops
+            .OrderBy(item => item.SequenceOrder)
+            .Select(item => item.LocationId)
+            .ToList()
+    };
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (StopLocationIds.Count == 0)
+        {
+            yield return new ValidationResult("Choose at least one POI for the tour.", [nameof(StopLocationIds)]);
+        }
+
+        if (StopLocationIds.Count != StopLocationIds.Distinct().Count())
+        {
+            yield return new ValidationResult("Each POI can only appear once in a tour.", [nameof(StopLocationIds)]);
+        }
+    }
+}
+
 public sealed class UserFormModel
 {
     [Required]

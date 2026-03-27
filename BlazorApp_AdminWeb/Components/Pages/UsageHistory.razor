@@ -1,0 +1,231 @@
+@page "/usage"
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject AdminSessionState SessionState
+
+<PageTitle>Usage History</PageTitle>
+
+@if (!CanView)
+{
+    <div class="management-page usage-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view usage history.</div>
+        </div>
+    </div>
+}
+else
+{
+<div class="management-page usage-page">
+    <section class="management-hero" data-reveal>
+        <div>
+            <span class="management-hero__eyebrow">Overview</span>
+            <h1>Guest Usage History</h1>
+            <p>Review playback events, guest sessions, trigger sources, and listening time. Owner accounts only see usage from their owned locations.</p>
+        </div>
+        <div class="management-hero__actions">
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">Refresh</button>
+        </div>
+    </section>
+
+    <div class="management-stat-grid" data-stagger data-stagger-step="80">
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-activity"></i></span>
+            <div>
+                <strong class="management-stat__value">@_overview.TotalEvents</strong>
+                <span class="management-stat__label">Playback Events</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-people"></i></span>
+            <div>
+                <strong class="management-stat__value">@_overview.UniqueGuests</strong>
+                <span class="management-stat__label">Unique Guests</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-geo-alt"></i></span>
+            <div>
+                <strong class="management-stat__value">@_overview.DistinctLocations</strong>
+                <span class="management-stat__label">Locations Used</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-hourglass-split"></i></span>
+            <div>
+                <strong class="management-stat__value">@_overview.AverageListeningSeconds.ToString("0.#")s</strong>
+                <span class="management-stat__label">Average Listening</span>
+            </div>
+        </article>
+    </div>
+
+    <section class="management-panel" data-reveal>
+        <div class="management-panel__header">
+            <div>
+                <span class="management-panel__eyebrow">History</span>
+                <h2>Playback Log</h2>
+            </div>
+            <div class="management-toolbar">
+                <label class="management-search">
+                    <i class="bi bi-search"></i>
+                    <input class="form-control" type="search" placeholder="Search usage..." @bind="_searchText" @bind:event="oninput" />
+                </label>
+                <select class="form-select management-filter" @bind="_selectedLocation">
+                    <option value="">All locations</option>
+                    @foreach (var locationName in LocationOptions)
+                    {
+                        <option value="@locationName">@locationName</option>
+                    }
+                </select>
+                <select class="form-select management-filter" @bind="_selectedEventType">
+                    <option value="">All events</option>
+                    @foreach (var eventType in EventTypeOptions)
+                    {
+                        <option value="@eventType">@eventType</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="tour-skeleton-table">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <div class="skeleton-table-row">
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </div>
+                }
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_loadError))
+        {
+            <div class="management-error">
+                <strong>Unable to load usage history.</strong>
+                <div>@_loadError</div>
+            </div>
+        }
+        else if (!FilteredItems.Any())
+        {
+            <div class="app-empty-state">No playback events match the current filters.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table management-table usage-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Location</th>
+                            <th>Audio</th>
+                            <th>Trigger</th>
+                            <th>Guest</th>
+                            <th>Listening</th>
+                            <th>Tours</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in FilteredItems)
+                        {
+                            <tr>
+                                <td>
+                                    <div>@item.EventAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</div>
+                                    <small class="management-muted">@item.TimeAgo</small>
+                                </td>
+                                <td>
+                                    <div>@item.LocationName</div>
+                                    <small class="management-muted">@(item.OwnerName ?? "No owner")</small>
+                                </td>
+                                <td>@(item.AudioTitle ?? "No audio linked")</td>
+                                <td>
+                                    <div>@item.TriggerSource</div>
+                                    <small class="management-muted">@item.EventType</small>
+                                </td>
+                                <td>
+                                    <div>@(item.SessionId ?? item.DeviceId ?? "Anonymous")</div>
+                                    <small class="management-muted">@(item.NetworkType ?? "Unknown network")</small>
+                                </td>
+                                <td>@FormatListening(item.ListeningSeconds)</td>
+                                <td>@(item.TourNames.Count == 0 ? "No tour" : string.Join(", ", item.TourNames))</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
+}
+
+@code {
+    private UsageHistoryOverviewDto _overview = new();
+    private bool _isLoading = true;
+    private string _searchText = "";
+    private string _selectedLocation = "";
+    private string _selectedEventType = "";
+    private string? _loadError;
+
+    private bool CanView => SessionState.HasPermission(AdminPermissions.UsageHistoryView);
+    private IEnumerable<UsageHistoryItemDto> FilteredItems => _overview.Items
+        .Where(item =>
+            string.IsNullOrWhiteSpace(_searchText)
+            || item.LocationName.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+            || (item.AudioTitle?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+            || item.TriggerSource.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+            || item.EventType.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+            || (item.SessionId?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (item.DeviceId?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
+        .Where(item =>
+            string.IsNullOrWhiteSpace(_selectedLocation)
+            || string.Equals(item.LocationName, _selectedLocation, StringComparison.OrdinalIgnoreCase))
+        .Where(item =>
+            string.IsNullOrWhiteSpace(_selectedEventType)
+            || string.Equals(item.EventType, _selectedEventType, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<string> LocationOptions => _overview.Items
+        .Select(item => item.LocationName)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(item => item, StringComparer.OrdinalIgnoreCase);
+
+    private IEnumerable<string> EventTypeOptions => _overview.Items
+        .Select(item => item.EventType)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(item => item, StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task RefreshAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            _overview = await ApiClient.GetUsageHistoryAsync();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Usage history load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string FormatListening(int? seconds) =>
+        seconds is null or <= 0
+            ? "0 sec"
+            : seconds < 60
+                ? $"{seconds} sec"
+                : $"{seconds / 60} min {seconds % 60} sec";
+}

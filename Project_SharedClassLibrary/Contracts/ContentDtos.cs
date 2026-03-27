@@ -80,6 +80,40 @@ public sealed class AudioDto
     public DateTime? UpdatedAt { get; init; }
 }
 
+public sealed class TourStopDto
+{
+    public int LocationId { get; init; }
+    public string LocationName { get; init; } = "";
+    public int? OwnerId { get; init; }
+    public string? OwnerName { get; init; }
+    public string Category { get; init; } = "";
+    public string? Address { get; init; }
+    public double Latitude { get; init; }
+    public double Longitude { get; init; }
+    public int SequenceOrder { get; init; }
+    public double SegmentDistanceKm { get; init; }
+    public int Status { get; init; }
+}
+
+public sealed class TourDto
+{
+    public int Id { get; init; }
+    public int? OwnerId { get; init; }
+    public string? OwnerName { get; init; }
+    public string Name { get; init; } = "";
+    public string? Description { get; init; }
+    public double TotalDistanceKm { get; init; }
+    public int EstimatedDurationMinutes { get; init; }
+    public double WalkingSpeedKph { get; init; }
+    public string? StartTime { get; init; }
+    public string? FinishTime { get; init; }
+    public int StopCount { get; init; }
+    public int Status { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public DateTime? UpdatedAt { get; init; }
+    public IReadOnlyList<TourStopDto> Stops { get; init; } = [];
+}
+
 public sealed class DashboardUserDto
 {
     public int Id { get; init; }
@@ -160,8 +194,40 @@ public sealed class DashboardSnapshotDto
     public DashboardOverviewDto Overview { get; init; } = new();
     public IReadOnlyList<CategoryDto> Categories { get; init; } = [];
     public IReadOnlyList<LocationDto> Locations { get; init; } = [];
+    public IReadOnlyList<TourDto> Tours { get; init; } = [];
     public IReadOnlyList<AudioDto> AudioItems { get; init; } = [];
     public IReadOnlyList<DashboardUserDto> Users { get; init; } = [];
+}
+
+public sealed class UsageHistoryItemDto
+{
+    public int Id { get; init; }
+    public int? LocationId { get; init; }
+    public string LocationName { get; init; } = "";
+    public int? OwnerId { get; init; }
+    public string? OwnerName { get; init; }
+    public int? AudioId { get; init; }
+    public string? AudioTitle { get; init; }
+    public string TriggerSource { get; init; } = "";
+    public string EventType { get; init; } = "";
+    public DateTime EventAt { get; init; }
+    public string TimeAgo { get; init; } = "";
+    public string? DeviceId { get; init; }
+    public string? SessionId { get; init; }
+    public int? ListeningSeconds { get; init; }
+    public int? QueuePosition { get; init; }
+    public int? BatteryPercent { get; init; }
+    public string? NetworkType { get; init; }
+    public IReadOnlyList<string> TourNames { get; init; } = [];
+}
+
+public sealed class UsageHistoryOverviewDto
+{
+    public int TotalEvents { get; init; }
+    public int UniqueGuests { get; init; }
+    public int DistinctLocations { get; init; }
+    public double AverageListeningSeconds { get; init; }
+    public IReadOnlyList<UsageHistoryItemDto> Items { get; init; } = [];
 }
 
 public sealed class ModerationItemDto

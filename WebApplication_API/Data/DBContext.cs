@@ -9,6 +9,8 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
     public DbSet<Language> Languages => Set<Language>();
     public DbSet<DashboardUser> DashboardUsers => Set<DashboardUser>();
     public DbSet<Location> Locations => Set<Location>();
+    public DbSet<Tour> Tours => Set<Tour>();
+    public DbSet<TourLocation> TourLocations => Set<TourLocation>();
     public DbSet<Audio> AudioContents => Set<Audio>();
     public DbSet<LocationImage> LocationImages => Set<LocationImage>();
     public DbSet<PlaybackEvent> PlaybackEvents => Set<PlaybackEvent>();
@@ -67,6 +69,39 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
                 .WithMany(item => item.OwnedLocations)
                 .HasForeignKey(item => item.OwnerId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Tour>(entity =>
+        {
+            entity.ToTable("Tours");
+            entity.HasKey(item => item.TourId);
+            entity.HasIndex(item => item.OwnerId);
+            entity.HasIndex(item => item.Status);
+            entity.Property(item => item.WalkingSpeedKph).HasDefaultValue(4.5d);
+            entity.Property(item => item.Status).HasDefaultValue(1);
+
+            entity.HasOne(item => item.Owner)
+                .WithMany(item => item.OwnedTours)
+                .HasForeignKey(item => item.OwnerId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<TourLocation>(entity =>
+        {
+            entity.ToTable("TourLocations");
+            entity.HasKey(item => new { item.TourId, item.LocationId });
+            entity.HasIndex(item => item.LocationId);
+            entity.HasIndex(item => new { item.TourId, item.SequenceOrder }).IsUnique();
+
+            entity.HasOne(item => item.Tour)
+                .WithMany(item => item.Stops)
+                .HasForeignKey(item => item.TourId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(item => item.Location)
+                .WithMany(item => item.TourStops)
+                .HasForeignKey(item => item.LocationId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Audio>(entity =>

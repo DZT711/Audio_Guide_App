@@ -431,6 +431,43 @@ html.js-ready [data-reveal].is-visible {
     color: var(--app-muted);
 }
 
+.tour-map-marker-shell {
+    background: transparent;
+    border: 0;
+}
+
+.tour-map-marker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 2px solid rgba(15, 23, 42, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.96);
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+    box-shadow: 0 14px 26px rgba(15, 23, 42, 0.18);
+}
+
+.tour-map-marker--selected {
+    border-color: rgba(15, 118, 110, 0.18);
+    background: linear-gradient(135deg, #0f766e 0%, #38bdf8 100%);
+    color: #fff;
+}
+
+.tour-map-marker--available {
+    color: #0f766e;
+}
+
+.tour-map-popup {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 11rem;
+    line-height: 1.45;
+}
+
 .validation-message {
     font-size: 0.84rem;
 }

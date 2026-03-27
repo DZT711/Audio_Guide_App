@@ -31,4 +31,6 @@ public class DashboardUser
     public DateTime? UpdatedAt { get; set; }
 
     public ICollection<Location> OwnedLocations { get; set; } = [];
+
+    public ICollection<Tour> OwnedTours { get; set; } = [];
 }

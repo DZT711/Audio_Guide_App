@@ -96,6 +96,20 @@ else
             </p>
 
             <div class="dashboard-hero__actions">
+                @if (CanViewUsage)
+                {
+                    <a class="btn btn-light btn-lg" href="/usage">
+                        <i class="bi bi-clock-history me-2"></i>
+                        Usage History
+                    </a>
+                }
+                @if (CanViewTours)
+                {
+                    <a class="btn btn-outline-light btn-lg" href="/tours">
+                        <i class="bi bi-signpost-split me-2"></i>
+                        Tour Management
+                    </a>
+                }
                 @if (CanViewUsers)
                 {
                     <a class="btn btn-light btn-lg" href="/users">
@@ -255,6 +269,8 @@ else
     private string? _loadError;
     private bool CanView => SessionState.HasPermission(AdminPermissions.DashboardView);
     private bool CanExport => SessionState.HasPermission(AdminPermissions.DashboardExport);
+    private bool CanViewUsage => SessionState.HasPermission(AdminPermissions.UsageHistoryView);
+    private bool CanViewTours => SessionState.HasPermission(AdminPermissions.TourRead);
     private bool CanViewUsers => SessionState.HasPermission(AdminPermissions.UserRead);
     private bool CanViewModeration => SessionState.HasPermission(AdminPermissions.ModerationView);
 

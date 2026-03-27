@@ -52,6 +52,11 @@ public class DashboardController(
             .OrderBy(item => item.Name)
             .ToListAsync();
 
+        var tours = await BuildTourQuery(currentUser)
+            .OrderByDescending(item => item.Status)
+            .ThenBy(item => item.Name)
+            .ToListAsync();
+
         var audioItems = await context.AudioContents
             .Include(item => item.Location)
             .Where(item => !ownerScoped || item.Location!.OwnerId == currentUser.UserId)
@@ -81,6 +86,7 @@ public class DashboardController(
             Overview = overview,
             Categories = categories.Select(item => item.ToDto()).ToList(),
             Locations = locations.Select(item => item.ToDto()).ToList(),
+            Tours = tours.Select(item => item.ToDto()).ToList(),
             AudioItems = audioItems
                 .Select(item => item.ToDto(languageLookup.TryGetValue(item.LanguageCode, out var language) ? language : null))
                 .ToList(),
@@ -99,11 +105,15 @@ public class DashboardController(
         var audioQuery = ownerScoped
             ? context.AudioContents.Where(item => item.Location!.OwnerId == currentUser.UserId)
             : context.AudioContents.AsQueryable();
+        var tourQuery = BuildTourScopeQuery(currentUser);
+        var playbackQuery = BuildPlaybackQuery(currentUser);
 
         var totalLocations = await locationsQuery.CountAsync();
         var activeLocations = await locationsQuery.CountAsync(item => item.Status == 1);
         var totalAudio = await audioQuery.CountAsync();
         var activeAudio = await audioQuery.CountAsync(item => item.Status == 1);
+        var totalTours = await tourQuery.CountAsync();
+        var activeTours = await tourQuery.CountAsync(item => item.Status == 1);
         var canViewUsers = AdminRolePolicies.HasPermission(currentUser.Role, AdminPermissions.UserRead);
         var totalUsers = canViewUsers
             ? await context.DashboardUsers.CountAsync()
@@ -111,8 +121,10 @@ public class DashboardController(
         var activeUsers = canViewUsers
             ? await context.DashboardUsers.CountAsync(item => item.Status == 1)
             : currentUser.Status == 1 ? 1 : 0;
-        var totalPlaybackEvents = await context.PlaybackEvents.CountAsync();
-        var totalTrackingEvents = await context.LocationTrackingEvents.CountAsync();
+        var totalPlaybackEvents = await playbackQuery.CountAsync();
+        var totalTrackingEvents = ownerScoped
+            ? 0
+            : await context.LocationTrackingEvents.CountAsync();
 
         var metrics = new List<DashboardMetricDto>
         {
@@ -137,6 +149,19 @@ public class DashboardController(
                 Description = ownerScoped ? "Audio content linked to your locations." : "Narration items supporting GPS, QR, and manual playback.",
                 AccentStart = "#1d4ed8",
                 AccentEnd = "#38bdf8"
+            },
+            new()
+            {
+                Title = "Curated Tours",
+                Value = totalTours.ToString(),
+                Trend = $"{activeTours} active",
+                TrendTone = "positive",
+                Icon = "bi-signpost-split",
+                Description = ownerScoped
+                    ? "Tours that include at least one of your owned POIs."
+                    : "Route collections connecting active POIs into guided journeys.",
+                AccentStart = "#ca8a04",
+                AccentEnd = "#facc15"
             },
             new()
             {
@@ -214,6 +239,25 @@ public class DashboardController(
             Status = item.Status == 1 ? "Completed" : "Pending"
         }));
 
+        if (AdminRolePolicies.HasPermission(currentUser.Role, AdminPermissions.TourRead))
+        {
+            var recentTours = await BuildTourQuery(currentUser)
+                .OrderByDescending(item => item.UpdatedAt ?? item.CreatedAt)
+                .Take(4)
+                .ToListAsync();
+
+            items.AddRange(recentTours.Select(item => new DashboardActivityDto
+            {
+                UserName = item.Owner?.FullName ?? item.Owner?.Username ?? "Routing desk",
+                UserInitials = (item.Owner?.FullName ?? item.Owner?.Username).ToInitials(),
+                Action = item.UpdatedAt is null ? "Created Tour" : "Updated Tour",
+                TargetName = item.Name,
+                OccurredAt = item.UpdatedAt ?? item.CreatedAt,
+                TimeAgo = (item.UpdatedAt ?? item.CreatedAt).ToRelativeTime(),
+                Status = item.Status == 1 ? "Completed" : "Pending"
+            }));
+        }
+
         if (AdminRolePolicies.HasPermission(currentUser.Role, AdminPermissions.UserRead))
         {
             var recentUsers = await context.DashboardUsers
@@ -249,6 +293,9 @@ public class DashboardController(
             !ownerScoped || item.Location!.OwnerId == currentUser.UserId);
         var scriptAudio = await context.AudioContents.CountAsync(item =>
             (!ownerScoped || item.Location!.OwnerId == currentUser.UserId) && item.Script != null && item.Script != "");
+        var totalTours = await BuildTourScopeQuery(currentUser).CountAsync();
+        var activeTours = await BuildTourScopeQuery(currentUser).CountAsync(item => item.Status == 1);
+        var playbackEvents = await BuildPlaybackQuery(currentUser).CountAsync();
 
         return
         [
@@ -270,13 +317,56 @@ public class DashboardController(
             },
             new FocusItemDto
             {
+                Title = "Tour Readiness",
+                Description = "Shows how many visible tours are still active and available for guest walkthroughs.",
+                Progress = totalTours == 0 ? 0 : (int)Math.Round((double)activeTours / totalTours * 100),
+                Icon = "bi-signpost-2",
+                Tone = "blue"
+            },
+            new FocusItemDto
+            {
                 Title = "Telemetry Coverage",
-                Description = "Playback and GPS events confirm whether the POC trigger loop is healthy.",
-                Progress = Math.Min(100, await context.PlaybackEvents.CountAsync() * 10),
+                Description = ownerScoped
+                    ? "Playback logs from your owned POIs help confirm guest usage is being recorded."
+                    : "Playback and GPS events confirm whether the POC trigger loop is healthy.",
+                Progress = Math.Min(100, playbackEvents * 10),
                 Icon = "bi-activity",
                 Tone = "blue"
             }
         ];
+    }
+
+    private IQueryable<Tour> BuildTourQuery(DashboardUser currentUser)
+    {
+        var query = context.Tours
+            .Include(item => item.Owner)
+            .Include(item => item.Stops)
+            .ThenInclude(item => item.Location)
+            .ThenInclude(item => item!.Owner)
+            .Include(item => item.Stops)
+            .ThenInclude(item => item.Location)
+            .ThenInclude(item => item!.Category)
+            .AsQueryable();
+
+        return IsOwnerScoped(currentUser)
+            ? query.Where(item => item.Stops.Any(stop => stop.Location != null && stop.Location.OwnerId == currentUser.UserId))
+            : query;
+    }
+
+    private IQueryable<Tour> BuildTourScopeQuery(DashboardUser currentUser)
+    {
+        var query = context.Tours.AsQueryable();
+        return IsOwnerScoped(currentUser)
+            ? query.Where(item => item.Stops.Any(stop => stop.Location != null && stop.Location.OwnerId == currentUser.UserId))
+            : query;
+    }
+
+    private IQueryable<PlaybackEvent> BuildPlaybackQuery(DashboardUser currentUser)
+    {
+        var query = context.PlaybackEvents.AsQueryable();
+        return IsOwnerScoped(currentUser)
+            ? query.Where(item => item.Location != null && item.Location.OwnerId == currentUser.UserId)
+            : query;
     }
 
     private static bool IsOwnerScoped(DashboardUser user) =>

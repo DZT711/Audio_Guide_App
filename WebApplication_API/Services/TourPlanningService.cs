@@ -1,0 +1,87 @@
+using WebApplication_API.Model;
+
+namespace WebApplication_API.Services;
+
+public static class TourPlanningService
+{
+    public static TourMetrics CalculateMetrics(IEnumerable<Location> orderedLocations, double walkingSpeedKph, string? startTime)
+    {
+        var locations = orderedLocations.ToList();
+        if (locations.Count <= 1)
+        {
+            return new TourMetrics(0d, 0, NormalizeTime(startTime), NormalizeTime(startTime));
+        }
+
+        var totalDistanceKm = 0d;
+        for (var index = 1; index < locations.Count; index++)
+        {
+            totalDistanceKm += CalculateDistanceKm(locations[index - 1], locations[index]);
+        }
+
+        totalDistanceKm = Math.Round(totalDistanceKm, 2, MidpointRounding.AwayFromZero);
+        var estimatedDurationMinutes = walkingSpeedKph <= 0
+            ? 0
+            : (int)Math.Ceiling(totalDistanceKm / walkingSpeedKph * 60d);
+
+        var normalizedStartTime = NormalizeTime(startTime);
+        return new TourMetrics(
+            totalDistanceKm,
+            estimatedDurationMinutes,
+            normalizedStartTime,
+            CalculateFinishTime(normalizedStartTime, estimatedDurationMinutes));
+    }
+
+    public static double CalculateDistanceKm(Location from, Location to) =>
+        CalculateDistanceKm(from.Latitude, from.Longitude, to.Latitude, to.Longitude);
+
+    public static double CalculateDistanceKm(double fromLatitude, double fromLongitude, double toLatitude, double toLongitude)
+    {
+        const double EarthRadiusKm = 6371d;
+        var latDelta = DegreesToRadians(toLatitude - fromLatitude);
+        var lonDelta = DegreesToRadians(toLongitude - fromLongitude);
+        var originLatitude = DegreesToRadians(fromLatitude);
+        var destinationLatitude = DegreesToRadians(toLatitude);
+
+        var haversine =
+            Math.Pow(Math.Sin(latDelta / 2d), 2d)
+            + Math.Cos(originLatitude) * Math.Cos(destinationLatitude) * Math.Pow(Math.Sin(lonDelta / 2d), 2d);
+
+        var arc = 2d * Math.Atan2(Math.Sqrt(haversine), Math.Sqrt(1d - haversine));
+        return EarthRadiusKm * arc;
+    }
+
+    public static string? CalculateFinishTime(string? startTime, int durationMinutes)
+    {
+        if (!TryParseTime(startTime, out var parsedStartTime))
+        {
+            return null;
+        }
+
+        return parsedStartTime.Add(TimeSpan.FromMinutes(Math.Max(0, durationMinutes))).ToString(@"hh\:mm");
+    }
+
+    public static string? NormalizeTime(string? value) =>
+        TryParseTime(value, out var parsedTime)
+            ? parsedTime.ToString(@"hh\:mm")
+            : null;
+
+    private static bool TryParseTime(string? value, out TimeSpan time)
+    {
+        if (!string.IsNullOrWhiteSpace(value)
+            && TimeSpan.TryParseExact(value.Trim(), @"hh\:mm", null, out time))
+        {
+            return true;
+        }
+
+        time = default;
+        return false;
+    }
+
+    private static double DegreesToRadians(double value) => value * Math.PI / 180d;
+}
+
+public sealed record TourMetrics(
+    double TotalDistanceKm,
+    int EstimatedDurationMinutes,
+    string? StartTime,
+    string? FinishTime);
