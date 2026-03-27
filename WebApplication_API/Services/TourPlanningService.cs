@@ -1,3 +1,4 @@
+using System.Globalization;
 using Project_SharedClassLibrary.Constants;
 using WebApplication_API.Model;
 
@@ -74,9 +75,40 @@ public static class TourPlanningService
 
     private static bool TryParseTime(string? value, out TimeSpan time)
     {
-        if (!string.IsNullOrWhiteSpace(value)
-            && TimeSpan.TryParseExact(value.Trim(), @"hh\:mm", null, out time))
+        if (string.IsNullOrWhiteSpace(value))
         {
+            time = default;
+            return false;
+        }
+
+        var normalizedValue = value.Trim();
+        if (TimeSpan.TryParseExact(
+                normalizedValue,
+                ["hh\\:mm", "h\\:mm", "hh\\:mm\\:ss", "h\\:mm\\:ss"],
+                CultureInfo.InvariantCulture,
+                out time))
+        {
+            return true;
+        }
+
+        if (DateTime.TryParseExact(
+                normalizedValue,
+                ["h:mm tt", "hh:mm tt", "h:mm:ss tt", "hh:mm:ss tt"],
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out var parsedDateTime)
+            || DateTime.TryParse(
+                normalizedValue,
+                CultureInfo.CurrentCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out parsedDateTime)
+            || DateTime.TryParse(
+                normalizedValue,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out parsedDateTime))
+        {
+            time = parsedDateTime.TimeOfDay;
             return true;
         }
 

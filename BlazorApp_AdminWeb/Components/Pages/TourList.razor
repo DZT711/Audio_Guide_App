@@ -1,5 +1,6 @@
 @page "/tours"
 @using Project_SharedClassLibrary.Constants
+@using System.Globalization
 @implements IAsyncDisposable
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
@@ -241,7 +242,7 @@ else
 
                     <div class="management-field">
                         <label for="tour-start">Start Time</label>
-                        <input id="tour-start" class="form-control" type="time" value="@_formModel.StartTime" @onchange="HandleStartTimeChangedAsync" />
+                        <InputText id="tour-start" class="form-control" type="time" Value="_formModel.StartTime" ValueChanged="HandleStartTimeChangedAsync" ValueExpression="() => _formModel.StartTime" />
                         <ValidationMessage For="() => _formModel.StartTime" />
                     </div>
 
@@ -749,9 +750,9 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task HandleStartTimeChangedAsync(ChangeEventArgs args)
+    private async Task HandleStartTimeChangedAsync(string? value)
     {
-        _formModel.StartTime = args.Value?.ToString() ?? string.Empty;
+        _formModel.StartTime = NormalizeTime(value) ?? value?.Trim() ?? string.Empty;
         await RefreshRoutePreviewAsync();
     }
 
@@ -827,7 +828,8 @@ else
         _routePreviewMessage = null;
 
         var previewStops = BuildRoutePreviewStops();
-        _routePreview = BuildFallbackRoutePreview(previewStops, _formModel.StartTime, previewStops.Count <= 1);
+        var normalizedStartTime = NormalizeTime(_formModel.StartTime);
+        _routePreview = BuildFallbackRoutePreview(previewStops, normalizedStartTime, previewStops.Count <= 1);
         QueueMapSync();
 
         if (previewStops.Count <= 1)
@@ -844,7 +846,7 @@ else
 
         try
         {
-            var preview = await TryBuildRoutePreviewAsync(previewStops, cts.Token);
+            var preview = await TryBuildRoutePreviewAsync(previewStops, normalizedStartTime, cts.Token);
 
             if (!ReferenceEquals(_routePreviewCts, cts) || cts.IsCancellationRequested)
             {
@@ -885,12 +887,13 @@ else
 
     private async Task<TourRoutePreviewDto> TryBuildRoutePreviewAsync(
         IReadOnlyList<TourRoutePreviewStopRequest> previewStops,
+        string? normalizedStartTime,
         CancellationToken cancellationToken)
     {
-        var browserPreview = await TryBuildBrowserRoutePreviewAsync(previewStops, cancellationToken);
+        var browserPreview = await TryBuildBrowserRoutePreviewAsync(previewStops, normalizedStartTime, cancellationToken);
         var apiPreview = await ApiClient.PreviewTourRouteAsync(new TourRoutePreviewRequest
         {
-            StartTime = _formModel.StartTime,
+            StartTime = normalizedStartTime,
             Stops = previewStops.ToList()
         }, cancellationToken);
 
@@ -908,11 +911,12 @@ else
             ? browserPreview!
             : HasMatchingRoutePreview(previewStops, apiPreview)
                 ? apiPreview
-            : BuildFallbackRoutePreview(previewStops, _formModel.StartTime, usesRoadRouting: false);
+            : BuildFallbackRoutePreview(previewStops, normalizedStartTime, usesRoadRouting: false);
     }
 
     private async Task<TourRoutePreviewDto?> TryBuildBrowserRoutePreviewAsync(
         IReadOnlyList<TourRoutePreviewStopRequest> previewStops,
+        string? normalizedStartTime,
         CancellationToken cancellationToken)
     {
         try
@@ -921,7 +925,7 @@ else
                 "smartTourAdmin.map.calculateTourRoute",
                 cancellationToken,
                 previewStops,
-                _formModel.StartTime,
+                normalizedStartTime,
                 TourDefaults.DefaultWalkingSpeedKph);
         }
         catch (JSException)
@@ -1171,18 +1175,59 @@ else
     }
 
     private static string? NormalizeTime(string? startTime) =>
-        !string.IsNullOrWhiteSpace(startTime)
-        && TimeSpan.TryParseExact(startTime, @"hh\:mm", null, out var parsedStartTime)
+        TryParseTime(startTime, out var parsedStartTime)
             ? parsedStartTime.ToString(@"hh\:mm")
             : null;
 
     private static double DegreesToRadians(double value) => value * Math.PI / 180d;
 
     private static string? TryCalculateFinishTime(string? startTime, int durationMinutes) =>
-        !string.IsNullOrWhiteSpace(startTime)
-        && TimeSpan.TryParseExact(startTime, @"hh\:mm", null, out var parsedStartTime)
+        TryParseTime(startTime, out var parsedStartTime)
             ? parsedStartTime.Add(TimeSpan.FromMinutes(Math.Max(0, durationMinutes))).ToString(@"hh\:mm")
             : null;
+
+    private static bool TryParseTime(string? value, out TimeSpan time)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            time = default;
+            return false;
+        }
+
+        var normalizedValue = value.Trim();
+        if (TimeSpan.TryParseExact(
+            normalizedValue,
+            ["hh\\:mm", "h\\:mm", "hh\\:mm\\:ss", "h\\:mm\\:ss"],
+            CultureInfo.InvariantCulture,
+            out time))
+        {
+            return true;
+        }
+
+        if (DateTime.TryParseExact(
+                normalizedValue,
+                ["h:mm tt", "hh:mm tt", "h:mm:ss tt", "hh:mm:ss tt"],
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out var parsedDateTime)
+            || DateTime.TryParse(
+                normalizedValue,
+                CultureInfo.CurrentCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out parsedDateTime)
+            || DateTime.TryParse(
+                normalizedValue,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out parsedDateTime))
+        {
+            time = parsedDateTime.TimeOfDay;
+            return true;
+        }
+
+        time = default;
+        return false;
+    }
 
     private static void AppendPath(ICollection<TourRoutePointDto> path, TourRoutePointDto point)
     {
