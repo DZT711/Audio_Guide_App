@@ -30,3 +30,13 @@ Thumbs.db
 
 # Logs
 *.log
+# Codex & Build tools
+.codex-build/
+.verify/
+.dotnet/
+.dotnet-cli/
+
+# Log files
+*.log
+.verify-adminweb.err.log
+.verify-adminweb.out.log

@@ -3,6 +3,7 @@
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
+@using System.Text.Json.Serialization
 @using Project_SharedClassLibrary.Constants
 @inject AdminSessionState SessionState
 
@@ -228,6 +229,47 @@ else
                                     Use My Device Location
                                 </button>
                             </div>
+
+                            <div class="location-picker__search">
+                                <label class="location-picker__search-box" for="location-map-search">
+                                    <i class="bi bi-search"></i>
+                                    <input id="location-map-search"
+                                           class="form-control"
+                                           type="search"
+                                           placeholder="Search a landmark, street, or address on the map"
+                                           @bind="_mapSearchText"
+                                           @bind:event="oninput" />
+                                </label>
+
+                                <button type="button"
+                                        class="btn btn-outline-secondary btn-sm"
+                                        @onclick="SearchMapAsync"
+                                        disabled="@(_isMapSearching || string.IsNullOrWhiteSpace(_mapSearchText))">
+                                    <i class="bi @(_isMapSearching ? "bi-hourglass-split" : "bi-search") me-1"></i>
+                                    @(_isMapSearching ? "Searching..." : "Find Place")
+                                </button>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(_mapSearchError))
+                            {
+                                <div class="location-picker__search-feedback" aria-live="polite">@_mapSearchError</div>
+                            }
+                            else if (_mapSearchResults.Count > 0)
+                            {
+                                <div class="location-picker__results" aria-live="polite">
+                                    @foreach (var result in _mapSearchResults)
+                                    {
+                                        <button type="button" class="location-picker__result" @onclick="() => SelectMapSearchResultAsync(result)">
+                                            <strong>@GetMapSearchResultTitle(result)</strong>
+                                            @if (!string.IsNullOrWhiteSpace(result.Address))
+                                            {
+                                                <small>@result.Address</small>
+                                            }
+                                            <span class="location-picker__coords">@($"{result.Latitude:F6}, {result.Longitude:F6}")</span>
+                                        </button>
+                                    }
+                                </div>
+                            }
 
                             <div class="location-picker__map" @ref="_mapElement"></div>
                         </div>
@@ -494,6 +536,7 @@ else
     private readonly List<CategoryDto> _categories = new();
     private readonly List<DashboardUserDto> _owners = new();
     private readonly List<string> _imagePreviewUrls = new();
+    private readonly List<MapSearchResult> _mapSearchResults = new();
     private readonly HashSet<string> _imageObjectUrls = new(StringComparer.OrdinalIgnoreCase);
     private DotNetObjectReference<POIList>? _mapReference;
     private LocationDto? _selectedLocation;
@@ -501,14 +544,17 @@ else
     private bool _isLoading = true;
     private bool _isSaving;
     private bool _isPreparingImagePreview;
+    private bool _isMapSearching;
     private bool _deviceLocationPending = true;
     private bool _mapSyncPending;
     private int _imageInputVersion;
     private int? _editingId;
     private string _searchText = "";
+    private string _mapSearchText = "";
     private string _selectedCategoryName = "";
     private string _selectedStatus = "";
     private string? _loadError;
+    private string? _mapSearchError;
     private ElementReference _mapElement;
     private bool CanView => SessionState.HasPermission(AdminPermissions.LocationRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.LocationManage);
@@ -658,6 +704,66 @@ else
 
     private async Task CenterMapOnCoordinatesAsync() => await SyncMapAsync();
 
+    private async Task SearchMapAsync()
+    {
+        var query = _mapSearchText.Trim();
+        _mapSearchResults.Clear();
+        _mapSearchError = null;
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            _mapSearchError = "Enter a landmark, street, or address to search the map.";
+            return;
+        }
+
+        _isMapSearching = true;
+
+        try
+        {
+            var results = await JS.InvokeAsync<MapSearchResult[]>(
+                "smartTourAdmin.map.searchLocationPicker",
+                query);
+
+            _mapSearchResults.Clear();
+            _mapSearchResults.AddRange(results
+                .Where(item => item.HasCoordinates)
+                .Take(6));
+
+            if (_mapSearchResults.Count == 0)
+            {
+                _mapSearchError = $"No places were found for '{query}'.";
+            }
+        }
+        catch (JSException)
+        {
+            _mapSearchError = "Map search is unavailable right now.";
+        }
+        finally
+        {
+            _isMapSearching = false;
+        }
+    }
+
+    private async Task SelectMapSearchResultAsync(MapSearchResult result)
+    {
+        _formModel.Latitude = Math.Round(result.Latitude, 6);
+        _formModel.Longitude = Math.Round(result.Longitude, 6);
+
+        if (!string.IsNullOrWhiteSpace(result.Address))
+        {
+            _formModel.Address = result.Address.Length > 500 ? result.Address[..500] : result.Address;
+            _mapSearchText = _formModel.Address;
+        }
+        else if (!string.IsNullOrWhiteSpace(result.Name))
+        {
+            _mapSearchText = result.Name;
+        }
+
+        _mapSearchResults.Clear();
+        _mapSearchError = null;
+        await SyncMapAsync();
+    }
+
     private async Task StartCreateAsync()
     {
         _editingId = null;
@@ -679,6 +785,7 @@ else
         _deviceLocationPending = false;
         var snapshot = LocationFormModel.FromDto(location, _categories);
         ApplyForm(snapshot);
+        ResetMapSearchState(snapshot.Address ?? snapshot.Name);
         await RefreshLocationImagePreviewsAsync();
     }
 
@@ -770,6 +877,7 @@ else
             IsGpsTriggerEnabled = true,
             Status = 1
         });
+        ResetMapSearchState();
         _deviceLocationPending = CanManage;
     }
 
@@ -989,13 +1097,39 @@ else
     {
         _formModel.Latitude = Math.Round(latitude, 6);
         _formModel.Longitude = Math.Round(longitude, 6);
+        _mapSearchResults.Clear();
+        _mapSearchError = null;
 
         if (!string.IsNullOrWhiteSpace(address))
         {
             _formModel.Address = address.Length > 500 ? address[..500] : address;
+            _mapSearchText = _formModel.Address;
         }
 
         return InvokeAsync(StateHasChanged);
+    }
+
+    private void ResetMapSearchState(string? query = null)
+    {
+        _mapSearchResults.Clear();
+        _mapSearchError = null;
+        _isMapSearching = false;
+        _mapSearchText = query ?? "";
+    }
+
+    private static string GetMapSearchResultTitle(MapSearchResult result)
+    {
+        if (!string.IsNullOrWhiteSpace(result.Name))
+        {
+            return result.Name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.Address))
+        {
+            return result.Address;
+        }
+
+        return "Map result";
     }
 
     private static string GetStatusClass(int status) => status == 1
@@ -1059,5 +1193,23 @@ else
         }
 
         _mapReference?.Dispose();
+    }
+
+    private sealed class MapSearchResult
+    {
+        [JsonPropertyName("name")]
+        public string Name { get; init; } = "";
+
+        [JsonPropertyName("address")]
+        public string Address { get; init; } = "";
+
+        [JsonPropertyName("latitude")]
+        public double Latitude { get; init; }
+
+        [JsonPropertyName("longitude")]
+        public double Longitude { get; init; }
+
+        [JsonIgnore]
+        public bool HasCoordinates => double.IsFinite(Latitude) && double.IsFinite(Longitude);
     }
 }

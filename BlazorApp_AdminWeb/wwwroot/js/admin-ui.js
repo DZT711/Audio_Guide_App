@@ -284,14 +284,7 @@
         return Number.isFinite(numericValue) && numericValue !== 0 ? numericValue : fallback;
     };
 
-    const reverseGeocode = async (latitude, longitude) => {
-        const url = new URL("https://nominatim.openstreetmap.org/reverse");
-        url.searchParams.set("format", "jsonv2");
-        url.searchParams.set("lat", String(latitude));
-        url.searchParams.set("lon", String(longitude));
-        url.searchParams.set("zoom", "18");
-        url.searchParams.set("addressdetails", "1");
-
+    const fetchLocationJson = async (url) => {
         try {
             const response = await fetch(url.toString(), {
                 headers: {
@@ -300,14 +293,72 @@
             });
 
             if (!response.ok) {
-                return "";
+                return null;
             }
 
-            const payload = await response.json();
-            return typeof payload.display_name === "string" ? payload.display_name : "";
+            return await response.json();
         } catch {
+            return null;
+        }
+    };
+
+    const reverseGeocode = async (latitude, longitude) => {
+        const url = new URL("https://nominatim.openstreetmap.org/reverse");
+        url.searchParams.set("format", "jsonv2");
+        url.searchParams.set("lat", String(latitude));
+        url.searchParams.set("lon", String(longitude));
+        url.searchParams.set("zoom", "18");
+        url.searchParams.set("addressdetails", "1");
+
+        const payload = await fetchLocationJson(url);
+        if (!payload) {
             return "";
         }
+
+        return typeof payload.display_name === "string" ? payload.display_name : "";
+    };
+
+    const searchLocationMatches = async (query) => {
+        const normalizedQuery = String(query ?? "").trim();
+        if (!normalizedQuery) {
+            return [];
+        }
+
+        const url = new URL("https://nominatim.openstreetmap.org/search");
+        url.searchParams.set("format", "jsonv2");
+        url.searchParams.set("q", normalizedQuery);
+        url.searchParams.set("limit", "6");
+        url.searchParams.set("addressdetails", "1");
+        url.searchParams.set("dedupe", "1");
+
+        const payload = await fetchLocationJson(url);
+        if (!Array.isArray(payload)) {
+            return [];
+        }
+
+        return payload
+            .map((item) => {
+                const address = typeof item?.display_name === "string"
+                    ? item.display_name.trim()
+                    : "";
+                const fallbackName = address.split(",")[0]?.trim() ?? "";
+                const name = typeof item?.name === "string" && item.name.trim()
+                    ? item.name.trim()
+                    : fallbackName;
+                const latitude = roundCoordinate(item?.lat);
+                const longitude = roundCoordinate(item?.lon);
+
+                return {
+                    name,
+                    address,
+                    latitude,
+                    longitude
+                };
+            })
+            .filter((item) =>
+                item.address
+                && Number.isFinite(item.latitude)
+                && Number.isFinite(item.longitude));
     };
 
     const notifyMapChange = async (picker, latitude, longitude) => {
@@ -822,6 +873,9 @@
             setMarkerPosition(picker, latitude, longitude, false);
             picker.map.invalidateSize();
             return true;
+        },
+        searchLocationPicker: async (query) => {
+            return await searchLocationMatches(query);
         },
         tryUseDeviceLocation: async (element, fallbackLatitude, fallbackLongitude) => {
             const picker = locationPickers.get(element);

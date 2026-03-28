@@ -46,6 +46,86 @@
     white-space: nowrap;
 }
 
+.location-picker__search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.location-picker__search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 0.95rem;
+    border: 1px solid rgba(15, 118, 110, 0.18);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.location-picker__search-box i {
+    color: var(--app-muted);
+}
+
+.location-picker__search-box .form-control {
+    border: 0;
+    background: transparent;
+    padding: 0.85rem 0;
+    box-shadow: none;
+}
+
+.location-picker__search-box .form-control:focus {
+    box-shadow: none;
+}
+
+.location-picker__search-feedback {
+    color: #9a3412;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.location-picker__results {
+    display: grid;
+    gap: 0.7rem;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 0.15rem;
+}
+
+.location-picker__result {
+    display: grid;
+    gap: 0.25rem;
+    width: 100%;
+    padding: 0.9rem 1rem;
+    text-align: left;
+    border: 1px solid rgba(15, 118, 110, 0.14);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.94);
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.location-picker__result:hover {
+    transform: translateY(-1px);
+    border-color: rgba(15, 118, 110, 0.3);
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+}
+
+.location-picker__result strong {
+    color: #0f172a;
+}
+
+.location-picker__result small {
+    color: var(--app-muted);
+    line-height: 1.45;
+}
+
+.location-picker__coords {
+    color: #0f766e;
+    font-family: var(--bs-font-monospace);
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+}
+
 .location-picker__map {
     height: 320px;
     border-radius: 18px;
@@ -166,6 +246,10 @@
 
 @media (max-width: 575.98px) {
     .location-picker__header {
+        grid-template-columns: 1fr;
+    }
+
+    .location-picker__search {
         grid-template-columns: 1fr;
     }
 

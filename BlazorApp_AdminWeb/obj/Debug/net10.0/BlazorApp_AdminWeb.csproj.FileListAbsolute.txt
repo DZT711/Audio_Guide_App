@@ -140,9 +140,6 @@ D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\refint\Blazo
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.pdb
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.genruntimeconfig.cache
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\ref\BlazorApp_AdminWeb.dll
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-ey3jv3rxxm-ey3jv3rxxm.gz
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-ey3jv3rxxm-ey3jv3rxxm.gz
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\r008phjwfc-{0}-p20fkojr07-p20fkojr07.gz
 C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\EmbeddedAttribute.cs
 C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\ValidatableTypeAttribute.cs
 C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.csproj.AssemblyReference.cache
@@ -156,3 +153,6 @@ C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_Admi
 C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.dll
 C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\refint\BlazorApp_AdminWeb.dll
 C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.pdb
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\r008phjwfc-{0}-bnwd12qixm-bnwd12qixm.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-5bkkacuws5-5bkkacuws5.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-5bkkacuws5-5bkkacuws5.gz
