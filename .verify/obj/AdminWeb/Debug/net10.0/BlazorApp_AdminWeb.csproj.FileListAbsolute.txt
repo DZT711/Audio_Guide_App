@@ -1,9 +1,0 @@
-d:\Projects\Smart-Tourism-MAUI\.verify\obj\AdminWeb\Debug\net10.0\EmbeddedAttribute.cs
-d:\Projects\Smart-Tourism-MAUI\.verify\obj\AdminWeb\Debug\net10.0\ValidatableTypeAttribute.cs
-d:\Projects\Smart-Tourism-MAUI\.verify\obj\AdminWeb\Debug\net10.0\rpswa.dswa.cache.json
-d:\Projects\Smart-Tourism-MAUI\.verify\obj\AdminWeb\Debug\net10.0\BlazorApp_AdminWeb.GeneratedMSBuildEditorConfig.editorconfig
-d:\Projects\Smart-Tourism-MAUI\.verify\obj\AdminWeb\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfoInputs.cache
-d:\Projects\Smart-Tourism-MAUI\.verify\obj\AdminWeb\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfo.cs
-d:\Projects\Smart-Tourism-MAUI\.verify\obj\AdminWeb\Debug\net10.0\BlazorApp_AdminWeb.csproj.CoreCompileInputs.cache
-d:\Projects\Smart-Tourism-MAUI\.verify\obj\AdminWeb\Debug\net10.0\BlazorApp_AdminWeb.MvcApplicationPartsAssemblyInfo.cache
-d:\Projects\Smart-Tourism-MAUI\.verify\obj\AdminWeb\Debug\net10.0\BlazorApp_AdminWeb.sourcelink.json
