@@ -1,0 +1,525 @@
+@page "/statistics"
+@using System.Globalization
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject AdminSessionState SessionState
+
+<PageTitle>Statistics</PageTitle>
+
+@if (!CanView)
+{
+    <div class="management-page statistics-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view statistics.</div>
+        </div>
+    </div>
+}
+else
+{
+<div class="management-page statistics-page">
+    <section class="management-hero statistics-hero" data-reveal>
+        <div>
+            <span class="management-hero__eyebrow">Overview</span>
+            <h1>Statistics</h1>
+            <p>Track anonymous route history, playback trends, heatmap hotspots, and POI listening quality with filters for date range, tour, ward, and audio or POI names.</p>
+            @if (!_isLoading && string.IsNullOrWhiteSpace(_loadError))
+            {
+                <div class="statistics-scope">@_overview.ScopeLabel</div>
+            }
+        </div>
+        <div class="management-hero__actions">
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="ResetFiltersAsync" disabled="@_isLoading">Reset</button>
+            <button type="button" class="btn btn-primary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">@(_isLoading ? "Loading..." : "Refresh")</button>
+        </div>
+    </section>
+
+    <section class="management-panel" data-reveal>
+        <div class="management-panel__header">
+            <div>
+                <span class="management-panel__eyebrow">Filters</span>
+                <h2>Analytics Scope</h2>
+            </div>
+        </div>
+
+        <div class="statistics-filters">
+            <div class="management-field">
+                <label for="statistics-from">From</label>
+                <InputDate id="statistics-from" class="form-control" @bind-Value="_fromDate" />
+            </div>
+            <div class="management-field">
+                <label for="statistics-to">To</label>
+                <InputDate id="statistics-to" class="form-control" @bind-Value="_toDate" />
+            </div>
+            <div class="management-field">
+                <label for="statistics-tour">Tour</label>
+                <select id="statistics-tour" class="form-select" @bind="_selectedTourValue">
+                    <option value="">All tours</option>
+                    @foreach (var option in _overview.TourOptions)
+                    {
+                        <option value="@option.Value">@option.Label (@option.Count)</option>
+                    }
+                </select>
+            </div>
+            <div class="management-field">
+                <label for="statistics-ward">Ward</label>
+                <select id="statistics-ward" class="form-select" @bind="_selectedWard">
+                    <option value="">All wards</option>
+                    @foreach (var option in _overview.WardOptions)
+                    {
+                        <option value="@option.Value">@option.Label (@option.Count)</option>
+                    }
+                </select>
+            </div>
+            <div class="management-field management-field--full">
+                <label for="statistics-search">Search audio or POI</label>
+                <div class="management-search statistics-search">
+                    <i class="bi bi-search"></i>
+                    <input id="statistics-search" class="form-control" type="search" placeholder="Search by audio title, POI name, ward, or tour..." @bind="_searchText" @bind:event="oninput" />
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="management-stat-grid statistics-stat-grid" data-stagger data-stagger-step="70">
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-headphones"></i></span>
+            <div><strong class="management-stat__value">@_overview.Summary.TotalPlaybackEvents</strong><span class="management-stat__label">Playback Events</span></div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-geo"></i></span>
+            <div><strong class="management-stat__value">@_overview.Summary.TotalTrackingPoints</strong><span class="management-stat__label">Tracking Points</span></div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-signpost-2"></i></span>
+            <div><strong class="management-stat__value">@_overview.Summary.RouteSessions</strong><span class="management-stat__label">Anonymous Routes</span></div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-people"></i></span>
+            <div><strong class="management-stat__value">@_overview.Summary.UniqueGuests</strong><span class="management-stat__label">Anonymous Guests</span></div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-hourglass-split"></i></span>
+            <div><strong class="management-stat__value">@FormatSeconds(_overview.Summary.AverageListeningSeconds)</strong><span class="management-stat__label">Average Listening</span></div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-pin-map"></i></span>
+            <div><strong class="management-stat__value">@_overview.Summary.VisiblePois</strong><span class="management-stat__label">Visible POIs</span></div>
+        </article>
+    </div>
+
+    @if (_isLoading)
+    {
+        <section class="management-panel">
+            <div class="tour-skeleton-table">
+                @for (var i = 0; i < 5; i++)
+                {
+                    <div class="skeleton-table-row">
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+    else if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <div class="management-error">
+            <strong>Unable to load statistics.</strong>
+            <div>@_loadError</div>
+        </div>
+    }
+    else
+    {
+        <div class="statistics-layout">
+            <section class="management-panel statistics-panel" data-reveal>
+                <div class="management-panel__header">
+                    <div>
+                        <span class="management-panel__eyebrow">Heatmap</span>
+                        <h2>User Position Hotspots</h2>
+                    </div>
+                    <div class="statistics-legend">
+                        <span><i class="bi bi-circle-fill"></i> Heat density</span>
+                        <span><i class="bi bi-bezier2"></i> Selected route</span>
+                        <span><i class="bi bi-geo-alt-fill"></i> POIs</span>
+                    </div>
+                </div>
+
+                <div class="statistics-map">
+                    @if (_overview.HeatmapPoints.Count == 0 && _overview.Locations.Count == 0)
+                    {
+                        <div class="app-empty-state">No heatmap data matches the current filters.</div>
+                    }
+                    else
+                    {
+                        <svg class="statistics-map__svg" viewBox="0 0 1000 620" role="img" aria-label="Anonymous route heatmap">
+                            <defs>
+                                <filter id="statisticsHeatBlur">
+                                    <feGaussianBlur stdDeviation="22"></feGaussianBlur>
+                                </filter>
+                            </defs>
+
+                            <rect x="24" y="24" width="952" height="572" rx="32" class="statistics-map__surface"></rect>
+                            @foreach (var heatPoint in _overview.HeatmapPoints)
+                            {
+                                <circle cx="@ToMapX(heatPoint.Longitude)" cy="@ToMapY(heatPoint.Latitude)" r="@GetHeatRadius(heatPoint.Intensity)" class="statistics-map__heat" style="@($"opacity:{GetHeatOpacity(heatPoint.Intensity).ToString("0.00", CultureInfo.InvariantCulture)}")" filter="url(#statisticsHeatBlur)"></circle>
+                            }
+                            @if (SelectedRoute?.Points.Count > 1)
+                            {
+                                <polyline points="@BuildRoutePolyline(SelectedRoute!.Points)" class="statistics-map__route"></polyline>
+                            }
+                            @foreach (var poi in _overview.Locations)
+                            {
+                                <g transform="@($"translate({ToMapX(poi.Longitude).ToString("0.0", CultureInfo.InvariantCulture)} {ToMapY(poi.Latitude).ToString("0.0", CultureInfo.InvariantCulture)})")">
+                                    <circle class="statistics-map__poi" r="9"></circle>
+                                    <text class="statistics-map__poi-label" x="0" y="-16" text-anchor="middle">@poi.Name</text>
+                                </g>
+                            }
+                        </svg>
+                    }
+                </div>
+
+                @if (SelectedRoute is not null)
+                {
+                    <div class="statistics-route-highlight">
+                        <strong>@GetRouteLabel(SelectedRoute)</strong>
+                        <span>@SelectedRoute.PrimaryWard</span>
+                        <span>@FormatDistance(SelectedRoute.RouteDistanceKm)</span>
+                        <span>@SelectedRoute.TrackingPointCount points</span>
+                    </div>
+                }
+            </section>
+
+            <section class="management-panel statistics-panel" data-reveal>
+                <div class="management-panel__header">
+                    <div>
+                        <span class="management-panel__eyebrow">Routes</span>
+                        <h2>Anonymous Route History</h2>
+                    </div>
+                </div>
+
+                @if (_overview.RouteHistory.Count == 0)
+                {
+                    <div class="app-empty-state">No anonymous route sessions match the current filters.</div>
+                }
+                else
+                {
+                    <div class="statistics-route-list">
+                        @foreach (var route in _overview.RouteHistory)
+                        {
+                            <button type="button" class="@GetRouteCardClass(route)" @onclick="@(() => SelectRoute(route.SessionKey))">
+                                <div class="statistics-route-card__top">
+                                    <strong>@GetRouteLabel(route)</strong>
+                                    <span>@route.PrimaryWard</span>
+                                </div>
+                                <div class="statistics-route-card__meta">@route.StartedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm") to @route.EndedAt.ToLocalTime().ToString("HH:mm")</div>
+                                <div class="statistics-route-card__chips">
+                                    <span>@FormatDistance(route.RouteDistanceKm)</span>
+                                    <span>@route.PlaybackCount plays</span>
+                                    <span>@route.TrackingPointCount points</span>
+                                </div>
+                                <div class="statistics-route-card__copy">
+                                    <strong>POIs:</strong> @JoinItems(route.LocationNames)
+                                </div>
+                                <div class="statistics-route-card__copy">
+                                    <strong>Audio:</strong> @JoinItems(route.AudioTitles)
+                                </div>
+                            </button>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+
+        <div class="statistics-chart-grid">
+            <section class="management-panel statistics-panel" data-reveal>
+                <div class="management-panel__header">
+                    <div>
+                        <span class="management-panel__eyebrow">Chart</span>
+                        <h2>Playback Timeline</h2>
+                    </div>
+                    <span class="statistics-panel__hint">Daily plays inside the selected date range.</span>
+                </div>
+                @if (_overview.PlaybackTimeline.Count == 0)
+                {
+                    <div class="app-empty-state">No playback trend data matches the current filters.</div>
+                }
+                else
+                {
+                    <div class="statistics-chart">
+                        @foreach (var point in _overview.PlaybackTimeline)
+                        {
+                            <div class="statistics-chart__bar" title="@point.Hint">
+                                <span class="statistics-chart__value">@point.Value.ToString("0", CultureInfo.InvariantCulture)</span>
+                                <span class="statistics-chart__fill" style="@($"height:{GetChartBarHeight(point.Value, _overview.PlaybackTimeline).ToString("0.0", CultureInfo.InvariantCulture)}%")"></span>
+                                <span class="statistics-chart__label">@point.Label</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="management-panel statistics-panel" data-reveal>
+                <div class="management-panel__header">
+                    <div>
+                        <span class="management-panel__eyebrow">Chart</span>
+                        <h2>Plays By Ward</h2>
+                    </div>
+                    <span class="statistics-panel__hint">Ward-level activity from filtered playback sessions.</span>
+                </div>
+                @if (_overview.PlaysByWard.Count == 0)
+                {
+                    <div class="app-empty-state">No ward activity matches the current filters.</div>
+                }
+                else
+                {
+                    <div class="statistics-chart statistics-chart--compact">
+                        @foreach (var point in _overview.PlaysByWard)
+                        {
+                            <div class="statistics-chart__bar" title="@point.Hint">
+                                <span class="statistics-chart__value">@point.Value.ToString("0", CultureInfo.InvariantCulture)</span>
+                                <span class="statistics-chart__fill" style="@($"height:{GetChartBarHeight(point.Value, _overview.PlaysByWard).ToString("0.0", CultureInfo.InvariantCulture)}%")"></span>
+                                <span class="statistics-chart__label">@point.Label</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="management-panel statistics-panel" data-reveal>
+                <div class="management-panel__header">
+                    <div>
+                        <span class="management-panel__eyebrow">Chart</span>
+                        <h2>Plays By Tour</h2>
+                    </div>
+                    <span class="statistics-panel__hint">Tour-level playback counts after the current filters.</span>
+                </div>
+                @if (_overview.PlaysByTour.Count == 0)
+                {
+                    <div class="app-empty-state">No tour activity matches the current filters.</div>
+                }
+                else
+                {
+                    <div class="statistics-chart statistics-chart--compact">
+                        @foreach (var point in _overview.PlaysByTour)
+                        {
+                            <div class="statistics-chart__bar" title="@point.Hint">
+                                <span class="statistics-chart__value">@point.Value.ToString("0", CultureInfo.InvariantCulture)</span>
+                                <span class="statistics-chart__fill" style="@($"height:{GetChartBarHeight(point.Value, _overview.PlaysByTour).ToString("0.0", CultureInfo.InvariantCulture)}%")"></span>
+                                <span class="statistics-chart__label">@point.Label</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+
+        <div class="statistics-report-grid">
+            <section class="management-panel statistics-panel" data-reveal>
+                <div class="management-panel__header">
+                    <div>
+                        <span class="management-panel__eyebrow">Report</span>
+                        <h2>Top POIs by audio play count</h2>
+                    </div>
+                </div>
+                @if (_overview.TopPoisByPlayCount.Count == 0)
+                {
+                    <div class="app-empty-state">No POI playback report rows match the current filters.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table management-table">
+                            <thead>
+                                <tr>
+                                    <th>POI</th>
+                                    <th>Ward</th>
+                                    <th>Plays</th>
+                                    <th>Avg Listening</th>
+                                    <th>Top Audio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in _overview.TopPoisByPlayCount)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div>@row.LocationName</div>
+                                            <small class="management-muted">@(row.OwnerName ?? "No owner")</small>
+                                        </td>
+                                        <td>@row.Ward</td>
+                                        <td>@row.PlayCount</td>
+                                        <td>@FormatSeconds(row.AverageListeningSeconds)</td>
+                                        <td>@(row.TopAudioTitle ?? "No linked audio")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+
+            <section class="management-panel statistics-panel" data-reveal>
+                <div class="management-panel__header">
+                    <div>
+                        <span class="management-panel__eyebrow">Report</span>
+                        <h2>Average listening time per POI</h2>
+                    </div>
+                </div>
+                @if (_overview.AverageListeningByPoi.Count == 0)
+                {
+                    <div class="app-empty-state">No listening-time report rows match the current filters.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table management-table">
+                            <thead>
+                                <tr>
+                                    <th>POI</th>
+                                    <th>Ward</th>
+                                    <th>Avg Listening</th>
+                                    <th>Samples</th>
+                                    <th>Plays</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in _overview.AverageListeningByPoi)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div>@row.LocationName</div>
+                                            <small class="management-muted">@JoinItems(row.TourNames)</small>
+                                        </td>
+                                        <td>@row.Ward</td>
+                                        <td>@FormatSeconds(row.AverageListeningSeconds)</td>
+                                        <td>@row.ListeningSamples</td>
+                                        <td>@row.PlayCount</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        </div>
+    }
+</div>
+}
+
+@code {
+    private StatisticsOverviewDto _overview = new();
+    private DateTime? _fromDate = DateTime.UtcNow.Date.AddDays(-14);
+    private DateTime? _toDate = DateTime.UtcNow.Date;
+    private string _selectedTourValue = "";
+    private string _selectedWard = "";
+    private string _searchText = "";
+    private string? _selectedSessionKey;
+    private bool _isLoading = true;
+    private string? _loadError;
+
+    private bool CanView => SessionState.HasPermission(AdminPermissions.AnalyticsView);
+    private StatisticsRouteHistoryDto? SelectedRoute => _overview.RouteHistory.FirstOrDefault(item => string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgnoreCase));
+    private HeatmapViewport Viewport => HeatmapViewport.Create(_overview.HeatmapPoints, _overview.Locations, SelectedRoute?.Points ?? []);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task RefreshAsync() => await LoadAsync();
+
+    private async Task ResetFiltersAsync()
+    {
+        _fromDate = DateTime.UtcNow.Date.AddDays(-14);
+        _toDate = DateTime.UtcNow.Date;
+        _selectedTourValue = "";
+        _selectedWard = "";
+        _searchText = "";
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            _overview = await ApiClient.GetStatisticsAsync(new StatisticsQueryDto
+            {
+                From = _fromDate?.Date,
+                To = _toDate?.Date,
+                TourId = int.TryParse(_selectedTourValue, out var tourId) ? tourId : null,
+                Ward = string.IsNullOrWhiteSpace(_selectedWard) ? null : _selectedWard,
+                Search = string.IsNullOrWhiteSpace(_searchText) ? null : _searchText.Trim()
+            });
+
+            _selectedSessionKey = _overview.RouteHistory.Any(item => string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgnoreCase))
+                ? _selectedSessionKey
+                : _overview.RouteHistory.FirstOrDefault()?.SessionKey;
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Statistics load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void SelectRoute(string sessionKey) => _selectedSessionKey = sessionKey;
+
+    private string GetRouteCardClass(StatisticsRouteHistoryDto route) =>
+        string.Equals(route.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgnoreCase)
+            ? "statistics-route-card statistics-route-card--selected"
+            : "statistics-route-card";
+
+    private static string JoinItems(IReadOnlyList<string> items) => items.Count == 0 ? "No linked content" : string.Join(", ", items);
+    private static string GetRouteLabel(StatisticsRouteHistoryDto route) => route.SessionId ?? route.DeviceId ?? route.SessionKey;
+    private static string FormatDistance(double value) => $"{value.ToString("0.00", CultureInfo.InvariantCulture)} km";
+    private static string FormatSeconds(double value)
+    {
+        if (value <= 0)
+        {
+            return "0 sec";
+        }
+
+        var roundedSeconds = (int)Math.Round(value, 0, MidpointRounding.AwayFromZero);
+        if (roundedSeconds < 60)
+        {
+            return $"{roundedSeconds} sec";
+        }
+
+        return $"{roundedSeconds / 60} min {roundedSeconds % 60} sec";
+    }
+
+    private static double GetChartBarHeight(double value, IReadOnlyList<StatisticsChartPointDto> points)
+    {
+        var maxValue = points.Count == 0 ? 1d : Math.Max(1d, points.Max(item => item.Value));
+        return 18d + (value / maxValue) * 82d;
+    }
+
+    private double ToMapX(double longitude) => 72d + ((longitude - Viewport.MinLongitude) / Viewport.LongitudeSpan) * 856d;
+    private double ToMapY(double latitude) => 548d - ((latitude - Viewport.MinLatitude) / Viewport.LatitudeSpan) * 476d;
+    private string BuildRoutePolyline(IReadOnlyList<StatisticsRoutePointDto> points) => string.Join(" ", points.Select(point => $"{ToMapX(point.Longitude).ToString("0.0", CultureInfo.InvariantCulture)},{ToMapY(point.Latitude).ToString("0.0", CultureInfo.InvariantCulture)}"));
+    private double GetHeatRadius(int intensity) => 22 + Math.Min(54, intensity * 7);
+    private double GetHeatOpacity(int intensity) => Math.Min(0.78, 0.18 + intensity * 0.08);
+
+    private sealed record HeatmapViewport(double MinLatitude, double MaxLatitude, double MinLongitude, double MaxLongitude)
+    {
+        public double LatitudeSpan => Math.Max(0.0006, MaxLatitude - MinLatitude);
+        public double LongitudeSpan => Math.Max(0.0006, MaxLongitude - MinLongitude);
+
+        public static HeatmapViewport Create(
+            IReadOnlyList<StatisticsHeatPointDto> heatPoints,
+            IReadOnlyList<StatisticsLocationDto> locations,
+            IReadOnlyList<StatisticsRoutePointDto> routePoints)
+        {
+            var latitudes = heatPoints.Select(item => item.Latitude).Concat(locations.Select(item => item.Latitude)).Concat(routePoints.Select(item => item.Latitude)).DefaultIfEmpty(10.7715).ToList();
+            var longitudes = heatPoints.Select(item => item.Longitude).Concat(locations.Select(item => item.Longitude)).Concat(routePoints.Select(item => item.Longitude)).DefaultIfEmpty(106.7040).ToList();
+            return new HeatmapViewport(latitudes.Min() - 0.0008, latitudes.Max() + 0.0008, longitudes.Min() - 0.0008, longitudes.Max() + 0.0008);
+        }
+    }
+}

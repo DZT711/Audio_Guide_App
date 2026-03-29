@@ -73,6 +73,16 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         return await ReadJsonAsync<UsageHistoryOverviewDto>(response, "Unable to load usage history.");
     }
 
+    public async Task<StatisticsOverviewDto> GetStatisticsAsync(StatisticsQueryDto query, CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        var route = BuildStatisticsRoute(query);
+        using var response = await httpClient.GetAsync(route, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load statistics.");
+        return await ReadJsonAsync<StatisticsOverviewDto>(response, "Unable to load statistics.");
+    }
+
     public async Task<DashboardOverviewDto> GetDashboardOverviewAsync()
     {
         ApplyAuthHeader();
@@ -560,6 +570,31 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
     {
         var payload = await response.Content.ReadFromJsonAsync<T>();
         return payload ?? throw new InvalidOperationException(fallbackMessage);
+    }
+
+    private static string BuildStatisticsRoute(StatisticsQueryDto query)
+    {
+        var segments = new List<string>();
+
+        AddQuerySegment("from", query.From?.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        AddQuerySegment("to", query.To?.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        AddQuerySegment("tourId", query.TourId is > 0 ? query.TourId.Value.ToString(CultureInfo.InvariantCulture) : null);
+        AddQuerySegment("ward", string.IsNullOrWhiteSpace(query.Ward) ? null : query.Ward);
+        AddQuerySegment("search", string.IsNullOrWhiteSpace(query.Search) ? null : query.Search);
+
+        return segments.Count == 0
+            ? ApiRoutes.Statistics
+            : $"{ApiRoutes.Statistics}?{string.Join("&", segments)}";
+
+        void AddQuerySegment(string key, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            segments.Add($"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}");
+        }
     }
 
     private async Task EnsureSuccessAsync(HttpResponseMessage response, string fallbackMessage)

@@ -99,6 +99,7 @@ public static class AdminRolePolicies
             [AdminRoles.Editor] =
             [
                 AdminPermissions.DashboardView,
+                AdminPermissions.AnalyticsView,
                 AdminPermissions.CategoryRead,
                 AdminPermissions.LocationRead,
                 AdminPermissions.TourRead,
@@ -117,6 +118,7 @@ public static class AdminRolePolicies
             [AdminRoles.User] =
             [
                 AdminPermissions.DashboardView,
+                AdminPermissions.AnalyticsView,
                 AdminPermissions.UsageHistoryView,
                 AdminPermissions.LocationRead,
                 AdminPermissions.TourRead,

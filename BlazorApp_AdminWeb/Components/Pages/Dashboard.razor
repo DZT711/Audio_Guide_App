@@ -103,6 +103,13 @@ else
                         Usage History
                     </a>
                 }
+                @if (CanViewStatistics)
+                {
+                    <a class="btn btn-outline-light btn-lg" href="/statistics">
+                        <i class="bi bi-graph-up-arrow me-2"></i>
+                        Statistics
+                    </a>
+                }
                 @if (CanViewTours)
                 {
                     <a class="btn btn-outline-light btn-lg" href="/tours">
@@ -270,6 +277,7 @@ else
     private bool CanView => SessionState.HasPermission(AdminPermissions.DashboardView);
     private bool CanExport => SessionState.HasPermission(AdminPermissions.DashboardExport);
     private bool CanViewUsage => SessionState.HasPermission(AdminPermissions.UsageHistoryView);
+    private bool CanViewStatistics => SessionState.HasPermission(AdminPermissions.AnalyticsView);
     private bool CanViewTours => SessionState.HasPermission(AdminPermissions.TourRead);
     private bool CanViewUsers => SessionState.HasPermission(AdminPermissions.UserRead);
     private bool CanViewModeration => SessionState.HasPermission(AdminPermissions.ModerationView);

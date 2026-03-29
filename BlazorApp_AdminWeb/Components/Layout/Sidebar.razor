@@ -21,6 +21,13 @@
                 <span class="sidebar-link__text">Dashboard</span>
             </NavLink>
         }
+        @if (SessionState.HasPermission(AdminPermissions.AnalyticsView))
+        {
+            <NavLink class="sidebar-link" href="/statistics" title="Statistics" aria-label="Statistics" @attributes="GetDismissAttributes()">
+                <i class="bi bi-graph-up-arrow"></i>
+                <span class="sidebar-link__text">Statistics</span>
+            </NavLink>
+        }
         @if (SessionState.HasPermission(AdminPermissions.UsageHistoryView))
         {
             <NavLink class="sidebar-link" href="/usage" title="Usage History" aria-label="Usage History" @attributes="GetDismissAttributes()">
