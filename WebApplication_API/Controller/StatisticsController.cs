@@ -524,7 +524,6 @@ public class StatisticsController(
                 };
             })
             .OrderByDescending(item => item.EndedAt)
-            .Take(12)
             .ToList();
     }
 

@@ -125,7 +125,7 @@ else
             else
             {
                 <div class="audio-list">
-                    @foreach (var audio in FilteredAudio)
+                    @foreach (var audio in PagedAudio)
                     {
                         <article class="@GetAudioCardClass(audio.Status)">
                             <div class="audio-card__header">
@@ -157,6 +157,21 @@ else
                         </article>
                     }
                 </div>
+
+                @if (TotalAudioPages > 1)
+                {
+                    <div class="management-pagination">
+                        <span class="management-pagination__info">Page @CurrentAudioPage of @TotalAudioPages (@FilteredAudio.Count() total audio items)</span>
+                        <div class="management-pagination__actions">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousAudioPage" disabled="@(CurrentAudioPage <= 1)">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextAudioPage" disabled="@(CurrentAudioPage >= TotalAudioPages)">
+                                Next <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
             }
         </section>
 
@@ -551,6 +566,8 @@ else
     private bool _isGeneratingTtsPreview;
     private ElementReference _ttsPreviewElement;
     private string? _loadError;
+    private int _currentAudioPage = 1;
+    private const int AudioItemsPerPage = 5;
     private bool CanView => SessionState.HasPermission(AdminPermissions.AudioRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.AudioManage);
     private bool CanLoadLanguages => SessionState.HasPermission(AdminPermissions.LanguageRead);
@@ -582,6 +599,12 @@ else
             .Where(audio =>
                 string.IsNullOrWhiteSpace(_statusFilter)
                 || audio.Status.ToString() == _statusFilter);
+    private int TotalAudioPages => Math.Max(1, (int)Math.Ceiling((double)FilteredAudio.Count() / AudioItemsPerPage));
+    private int CurrentAudioPage => Math.Min(Math.Max(_currentAudioPage, 1), TotalAudioPages);
+    private IReadOnlyList<AudioDto> PagedAudio => FilteredAudio
+        .Skip((CurrentAudioPage - 1) * AudioItemsPerPage)
+        .Take(AudioItemsPerPage)
+        .ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -626,6 +649,7 @@ else
             EnsureFormLanguageSelection();
 
             SyncSelectedAudio();
+            _currentAudioPage = 1;
 
             if (!CanManage && SelectedAudioForDisplay is not null)
             {
@@ -647,6 +671,22 @@ else
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private void NextAudioPage()
+    {
+        if (CurrentAudioPage < TotalAudioPages)
+        {
+            _currentAudioPage = CurrentAudioPage + 1;
+        }
+    }
+
+    private void PreviousAudioPage()
+    {
+        if (CurrentAudioPage > 1)
+        {
+            _currentAudioPage = CurrentAudioPage - 1;
         }
     }
 

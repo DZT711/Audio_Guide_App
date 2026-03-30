@@ -110,7 +110,7 @@ else
             else
             {
                 <div class="language-list">
-                    @foreach (var language in FilteredLanguages)
+                    @foreach (var language in PagedLanguages)
                     {
                         <article class="@GetLanguageCardClass(language.Status)">
                             <div class="language-card__copy">
@@ -141,6 +141,21 @@ else
                         </article>
                     }
                 </div>
+
+                @if (TotalLanguagePages > 1)
+                {
+                    <div class="management-pagination">
+                        <span class="management-pagination__info">Page @CurrentLanguagePage of @TotalLanguagePages (@FilteredLanguages.Count() total languages)</span>
+                        <div class="management-pagination__actions">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousLanguagePage" disabled="@(CurrentLanguagePage <= 1)">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextLanguagePage" disabled="@(CurrentLanguagePage >= TotalLanguagePages)">
+                                Next <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
             }
         </section>
 
@@ -266,6 +281,8 @@ else
     private int? _editingId;
     private string _searchText = "";
     private string? _loadError;
+    private int _currentLanguagePage = 1;
+    private const int LanguagesPerPage = 4;
     private bool CanView => SessionState.HasPermission(AdminPermissions.LanguageRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.LanguageManage);
     private LanguageDto? SelectedLanguageForDisplay => ResolveSelectedLanguage();
@@ -276,6 +293,12 @@ else
             || language.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
             || language.Code.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
             || (language.NativeName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false));
+    private int TotalLanguagePages => Math.Max(1, (int)Math.Ceiling((double)FilteredLanguages.Count() / LanguagesPerPage));
+    private int CurrentLanguagePage => Math.Min(Math.Max(_currentLanguagePage, 1), TotalLanguagePages);
+    private IReadOnlyList<LanguageDto> PagedLanguages => FilteredLanguages
+        .Skip((CurrentLanguagePage - 1) * LanguagesPerPage)
+        .Take(LanguagesPerPage)
+        .ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -299,6 +322,7 @@ else
                 .ThenBy(item => item.Name));
 
             SyncSelectedLanguage();
+            _currentLanguagePage = 1;
         }
         catch (Exception ex)
         {
@@ -308,6 +332,22 @@ else
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private void NextLanguagePage()
+    {
+        if (CurrentLanguagePage < TotalLanguagePages)
+        {
+            _currentLanguagePage = CurrentLanguagePage + 1;
+        }
+    }
+
+    private void PreviousLanguagePage()
+    {
+        if (CurrentLanguagePage > 1)
+        {
+            _currentLanguagePage = CurrentLanguagePage - 1;
         }
     }
 

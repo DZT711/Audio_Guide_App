@@ -1,8 +1,10 @@
 @page "/statistics"
+@implements IAsyncDisposable
 @using System.Globalization
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject AdminSessionState SessionState
+@inject IJSRuntime JS
 
 <PageTitle>Statistics</PageTitle>
 
@@ -168,62 +170,13 @@ else
                                                 </div>
 
                                                 <div class="statistics-map">
-                                                    @if (_overview.HeatmapPoints.Count == 0 && _overview.Locations.Count == 0)
-                                                    {
-                                                        <div class="app-empty-state">No heatmap data matches the current filters.</div>
-                                                    }
-                                                    else
-                                                    {
-                                                        <svg class="statistics-map__svg" viewBox="0 0 1000 620" role="img" aria-label="Anonymous route heatmap">
-                                                            <defs>
-                                                                <filter id="statisticsHeatBlur">
-                                                                    <feGaussianBlur stdDeviation="22"></feGaussianBlur>
-                                                                </filter>
-                                                                <style>
-                                                                                            .heat-pentagon-orange {
-                                                                                                fill: #FF8C42;
-                                                                                                opacity: 0.8;
-                                                                                            }
-
-                                                                                            .heat-pentagon-yellow {
-                                                                                                fill: #FFD700;
-                                                                                                opacity: 0.8;
-                                                                                            }
-
-                                                                                            .heat-pentagon-red {
-                                                                                                fill: #E63946;
-                                                                                                opacity: 0.8;
-                                                                                            }
-                                                                </style>
-                                                            </defs>
-
-                                                            <rect x="24" y="24" width="952" height="572" rx="32" class="statistics-map__surface"></rect>
-                                                            @foreach (var heatPoint in _overview.HeatmapPoints)
-                                                            {
-                                                                var cx = ToMapX(heatPoint.Longitude).ToString("0.0", CultureInfo.InvariantCulture);
-                                                                var cy = ToMapY(heatPoint.Latitude).ToString("0.0", CultureInfo.InvariantCulture);
-                                                                var pentagonClass = GetHeatPentagonClass(heatPoint.SessionCount);
-                                                                var pentagonPoints = BuildPentagonPoints(ToMapX(heatPoint.Longitude), ToMapY(heatPoint.Latitude),
-                                                    GetPentagonSize(heatPoint.SessionCount));
-                                                                <polygon points="@pentagonPoints" class="@pentagonClass" filter="url(#statisticsHeatBlur)"
-                                                                         title="@heatPoint.SessionCount user(s) - Ward: @heatPoint.Ward"></polygon>
-                                                            }
-                                                            @if (SelectedRoute?.Points.Count > 1)
-                                                            {
-                                                                <polyline points="@BuildRoutePolyline(SelectedRoute!.Points)" class="statistics-map__route">
-                                                                </polyline>
-                                                            }
-                                                            @foreach (var poi in _overview.Locations)
-                                                            {
-                                                                <g
-                                                                    transform="@($"translate({ToMapX(poi.Longitude).ToString("0.0", CultureInfo.InvariantCulture)} {ToMapY(poi.Latitude).ToString("0.0", CultureInfo.InvariantCulture)})")">
-                                                                    <circle class="statistics-map__poi" r="9"></circle>
-                                                                    <text class="statistics-map__poi-label" x="0" y="-16" text-anchor="middle">@poi.Name</text>
-                                                                </g>
-                                                            }
-                                                        </svg>
-                                                    }
+                                                    <div class="statistics-map__canvas" @ref="_statisticsMapElement" role="img" aria-label="Anonymous route heatmap"></div>
                                                 </div>
+
+                                                @if (_overview.HeatmapPoints.Count == 0 && _overview.Locations.Count == 0 && (SelectedRoute?.Points.Count ?? 0) == 0)
+                                                {
+                                                    <div class="app-empty-state statistics-map__notice">No heatmap data matches the current filters.</div>
+                                                }
 
                                                 @if (SelectedRoute is not null)
                                                 {
@@ -276,18 +229,20 @@ else
                                                     </div>
                                                     @if (TotalRoutePages > 1)
                                                     {
-                                                        <div class="statistics-pagination">
-                                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousRoutePage"
-                                                                    disabled="@(_currentRoutePage <= 1)">
-                                                                <i class="bi bi-chevron-left"></i> Previous
-                                                            </button>
-                                                            <span class="pagination-info">Page @_currentRoutePage of @TotalRoutePages (@_overview.RouteHistory.Count
+                                                        <div class="management-pagination">
+                                                            <span class="management-pagination__info">Page @CurrentRoutePage of @TotalRoutePages (@_overview.RouteHistory.Count
                                                                 total)</span>
+                                                            <div class="management-pagination__actions">
+                                                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousRoutePage"
+                                                                        disabled="@(CurrentRoutePage <= 1)">
+                                                                    <i class="bi bi-chevron-left"></i> Previous
+                                                                </button>
                                                                 <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextRoutePage"
-                                                                        disabled="@(_currentRoutePage >= TotalRoutePages)">
+                                                                        disabled="@(CurrentRoutePage >= TotalRoutePages)">
                                                                     Next <i class="bi bi-chevron-right"></i>
                                                                 </button>
                                                             </div>
+                                                        </div>
                                                         }
                                                     }
                                                 </section>
@@ -485,24 +440,44 @@ else
     private string? _selectedSessionKey;
     private bool _isLoading = true;
     private string? _loadError;
+    private ElementReference _statisticsMapElement;
+    private bool _statisticsMapInitialized;
+    private bool _statisticsMapSyncPending;
 
-    // Pagination
     private int _currentRoutePage = 1;
-    private const int RoutesPerPage = 5;
+    private const int RoutesPerPage = 4;
 
     private bool CanView => SessionState.HasPermission(AdminPermissions.AnalyticsView);
     private StatisticsRouteHistoryDto? SelectedRoute => _overview.RouteHistory.FirstOrDefault(item =>
 string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgnoreCase));
-    private HeatmapViewport Viewport => HeatmapViewport.Create(_overview.HeatmapPoints, _overview.Locations,
-SelectedRoute?.Points ?? []);
-
     private int TotalRoutePages => Math.Max(1, (int)Math.Ceiling((double)_overview.RouteHistory.Count / RoutesPerPage));
+    private int CurrentRoutePage => Math.Min(Math.Max(_currentRoutePage, 1), TotalRoutePages);
     private IReadOnlyList<StatisticsRouteHistoryDto> PaginatedRoutes => _overview.RouteHistory
-        .Skip((_currentRoutePage - 1) * RoutesPerPage)
+        .Skip((CurrentRoutePage - 1) * RoutesPerPage)
         .Take(RoutesPerPage)
         .ToList();
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!CanView || _isLoading || !string.IsNullOrWhiteSpace(_loadError))
+        {
+            return;
+        }
+
+        if (!_statisticsMapInitialized)
+        {
+            _statisticsMapInitialized = await InitializeStatisticsMapAsync();
+            _statisticsMapSyncPending = false;
+            return;
+        }
+
+        if (_statisticsMapSyncPending)
+        {
+            _statisticsMapSyncPending = false;
+            await SyncStatisticsMapAsync();
+        }
+    }
 
     private async Task RefreshAsync() => await LoadAsync();
 
@@ -519,6 +494,7 @@ SelectedRoute?.Points ?? []);
 
     private async Task LoadAsync()
     {
+        await DisposeStatisticsMapAsync();
         _isLoading = true;
         _loadError = null;
         _currentRoutePage = 1;
@@ -538,6 +514,9 @@ SelectedRoute?.Points ?? []);
 StringComparison.OrdinalIgnoreCase))
                 ? _selectedSessionKey
                 : _overview.RouteHistory.FirstOrDefault()?.SessionKey;
+
+            EnsureSelectedRouteVisibleOnCurrentPage();
+            _statisticsMapSyncPending = true;
         }
         catch (Exception ex)
         {
@@ -550,21 +529,27 @@ StringComparison.OrdinalIgnoreCase))
         }
     }
 
-    private void SelectRoute(string sessionKey) => _selectedSessionKey = sessionKey;
+    private void SelectRoute(string sessionKey)
+    {
+        _selectedSessionKey = sessionKey;
+        _statisticsMapSyncPending = true;
+    }
 
     private void NextRoutePage()
     {
-        if (_currentRoutePage < TotalRoutePages)
+        if (CurrentRoutePage < TotalRoutePages)
         {
-            _currentRoutePage++;
+            _currentRoutePage = CurrentRoutePage + 1;
+            EnsureSelectedRouteVisibleOnCurrentPage();
         }
     }
 
     private void PreviousRoutePage()
     {
-        if (_currentRoutePage > 1)
+        if (CurrentRoutePage > 1)
         {
-            _currentRoutePage--;
+            _currentRoutePage = CurrentRoutePage - 1;
+            EnsureSelectedRouteVisibleOnCurrentPage();
         }
     }
 
@@ -599,59 +584,120 @@ route.SessionKey;
         return 18d + (value / maxValue) * 82d;
     }
 
-    private string GetHeatPentagonClass(int sessionCount) => sessionCount switch
+    private void EnsureSelectedRouteVisibleOnCurrentPage()
     {
-        1 => "heat-pentagon-orange",
-        >= 2 and <= 5 => "heat-pentagon-yellow",
-        > 5 => "heat-pentagon-red",
-        _ => "heat-pentagon-yellow"
-    };
-
-    private double GetPentagonSize(int sessionCount) => sessionCount switch
-    {
-        1 => 15,
-        >= 2 and <= 5 => 22,
-        > 5 => 30,
-        _ => 22
-    };
-
-    private string BuildPentagonPoints(double cx, double cy, double size)
-    {
-        var points = new List<string>();
-        for (int i = 0; i < 5; i++)
+        if (PaginatedRoutes.Count == 0)
         {
-            var angle = (Math.PI / 2) + (2 * Math.PI * i / 5);
-            var x = cx + size * Math.Cos(angle);
-            var y = cy + size * Math.Sin(angle);
-            points.Add($"{x.ToString("0.0", CultureInfo.InvariantCulture)},{y.ToString("0.0", CultureInfo.InvariantCulture)}");
+            _selectedSessionKey = _overview.RouteHistory.FirstOrDefault()?.SessionKey;
+            _statisticsMapSyncPending = true;
+            return;
         }
-        return string.Join(" ", points);
+
+        if (!PaginatedRoutes.Any(item => string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            _selectedSessionKey = PaginatedRoutes[0].SessionKey;
+            _statisticsMapSyncPending = true;
+        }
     }
 
-    private double ToMapX(double longitude) => 72d + ((longitude - Viewport.MinLongitude) / Viewport.LongitudeSpan) * 856d;
-    private double ToMapY(double latitude) => 548d - ((latitude - Viewport.MinLatitude) / Viewport.LatitudeSpan) * 476d;
-    private string BuildRoutePolyline(IReadOnlyList<StatisticsRoutePointDto> points) => string.Join(" ", points.Select(point
-=> $"{ToMapX(point.Longitude).ToString("0.0", CultureInfo.InvariantCulture)},{ToMapY(point.Latitude).ToString("0.0",
-CultureInfo.InvariantCulture)}"));
-    private double GetHeatRadius(int intensity) => 22 + Math.Min(54, intensity * 7);
-    private double GetHeatOpacity(int intensity) => Math.Min(0.78, 0.18 + intensity * 0.08);
-
-    private sealed record HeatmapViewport(double MinLatitude, double MaxLatitude, double MinLongitude, double MaxLongitude)
+    private object CreateStatisticsMapState() => new
     {
-        public double LatitudeSpan => Math.Max(0.0006, MaxLatitude - MinLatitude);
-        public double LongitudeSpan => Math.Max(0.0006, MaxLongitude - MinLongitude);
-
-        public static HeatmapViewport Create(
-            IReadOnlyList<StatisticsHeatPointDto> heatPoints,
-            IReadOnlyList<StatisticsLocationDto> locations,
-            IReadOnlyList<StatisticsRoutePointDto> routePoints)
+        heatPoints = _overview.HeatmapPoints.Select(item => new
         {
-            var latitudes = heatPoints.Select(item => item.Latitude).Concat(locations.Select(item =>
-item.Latitude)).Concat(routePoints.Select(item => item.Latitude)).DefaultIfEmpty(10.7715).ToList();
-            var longitudes = heatPoints.Select(item => item.Longitude).Concat(locations.Select(item =>
-item.Longitude)).Concat(routePoints.Select(item => item.Longitude)).DefaultIfEmpty(106.7040).ToList();
-            return new HeatmapViewport(latitudes.Min() - 0.0008, latitudes.Max() + 0.0008, longitudes.Min() - 0.0008,
-longitudes.Max() + 0.0008);
+            latitude = item.Latitude,
+            longitude = item.Longitude,
+            sessionCount = item.SessionCount,
+            intensity = item.Intensity,
+            ward = item.Ward
+        }).ToList(),
+        locations = _overview.Locations.Select(item => new
+        {
+            latitude = item.Latitude,
+            longitude = item.Longitude,
+            name = item.Name,
+            ward = item.Ward,
+            ownerName = item.OwnerName
+        }).ToList(),
+        selectedRoute = SelectedRoute is null
+            ? null
+            : new
+            {
+                label = GetRouteLabel(SelectedRoute),
+                primaryWard = SelectedRoute.PrimaryWard,
+                routeDistanceKm = SelectedRoute.RouteDistanceKm,
+                trackingPointCount = SelectedRoute.TrackingPointCount,
+                points = SelectedRoute.Points.Select(item => new
+                {
+                    latitude = item.Latitude,
+                    longitude = item.Longitude,
+                    capturedAt = item.CapturedAt
+                }).ToList()
+            }
+    };
+
+    private async Task<bool> InitializeStatisticsMapAsync()
+    {
+        try
+        {
+            var isInitialized = await JS.InvokeAsync<bool>(
+                "smartTourAdmin.map.initializeStatisticsMap",
+                _statisticsMapElement,
+                CreateStatisticsMapState());
+
+            if (!isInitialized)
+            {
+                Notifications.Warning("The analytics map is unavailable right now.", "Map unavailable");
+            }
+
+            return isInitialized;
         }
+        catch (JSException)
+        {
+            Notifications.Warning("The analytics map is unavailable right now.", "Map unavailable");
+            return false;
+        }
+    }
+
+    private async Task SyncStatisticsMapAsync()
+    {
+        try
+        {
+            await JS.InvokeAsync<bool>(
+                "smartTourAdmin.map.syncStatisticsMap",
+                _statisticsMapElement,
+                CreateStatisticsMapState());
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private async Task DisposeStatisticsMapAsync()
+    {
+        if (!_statisticsMapInitialized)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.map.disposeStatisticsMap", _statisticsMapElement);
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+        finally
+        {
+            _statisticsMapInitialized = false;
+            _statisticsMapSyncPending = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeStatisticsMapAsync();
     }
 }

@@ -140,12 +140,8 @@ D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Co
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\UserList.razor.rz.scp.css
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\bundle\BlazorApp_AdminWeb.styles.css
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\projectbundle\BlazorApp_AdminWeb.bundle.scp.css
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gp3blz7zhz-{0}-nryqexqwwm-nryqexqwwm.gz
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\r008phjwfc-{0}-bnwd12qixm-bnwd12qixm.gz
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\p6btukz6bd-{0}-mgww215af1-mgww215af1.gz
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\nvd57mooxa-{0}-dy8h75y8gn-dy8h75y8gn.gz
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-drqd3nw1qr-drqd3nw1qr.gz
-D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-drqd3nw1qr-drqd3nw1qr.gz
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.build.json
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.build.json.cache
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.development.json
@@ -157,3 +153,7 @@ D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\refint\Blazo
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.pdb
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.genruntimeconfig.cache
 D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\ref\BlazorApp_AdminWeb.dll
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gp3blz7zhz-{0}-nohhzljnkn-nohhzljnkn.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\r008phjwfc-{0}-saa5koydtg-saa5koydtg.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-q1dy8j72z5-q1dy8j72z5.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-q1dy8j72z5-q1dy8j72z5.gz

@@ -144,7 +144,7 @@ else
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var location in FilteredLocations)
+                            @foreach (var location in PagedLocations)
                             {
                                 <tr class="@GetRowClass(location.Status)">
                                     <td>
@@ -170,6 +170,21 @@ else
                         </tbody>
                     </table>
                 </div>
+
+                @if (TotalLocationPages > 1)
+                {
+                    <div class="management-pagination">
+                        <span class="management-pagination__info">Page @CurrentLocationPage of @TotalLocationPages (@FilteredLocations.Count() total locations)</span>
+                        <div class="management-pagination__actions">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousLocationPage" disabled="@(CurrentLocationPage <= 1)">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextLocationPage" disabled="@(CurrentLocationPage >= TotalLocationPages)">
+                                Next <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
             }
         </section>
 
@@ -560,6 +575,8 @@ else
     private bool CanManage => SessionState.HasPermission(AdminPermissions.LocationManage);
     private bool CanSelectOwner => SessionState.HasPermission(AdminPermissions.UserRead) && CanManage;
     private LocationDto? SelectedLocationForDisplay => ResolveSelectedLocation();
+    private int _currentLocationPage = 1;
+    private const int LocationsPerPage = 8;
     private IEnumerable<CategoryDto> ActiveCategories => _categories
         .Where(item => item.Status == 1)
         .OrderBy(item => item.Name);
@@ -584,6 +601,12 @@ else
             .Where(location =>
                 string.IsNullOrWhiteSpace(_selectedStatus)
                 || location.Status.ToString() == _selectedStatus);
+    private int TotalLocationPages => Math.Max(1, (int)Math.Ceiling((double)FilteredLocations.Count() / LocationsPerPage));
+    private int CurrentLocationPage => Math.Min(Math.Max(_currentLocationPage, 1), TotalLocationPages);
+    private IReadOnlyList<LocationDto> PagedLocations => FilteredLocations
+        .Skip((CurrentLocationPage - 1) * LocationsPerPage)
+        .Take(LocationsPerPage)
+        .ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -649,6 +672,7 @@ else
 
             EnsureFormCategorySelection();
             SyncSelectedLocation();
+            _currentLocationPage = 1;
         }
         catch (Exception ex)
         {
@@ -658,6 +682,22 @@ else
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private void NextLocationPage()
+    {
+        if (CurrentLocationPage < TotalLocationPages)
+        {
+            _currentLocationPage = CurrentLocationPage + 1;
+        }
+    }
+
+    private void PreviousLocationPage()
+    {
+        if (CurrentLocationPage > 1)
+        {
+            _currentLocationPage = CurrentLocationPage - 1;
         }
     }
 

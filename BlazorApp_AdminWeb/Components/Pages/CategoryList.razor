@@ -110,7 +110,7 @@ else
             else
             {
                 <div class="category-list">
-                    @foreach (var category in FilteredCategories)
+                    @foreach (var category in PagedCategories)
                     {
                         <article class="@GetCategoryCardClass(category.Status)">
                             <div class="category-card__copy">
@@ -130,6 +130,21 @@ else
                         </article>
                     }
                 </div>
+
+                @if (TotalCategoryPages > 1)
+                {
+                    <div class="management-pagination">
+                        <span class="management-pagination__info">Page @CurrentCategoryPage of @TotalCategoryPages (@FilteredCategories.Count() total categories)</span>
+                        <div class="management-pagination__actions">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousCategoryPage" disabled="@(CurrentCategoryPage <= 1)">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextCategoryPage" disabled="@(CurrentCategoryPage >= TotalCategoryPages)">
+                                Next <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
             }
         </section>
 
@@ -225,6 +240,8 @@ else
     private int? _editingId;
     private string _searchText = "";
     private string? _loadError;
+    private int _currentCategoryPage = 1;
+    private const int CategoriesPerPage = 4;
     private bool CanView => SessionState.HasPermission(AdminPermissions.CategoryRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.CategoryManage);
     private CategoryDto? SelectedCategoryForDisplay => ResolveSelectedCategory();
@@ -234,6 +251,12 @@ else
             string.IsNullOrWhiteSpace(_searchText)
             || category.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
             || (category.Description?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false));
+    private int TotalCategoryPages => Math.Max(1, (int)Math.Ceiling((double)FilteredCategories.Count() / CategoriesPerPage));
+    private int CurrentCategoryPage => Math.Min(Math.Max(_currentCategoryPage, 1), TotalCategoryPages);
+    private IReadOnlyList<CategoryDto> PagedCategories => FilteredCategories
+        .Skip((CurrentCategoryPage - 1) * CategoriesPerPage)
+        .Take(CategoriesPerPage)
+        .ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -256,6 +279,7 @@ else
                 .ThenBy(item => item.Name));
 
             SyncSelectedCategory();
+            _currentCategoryPage = 1;
         }
         catch (Exception ex)
         {
@@ -265,6 +289,22 @@ else
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private void NextCategoryPage()
+    {
+        if (CurrentCategoryPage < TotalCategoryPages)
+        {
+            _currentCategoryPage = CurrentCategoryPage + 1;
+        }
+    }
+
+    private void PreviousCategoryPage()
+    {
+        if (CurrentCategoryPage > 1)
+        {
+            _currentCategoryPage = CurrentCategoryPage - 1;
         }
     }
 

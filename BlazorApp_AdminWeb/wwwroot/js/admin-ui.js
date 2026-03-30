@@ -14,6 +14,7 @@
     };
     const locationPickers = new WeakMap();
     const tourPlanners = new WeakMap();
+    const statisticsMaps = new WeakMap();
 
     admin.storage = {
         get: (key) => window.localStorage.getItem(key),
@@ -820,6 +821,188 @@
         planner.map.invalidateSize();
     };
 
+    const normalizeStatisticsLatLngs = (points) => (Array.isArray(points) ? points : [])
+        .filter((point) =>
+            Number.isFinite(Number(point?.latitude))
+            && Number.isFinite(Number(point?.longitude)))
+        .map((point) => [Number(point.latitude), Number(point.longitude)]);
+
+    const getStatisticsHeatTone = (sessionCount) => {
+        const normalizedCount = Number(sessionCount) || 0;
+        if (normalizedCount > 5) {
+            return "red";
+        }
+
+        if (normalizedCount > 1) {
+            return "yellow";
+        }
+
+        return "orange";
+    };
+
+    const getStatisticsHeatSize = (sessionCount) => {
+        const normalizedCount = Number(sessionCount) || 0;
+        if (normalizedCount > 5) {
+            return 56;
+        }
+
+        if (normalizedCount > 1) {
+            return 48;
+        }
+
+        return 40;
+    };
+
+    const createStatisticsHeatIcon = (point) => {
+        const sessionCount = Math.max(1, Number(point?.sessionCount) || 1);
+        const size = getStatisticsHeatSize(sessionCount);
+        const tone = getStatisticsHeatTone(sessionCount);
+        const label = sessionCount > 99 ? "99+" : String(sessionCount);
+
+        return L.divIcon({
+            className: "statistics-map__heat-icon-shell",
+            html: `<div class="statistics-map__heat-icon statistics-map__heat-icon--${tone}" style="--heat-size:${size}px;"><span>${escapeHtml(label)}</span></div>`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2]
+        });
+    };
+
+    const getStatisticsBoundsLatLngs = (state) => {
+        const routeLatLngs = normalizeStatisticsLatLngs(state?.selectedRoute?.points);
+        if (routeLatLngs.length) {
+            return routeLatLngs;
+        }
+
+        const heatLatLngs = normalizeStatisticsLatLngs(state?.heatPoints);
+        const locationLatLngs = normalizeStatisticsLatLngs(state?.locations);
+        return [...heatLatLngs, ...locationLatLngs];
+    };
+
+    const fitStatisticsBounds = (statisticsMap, state) => {
+        const targetLatLngs = getStatisticsBoundsLatLngs(state);
+        if (!targetLatLngs.length) {
+            statisticsMap.map.setView([defaultMapCenter.lat, defaultMapCenter.lng], 13);
+            return;
+        }
+
+        if (targetLatLngs.length === 1) {
+            statisticsMap.map.setView(targetLatLngs[0], 15);
+            return;
+        }
+
+        statisticsMap.map.fitBounds(L.latLngBounds(targetLatLngs).pad(0.18));
+    };
+
+    const renderStatisticsMap = (statisticsMap, state, fitBounds) => {
+        const heatPoints = Array.isArray(state?.heatPoints) ? state.heatPoints : [];
+        const locations = Array.isArray(state?.locations) ? state.locations : [];
+        const routePoints = Array.isArray(state?.selectedRoute?.points) ? state.selectedRoute.points : [];
+
+        statisticsMap.layerGroup.clearLayers();
+
+        heatPoints.forEach((point) => {
+            const latitude = Number(point?.latitude);
+            const longitude = Number(point?.longitude);
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+                return;
+            }
+
+            const marker = L.marker([latitude, longitude], {
+                icon: createStatisticsHeatIcon(point),
+                keyboard: false,
+                zIndexOffset: Number(point?.sessionCount) > 5 ? 400 : 250
+            });
+
+            const sessionCount = Math.max(1, Number(point?.sessionCount) || 1);
+            const intensity = Math.max(1, Number(point?.intensity) || 1);
+            const ward = String(point?.ward ?? "").trim() || "Unassigned";
+
+            marker.bindTooltip(`${sessionCount} user(s) in this area`, {
+                direction: "top",
+                offset: [0, -10]
+            });
+
+            marker.bindPopup(`
+                <div class="statistics-map__popup">
+                    <strong>${escapeHtml(ward)}</strong>
+                    <div>${escapeHtml(`${sessionCount} user(s) in this area`)}</div>
+                    <div>${escapeHtml(`${intensity} tracking point(s) captured here`)}</div>
+                </div>
+            `);
+
+            statisticsMap.layerGroup.addLayer(marker);
+        });
+
+        const routeLatLngs = normalizeStatisticsLatLngs(routePoints);
+        if (routeLatLngs.length > 1) {
+            statisticsMap.layerGroup.addLayer(L.polyline(routeLatLngs, {
+                color: "#0f766e",
+                weight: 5,
+                opacity: 0.9,
+                lineCap: "round",
+                lineJoin: "round"
+            }));
+
+            statisticsMap.layerGroup.addLayer(L.circleMarker(routeLatLngs[0], {
+                radius: 6,
+                color: "#ffffff",
+                weight: 2,
+                fillColor: "#10b981",
+                fillOpacity: 1
+            }).bindTooltip("Route start"));
+
+            statisticsMap.layerGroup.addLayer(L.circleMarker(routeLatLngs[routeLatLngs.length - 1], {
+                radius: 6,
+                color: "#ffffff",
+                weight: 2,
+                fillColor: "#0f172a",
+                fillOpacity: 1
+            }).bindTooltip("Route end"));
+        }
+
+        locations.forEach((location) => {
+            const latitude = Number(location?.latitude);
+            const longitude = Number(location?.longitude);
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+                return;
+            }
+
+            const marker = L.circleMarker([latitude, longitude], {
+                radius: 7,
+                color: "#ffffff",
+                weight: 3,
+                fillColor: "#0f172a",
+                fillOpacity: 0.96,
+                className: "statistics-map__poi-dot"
+            });
+
+            const locationName = String(location?.name ?? "").trim() || "POI";
+            const ward = String(location?.ward ?? "").trim() || "Unassigned";
+            const ownerName = String(location?.ownerName ?? "").trim() || "No owner";
+
+            marker.bindTooltip(locationName, {
+                direction: "top",
+                offset: [0, -8]
+            });
+
+            marker.bindPopup(`
+                <div class="statistics-map__popup">
+                    <strong>${escapeHtml(locationName)}</strong>
+                    <div>${escapeHtml(ward)}</div>
+                    <div>${escapeHtml(ownerName)}</div>
+                </div>
+            `);
+
+            statisticsMap.layerGroup.addLayer(marker);
+        });
+
+        if (fitBounds) {
+            fitStatisticsBounds(statisticsMap, state);
+        }
+
+        statisticsMap.map.invalidateSize();
+    };
+
     admin.map = {
         initializeLocationPicker: (element, dotNetRef, latitude, longitude) => {
             if (!element || typeof L === "undefined") {
@@ -967,6 +1150,58 @@
 
             planner.map.remove();
             tourPlanners.delete(element);
+        },
+        initializeStatisticsMap: (element, state) => {
+            if (!element || typeof L === "undefined") {
+                return false;
+            }
+
+            const existingMap = statisticsMaps.get(element);
+            if (existingMap) {
+                renderStatisticsMap(existingMap, state, true);
+                return true;
+            }
+
+            const map = L.map(element, {
+                zoomControl: true
+            });
+
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                attribution: "&copy; OpenStreetMap contributors"
+            }).addTo(map);
+
+            const statisticsMap = {
+                map,
+                layerGroup: L.layerGroup().addTo(map)
+            };
+
+            renderStatisticsMap(statisticsMap, state, true);
+            statisticsMaps.set(element, statisticsMap);
+
+            window.setTimeout(() => {
+                map.invalidateSize();
+            }, 0);
+
+            return true;
+        },
+        syncStatisticsMap: (element, state) => {
+            const statisticsMap = statisticsMaps.get(element);
+            if (!statisticsMap) {
+                return false;
+            }
+
+            renderStatisticsMap(statisticsMap, state, true);
+            return true;
+        },
+        disposeStatisticsMap: (element) => {
+            const statisticsMap = statisticsMaps.get(element);
+            if (!statisticsMap) {
+                return;
+            }
+
+            statisticsMap.map.remove();
+            statisticsMaps.delete(element);
         }
     };
 
