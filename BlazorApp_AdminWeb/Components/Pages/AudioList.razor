@@ -148,9 +148,9 @@ else
                             <div class="audio-card__footer">
                                 <small class="management-muted">@GetAudioStorageLabel(audio.AudioURL)</small>
                                 <div class="management-inline-actions">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">@(CanManage ? "Edit" : "View")</button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || audio.Status == 0)" @onclick="() => PromptArchiveAudio(audio)">
-                                        @(audio.Status == 0 ? "Inactive" : "Archive")
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">@(CanEditContent ? "Edit" : "View")</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage && !CanSubmitRequests || audio.Status == 0)" @onclick="() => PromptArchiveAudio(audio)">
+                                        @(audio.Status == 0 ? "Inactive" : CanManage ? "Archive" : "Request Archive")
                                     </button>
                                 </div>
                             </div>
@@ -178,12 +178,12 @@ else
         <section class="management-panel audio-editor" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">@(CanManage ? "Editor" : "Read Only")</span>
-                    <h2>@(CanManage ? (_editingId is null ? "Create Audio" : "Edit Audio") : "Audio Details")</h2>
+                    <span class="management-panel__eyebrow">@(CanEditContent ? (CanManage ? "Editor" : "Submission") : "Read Only")</span>
+                    <h2>@(CanEditContent ? (_editingId is null ? "Create Audio" : "Edit Audio") : "Audio Details")</h2>
                 </div>
             </div>
 
-            @if (CanManage)
+            @if (CanEditContent)
             {
             <EditForm Model="_formModel" OnValidSubmit="SaveAudioAsync" class="management-form">
                 <DataAnnotationsValidator />
@@ -395,13 +395,22 @@ else
                             <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
                         </div>
                     </div>
+
+                    @if (CanSubmitRequests && !CanManage)
+                    {
+                        <div class="management-field management-field--full">
+                            <label for="audio-request-reason">Submission Note</label>
+                            <InputTextArea id="audio-request-reason" class="form-control" rows="3" @bind-Value="_submissionReason" />
+                            <span class="management-field__hint">Optional note for Admin or Developer review.</span>
+                        </div>
+                    }
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveLocations || !HasLanguageCatalog || !CanManage)">
-                        @(_isSaving ? "Saving..." : _editingId is null ? "Create Audio" : "Save Changes")
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveLocations || !HasLanguageCatalog || !CanEditContent)">
+                        @GetSaveButtonLabel()
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel")</button>
                 </div>
             </EditForm>
             }
@@ -417,7 +426,7 @@ else
 
                 <div class="audio-readonly">
                     <div class="audio-readonly__notice">
-                        Changes to your own audio items require an Admin or Developer account.
+                        This role can review audio details only.
                     </div>
 
                     <div class="audio-file-preview">
@@ -531,13 +540,22 @@ else
 </div>
 
 <AdminConfirmDialog Visible="@(_pendingArchivedAudio is not null)"
-                    Eyebrow="Archive Audio"
-                    Title="Archive this audio item?"
+                    Eyebrow="@(CanManage ? "Archive Audio" : "Request Archive")"
+                    Title="@(CanManage ? "Archive this audio item?" : "Submit an archive request?")"
                     Message="@GetPendingArchiveAudioMessage()"
-                    ConfirmLabel="Archive Audio"
+                    ConfirmLabel="@(CanManage ? "Archive Audio" : "Submit Request")"
                     ConfirmButtonClass="btn btn-danger"
                     OnConfirm="ConfirmArchiveAudioAsync"
-                    OnCancel="CancelArchiveAudio" />
+                    OnCancel="CancelArchiveAudio">
+    @if (CanSubmitRequests && !CanManage)
+    {
+        <div class="management-field">
+            <label for="audio-archive-reason">Submission Note</label>
+            <InputTextArea id="audio-archive-reason" class="form-control" rows="3" @bind-Value="_archiveReason" />
+            <span class="management-field__hint">Optional note for the reviewer.</span>
+        </div>
+    }
+</AdminConfirmDialog>
 }
 
 @code {
@@ -566,10 +584,14 @@ else
     private bool _isGeneratingTtsPreview;
     private ElementReference _ttsPreviewElement;
     private string? _loadError;
+    private string _submissionReason = "";
+    private string _archiveReason = "";
     private int _currentAudioPage = 1;
     private const int AudioItemsPerPage = 5;
     private bool CanView => SessionState.HasPermission(AdminPermissions.AudioRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.AudioManage);
+    private bool CanSubmitRequests => SessionState.HasPermission(AdminPermissions.AudioRequest);
+    private bool CanEditContent => CanManage || CanSubmitRequests;
     private bool CanLoadLanguages => SessionState.HasPermission(AdminPermissions.LanguageRead);
     private IEnumerable<LocationDto> ActiveLocationOptions => _locations
         .Where(item => item.Status == 1)
@@ -651,13 +673,13 @@ else
             SyncSelectedAudio();
             _currentAudioPage = 1;
 
-            if (!CanManage && SelectedAudioForDisplay is not null)
+            if (!CanEditContent && SelectedAudioForDisplay is not null)
             {
                 ApplyForm(AudioFormModel.FromDto(SelectedAudioForDisplay));
                 await ClearTtsPreviewAsync();
                 await RefreshAudioPreviewAsync();
             }
-            else if (!CanManage)
+            else if (!CanEditContent)
             {
                 await ClearTtsPreviewAsync();
                 await ClearAudioPreviewAsync();
@@ -700,7 +722,7 @@ else
     private void StartEdit(AudioDto audio)
     {
         _selectedAudio = audio;
-        _editingId = CanManage ? audio.Id : null;
+        _editingId = CanEditContent ? audio.Id : null;
         var snapshot = AudioFormModel.FromDto(audio);
         ApplyForm(snapshot);
     }
@@ -714,7 +736,7 @@ else
 
     private async Task SaveAudioAsync()
     {
-        if (!CanManage)
+        if (!CanEditContent)
         {
             Notifications.Warning("Your role can view audio but cannot save changes.", "Read-only access");
             return;
@@ -729,15 +751,28 @@ else
 
         try
         {
-            if (_editingId is null)
+            if (CanManage && _editingId is null)
             {
                 await ApiClient.CreateAudioAsync(_formModel);
                 Notifications.Success("Audio created successfully.", "Audio saved");
             }
+            else if (CanManage && _editingId is int editingId)
+            {
+                await ApiClient.UpdateAudioAsync(editingId, _formModel);
+                Notifications.Success("Audio updated successfully.", "Audio saved");
+            }
             else
             {
-                await ApiClient.UpdateAudioAsync(_editingId.Value, _formModel);
-                Notifications.Success("Audio updated successfully.", "Audio saved");
+                await ApiClient.SubmitAudioChangeRequestAsync(
+                    _formModel,
+                    _editingId is null ? "CREATE" : "UPDATE",
+                    _editingId,
+                    _submissionReason);
+                Notifications.Success(
+                    _editingId is null
+                        ? "Your new audio request was submitted for Admin or Developer approval."
+                        : "Your audio update request was submitted for Admin or Developer approval.",
+                    "Request submitted");
             }
 
             await LoadDataAsync();
@@ -755,7 +790,7 @@ else
 
     private void PromptArchiveAudio(AudioDto audio)
     {
-        if (!CanManage)
+        if (!CanManage && !CanSubmitRequests)
         {
             Notifications.Warning("Your role can view audio but cannot archive it.", "Read-only access");
             return;
@@ -766,15 +801,28 @@ else
 
     private async Task ConfirmArchiveAudioAsync()
     {
-        if (!CanManage || _pendingArchivedAudio is null)
+        if ((!CanManage && !CanSubmitRequests) || _pendingArchivedAudio is null)
         {
             return;
         }
 
         try
         {
-            await ApiClient.DeleteAudioAsync(_pendingArchivedAudio.Id);
-            Notifications.Info($"'{_pendingArchivedAudio.Title}' is now inactive.", "Audio archived");
+            if (CanManage)
+            {
+                await ApiClient.DeleteAudioAsync(_pendingArchivedAudio.Id);
+                Notifications.Info($"'{_pendingArchivedAudio.Title}' is now inactive.", "Audio archived");
+            }
+            else
+            {
+                await ApiClient.SubmitAudioChangeRequestAsync(
+                    AudioFormModel.FromDto(_pendingArchivedAudio),
+                    "DELETE",
+                    _pendingArchivedAudio.Id,
+                    _archiveReason);
+                Notifications.Info($"Archive request for '{_pendingArchivedAudio.Title}' was submitted for approval.", "Request submitted");
+            }
+
             await LoadDataAsync();
 
             if (_editingId == _pendingArchivedAudio.Id)
@@ -879,6 +927,8 @@ else
             Language = GetDefaultLanguageCode(),
             Status = 1
         });
+        _submissionReason = "";
+        _archiveReason = "";
     }
 
     private void CancelEdit()
@@ -956,7 +1006,7 @@ else
             _selectedAudio = _audioItems.FirstOrDefault(item => item.Id == _selectedAudio.Id);
         }
 
-        if (!CanManage && _selectedAudio is null)
+        if (!CanEditContent && _selectedAudio is null)
         {
             _selectedAudio = _audioItems.FirstOrDefault();
         }
@@ -1010,6 +1060,21 @@ else
     private static string GetBoolChipClass(bool value, bool currentValue) => value == currentValue
         ? "management-chip management-chip--selected"
         : "management-chip";
+
+    private string GetSaveButtonLabel()
+    {
+        if (_isSaving)
+        {
+            return CanManage ? "Saving..." : "Submitting...";
+        }
+
+        if (CanManage)
+        {
+            return _editingId is null ? "Create Audio" : "Save Changes";
+        }
+
+        return _editingId is null ? "Submit New Audio" : "Submit Update Request";
+    }
 
     private string GetLanguageOptionLabel(LanguageDto language)
     {
@@ -1293,9 +1358,15 @@ else
     private string GetPendingArchiveAudioMessage() =>
         _pendingArchivedAudio is null
             ? string.Empty
-            : $"'{_pendingArchivedAudio.Title}' will become inactive and stop accepting new edits until it is restored to active status.";
+            : CanManage
+                ? $"'{_pendingArchivedAudio.Title}' will become inactive and stop accepting new edits until it is restored to active status."
+                : $"An Admin or Developer will review the archive request for '{_pendingArchivedAudio.Title}' before the live audio item is changed.";
 
-    private void CancelArchiveAudio() => _pendingArchivedAudio = null;
+    private void CancelArchiveAudio()
+    {
+        _pendingArchivedAudio = null;
+        _archiveReason = "";
+    }
 
     public async ValueTask DisposeAsync()
     {

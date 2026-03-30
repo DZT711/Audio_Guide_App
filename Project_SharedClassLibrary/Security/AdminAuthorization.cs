@@ -22,16 +22,19 @@ public static class AdminPermissions
     public const string DashboardView = "dashboard:view";
     public const string DashboardExport = "dashboard:export";
     public const string UsageHistoryView = "usage:view";
+    public const string InboxView = "inbox:view";
     public const string CategoryRead = "category:read";
     public const string CategoryManage = "category:manage";
     public const string LanguageRead = "language:read";
     public const string LanguageManage = "language:manage";
     public const string LocationRead = "location:read";
     public const string LocationManage = "location:manage";
+    public const string LocationRequest = "location:request";
     public const string TourRead = "tour:read";
     public const string TourManage = "tour:manage";
     public const string AudioRead = "audio:read";
     public const string AudioManage = "audio:manage";
+    public const string AudioRequest = "audio:request";
     public const string UserRead = "user:read";
     public const string UserManage = "user:manage";
     public const string ModerationView = "moderation:view";
@@ -59,6 +62,7 @@ public static class AdminRolePolicies
                 AdminPermissions.DashboardView,
                 AdminPermissions.DashboardExport,
                 AdminPermissions.UsageHistoryView,
+                AdminPermissions.InboxView,
                 AdminPermissions.CategoryRead,
                 AdminPermissions.CategoryManage,
                 AdminPermissions.LanguageRead,
@@ -80,6 +84,7 @@ public static class AdminRolePolicies
                 AdminPermissions.DashboardView,
                 AdminPermissions.DashboardExport,
                 AdminPermissions.UsageHistoryView,
+                AdminPermissions.InboxView,
                 AdminPermissions.CategoryRead,
                 AdminPermissions.CategoryManage,
                 AdminPermissions.LanguageRead,
@@ -100,6 +105,7 @@ public static class AdminRolePolicies
             [
                 AdminPermissions.DashboardView,
                 AdminPermissions.AnalyticsView,
+                AdminPermissions.InboxView,
                 AdminPermissions.CategoryRead,
                 AdminPermissions.LocationRead,
                 AdminPermissions.TourRead,
@@ -111,6 +117,7 @@ public static class AdminRolePolicies
                 AdminPermissions.DashboardView,
                 AdminPermissions.DashboardExport,
                 AdminPermissions.UsageHistoryView,
+                AdminPermissions.InboxView,
                 AdminPermissions.LocationRead,
                 AdminPermissions.AudioRead,
                 AdminPermissions.AnalyticsView
@@ -120,9 +127,14 @@ public static class AdminRolePolicies
                 AdminPermissions.DashboardView,
                 AdminPermissions.AnalyticsView,
                 AdminPermissions.UsageHistoryView,
+                AdminPermissions.CategoryRead,
+                AdminPermissions.LanguageRead,
+                AdminPermissions.InboxView,
                 AdminPermissions.LocationRead,
+                AdminPermissions.LocationRequest,
                 AdminPermissions.TourRead,
-                AdminPermissions.AudioRead
+                AdminPermissions.AudioRead,
+                AdminPermissions.AudioRequest
             ]
         };
 

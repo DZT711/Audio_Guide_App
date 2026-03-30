@@ -18,5 +18,7 @@ public static class ApiRoutes
     public const string DashboardOverview = "Dashboard/overview";
     public const string DashboardSnapshot = "Dashboard/snapshot";
     public const string Moderation = "Moderation";
+    public const string ChangeRequests = "ChangeRequest";
+    public const string Inbox = "Inbox";
     public const string Statistics = "Statistics";
 }

@@ -1,0 +1,46 @@
+.inbox-page {
+    gap: 1.35rem;
+}
+
+.inbox-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.inbox-card {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.inbox-card--unread {
+    border-color: rgba(15, 118, 110, 0.24);
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+}
+
+.inbox-card__header,
+.inbox-card__footer,
+.inbox-card__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+}
+
+.inbox-card__header small,
+.inbox-card__footer small {
+    color: var(--app-muted);
+}
+
+.inbox-card__title {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+@media (max-width: 575.98px) {
+    .inbox-card__header,
+    .inbox-card__footer,
+    .inbox-card__meta {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

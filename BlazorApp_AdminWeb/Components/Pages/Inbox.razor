@@ -1,0 +1,270 @@
+@page "/inbox"
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject AdminSessionState SessionState
+
+<PageTitle>Inbox</PageTitle>
+
+@if (!CanView)
+{
+    <div class="management-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view inbox messages.</div>
+        </div>
+    </div>
+}
+else
+{
+<div class="management-page inbox-page">
+    <section class="management-hero" data-reveal>
+        <div>
+            <span class="management-hero__eyebrow">Inbox</span>
+            <h1>Announcements and Request Updates</h1>
+            <p>
+                Track approval updates, rejection reasons, and future system announcements in one persistent inbox.
+            </p>
+        </div>
+
+        <div class="management-hero__actions">
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
+                <i class="bi bi-arrow-clockwise me-2"></i>
+                Refresh
+            </button>
+        </div>
+    </section>
+
+    <div class="management-stat-grid" data-stagger data-stagger-step="80">
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-envelope-paper-fill"></i></span>
+            <div>
+                <strong class="management-stat__value">@_result.TotalCount</strong>
+                <span class="management-stat__label">Matching Messages</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-envelope-exclamation-fill"></i></span>
+            <div>
+                <strong class="management-stat__value">@_result.UnreadCount</strong>
+                <span class="management-stat__label">Unread</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-check-circle-fill"></i></span>
+            <div>
+                <strong class="management-stat__value">@_messages.Count(item => item.IsRead)</strong>
+                <span class="management-stat__label">Read On Page</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-filter-circle-fill"></i></span>
+            <div>
+                <strong class="management-stat__value">@(_unreadOnly ? "Unread" : "All")</strong>
+                <span class="management-stat__label">Current Filter</span>
+            </div>
+        </article>
+    </div>
+
+    <section class="management-panel" data-reveal>
+        <div class="management-panel__header">
+            <div>
+                <span class="management-panel__eyebrow">Messages</span>
+                <h2>Inbox Feed</h2>
+            </div>
+
+            <div class="management-toolbar">
+                <button type="button" class="@GetFilterChipClass(false)" @onclick="() => SetUnreadFilterAsync(false)">All</button>
+                <button type="button" class="@GetFilterChipClass(true)" @onclick="() => SetUnreadFilterAsync(true)">Unread Only</button>
+            </div>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="moderation-skeleton-list">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <article class="moderation-skeleton-card">
+                        <div class="skeleton skeleton--title"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line skeleton--line-short"></div>
+                    </article>
+                }
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_loadError))
+        {
+            <div class="management-error">
+                <strong>Unable to load inbox messages.</strong>
+                <div>@_loadError</div>
+            </div>
+        }
+        else if (_messages.Count == 0)
+        {
+            <div class="app-empty-state">
+                No inbox messages match the current filter.
+            </div>
+        }
+        else
+        {
+            <div class="inbox-list">
+                @foreach (var message in _messages)
+                {
+                    <article class="@GetMessageCardClass(message)">
+                        <div class="inbox-card__header">
+                            <div>
+                                <div class="inbox-card__title">@message.Title</div>
+                                <small>@message.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
+                            </div>
+
+                            <div class="inbox-card__meta">
+                                <span class="@GetMessageTagClass(message.MessageType)">@message.MessageType</span>
+                                @if (!message.IsRead)
+                                {
+                                    <span class="management-status management-status--pending">Unread</span>
+                                }
+                            </div>
+                        </div>
+
+                        <p class="audio-card__description">@message.Body</p>
+
+                        <div class="inbox-card__footer">
+                            <small class="management-muted">@(message.RelatedRequestId is null ? "General announcement" : $"Request #{message.RelatedRequestId}")</small>
+                            <div class="management-inline-actions">
+                                @if (!message.IsRead)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => MarkReadAsync(message)">Mark Read</button>
+                                }
+                                else
+                                {
+                                    <span class="management-muted">Read @message.ReadAt?.ToLocalTime().ToString("dd MMM HH:mm")</span>
+                                }
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+
+            @if (_result.TotalPages > 1)
+            {
+                <div class="management-pagination">
+                    <span class="management-pagination__info">Page @_result.Page of @_result.TotalPages (@_result.TotalCount total messages)</span>
+                    <div class="management-pagination__actions">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousPageAsync" disabled="@(_result.Page <= 1)">
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPageAsync" disabled="@(_result.Page >= _result.TotalPages)">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            }
+        }
+    </section>
+</div>
+}
+
+@code {
+    private readonly List<InboxMessageDto> _messages = new();
+    private InboxOverviewDto _result = new();
+    private bool _isLoading = true;
+    private bool _unreadOnly;
+    private int _currentPage = 1;
+    private string? _loadError;
+
+    private bool CanView => SessionState.HasPermission(AdminPermissions.InboxView);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task RefreshAsync() => await LoadAsync();
+
+    private async Task SetUnreadFilterAsync(bool unreadOnly)
+    {
+        _unreadOnly = unreadOnly;
+        _currentPage = 1;
+        await LoadAsync();
+    }
+
+    private async Task NextPageAsync()
+    {
+        if (_result.Page >= _result.TotalPages)
+        {
+            return;
+        }
+
+        _currentPage = _result.Page + 1;
+        await LoadAsync();
+    }
+
+    private async Task PreviousPageAsync()
+    {
+        if (_result.Page <= 1)
+        {
+            return;
+        }
+
+        _currentPage = _result.Page - 1;
+        await LoadAsync();
+    }
+
+    private async Task MarkReadAsync(InboxMessageDto message)
+    {
+        try
+        {
+            await ApiClient.MarkInboxMessageReadAsync(message.Id);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Unable to update inbox");
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            _result = await ApiClient.GetInboxAsync(new InboxQueryDto
+            {
+                Page = _currentPage,
+                PageSize = 10,
+                UnreadOnly = _unreadOnly
+            });
+
+            _currentPage = _result.Page;
+            _messages.Clear();
+            _messages.AddRange(_result.Items);
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Inbox load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetFilterChipClass(bool unreadOnly) =>
+        unreadOnly == _unreadOnly
+            ? "management-chip management-chip--selected"
+            : "management-chip";
+
+    private static string GetMessageCardClass(InboxMessageDto message) =>
+        message.IsRead
+            ? "moderation-card inbox-card"
+            : "moderation-card inbox-card inbox-card--unread";
+
+    private static string GetMessageTagClass(string messageType) => messageType switch
+    {
+        "Approval" => "management-status management-status--active",
+        "Rejection" => "management-status management-status--inactive",
+        _ => "management-status management-status--info"
+    };
+}

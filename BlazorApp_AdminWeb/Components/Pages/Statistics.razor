@@ -647,6 +647,7 @@ route.SessionKey;
             if (!isInitialized)
             {
                 Notifications.Warning("The analytics map is unavailable right now.", "Map unavailable");
+                _statisticsMapSyncPending = true;
             }
 
             return isInitialized;

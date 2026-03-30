@@ -33,4 +33,8 @@ public class DashboardUser
     public ICollection<Location> OwnedLocations { get; set; } = [];
 
     public ICollection<Tour> OwnedTours { get; set; } = [];
+
+    public ICollection<ChangeRequest> ChangeRequests { get; set; } = [];
+
+    public ICollection<InboxMessage> InboxMessages { get; set; } = [];
 }

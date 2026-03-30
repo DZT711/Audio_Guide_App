@@ -64,6 +64,11 @@
 .statistics-map__canvas {
     width: 100%;
     height: clamp(360px, 52vh, 620px);
+    min-height: 360px;
+    display: block;
+    position: relative;
+    background:
+        linear-gradient(180deg, rgba(219, 234, 254, 0.86) 0%, rgba(240, 249, 255, 0.92) 100%);
 }
 
 .statistics-map__notice {
@@ -75,6 +80,10 @@
     height: 100%;
     background: #dbeafe;
     font: inherit;
+}
+
+.statistics-map ::deep .leaflet-tile {
+    mix-blend-mode: normal !important;
 }
 
 .statistics-map ::deep .leaflet-control-zoom a {

@@ -49,6 +49,7 @@ builder.Services.AddHttpClient<WalkingRouteService>((serviceProvider, client) =>
 builder.Services.AddScoped<TourRoutePlanningService>();
 builder.Services.AddSingleton<AdminSessionTokenService>();
 builder.Services.AddScoped<AdminRequestAuthorizationService>();
+builder.Services.AddScoped<ChangeRequestWorkflowService>();
 
 builder.Services.AddCors(options =>
 {

@@ -38,7 +38,7 @@ public sealed class LanguageUpsertRequest
     public int Status { get; set; } = 1;
 }
 
-public sealed class LocationUpsertRequest
+public class LocationUpsertRequest
 {
     [Required]
     [StringLength(200)]
@@ -96,7 +96,7 @@ public sealed class LocationUpsertRequest
     public int Status { get; set; } = 1;
 }
 
-public sealed class AudioUpsertRequest
+public class AudioUpsertRequest
 {
     [Required]
     [Range(1, int.MaxValue)]

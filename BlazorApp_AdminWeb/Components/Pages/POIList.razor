@@ -159,9 +159,9 @@ else
                                     </td>
                                     <td class="text-end">
                                         <div class="management-inline-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(location)">@(CanManage ? "Edit" : "View")</button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || location.Status == 0)" @onclick="() => PromptArchiveLocation(location)">
-                                                @(location.Status == 0 ? "Inactive" : "Archive")
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(location)">@(CanEditContent ? "Edit" : "View")</button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage && !CanSubmitRequests || location.Status == 0)" @onclick="() => PromptArchiveLocation(location)">
+                                                @(location.Status == 0 ? "Inactive" : CanManage ? "Archive" : "Request Archive")
                                             </button>
                                         </div>
                                     </td>
@@ -191,12 +191,12 @@ else
         <section class="management-panel poi-editor" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">@(CanManage ? "Editor" : "Read Only")</span>
-                    <h2>@(CanManage ? (_editingId is null ? "Create Location" : "Edit Location") : "Location Details")</h2>
+                    <span class="management-panel__eyebrow">@(CanEditContent ? (CanManage ? "Editor" : "Submission") : "Read Only")</span>
+                    <h2>@(CanEditContent ? (_editingId is null ? "Create Location" : "Edit Location") : "Location Details")</h2>
                 </div>
             </div>
 
-            @if (CanManage)
+            @if (CanEditContent)
             {
             <EditForm Model="_formModel" OnValidSubmit="SaveLocationAsync" class="management-form">
                 <DataAnnotationsValidator />
@@ -447,13 +447,22 @@ else
                             <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
                         </div>
                     </div>
+
+                    @if (CanSubmitRequests && !CanManage)
+                    {
+                        <div class="management-field management-field--full">
+                            <label for="location-request-reason">Submission Note</label>
+                            <InputTextArea id="location-request-reason" class="form-control" rows="3" @bind-Value="_submissionReason" />
+                            <span class="management-field__hint">Optional note for Admin or Developer review.</span>
+                        </div>
+                    }
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveCategories || !CanManage)">
-                        @(_isSaving ? "Saving..." : _editingId is null ? "Create Location" : "Save Changes")
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveCategories || !CanEditContent)">
+                        @GetSaveButtonLabel()
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel Edit")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel")</button>
                 </div>
             </EditForm>
             }
@@ -470,7 +479,7 @@ else
 
                 <div class="poi-readonly">
                     <div class="poi-readonly__notice">
-                        Changes to your own locations require an Admin or Developer account.
+                        This role can review location details only.
                     </div>
 
                     @if (imageUrls.Count > 0)
@@ -534,13 +543,22 @@ else
 </div>
 
 <AdminConfirmDialog Visible="@(_pendingArchivedLocation is not null)"
-                    Eyebrow="Archive Location"
-                    Title="Archive this location?"
+                    Eyebrow="@(CanManage ? "Archive Location" : "Request Archive")"
+                    Title="@(CanManage ? "Archive this location?" : "Submit an archive request?")"
                     Message="@GetPendingArchiveLocationMessage()"
-                    ConfirmLabel="Archive Location"
+                    ConfirmLabel="@(CanManage ? "Archive Location" : "Submit Request")"
                     ConfirmButtonClass="btn btn-danger"
                     OnConfirm="ConfirmArchiveLocationAsync"
-                    OnCancel="CancelArchiveLocation" />
+                    OnCancel="CancelArchiveLocation">
+    @if (CanSubmitRequests && !CanManage)
+    {
+        <div class="management-field">
+            <label for="poi-archive-reason">Submission Note</label>
+            <InputTextArea id="poi-archive-reason" class="form-control" rows="3" @bind-Value="_archiveReason" />
+            <span class="management-field__hint">Optional note for the reviewer.</span>
+        </div>
+    }
+</AdminConfirmDialog>
 }
 
 @code {
@@ -568,11 +586,15 @@ else
     private string _mapSearchText = "";
     private string _selectedCategoryName = "";
     private string _selectedStatus = "";
+    private string _submissionReason = "";
+    private string _archiveReason = "";
     private string? _loadError;
     private string? _mapSearchError;
     private ElementReference _mapElement;
     private bool CanView => SessionState.HasPermission(AdminPermissions.LocationRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.LocationManage);
+    private bool CanSubmitRequests => SessionState.HasPermission(AdminPermissions.LocationRequest);
+    private bool CanEditContent => CanManage || CanSubmitRequests;
     private bool CanSelectOwner => SessionState.HasPermission(AdminPermissions.UserRead) && CanManage;
     private LocationDto? SelectedLocationForDisplay => ResolveSelectedLocation();
     private int _currentLocationPage = 1;
@@ -617,19 +639,19 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && CanManage)
+        if (firstRender && CanEditContent)
         {
             _mapReference = DotNetObjectReference.Create(this);
             await InitializeMapAsync();
         }
 
-        if (CanManage && _mapSyncPending)
+        if (CanEditContent && _mapSyncPending)
         {
             _mapSyncPending = false;
             await SyncMapAsync();
         }
 
-        if (CanManage && _deviceLocationPending && _editingId is null)
+        if (CanEditContent && _deviceLocationPending && _editingId is null)
         {
             _deviceLocationPending = false;
             await TryUseDeviceLocationAsync(showFallbackNotice: false);
@@ -645,7 +667,7 @@ else
 
         try
         {
-            var categoriesTask = CanManage || SessionState.HasPermission(AdminPermissions.CategoryRead)
+            var categoriesTask = CanEditContent || SessionState.HasPermission(AdminPermissions.CategoryRead)
                 ? ApiClient.GetCategoriesAsync()
                 : Task.FromResult<IReadOnlyList<CategoryDto>>([]);
             var locationsTask = ApiClient.GetLocationsAsync();
@@ -816,8 +838,9 @@ else
     {
         _selectedLocation = location;
 
-        if (!CanManage)
+        if (!CanEditContent)
         {
+            _editingId = null;
             return;
         }
 
@@ -831,7 +854,7 @@ else
 
     private async Task SaveLocationAsync()
     {
-        if (!CanManage)
+        if (!CanEditContent)
         {
             Notifications.Warning("Your role can view locations but cannot save changes.", "Read-only access");
             return;
@@ -841,15 +864,28 @@ else
 
         try
         {
-            if (_editingId is null)
+            if (CanManage && _editingId is null)
             {
                 await ApiClient.CreateLocationAsync(_formModel);
                 Notifications.Success("Location created successfully.", "Location saved");
             }
+            else if (CanManage && _editingId is int editingId)
+            {
+                await ApiClient.UpdateLocationAsync(editingId, _formModel);
+                Notifications.Success("Location updated successfully.", "Location saved");
+            }
             else
             {
-                await ApiClient.UpdateLocationAsync(_editingId.Value, _formModel);
-                Notifications.Success("Location updated successfully.", "Location saved");
+                await ApiClient.SubmitLocationChangeRequestAsync(
+                    _formModel,
+                    _editingId is null ? "CREATE" : "UPDATE",
+                    _editingId,
+                    _submissionReason);
+                Notifications.Success(
+                    _editingId is null
+                        ? "Your new POI request was submitted for Admin or Developer approval."
+                        : "Your POI update request was submitted for Admin or Developer approval.",
+                    "Request submitted");
             }
 
             await LoadDataAsync();
@@ -867,7 +903,7 @@ else
 
     private void PromptArchiveLocation(LocationDto location)
     {
-        if (!CanManage)
+        if (!CanManage && !CanSubmitRequests)
         {
             Notifications.Warning("Your role can view locations but cannot archive them.", "Read-only access");
             return;
@@ -878,15 +914,28 @@ else
 
     private async Task ConfirmArchiveLocationAsync()
     {
-        if (!CanManage || _pendingArchivedLocation is null)
+        if ((!CanManage && !CanSubmitRequests) || _pendingArchivedLocation is null)
         {
             return;
         }
 
         try
         {
-            await ApiClient.DeleteLocationAsync(_pendingArchivedLocation.Id);
-            Notifications.Info($"'{_pendingArchivedLocation.Name}' is now inactive.", "Location archived");
+            if (CanManage)
+            {
+                await ApiClient.DeleteLocationAsync(_pendingArchivedLocation.Id);
+                Notifications.Info($"'{_pendingArchivedLocation.Name}' is now inactive.", "Location archived");
+            }
+            else
+            {
+                await ApiClient.SubmitLocationChangeRequestAsync(
+                    LocationFormModel.FromDto(_pendingArchivedLocation, _categories),
+                    "DELETE",
+                    _pendingArchivedLocation.Id,
+                    _archiveReason);
+                Notifications.Info($"Archive request for '{_pendingArchivedLocation.Name}' was submitted for approval.", "Request submitted");
+            }
+
             await LoadDataAsync();
 
             if (_editingId == _pendingArchivedLocation.Id)
@@ -918,7 +967,9 @@ else
             Status = 1
         });
         ResetMapSearchState();
-        _deviceLocationPending = CanManage;
+        _submissionReason = "";
+        _archiveReason = "";
+        _deviceLocationPending = CanEditContent;
     }
 
     private async Task CancelEditAsync()
@@ -949,7 +1000,7 @@ else
         _formModel.ImageFiles = [];
         EnsureFormCategorySelection();
         _imageInputVersion++;
-        _mapSyncPending = CanManage;
+        _mapSyncPending = CanEditContent;
     }
 
     private async Task UseDeviceLocationAsync() => await TryUseDeviceLocationAsync(showFallbackNotice: true);
@@ -962,7 +1013,7 @@ else
 
     private void RemoveStoredImage(string imageUrl)
     {
-        if (!CanManage)
+        if (!CanEditContent)
         {
             return;
         }
@@ -974,7 +1025,7 @@ else
 
     private async Task RemovePendingImageAsync(int imageIndex)
     {
-        if (!CanManage)
+        if (!CanEditContent)
         {
             return;
         }
@@ -1074,7 +1125,7 @@ else
             _selectedLocation = _locations.FirstOrDefault(item => item.Id == _selectedLocation.Id);
         }
 
-        if (!CanManage && _selectedLocation is null)
+        if (!CanEditContent && _selectedLocation is null)
         {
             _selectedLocation = _locations.FirstOrDefault();
         }
@@ -1190,6 +1241,21 @@ else
         ? "management-chip management-chip--selected"
         : "management-chip";
 
+    private string GetSaveButtonLabel()
+    {
+        if (_isSaving)
+        {
+            return CanManage ? "Saving..." : "Submitting...";
+        }
+
+        if (CanManage)
+        {
+            return _editingId is null ? "Create Location" : "Save Changes";
+        }
+
+        return _editingId is null ? "Submit New POI" : "Submit Update Request";
+    }
+
     private void EnsureFormCategorySelection()
     {
         if (_categories.Count == 0)
@@ -1210,15 +1276,21 @@ else
     private string GetPendingArchiveLocationMessage() =>
         _pendingArchivedLocation is null
             ? string.Empty
-            : $"'{_pendingArchivedLocation.Name}' will become inactive and its audio items will stop accepting new changes until the location is active again.";
+            : CanManage
+                ? $"'{_pendingArchivedLocation.Name}' will become inactive and its audio items will stop accepting new changes until the location is active again."
+                : $"An Admin or Developer will review the archive request for '{_pendingArchivedLocation.Name}' before the live POI is changed.";
 
-    private void CancelArchiveLocation() => _pendingArchivedLocation = null;
+    private void CancelArchiveLocation()
+    {
+        _pendingArchivedLocation = null;
+        _archiveReason = "";
+    }
 
     public async ValueTask DisposeAsync()
     {
         try
         {
-            if (CanManage)
+            if (CanEditContent)
             {
                 await JS.InvokeVoidAsync("smartTourAdmin.map.disposeLocationPicker", _mapElement);
             }

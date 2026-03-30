@@ -64,6 +64,29 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
     public Task<IReadOnlyList<DashboardUserDto>> GetUsersAsync() =>
         GetListAsync<DashboardUserDto>(ApiRoutes.Users, "Unable to load users.");
 
+    public async Task<ChangeRequestListDto> GetChangeRequestsAsync(
+        ChangeRequestQueryDto query,
+        bool ownerOnly = false,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        var route = BuildChangeRequestRoute(query, ownerOnly);
+        using var response = await httpClient.GetAsync(route, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load change requests.");
+        return await ReadJsonAsync<ChangeRequestListDto>(response, "Unable to load change requests.");
+    }
+
+    public async Task<InboxOverviewDto> GetInboxAsync(InboxQueryDto query, CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        var route = BuildInboxRoute(query);
+        using var response = await httpClient.GetAsync(route, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load inbox messages.");
+        return await ReadJsonAsync<InboxOverviewDto>(response, "Unable to load inbox messages.");
+    }
+
     public async Task<UsageHistoryOverviewDto> GetUsageHistoryAsync()
     {
         ApplyAuthHeader();
@@ -215,6 +238,20 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to archive location.");
     }
 
+    public async Task<ChangeRequestDto> SubmitLocationChangeRequestAsync(
+        LocationFormModel model,
+        string requestType,
+        int? targetId = null,
+        string? reason = null)
+    {
+        ApplyAuthHeader();
+
+        using var content = CreateLocationContent(model, requestType, targetId, reason);
+        using var response = await httpClient.PostAsync($"{ApiRoutes.ChangeRequests}/location", content);
+        await EnsureSuccessAsync(response, "Unable to submit the POI request.");
+        return await ReadJsonAsync<ChangeRequestDto>(response, "Unable to read the submitted POI request.");
+    }
+
     public async Task<TourDto> CreateTourAsync(TourFormModel model, TourRoutePreviewDto? routePreview = null)
     {
         ApplyAuthHeader();
@@ -285,6 +322,44 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to archive audio.");
     }
 
+    public async Task<ChangeRequestDto> SubmitAudioChangeRequestAsync(
+        AudioFormModel model,
+        string requestType,
+        int? targetId = null,
+        string? reason = null)
+    {
+        ApplyAuthHeader();
+
+        using var content = CreateAudioContent(model, requestType, targetId, reason);
+        using var response = await httpClient.PostAsync($"{ApiRoutes.ChangeRequests}/audio", content);
+        await EnsureSuccessAsync(response, "Unable to submit the audio request.");
+        return await ReadJsonAsync<ChangeRequestDto>(response, "Unable to read the submitted audio request.");
+    }
+
+    public async Task<ChangeRequestDto> ApproveChangeRequestAsync(int id, string? adminNote, CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PostAsJsonAsync(
+            $"{ApiRoutes.ChangeRequests}/{id}/approve",
+            new ReviewChangeRequestRequest { AdminNote = adminNote },
+            cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to approve the request.");
+        return await ReadJsonAsync<ChangeRequestDto>(response, "Unable to read the approved request.");
+    }
+
+    public async Task<ChangeRequestDto> RejectChangeRequestAsync(int id, string adminNote, CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PostAsJsonAsync(
+            $"{ApiRoutes.ChangeRequests}/{id}/reject",
+            new ReviewChangeRequestRequest { AdminNote = adminNote },
+            cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to reject the request.");
+        return await ReadJsonAsync<ChangeRequestDto>(response, "Unable to read the rejected request.");
+    }
+
     public async Task<AudioTtsPreviewResult> GenerateAudioTtsPreviewAsync(
         AudioTtsPreviewRequest request,
         CancellationToken cancellationToken = default)
@@ -350,6 +425,14 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to archive user.");
     }
 
+    public async Task MarkInboxMessageReadAsync(int id, CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PostAsync($"{ApiRoutes.Inbox}/{id}/read", content: null, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to mark the message as read.");
+    }
+
     public async Task<string?> ResolvePlayableAudioUrlAsync(string? audioPath, CancellationToken cancellationToken = default)
     {
         foreach (var candidate in GetContentUrlCandidates(audioPath, SharedStoragePaths.NormalizePublicAudioPath))
@@ -407,7 +490,11 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
                 .ToList()
         };
 
-    private static MultipartFormDataContent CreateLocationContent(LocationFormModel model)
+    private static MultipartFormDataContent CreateLocationContent(
+        LocationFormModel model,
+        string? requestType = null,
+        int? targetId = null,
+        string? reason = null)
     {
         var content = new MultipartFormDataContent();
 
@@ -432,6 +519,9 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         }
         AddString(content, nameof(model.EstablishedYear), model.EstablishedYear.ToString(CultureInfo.InvariantCulture));
         AddString(content, nameof(model.Status), model.Status.ToString(CultureInfo.InvariantCulture));
+        AddString(content, "RequestType", requestType);
+        AddString(content, "TargetId", targetId?.ToString(CultureInfo.InvariantCulture));
+        AddString(content, "Reason", reason);
 
         foreach (var imageFile in model.ImageFiles)
         {
@@ -449,7 +539,11 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         return content;
     }
 
-    private static MultipartFormDataContent CreateAudioContent(AudioFormModel model)
+    private static MultipartFormDataContent CreateAudioContent(
+        AudioFormModel model,
+        string? requestType = null,
+        int? targetId = null,
+        string? reason = null)
     {
         var content = new MultipartFormDataContent();
 
@@ -468,6 +562,9 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         AddString(content, nameof(model.InterruptPolicy), model.InterruptPolicy);
         AddString(content, nameof(model.IsDownloadable), model.IsDownloadable.ToString());
         AddString(content, nameof(model.Status), model.Status.ToString(CultureInfo.InvariantCulture));
+        AddString(content, "RequestType", requestType);
+        AddString(content, "TargetId", targetId?.ToString(CultureInfo.InvariantCulture));
+        AddString(content, "Reason", reason);
 
         if (model.AudioFile is not null)
         {
@@ -595,6 +692,46 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
             segments.Add($"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}");
         }
+    }
+
+    private static string BuildChangeRequestRoute(ChangeRequestQueryDto query, bool ownerOnly)
+    {
+        var segments = new List<string>();
+        AddQuerySegment("page", query.Page.ToString(CultureInfo.InvariantCulture));
+        AddQuerySegment("pageSize", query.PageSize.ToString(CultureInfo.InvariantCulture));
+        AddQuerySegment("type", query.Type);
+        AddQuerySegment("action", query.Action);
+        AddQuerySegment("status", query.Status);
+        AddQuerySegment("search", query.Search);
+
+        var baseRoute = ownerOnly ? $"{ApiRoutes.ChangeRequests}/mine" : ApiRoutes.ChangeRequests;
+        return segments.Count == 0 ? baseRoute : $"{baseRoute}?{string.Join("&", segments)}";
+
+        void AddQuerySegment(string key, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            segments.Add($"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}");
+        }
+    }
+
+    private static string BuildInboxRoute(InboxQueryDto query)
+    {
+        var segments = new List<string>
+        {
+            $"page={query.Page.ToString(CultureInfo.InvariantCulture)}",
+            $"pageSize={query.PageSize.ToString(CultureInfo.InvariantCulture)}"
+        };
+
+        if (query.UnreadOnly)
+        {
+            segments.Add("unreadOnly=true");
+        }
+
+        return $"{ApiRoutes.Inbox}?{string.Join("&", segments)}";
     }
 
     private async Task EnsureSuccessAsync(HttpResponseMessage response, string fallbackMessage)

@@ -1003,6 +1003,65 @@
         statisticsMap.map.invalidateSize();
     };
 
+    const delayAsync = (durationMs) => new Promise((resolve) => {
+        window.setTimeout(resolve, durationMs);
+    });
+
+    const hasUsableMapSize = (element) => {
+        if (!element) {
+            return false;
+        }
+
+        const bounds = element.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+    };
+
+    const waitForMapSizeAsync = async (element, maxAttempts = 14, delayMs = 120) => {
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+            if (hasUsableMapSize(element)) {
+                return true;
+            }
+
+            await delayAsync(delayMs);
+        }
+
+        return hasUsableMapSize(element);
+    };
+
+    const invalidateLeafletMap = (map) => {
+        if (!map) {
+            return;
+        }
+
+        const invalidate = () => {
+            try {
+                map.invalidateSize();
+            } catch {
+            }
+        };
+
+        invalidate();
+        window.requestAnimationFrame(invalidate);
+        window.setTimeout(invalidate, 120);
+        window.setTimeout(invalidate, 420);
+    };
+
+    const attachMapResizeHandling = (element, map) => {
+        const handleResize = () => invalidateLeafletMap(map);
+        window.addEventListener("resize", handleResize);
+
+        let resizeObserver = null;
+        if ("ResizeObserver" in window && element) {
+            resizeObserver = new ResizeObserver(() => invalidateLeafletMap(map));
+            resizeObserver.observe(element);
+        }
+
+        return {
+            handleResize,
+            resizeObserver
+        };
+    };
+
     admin.map = {
         initializeLocationPicker: (element, dotNetRef, latitude, longitude) => {
             if (!element || typeof L === "undefined") {
@@ -1151,14 +1210,20 @@
             planner.map.remove();
             tourPlanners.delete(element);
         },
-        initializeStatisticsMap: (element, state) => {
+        initializeStatisticsMap: async (element, state) => {
             if (!element || typeof L === "undefined") {
+                return false;
+            }
+
+            const hasSize = await waitForMapSizeAsync(element);
+            if (!hasSize) {
                 return false;
             }
 
             const existingMap = statisticsMaps.get(element);
             if (existingMap) {
                 renderStatisticsMap(existingMap, state, true);
+                invalidateLeafletMap(existingMap.map);
                 return true;
             }
 
@@ -1172,32 +1237,44 @@
             }).addTo(map);
 
             const statisticsMap = {
+                element,
                 map,
                 layerGroup: L.layerGroup().addTo(map)
             };
 
+            const resizeHandling = attachMapResizeHandling(element, map);
+            statisticsMap.handleResize = resizeHandling.handleResize;
+            statisticsMap.resizeObserver = resizeHandling.resizeObserver;
+
             renderStatisticsMap(statisticsMap, state, true);
             statisticsMaps.set(element, statisticsMap);
-
-            window.setTimeout(() => {
-                map.invalidateSize();
-            }, 0);
+            invalidateLeafletMap(map);
 
             return true;
         },
-        syncStatisticsMap: (element, state) => {
+        syncStatisticsMap: async (element, state) => {
             const statisticsMap = statisticsMaps.get(element);
             if (!statisticsMap) {
                 return false;
             }
 
+            await waitForMapSizeAsync(element, 8, 90);
             renderStatisticsMap(statisticsMap, state, true);
+            invalidateLeafletMap(statisticsMap.map);
             return true;
         },
         disposeStatisticsMap: (element) => {
             const statisticsMap = statisticsMaps.get(element);
             if (!statisticsMap) {
                 return;
+            }
+
+            if (statisticsMap.resizeObserver) {
+                statisticsMap.resizeObserver.disconnect();
+            }
+
+            if (statisticsMap.handleResize) {
+                window.removeEventListener("resize", statisticsMap.handleResize);
             }
 
             statisticsMap.map.remove();

@@ -16,6 +16,8 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
     public DbSet<LocationImage> LocationImages => Set<LocationImage>();
     public DbSet<PlaybackEvent> PlaybackEvents => Set<PlaybackEvent>();
     public DbSet<LocationTrackingEvent> LocationTrackingEvents => Set<LocationTrackingEvent>();
+    public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
+    public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -156,6 +158,39 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.ToTable("LocationTrackingEvents");
             entity.HasKey(item => item.TrackingEventId);
             entity.HasIndex(item => new { item.DeviceId, item.CapturedAt });
+        });
+
+        modelBuilder.Entity<ChangeRequest>(entity =>
+        {
+            entity.ToTable("ChangeRequests");
+            entity.HasKey(item => item.RequestId);
+            entity.HasIndex(item => new { item.TargetTable, item.TargetId });
+            entity.HasIndex(item => new { item.OwnerId, item.Status });
+            entity.Property(item => item.Status).HasDefaultValue("Pending");
+            entity.Property(item => item.RequestType).HasDefaultValue("CREATE");
+
+            entity.HasOne(item => item.Owner)
+                .WithMany(item => item.ChangeRequests)
+                .HasForeignKey(item => item.OwnerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<InboxMessage>(entity =>
+        {
+            entity.ToTable("InboxMessages");
+            entity.HasKey(item => item.MessageId);
+            entity.HasIndex(item => new { item.UserId, item.IsRead, item.CreatedAt });
+            entity.Property(item => item.MessageType).HasDefaultValue("Info");
+
+            entity.HasOne(item => item.User)
+                .WithMany(item => item.InboxMessages)
+                .HasForeignKey(item => item.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(item => item.RelatedRequest)
+                .WithMany(item => item.InboxMessages)
+                .HasForeignKey(item => item.RelatedRequestId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

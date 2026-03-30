@@ -35,6 +35,13 @@
                 <span class="sidebar-link__text">Usage History</span>
             </NavLink>
         }
+        @if (SessionState.HasPermission(AdminPermissions.InboxView))
+        {
+            <NavLink class="sidebar-link" href="/inbox" title="Inbox" aria-label="Inbox" @attributes="GetDismissAttributes()">
+                <i class="bi bi-inbox-fill"></i>
+                <span class="sidebar-link__text">Inbox</span>
+            </NavLink>
+        }
     </div>
 
     <div class="sidebar-group">
