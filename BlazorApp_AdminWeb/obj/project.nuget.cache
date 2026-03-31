@@ -6,15 +6,5 @@
   "expectedPackageFiles": [
     "C:\\Users\\nguye\\.nuget\\microsoft.aspnetcore.app.internal.assets\\10.0.4\\microsoft.aspnetcore.app.internal.assets.10.0.4.nupkg.sha512"
   ],
-  "logs": [
-    {
-      "code": "Undefined",
-      "level": "Warning",
-      "message": "Problem reading the cache file D:\\Projects\\Smart-Tourism-MAUI\\BlazorApp_AdminWeb\\obj\\project.nuget.cache : '<' is an invalid start of a property name. Expected a '\"'. Path: $ | LineNumber: 2 | BytePositionInLine: 0.",
-      "projectPath": "D:\\Projects\\Smart-Tourism-MAUI\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj",
-      "warningLevel": 1,
-      "filePath": "D:\\Projects\\Smart-Tourism-MAUI\\BlazorApp_AdminWeb\\BlazorApp_AdminWeb.csproj",
-      "targetGraphs": []
-    }
-  ]
+  "logs": []
 }

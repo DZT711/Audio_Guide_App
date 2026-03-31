@@ -1,100 +1,65 @@
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\bin\Debug\net10.0\appsettings.Development.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\bin\Debug\net10.0\appsettings.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.staticwebassets.runtime.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.staticwebassets.endpoints.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.exe
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.deps.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.runtimeconfig.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.dll
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.pdb
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\EmbeddedAttribute.cs
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\ValidatableTypeAttribute.cs
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\rpswa.dswa.cache.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.GeneratedMSBuildEditorConfig.editorconfig
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfoInputs.cache
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfo.cs
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.csproj.CoreCompileInputs.cache
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.MvcApplicationPartsAssemblyInfo.cache
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.sourcelink.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\rjimswa.dswa.cache.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Layout\MainLayout.razor.rz.scp.css
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\bundle\BlazorApp_AdminWeb.styles.css
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\projectbundle\BlazorApp_AdminWeb.bundle.scp.css
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gp3blz7zhz-{0}-4kywy7iv6g-4kywy7iv6g.gz
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\p6btukz6bd-{0}-mgww215af1-mgww215af1.gz
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\nvd57mooxa-{0}-dy8h75y8gn-dy8h75y8gn.gz
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-c9e3k7w5vk-c9e3k7w5vk.gz
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-c9e3k7w5vk-c9e3k7w5vk.gz
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.build.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.build.json.cache
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.development.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.build.endpoints.json
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\swae.build.ex.cache
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.dll
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\refint\BlazorApp_AdminWeb.dll
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.pdb
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.genruntimeconfig.cache
-D:\Projects\WebAppThuyetMinh\BlazorApp_AdminWeb\obj\Debug\net10.0\ref\BlazorApp_AdminWeb.dll
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\EmbeddedAttribute.cs
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\ValidatableTypeAttribute.cs
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\rpswa.dswa.cache.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.GeneratedMSBuildEditorConfig.editorconfig
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfoInputs.cache
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfo.cs
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.csproj.CoreCompileInputs.cache
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.MvcApplicationPartsAssemblyInfo.cache
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.sourcelink.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.dll
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\refint\BlazorApp_AdminWeb.dll
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.pdb
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\appsettings.Development.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\appsettings.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.staticwebassets.runtime.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.staticwebassets.endpoints.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.exe
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.deps.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.runtimeconfig.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.dll
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.pdb
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\rjimswa.dswa.cache.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Layout\MainLayout.razor.rz.scp.css
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\bundle\BlazorApp_AdminWeb.styles.css
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\projectbundle\BlazorApp_AdminWeb.bundle.scp.css
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gp3blz7zhz-{0}-4kywy7iv6g-4kywy7iv6g.gz
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\p6btukz6bd-{0}-b9228eflpl-b9228eflpl.gz
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\nvd57mooxa-{0}-2tj1sjhksk-2tj1sjhksk.gz
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-c9e3k7w5vk-c9e3k7w5vk.gz
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-c9e3k7w5vk-c9e3k7w5vk.gz
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.build.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.build.json.cache
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.development.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.build.endpoints.json
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\swae.build.ex.cache
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.genruntimeconfig.cache
-D:\visua studio code\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\ref\BlazorApp_AdminWeb.dll
-d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\appsettings.Development.json
-d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\appsettings.json
-d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.staticwebassets.runtime.json
-d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.staticwebassets.endpoints.json
-d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.exe
-d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.deps.json
-d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.runtimeconfig.json
-d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.dll
-d:\Projects\Smart-Tourism-MAUI\.codex-build\adminweb\BlazorApp_AdminWeb.pdb
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\EmbeddedAttribute.cs
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\ValidatableTypeAttribute.cs
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.csproj.AssemblyReference.cache
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\rpswa.dswa.cache.json
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfoInputs.cache
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfo.cs
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.csproj.CoreCompileInputs.cache
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.MvcApplicationPartsAssemblyInfo.cache
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.sourcelink.json
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.dll
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\refint\BlazorApp_AdminWeb.dll
-C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.pdb
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\appsettings.Development.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\appsettings.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.staticwebassets.runtime.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.staticwebassets.endpoints.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.exe
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.deps.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.runtimeconfig.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.dll
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\BlazorApp_AdminWeb.pdb
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\Shared_ClassLibrary.dll
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\bin\Debug\net10.0\Shared_ClassLibrary.pdb
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\EmbeddedAttribute.cs
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\ValidatableTypeAttribute.cs
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.csproj.AssemblyReference.cache
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\rpswa.dswa.cache.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.GeneratedMSBuildEditorConfig.editorconfig
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfoInputs.cache
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.AssemblyInfo.cs
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.csproj.CoreCompileInputs.cache
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.MvcApplicationPartsAssemblyInfo.cache
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.sourcelink.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\rjimswa.dswa.cache.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\AdminConfirmDialog.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Layout\AdminHeader.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Layout\MainLayout.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Layout\NotificationCenter.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Layout\Sidebar.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\AudioList.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\CategoryList.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\Dashboard.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\Inbox.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\LanguageList.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\Login.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\ModerationList.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\POIList.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\Statistics.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\TourList.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\UsageHistory.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\Components\Pages\UserList.razor.rz.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\bundle\BlazorApp_AdminWeb.styles.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\scopedcss\projectbundle\BlazorApp_AdminWeb.bundle.scp.css
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gp3blz7zhz-{0}-nohhzljnkn-nohhzljnkn.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\r008phjwfc-{0}-lfl1fgzh1u-lfl1fgzh1u.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\bqro6b4pfo-{0}-ittarutgre-ittarutgre.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\eucct3rvn5-{0}-2ke9cbgv9a-2ke9cbgv9a.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\hj7qzgodwb-{0}-w7s5oy1d15-w7s5oy1d15.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\0u0j1wzal8-{0}-7888sfn8yc-7888sfn8yc.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\yp44h4rw1r-{0}-v78t325kt9-v78t325kt9.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\p6btukz6bd-{0}-mgww215af1-mgww215af1.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\nvd57mooxa-{0}-dy8h75y8gn-dy8h75y8gn.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\gtmbbz3lp0-{0}-thrhvqwdok-thrhvqwdok.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\compressed\whajffswxj-{0}-thrhvqwdok-thrhvqwdok.gz
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.build.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.build.json.cache
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.development.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\staticwebassets.build.endpoints.json
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\swae.build.ex.cache
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorAp.19485DFA.Up2Date
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.dll
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\refint\BlazorApp_AdminWeb.dll
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.pdb
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\BlazorApp_AdminWeb.genruntimeconfig.cache
+D:\Projects\Smart-Tourism-MAUI\BlazorApp_AdminWeb\obj\Debug\net10.0\ref\BlazorApp_AdminWeb.dll

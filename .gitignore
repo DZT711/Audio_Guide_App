@@ -46,3 +46,19 @@ obj/
 *.user
 *.suo
 .vs/
+# .NET Artifacts
+**/bin/
+**/obj/
+
+# User-specific files
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio files
+.vs/
+.idea/
+
+# NuGet Packages
+*.nupkg
+project.nuget.cache
