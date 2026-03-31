@@ -1,0 +1,445 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MauiApp_Mobile.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="{StaticResource LightBg}">
+
+    <Grid RowDefinitions="Auto,*">
+        <Grid Style="{StaticResource TopHeaderGridStyle}">
+            <Label x:Name="TitleLabel"
+                   Text="Cài đặt"
+                   Style="{StaticResource TopHeaderTitleStyle}"
+                   HorizontalOptions="Start" />
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <ScrollView>
+                <VerticalStackLayout Padding="16,18,16,28" Spacing="18">
+
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="🔊" FontSize="18" />
+                        <Label x:Name="AudioLabel"
+                               Text="Âm thanh"
+                               Style="{StaticResource SectionTitleStyle}" />
+                    </HorizontalStackLayout>
+
+                    <Frame Style="{StaticResource CardFrameStyle}">
+                        <VerticalStackLayout Spacing="18">
+
+                            <!-- Dòng ngôn ngữ -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="LanguageRowLabel"
+                                       Text="Ngôn ngữ"
+                                       FontSize="16"
+                                       TextColor="{StaticResource BodyText}" />
+
+                                <Label x:Name="LanguageValueLabel"
+                                       Grid.Column="1"
+                                       Text="Tiếng Việt ›"
+                                       FontSize="16"
+                                       TextColor="{StaticResource PrimaryGreen}"
+                                       FontAttributes="Bold"
+                                       VerticalOptions="Center" />
+
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnToggleLanguagePopupTapped" />
+                                </Grid.GestureRecognizers>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="VoiceRowLabel"
+                                       Text="Giọng đọc"
+                                       FontSize="16"
+                                       TextColor="{StaticResource BodyText}" />
+                                <Label x:Name="VoiceValueLabel"
+                                       Grid.Column="1"
+                                       Text="Giọng nữ miền Nam ▼"
+                                       FontSize="16"
+                                       TextColor="{StaticResource PrimaryGreen}"
+                                       FontAttributes="Bold" />
+                            </Grid>
+
+                            <Label x:Name="ReadingSpeedLabel"
+                                   Text="Tốc độ đọc"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}" />
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Slider Minimum="0.5"
+                                        Maximum="2"
+                                        Value="1.0"
+                                        MinimumTrackColor="{StaticResource PrimaryGreen}"
+                                        MaximumTrackColor="#D1D5DB" />
+                                <Label Grid.Column="1"
+                                       Text="1.0x"
+                                       Margin="10,0,0,0"
+                                       VerticalOptions="Center"
+                                       FontSize="16"
+                                       FontAttributes="Bold" />
+                            </Grid>
+
+                            <Label x:Name="VolumeLabel"
+                                   Text="Âm lượng"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}" />
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Slider Minimum="0"
+                                        Maximum="100"
+                                        Value="100"
+                                        MinimumTrackColor="{StaticResource PrimaryGreen}"
+                                        MaximumTrackColor="#D1D5DB" />
+                                <Label Grid.Column="1"
+                                       Text="100%"
+                                       Margin="10,0,0,0"
+                                       VerticalOptions="Center"
+                                       FontSize="16"
+                                       FontAttributes="Bold" />
+                            </Grid>
+
+                            <Button x:Name="TestVoiceButton"
+                                    Text="🎙 Test giọng đọc"
+                                    Style="{StaticResource PrimaryButtonStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="🛰" FontSize="18" />
+                        <Label x:Name="GpsLabel"
+                               Text="GPS và Vị trí"
+                               Style="{StaticResource SectionTitleStyle}" />
+                    </HorizontalStackLayout>
+
+                    <Frame Style="{StaticResource CardFrameStyle}">
+                        <VerticalStackLayout Spacing="18">
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="GpsAccuracyLabel"
+                                       Text="Độ chính xác GPS"
+                                       FontSize="16"
+                                       TextColor="{StaticResource BodyText}" />
+                                <Label x:Name="GpsAccuracyValueLabel"
+                                       Grid.Column="1"
+                                       Text="Cao"
+                                       FontSize="16"
+                                       TextColor="{StaticResource PrimaryGreen}"
+                                       FontAttributes="Bold" />
+                            </Grid>
+
+                            <Label x:Name="TriggerRadiusLabel"
+                                   Text="Bán kính kích hoạt"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}" />
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Slider Minimum="10"
+                                        Maximum="100"
+                                        Value="50"
+                                        MinimumTrackColor="{StaticResource PrimaryGreen}"
+                                        MaximumTrackColor="#D1D5DB" />
+                                <Label Grid.Column="1"
+                                       Text="50m"
+                                       Margin="10,0,0,0"
+                                       VerticalOptions="Center"
+                                       FontSize="16"
+                                       FontAttributes="Bold" />
+                            </Grid>
+
+                            <Label x:Name="AlertRadiusLabel"
+                                   Text="Bán kính cảnh báo"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}" />
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Slider Minimum="20"
+                                        Maximum="200"
+                                        Value="100"
+                                        MinimumTrackColor="{StaticResource PrimaryGreen}"
+                                        MaximumTrackColor="#D1D5DB" />
+                                <Label Grid.Column="1"
+                                       Text="100m"
+                                       Margin="10,0,0,0"
+                                       VerticalOptions="Center"
+                                       FontSize="16"
+                                       FontAttributes="Bold" />
+                            </Grid>
+
+                            <Label x:Name="WaitTimeLabel"
+                                   Text="Thời gian chờ"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}" />
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Slider Minimum="60"
+                                        Maximum="600"
+                                        Value="300"
+                                        MinimumTrackColor="{StaticResource PrimaryGreen}"
+                                        MaximumTrackColor="#D1D5DB" />
+                                <Label Grid.Column="1"
+                                       Text="300s"
+                                       Margin="10,0,0,0"
+                                       VerticalOptions="Center"
+                                       FontSize="16"
+                                       FontAttributes="Bold" />
+                            </Grid>
+                        </VerticalStackLayout>
+                    </Frame>
+
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="⤴" FontSize="18" />
+                        <Label x:Name="BehaviorLabel"
+                               Text="Hành vi"
+                               Style="{StaticResource SectionTitleStyle}" />
+                    </HorizontalStackLayout>
+
+                    <Frame Style="{StaticResource CardFrameStyle}">
+                        <VerticalStackLayout Spacing="18">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="AutoPlayLabel"
+                                       Text="Tự động phát khi vào vùng"
+                                       FontSize="16"
+                                       TextColor="{StaticResource BodyText}" />
+                                <Switch Grid.Column="1" IsToggled="True" OnColor="{StaticResource PrimaryGreen}" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="NotifyNearLabel"
+                                       Text="Thông báo khi đến gần"
+                                       FontSize="16"
+                                       TextColor="{StaticResource BodyText}" />
+                                <Switch Grid.Column="1" IsToggled="True" OnColor="{StaticResource PrimaryGreen}" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="BackgroundTrackingLabel"
+                                       Text="Theo dõi ở nền"
+                                       FontSize="16"
+                                       TextColor="{StaticResource BodyText}" />
+                                <Switch Grid.Column="1" IsToggled="True" OnColor="{StaticResource PrimaryGreen}" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="BatterySaverLabel"
+                                       Text="Chế độ tiết kiệm pin"
+                                       FontSize="16"
+                                       TextColor="{StaticResource BodyText}" />
+                                <Switch Grid.Column="1" IsToggled="False" OnColor="{StaticResource PrimaryGreen}" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="OfflineModeLabel"
+                                       Text="Chế độ Offline"
+                                       FontSize="16"
+                                       TextColor="{StaticResource BodyText}" />
+                                <Switch Grid.Column="1" IsToggled="False" OnColor="{StaticResource PrimaryGreen}" />
+                            </Grid>
+                        </VerticalStackLayout>
+                    </Frame>
+
+                    <Button x:Name="SaveButton"
+                            Text="💾 Lưu cài đặt"
+                            Style="{StaticResource PrimaryButtonStyle}" />
+                </VerticalStackLayout>
+            </ScrollView>
+
+            <!-- Popup chọn ngôn ngữ -->
+            <Border x:Name="LanguagePopup"
+                    IsVisible="False"
+                    Stroke="#E5E7EB"
+                    StrokeThickness="1"
+                    BackgroundColor="White"
+                    StrokeShape="RoundRectangle 18"
+                    HorizontalOptions="End"
+                    VerticalOptions="Start"
+                    Margin="0,70,16,0"
+                    WidthRequest="250"
+                    MaximumHeightRequest="420"
+                    ZIndex="10">
+
+                <ScrollView>
+                    <VerticalStackLayout Spacing="0">
+                        <Label x:Name="LanguagePopupTitleLabel"
+                               Text="CHỌN NGÔN NGỮ"
+                               Padding="18,16,18,12"
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               TextColor="#667085" />
+
+                        <Grid x:Name="LangViItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              MinimumHeightRequest="54"
+                              BackgroundColor="Transparent">
+                            <BoxView x:Name="LangViIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="VN"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   Margin="16,0,0,0"
+                                   VerticalOptions="Center" />
+                            <Label x:Name="LangViLabel"
+                                   Grid.Column="2"
+                                   Text="Tiếng Việt"
+                                   FontSize="16"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource BodyText}" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnLanguageViTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <Grid x:Name="LangEnItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              MinimumHeightRequest="54"
+                              BackgroundColor="Transparent">
+                            <BoxView x:Name="LangEnIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="GB"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   Margin="16,0,0,0"
+                                   VerticalOptions="Center" />
+                            <Label x:Name="LangEnLabel"
+                                   Grid.Column="2"
+                                   Text="English"
+                                   FontSize="16"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource BodyText}" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnLanguageEnTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <Grid x:Name="LangCnItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              MinimumHeightRequest="54"
+                              BackgroundColor="Transparent">
+                            <BoxView x:Name="LangCnIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="CN"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   Margin="16,0,0,0"
+                                   VerticalOptions="Center" />
+                            <Label x:Name="LangCnLabel"
+                                   Grid.Column="2"
+                                   Text="中文"
+                                   FontSize="16"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource BodyText}" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnLanguageCnTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <Grid x:Name="LangJpItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              MinimumHeightRequest="54"
+                              BackgroundColor="Transparent">
+                            <BoxView x:Name="LangJpIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="JP"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   Margin="16,0,0,0"
+                                   VerticalOptions="Center" />
+                            <Label x:Name="LangJpLabel"
+                                   Grid.Column="2"
+                                   Text="日本語"
+                                   FontSize="16"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource BodyText}" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnLanguageJpTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <Grid x:Name="LangKrItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              MinimumHeightRequest="54"
+                              BackgroundColor="Transparent">
+                            <BoxView x:Name="LangKrIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="KR"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   Margin="16,0,0,0"
+                                   VerticalOptions="Center" />
+                            <Label x:Name="LangKrLabel"
+                                   Grid.Column="2"
+                                   Text="한국어"
+                                   FontSize="16"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource BodyText}" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnLanguageKrTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <Grid x:Name="LangFrItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              MinimumHeightRequest="54"
+                              BackgroundColor="Transparent">
+                            <BoxView x:Name="LangFrIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="FR"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   Margin="16,0,0,0"
+                                   VerticalOptions="Center" />
+                            <Label x:Name="LangFrLabel"
+                                   Grid.Column="2"
+                                   Text="Français"
+                                   FontSize="16"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource BodyText}" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnLanguageFrTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+                    </VerticalStackLayout>
+                </ScrollView>
+            </Border>
+        </Grid>
+    </Grid>
+</ContentPage>

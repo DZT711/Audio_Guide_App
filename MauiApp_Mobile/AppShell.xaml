@@ -4,11 +4,52 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:MauiApp_Mobile"
-    Title="MauiApp_Mobile">
+    xmlns:views="clr-namespace:MauiApp_Mobile.Views"
+    FlyoutBehavior="Disabled"
+    Shell.NavBarIsVisible="False"
+    Shell.TabBarBackgroundColor="White"
+    Shell.TabBarTitleColor="#98A2B3"
+    Shell.TabBarUnselectedColor="#98A2B3"
+    Shell.TabBarForegroundColor="#18A94B">
 
     <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+        Route="language"
+        ContentTemplate="{DataTemplate views:LanguagePage}" />
 
+    <TabBar Route="mainTabs">
+        <ShellContent
+            x:Name="PlacesTab"
+            Title="Địa điểm"
+            Route="places"
+            Icon="location.png"
+            ContentTemplate="{DataTemplate local:MainPage}" />
+
+        <ShellContent
+            x:Name="MapTab"
+            Title="Bản đồ"
+            Route="map"
+            Icon="map.png"
+            ContentTemplate="{DataTemplate views:MapPage}" />
+
+        <ShellContent
+            x:Name="HistoryTab"
+            Title="Lịch sử"
+            Route="history"
+            Icon="history.png"
+            ContentTemplate="{DataTemplate views:HistoryPage}" />
+
+        <ShellContent
+            x:Name="OfflineTab"
+            Title="Offline"
+            Route="offline"
+            Icon="offline.png"
+            ContentTemplate="{DataTemplate views:OfflinePage}" />
+
+        <ShellContent
+            x:Name="SettingsTab"
+            Title="Cài đặt"
+            Route="settings"
+            Icon="settings.png"
+            ContentTemplate="{DataTemplate views:SettingsPage}" />
+    </TabBar>
 </Shell>
