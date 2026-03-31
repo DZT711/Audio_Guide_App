@@ -1,83 +1,248 @@
-<div class="sidebar d-flex flex-column flex-shrink-0 p-3 bg-light border-end">
-    <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none">
-        <span class="fs-4 fw-bold text-primary">Audio Guide Admin</span>
+@implements IAsyncDisposable
+@inject AdminSessionState SessionState
+@inject InboxState InboxState
+@using Project_SharedClassLibrary.Security
+
+<nav class="@GetSidebarClass()">
+    <a href="/dashboard" class="sidebar-brand" aria-label="Dashboard home">
+        <span class="sidebar-brand__icon">
+            <i class="bi bi-compass-fill"></i>
+        </span>
+        <span class="sidebar-brand__copy">
+            <strong>Smart Tourism</strong>
+            <small>Admin Console</small>
+        </span>
     </a>
-    <hr>
-    
-    <div class="nav-label">TỔNG QUAN</div>
-    <ul class="nav nav-pills flex-column mb-auto">
-        <li class="nav-item">
-            <NavLink class="nav-link icon-link" href="dashboard" Match="NavLinkMatch.All">
-                <i class="bi bi-grid-fill me-2"></i>
-                Dashboard
+
+    <div class="sidebar-group">
+        <span class="sidebar-group__label">Overview</span>
+        @if (SessionState.HasPermission(AdminPermissions.DashboardView))
+        {
+            <NavLink class="sidebar-link" href="/dashboard" Match="NavLinkMatch.All" title="Dashboard" aria-label="Dashboard" @attributes="GetDismissAttributes()">
+                <i class="bi bi-grid-1x2-fill"></i>
+                <span class="sidebar-link__text">Dashboard</span>
             </NavLink>
-        </li>
-        
-        <div class="nav-label mt-3">QUẢN LÝ</div>
-        <li>
-            <NavLink class="nav-link icon-link" href="poi">
-                <i class="bi bi-geo-alt-fill me-2"></i>
-                POI Management
+        }
+        @if (SessionState.HasPermission(AdminPermissions.AnalyticsView))
+        {
+            <NavLink class="sidebar-link" href="/statistics" title="Statistics" aria-label="Statistics" @attributes="GetDismissAttributes()">
+                <i class="bi bi-graph-up-arrow"></i>
+                <span class="sidebar-link__text">Statistics</span>
             </NavLink>
-        </li>
-        <li>
-            <NavLink class="nav-link icon-link" href="audio">
-                <i class="bi bi-mic-fill me-2"></i>
-                Audio & TTS
+        }
+        @if (SessionState.HasPermission(AdminPermissions.UsageHistoryView))
+        {
+            <NavLink class="sidebar-link" href="/usage" title="Usage History" aria-label="Usage History" @attributes="GetDismissAttributes()">
+                <i class="bi bi-clock-history"></i>
+                <span class="sidebar-link__text">Usage History</span>
             </NavLink>
-        </li>
-        <li>
-            <NavLink class="nav-link icon-link" href="users">
-                <i class="bi bi-people-fill me-2"></i>
-                Users
+        }
+        @if (SessionState.HasPermission(AdminPermissions.InboxView))
+        {
+            <NavLink class="sidebar-link" href="/inbox" title="Inbox" aria-label="Inbox" @attributes="GetDismissAttributes()">
+                <i class="bi bi-inbox-fill"></i>
+                <span class="sidebar-link__text">Inbox</span>
+                @if (InboxState.UnreadCount > 0)
+                {
+                    <span class="sidebar-link__badge">@GetInboxBadgeLabel()</span>
+                }
             </NavLink>
-        </li>
-        <li>
-            <NavLink class="nav-link icon-link" href="moderation">
-                <i class="bi bi-shield-check me-2"></i>
-                Moderation
+        }
+    </div>
+
+    <div class="sidebar-group">
+        <span class="sidebar-group__label">Management</span>
+        @if (SessionState.HasPermission(AdminPermissions.LocationRead))
+        {
+            <NavLink class="sidebar-link" href="/poi" title="Locations" aria-label="Locations" @attributes="GetDismissAttributes()">
+                <i class="bi bi-geo-alt-fill"></i>
+                <span class="sidebar-link__text">Locations</span>
             </NavLink>
-        </li>
-    </ul>
-    <div class="mt-3 pt-3 border-top">
-        <div class="d-flex align-items-center" style="gap: 8px;">
-            <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold" 
-                 style="width: 36px; height: 36px; background-color: #3B82F6;">
-                A
-            </div>
-            <div class="d-flex flex-column" style="line-height: normal;">
-                <span class="fw-medium text-dark">Admin</span>
-                <span class="text-secondary" style="font-size: 11px;">admin@vinhkhanh.vn</span>
-            </div>
+        }
+        @if (SessionState.HasPermission(AdminPermissions.TourRead))
+        {
+            <NavLink class="sidebar-link" href="/tours" title="Tour Management" aria-label="Tour Management" @attributes="GetDismissAttributes()">
+                <i class="bi bi-signpost-split-fill"></i>
+                <span class="sidebar-link__text">Tour Management</span>
+            </NavLink>
+        }
+        @if (SessionState.HasPermission(AdminPermissions.CategoryRead))
+        {
+            <NavLink class="sidebar-link" href="/categories" title="Categories" aria-label="Categories" @attributes="GetDismissAttributes()">
+                <i class="bi bi-diagram-3-fill"></i>
+                <span class="sidebar-link__text">Categories</span>
+            </NavLink>
+        }
+        @if (SessionState.HasPermission(AdminPermissions.LanguageRead))
+        {
+            <NavLink class="sidebar-link" href="/languages" title="Languages" aria-label="Languages" @attributes="GetDismissAttributes()">
+                <i class="bi bi-translate"></i>
+                <span class="sidebar-link__text">Languages</span>
+            </NavLink>
+        }
+        @if (SessionState.HasPermission(AdminPermissions.AudioRead))
+        {
+            <NavLink class="sidebar-link" href="/audio" title="Audio & Voice" aria-label="Audio & Voice" @attributes="GetDismissAttributes()">
+                <i class="bi bi-mic-fill"></i>
+                <span class="sidebar-link__text">Audio &amp; Voice</span>
+            </NavLink>
+        }
+    </div>
+
+    @if (CanViewAdminSection)
+    {
+        <div class="sidebar-group">
+            <span class="sidebar-group__label">Admin Section</span>
+            @if (SessionState.HasPermission(AdminPermissions.UserRead))
+            {
+                <NavLink class="sidebar-link" href="/users" title="Users" aria-label="Users" @attributes="GetDismissAttributes()">
+                    <i class="bi bi-people-fill"></i>
+                    <span class="sidebar-link__text">Users</span>
+                </NavLink>
+            }
+            @if (SessionState.HasPermission(AdminPermissions.ModerationView))
+            {
+                <NavLink class="sidebar-link" href="/moderation" title="Moderation" aria-label="Moderation" @attributes="GetDismissAttributes()">
+                    <i class="bi bi-shield-check"></i>
+                    <span class="sidebar-link__text">Moderation</span>
+                </NavLink>
+            }
+        </div>
+    }
+
+    <div class="sidebar-profile">
+        <div class="sidebar-profile__avatar">@GetAvatarInitial()</div>
+        <div class="sidebar-profile__copy">
+            <strong>@SessionState.DisplayName</strong>
+            <small>@GetProfileMeta()</small>
         </div>
     </div>
-</div>
+</nav>
 
-<style>
-    .nav-label {
-        font-size: 11px;
-        color: #9CA3AF;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        padding: 16px 16px 6px 16px;
-        font-weight: 600;
-        pointer-events: none;
+@code {
+    private CancellationTokenSource? _inboxPollingCancellationSource;
+    private Task? _inboxPollingTask;
+
+    [Parameter]
+    public bool DismissOnNavigate { get; set; }
+
+    [Parameter]
+    public bool Collapsed { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        SessionState.Changed += HandleSessionChanged;
+        InboxState.Changed += HandleInboxStateChanged;
+
+        if (SessionState.HasPermission(AdminPermissions.InboxView))
+        {
+            await InboxState.RefreshAsync();
+            StartInboxPolling();
+        }
     }
-    .sidebar {
-        z-index: 1000;
+
+    private string GetSidebarClass() => Collapsed
+        ? "sidebar-nav sidebar-nav--collapsed"
+        : "sidebar-nav";
+
+    private IReadOnlyDictionary<string, object>? GetDismissAttributes()
+        => DismissOnNavigate
+            ? new Dictionary<string, object> { ["data-bs-dismiss"] = "offcanvas" }
+            : null;
+
+    private string GetAvatarInitial()
+    {
+        var value = SessionState.DisplayName;
+        return string.IsNullOrWhiteSpace(value) ? "A" : value[..1].ToUpperInvariant();
     }
-    .nav-pills .nav-link {
-        color: #6c757d; /* Gray text */
+
+    private string GetProfileMeta() =>
+        string.IsNullOrWhiteSpace(SessionState.Role)
+            ? "Admin session"
+            : $"{SessionState.Role} · {SessionState.StatusLabel}";
+
+    private string GetInboxBadgeLabel() => InboxState.UnreadCount > 99
+        ? "99+"
+        : InboxState.UnreadCount.ToString();
+
+    private bool CanViewAdminSection =>
+        SessionState.HasPermission(AdminPermissions.UserRead)
+        || SessionState.HasPermission(AdminPermissions.ModerationView);
+
+    private void HandleSessionChanged() => _ = RefreshForSessionAsync();
+
+    private void HandleInboxStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task RefreshForSessionAsync()
+    {
+        if (!SessionState.HasPermission(AdminPermissions.InboxView))
+        {
+            await StopInboxPollingAsync();
+            InboxState.Reset();
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        await InboxState.RefreshAsync();
+        StartInboxPolling();
+        await InvokeAsync(StateHasChanged);
     }
-    .nav-pills .nav-link.active {
-        background-color: #3B82F6; /* Blue background */
-        color: white;
+
+    private void StartInboxPolling()
+    {
+        if (_inboxPollingTask is { IsCompleted: false })
+        {
+            return;
+        }
+
+        _inboxPollingCancellationSource = new CancellationTokenSource();
+        _inboxPollingTask = RunInboxPollingAsync(_inboxPollingCancellationSource.Token);
     }
-    .nav-pills .nav-link:hover:not(.active) {
-        background-color: #e9ecef;
+
+    private async Task RunInboxPollingAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(45));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InboxState.RefreshAsync(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
-    /* Icons adjustment */
-    .bi {
-        font-size: 1.1rem;
+
+    private async Task StopInboxPollingAsync()
+    {
+        if (_inboxPollingCancellationSource is null)
+        {
+            return;
+        }
+
+        await _inboxPollingCancellationSource.CancelAsync();
+
+        if (_inboxPollingTask is not null)
+        {
+            try
+            {
+                await _inboxPollingTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        _inboxPollingCancellationSource.Dispose();
+        _inboxPollingCancellationSource = null;
+        _inboxPollingTask = null;
     }
-</style>
+
+    public async ValueTask DisposeAsync()
+    {
+        SessionState.Changed -= HandleSessionChanged;
+        InboxState.Changed -= HandleInboxStateChanged;
+        await StopInboxPollingAsync();
+    }
+}

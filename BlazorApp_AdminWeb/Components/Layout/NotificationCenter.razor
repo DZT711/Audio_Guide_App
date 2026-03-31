@@ -1,0 +1,57 @@
+@implements IDisposable
+@inject NotificationService Notifications
+
+<div class="notification-center" aria-live="polite" aria-atomic="true">
+    @foreach (var item in Notifications.Items)
+    {
+        <section class="notification-card @GetLevelClass(item.Level)" role="status">
+            <div class="notification-card__icon">
+                <i class="@GetIconClass(item.Level)"></i>
+            </div>
+
+            <div class="notification-card__copy">
+                @if (!string.IsNullOrWhiteSpace(item.Title))
+                {
+                    <strong>@item.Title</strong>
+                }
+                <p>@item.Message</p>
+            </div>
+
+            <button type="button" class="notification-card__dismiss" @onclick="() => Notifications.Dismiss(item.Id)" aria-label="Dismiss notification">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </section>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Notifications.Changed += HandleNotificationsChanged;
+    }
+
+    private void HandleNotificationsChanged() => InvokeAsync(StateHasChanged);
+
+    private static string GetLevelClass(NotificationLevel level) => level switch
+    {
+        NotificationLevel.Success => "notification-card--success",
+        NotificationLevel.Info => "notification-card--info",
+        NotificationLevel.Warning => "notification-card--warning",
+        NotificationLevel.Error => "notification-card--error",
+        _ => string.Empty
+    };
+
+    private static string GetIconClass(NotificationLevel level) => level switch
+    {
+        NotificationLevel.Success => "bi bi-check-circle-fill",
+        NotificationLevel.Info => "bi bi-info-circle-fill",
+        NotificationLevel.Warning => "bi bi-exclamation-triangle-fill",
+        NotificationLevel.Error => "bi bi-x-octagon-fill",
+        _ => "bi bi-bell-fill"
+    };
+
+    public void Dispose()
+    {
+        Notifications.Changed -= HandleNotificationsChanged;
+    }
+}

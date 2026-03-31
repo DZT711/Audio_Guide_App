@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "7b0JsMuaNlw=",
+  "dgSpecHash": "A3A6vF+Ke1g=",
   "success": true,
   "projectFilePath": "D:\\Projects\\Smart-Tourism-MAUI\\WebApplication_API\\WebApplication_API.csproj",
   "expectedPackageFiles": [
@@ -38,5 +38,15 @@
     "C:\\Users\\nguye\\.nuget\\system.composition.runtime\\9.0.0\\system.composition.runtime.9.0.0.nupkg.sha512",
     "C:\\Users\\nguye\\.nuget\\system.composition.typedparts\\9.0.0\\system.composition.typedparts.9.0.0.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "Undefined",
+      "level": "Warning",
+      "message": "Problem reading the cache file D:\\Projects\\Smart-Tourism-MAUI\\WebApplication_API\\obj\\project.nuget.cache : '<' is an invalid start of a property name. Expected a '\"'. Path: $ | LineNumber: 2 | BytePositionInLine: 0.",
+      "projectPath": "D:\\Projects\\Smart-Tourism-MAUI\\WebApplication_API\\WebApplication_API.csproj",
+      "warningLevel": 1,
+      "filePath": "D:\\Projects\\Smart-Tourism-MAUI\\WebApplication_API\\WebApplication_API.csproj",
+      "targetGraphs": []
+    }
+  ]
 }

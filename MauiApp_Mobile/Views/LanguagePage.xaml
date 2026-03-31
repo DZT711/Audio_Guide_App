@@ -1,0 +1,459 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MauiApp_Mobile.Views.LanguagePage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="{StaticResource PrimaryGreen}">
+
+    <Grid RowDefinitions="290,*" RowSpacing="0">
+        <Grid Grid.Row="0"
+              BackgroundColor="{StaticResource PrimaryGreen}">
+            <BoxView WidthRequest="160"
+                     HeightRequest="160"
+                     CornerRadius="80"
+                     Color="#49D16F"
+                     Opacity="0.35"
+                     HorizontalOptions="End"
+                     VerticalOptions="Start"
+                     TranslationX="30"
+                     TranslationY="-10" />
+
+            <BoxView WidthRequest="110"
+                     HeightRequest="110"
+                     CornerRadius="55"
+                     Color="#49D16F"
+                     Opacity="0.35"
+                     HorizontalOptions="Start"
+                     VerticalOptions="End"
+                     TranslationX="-30"
+                     TranslationY="25" />
+
+            <VerticalStackLayout Padding="24,38,24,24"
+                                 Spacing="16"
+                                 VerticalOptions="Center"
+                                 HorizontalOptions="Center">
+
+                <Frame WidthRequest="76"
+                       HeightRequest="72"
+                       CornerRadius="24"
+                       BackgroundColor="White"
+                       Padding="0"
+                       HasShadow="False">
+                    <Label Text="📍"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           FontSize="30"
+                           TextColor="{StaticResource PrimaryGreen}" />
+                </Frame>
+
+                <Label x:Name="TitleLabel"
+                       Text="Chào mừng đến với&#10;VietAudio Guide"
+                       HorizontalTextAlignment="Center"
+                       FontSize="24"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+
+                <Label x:Name="SubtitleLabel"
+                       Text="Thuyết minh tự động cho các điểm tham&#10;quan lịch sử Việt Nam"
+                       HorizontalTextAlignment="Center"
+                       FontSize="14"
+                       TextColor="#E7F8EC" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <Grid Grid.Row="1"
+              BackgroundColor="{StaticResource LightBg}">
+            <ScrollView>
+                <VerticalStackLayout Padding="18,18,18,20"
+                                     Spacing="18">
+
+                    <HorizontalStackLayout Spacing="10">
+                        <Frame WidthRequest="28"
+                               HeightRequest="28"
+                               CornerRadius="14"
+                               Padding="0"
+                               BackgroundColor="{StaticResource PrimaryGreen}"
+                               HasShadow="False">
+                            <Label Text="1"
+                                   TextColor="White"
+                                   FontAttributes="Bold"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center" />
+                        </Frame>
+
+                        <Label x:Name="ChooseLanguageLabel"
+                               Text="Chọn ngôn ngữ của bạn"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource BodyText}"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+
+                    <Grid ColumnDefinitions="*,*"
+                          RowDefinitions="Auto,Auto,Auto"
+                          ColumnSpacing="12"
+                          RowSpacing="12">
+
+                        <Frame x:Name="CardVN"
+                               Grid.Row="0"
+                               Grid.Column="0"
+                               BorderColor="#18A94B"
+                               BackgroundColor="#EEF8F1"
+                               CornerRadius="18"
+                               Padding="16,12"
+                               HeightRequest="84"
+                               HasShadow="False">
+                            <Grid ColumnDefinitions="Auto,1,*,24"
+                                  ColumnSpacing="10">
+                                <Label Text="VN"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#18A94B"
+                                       VerticalOptions="Center" />
+                                <BoxView Grid.Column="1"
+                                         WidthRequest="1"
+                                         HeightRequest="34"
+                                         Color="#D9DEE7"
+                                         VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="2"
+                                                     Spacing="2"
+                                                     VerticalOptions="Center">
+                                    <Label Text="Tiếng Việt"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           TextColor="#18A94B"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                    <Label Text="Vietnamese"
+                                           FontSize="12"
+                                           TextColor="{StaticResource MutedText}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                </VerticalStackLayout>
+                                <Frame x:Name="TickVN"
+                                       Grid.Column="3"
+                                       WidthRequest="22"
+                                       HeightRequest="22"
+                                       CornerRadius="11"
+                                       Padding="0"
+                                       BackgroundColor="#18A94B"
+                                       HasShadow="False"
+                                       VerticalOptions="Center">
+                                    <Label Text="✓"
+                                           TextColor="White"
+                                           FontSize="12"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Frame>
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnTapVietnamese" />
+                                </Grid.GestureRecognizers>
+                            </Grid>
+                        </Frame>
+
+                        <Frame x:Name="CardEN"
+                               Grid.Row="0"
+                               Grid.Column="1"
+                               BorderColor="#D6DBE3"
+                               BackgroundColor="White"
+                               CornerRadius="18"
+                               Padding="16,12"
+                               HeightRequest="84"
+                               HasShadow="False">
+                            <Grid ColumnDefinitions="Auto,1,*,24"
+                                  ColumnSpacing="10">
+                                <Label Text="GB"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#667085"
+                                       VerticalOptions="Center" />
+                                <BoxView Grid.Column="1"
+                                         WidthRequest="1"
+                                         HeightRequest="34"
+                                         Color="#D9DEE7"
+                                         VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="2"
+                                                     Spacing="2"
+                                                     VerticalOptions="Center">
+                                    <Label Text="English"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource BodyText}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                    <Label Text="English"
+                                           FontSize="12"
+                                           TextColor="{StaticResource MutedText}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                </VerticalStackLayout>
+                                <Frame x:Name="TickEN"
+                                       Grid.Column="3"
+                                       WidthRequest="22"
+                                       HeightRequest="22"
+                                       CornerRadius="11"
+                                       Padding="0"
+                                       BackgroundColor="#18A94B"
+                                       HasShadow="False"
+                                       IsVisible="False"
+                                       VerticalOptions="Center">
+                                    <Label Text="✓"
+                                           TextColor="White"
+                                           FontSize="12"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Frame>
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnTapEnglish" />
+                                </Grid.GestureRecognizers>
+                            </Grid>
+                        </Frame>
+
+                        <Frame x:Name="CardCN"
+                               Grid.Row="1"
+                               Grid.Column="0"
+                               BorderColor="#D6DBE3"
+                               BackgroundColor="White"
+                               CornerRadius="18"
+                               Padding="16,12"
+                               HeightRequest="84"
+                               HasShadow="False">
+                            <Grid ColumnDefinitions="Auto,1,*,24"
+                                  ColumnSpacing="10">
+                                <Label Text="CN"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#667085"
+                                       VerticalOptions="Center" />
+                                <BoxView Grid.Column="1"
+                                         WidthRequest="1"
+                                         HeightRequest="34"
+                                         Color="#D9DEE7"
+                                         VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="2"
+                                                     Spacing="2"
+                                                     VerticalOptions="Center">
+                                    <Label Text="中文"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource BodyText}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                    <Label Text="Chinese"
+                                           FontSize="12"
+                                           TextColor="{StaticResource MutedText}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                </VerticalStackLayout>
+                                <Frame x:Name="TickCN"
+                                       Grid.Column="3"
+                                       WidthRequest="22"
+                                       HeightRequest="22"
+                                       CornerRadius="11"
+                                       Padding="0"
+                                       BackgroundColor="#18A94B"
+                                       HasShadow="False"
+                                       IsVisible="False"
+                                       VerticalOptions="Center">
+                                    <Label Text="✓"
+                                           TextColor="White"
+                                           FontSize="12"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Frame>
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnTapChinese" />
+                                </Grid.GestureRecognizers>
+                            </Grid>
+                        </Frame>
+
+                        <Frame x:Name="CardJP"
+                               Grid.Row="1"
+                               Grid.Column="1"
+                               BorderColor="#D6DBE3"
+                               BackgroundColor="White"
+                               CornerRadius="18"
+                               Padding="16,12"
+                               HeightRequest="84"
+                               HasShadow="False">
+                            <Grid ColumnDefinitions="Auto,1,*,24"
+                                  ColumnSpacing="10">
+                                <Label Text="JP"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#667085"
+                                       VerticalOptions="Center" />
+                                <BoxView Grid.Column="1"
+                                         WidthRequest="1"
+                                         HeightRequest="34"
+                                         Color="#D9DEE7"
+                                         VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="2"
+                                                     Spacing="2"
+                                                     VerticalOptions="Center">
+                                    <Label Text="日本語"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource BodyText}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                    <Label Text="Japanese"
+                                           FontSize="12"
+                                           TextColor="{StaticResource MutedText}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                </VerticalStackLayout>
+                                <Frame x:Name="TickJP"
+                                       Grid.Column="3"
+                                       WidthRequest="22"
+                                       HeightRequest="22"
+                                       CornerRadius="11"
+                                       Padding="0"
+                                       BackgroundColor="#18A94B"
+                                       HasShadow="False"
+                                       IsVisible="False"
+                                       VerticalOptions="Center">
+                                    <Label Text="✓"
+                                           TextColor="White"
+                                           FontSize="12"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Frame>
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnTapJapanese" />
+                                </Grid.GestureRecognizers>
+                            </Grid>
+                        </Frame>
+
+                        <Frame x:Name="CardKR"
+                               Grid.Row="2"
+                               Grid.Column="0"
+                               BorderColor="#D6DBE3"
+                               BackgroundColor="White"
+                               CornerRadius="18"
+                               Padding="16,12"
+                               HeightRequest="84"
+                               HasShadow="False">
+                            <Grid ColumnDefinitions="Auto,1,*,24"
+                                  ColumnSpacing="10">
+                                <Label Text="KR"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#667085"
+                                       VerticalOptions="Center" />
+                                <BoxView Grid.Column="1"
+                                         WidthRequest="1"
+                                         HeightRequest="34"
+                                         Color="#D9DEE7"
+                                         VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="2"
+                                                     Spacing="2"
+                                                     VerticalOptions="Center">
+                                    <Label Text="한국어"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource BodyText}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                    <Label Text="Korean"
+                                           FontSize="12"
+                                           TextColor="{StaticResource MutedText}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                </VerticalStackLayout>
+                                <Frame x:Name="TickKR"
+                                       Grid.Column="3"
+                                       WidthRequest="22"
+                                       HeightRequest="22"
+                                       CornerRadius="11"
+                                       Padding="0"
+                                       BackgroundColor="#18A94B"
+                                       HasShadow="False"
+                                       IsVisible="False"
+                                       VerticalOptions="Center">
+                                    <Label Text="✓"
+                                           TextColor="White"
+                                           FontSize="12"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Frame>
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnTapKorean" />
+                                </Grid.GestureRecognizers>
+                            </Grid>
+                        </Frame>
+
+                        <Frame x:Name="CardFR"
+                               Grid.Row="2"
+                               Grid.Column="1"
+                               BorderColor="#D6DBE3"
+                               BackgroundColor="White"
+                               CornerRadius="18"
+                               Padding="16,12"
+                               HeightRequest="84"
+                               HasShadow="False">
+                            <Grid ColumnDefinitions="Auto,1,*,24"
+                                  ColumnSpacing="10">
+                                <Label Text="FR"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#667085"
+                                       VerticalOptions="Center" />
+                                <BoxView Grid.Column="1"
+                                         WidthRequest="1"
+                                         HeightRequest="34"
+                                         Color="#D9DEE7"
+                                         VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="2"
+                                                     Spacing="2"
+                                                     VerticalOptions="Center">
+                                    <Label Text="Français"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource BodyText}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                    <Label Text="French"
+                                           FontSize="12"
+                                           TextColor="{StaticResource MutedText}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                </VerticalStackLayout>
+                                <Frame x:Name="TickFR"
+                                       Grid.Column="3"
+                                       WidthRequest="22"
+                                       HeightRequest="22"
+                                       CornerRadius="11"
+                                       Padding="0"
+                                       BackgroundColor="#18A94B"
+                                       HasShadow="False"
+                                       IsVisible="False"
+                                       VerticalOptions="Center">
+                                    <Label Text="✓"
+                                           TextColor="White"
+                                           FontSize="12"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Frame>
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnTapFrench" />
+                                </Grid.GestureRecognizers>
+                            </Grid>
+                        </Frame>
+                    </Grid>
+
+                    <Button x:Name="StartButton"
+                            Text="Bắt đầu khám phá ❯"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Clicked="OnStartClicked" />
+
+                    <Label x:Name="FooterLabel"
+                           Text="Bạn có thể thay đổi ngôn ngữ trong Cài đặt"
+                           FontSize="14"
+                           TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </ScrollView>
+        </Grid>
+    </Grid>
+</ContentPage>

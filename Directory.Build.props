@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);.codex-build\**;.verify\**;.dotnet\**;.dotnet-cli\**;**\.codex-build\**;**\.verify\**;**\.dotnet\**;**\.dotnet-cli\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove=".codex-build\**\*.cs;.verify\**\*.cs;**\.codex-build\**\*.cs;**\.verify\**\*.cs" />
+    <Content Remove=".codex-build\**;.verify\**;**\.codex-build\**;**\.verify\**" />
+    <EmbeddedResource Remove=".codex-build\**;.verify\**;**\.codex-build\**;**\.verify\**" />
+    <None Remove=".codex-build\**;.verify\**;**\.codex-build\**;**\.verify\**" />
+  </ItemGroup>
+</Project>

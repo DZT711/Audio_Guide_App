@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MauiApp_Mobile.Views.OfflinePage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:MauiApp_Mobile.Views"
+    x:Name="ThisPage"
+    BackgroundColor="#F4F5F7"
+    Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="0">
+
+        <!-- Header -->
+        <Grid Grid.Row="0"
+              Style="{StaticResource TopHeaderGridStyle}">
+
+            <Grid ColumnDefinitions="*,Auto"
+                  VerticalOptions="Center">
+
+                <VerticalStackLayout Spacing="3" VerticalOptions="Center">
+                    <Label Text="Offline"
+                           Style="{StaticResource TopHeaderTitleStyle}" />
+
+                    <Label Text="Quản lý audio pack nghe offline"
+                           Style="{StaticResource TopHeaderSubtitleStyle}" />
+                </VerticalStackLayout>
+
+                <Button Grid.Column="1"
+                        Text="↓ Tải tất cả"
+                        Clicked="OnDownloadAllClicked"
+                        Style="{StaticResource TopHeaderActionButtonStyle}" />
+            </Grid>
+        </Grid>
+
+        <!-- Stats -->
+        <Grid Grid.Row="1"
+              BackgroundColor="White"
+              Padding="16,12,16,10"
+              ColumnDefinitions="*,Auto"
+              RowDefinitions="Auto">
+
+            <HorizontalStackLayout Spacing="16">
+                <HorizontalStackLayout Spacing="6">
+                    <Label Text="◌"
+                           FontSize="14"
+                           TextColor="#18A94B"
+                           VerticalTextAlignment="Center" />
+                    <Label Text="{Binding DownloadedCountText}"
+                           FontSize="18"
+                           TextColor="#344054"
+                           VerticalTextAlignment="Center" />
+                </HorizontalStackLayout>
+
+                <HorizontalStackLayout Spacing="6">
+                    <Label Text="▣"
+                           FontSize="14"
+                           TextColor="#3B82F6"
+                           VerticalTextAlignment="Center" />
+                    <Label Text="{Binding DownloadedSizeText}"
+                           FontSize="18"
+                           TextColor="#344054"
+                           VerticalTextAlignment="Center" />
+                </HorizontalStackLayout>
+            </HorizontalStackLayout>
+
+            <Label Grid.Column="1"
+                   Text="🗑 Xóa hết"
+                   TextColor="#FF4D4F"
+                   FontSize="14"
+                   VerticalTextAlignment="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnClearAllTapped" />
+                </Label.GestureRecognizers>
+            </Label>
+        </Grid>
+
+        <!-- Filter -->
+        <HorizontalStackLayout Grid.Row="2"
+                               BackgroundColor="White"
+                               Padding="16,0,16,12"
+                               Spacing="10">
+
+            <Border StrokeThickness="0"
+                    BackgroundColor="{Binding AllTabBg}"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14,6">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnAllTapped" />
+                </Border.GestureRecognizers>
+                <Label Text="Tất cả"
+                       TextColor="{Binding AllTabTextColor}"
+                       FontAttributes="Bold"
+                       FontSize="14" />
+            </Border>
+
+            <Border StrokeThickness="0"
+                    BackgroundColor="{Binding DownloadedTabBg}"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14,6">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnDownloadedTapped" />
+                </Border.GestureRecognizers>
+                <Label Text="Đã tải"
+                       TextColor="{Binding DownloadedTabTextColor}"
+                       FontAttributes="Bold"
+                       FontSize="14" />
+            </Border>
+
+            <Border StrokeThickness="0"
+                    BackgroundColor="{Binding NotDownloadedTabBg}"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14,6">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnNotDownloadedTapped" />
+                </Border.GestureRecognizers>
+                <Label Text="Chưa tải"
+                       TextColor="{Binding NotDownloadedTabTextColor}"
+                       FontAttributes="Bold"
+                       FontSize="14" />
+            </Border>
+        </HorizontalStackLayout>
+
+        <!-- List -->
+        <CollectionView Grid.Row="3"
+                        ItemsSource="{Binding FilteredItems}"
+                        Margin="0,0,0,0"
+                        ItemSizingStrategy="MeasureFirstItem"
+                        SelectionMode="None">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical"
+                                   ItemSpacing="14" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="local:OfflinePackItem">
+                    <Border Margin="10,0"
+                            Padding="12"
+                            BackgroundColor="White"
+                            Stroke="{Binding CardStrokeColor}"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 18">
+
+                        <Grid RowDefinitions="Auto,Auto"
+                              RowSpacing="10">
+
+                            <Grid Grid.Row="0"
+                                  ColumnDefinitions="Auto,*,Auto"
+                                  ColumnSpacing="12">
+
+                                <!-- Image -->
+                                <Grid WidthRequest="56"
+                                      HeightRequest="56"
+                                    VerticalOptions="Center">
+                                    <Frame Padding="0"
+                                           HasShadow="False"
+                                           CornerRadius="14"
+                                           IsClippedToBounds="True"
+                                           WidthRequest="56"
+                                           HeightRequest="56"
+                                           BackgroundColor="#E5E7EB">
+                                        <Image Source="{Binding Image}"
+                                               Aspect="AspectFill" />
+                                    </Frame>
+
+                                    <Border IsVisible="{Binding IsDownloaded}"
+                                            BackgroundColor="White"
+                                            Stroke="#18A94B"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 10"
+                                            WidthRequest="20"
+                                            HeightRequest="20"
+                                            HorizontalOptions="End"
+                                            VerticalOptions="End"
+                                            TranslationX="4"
+                                            TranslationY="4">
+                                        <Label Text="✓"
+                                               TextColor="#18A94B"
+                                               FontSize="12"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalTextAlignment="Center" />
+                                    </Border>
+                                </Grid>
+
+                                <!-- Content -->
+                                <VerticalStackLayout Grid.Column="1"
+                                                     Spacing="5"
+                                                     VerticalOptions="Center">
+
+                                    <Border BackgroundColor="{Binding CategoryBg}"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 10"
+                                            Padding="8,2"
+                                            HorizontalOptions="Start">
+                                        <Label Text="{Binding Category}"
+                                               FontSize="12"
+                                               TextColor="{Binding CategoryTextColor}" />
+                                    </Border>
+
+                                    <Label Text="{Binding Title}"
+                                           FontSize="17"
+                                           FontAttributes="Bold"
+                                           TextColor="#101828"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+
+                                    <HorizontalStackLayout Spacing="10">
+                                        <Label Text="{Binding AudioCountText}"
+                                               FontSize="13"
+                                               TextColor="#667085" />
+                                        <Label Text="{Binding Duration}"
+                                               FontSize="13"
+                                               TextColor="#667085" />
+                                        <Label Text="{Binding Size}"
+                                               FontSize="13"
+                                               TextColor="#667085" />
+                                    </HorizontalStackLayout>
+
+                                    <Label Text="{Binding DownloadedDateText}"
+                                           FontSize="13"
+                                           TextColor="#18A94B"
+                                           IsVisible="{Binding IsDownloaded}" />
+                                </VerticalStackLayout>
+
+                                <!-- Actions -->
+                                <VerticalStackLayout Grid.Column="2"
+                                                     Spacing="8"
+                                                     HorizontalOptions="Center"
+                                                     VerticalOptions="Center">
+
+                                    <!-- Chưa tải -->
+                                    <Border IsVisible="{Binding IsNotDownloaded}"
+                                            BackgroundColor="#18A94B"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 22"
+                                            WidthRequest="44"
+                                            HeightRequest="44">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DownloadCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="↓"
+                                               TextColor="White"
+                                               FontSize="20"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalTextAlignment="Center" />
+                                    </Border>
+
+                                    <!-- Đã tải: Xóa -->
+                                    <Border IsVisible="{Binding IsDownloaded}"
+                                            BackgroundColor="#FDECEC"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 14"
+                                            WidthRequest="44"
+                                            HeightRequest="44">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DeleteCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="&#xE74D;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               TextColor="#FF4D4F"
+                                               FontSize="18"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalTextAlignment="Center" />
+                                    </Border>
+
+                                    <!-- Expand/Collapse -->
+                                    <Border BackgroundColor="#F2F4F7"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 18"
+                                            WidthRequest="36"
+                                            HeightRequest="36">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.ToggleExpandCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="{Binding ExpandIcon}"
+                                               TextColor="#98A2B3"
+                                               FontSize="14"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalTextAlignment="Center" />
+                                    </Border>
+                                </VerticalStackLayout>
+                            </Grid>
+
+                            <!-- Expanded language list -->
+                            <Border Grid.Row="1"
+                                    IsVisible="{Binding IsExpanded}"
+                                    BackgroundColor="#F9FAFB"
+                                    Stroke="#EAECF0"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 14"
+                                    Padding="10">
+                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding LocalizedTitles}"
+                                                     Spacing="8">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="local:LocalizedTitleItem">
+                                            <Grid ColumnDefinitions="Auto,*"
+                                                  ColumnSpacing="8">
+                                                <Label Text="{Binding LanguageCode}"
+                                                       FontSize="11"
+                                                       TextColor="#344054"
+                                                       BackgroundColor="#EEF2F6"
+                                                       Padding="6,2"
+                                                       VerticalTextAlignment="Center" />
+                                                <Label Grid.Column="1"
+                                                       Text="{Binding LocalizedName}"
+                                                       FontSize="13"
+                                                       TextColor="#344054"
+                                                       LineBreakMode="TailTruncation" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Delete Confirm Modal -->
+        <Grid Grid.RowSpan="4"
+              IsVisible="{Binding IsDeleteConfirmVisible}"
+              BackgroundColor="#66000000"
+              Padding="16"
+              ZIndex="99">
+
+            <Border VerticalOptions="End"
+                    BackgroundColor="White"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 24"
+                    Padding="16,18,16,16">
+
+                <VerticalStackLayout Spacing="16">
+                    <Grid ColumnDefinitions="Auto,*"
+                          ColumnSpacing="12">
+                        <Border WidthRequest="42"
+                                HeightRequest="42"
+                                BackgroundColor="#FDECEC"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 21"
+                                VerticalOptions="Start">
+                            <Label Text="&#xE74D;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   TextColor="#FF4D4F"
+                                   FontSize="18"
+                                   HorizontalTextAlignment="Center"
+                                   VerticalTextAlignment="Center" />
+                        </Border>
+
+                        <VerticalStackLayout Grid.Column="1"
+                                             Spacing="2">
+                            <Label Text="{Binding DeleteConfirmTitle}"
+                                   FontAttributes="Bold"
+                                FontSize="18"
+                                   TextColor="#0F172A" />
+                            <Label Text="{Binding DeleteConfirmDescription}"
+                                FontSize="14"
+                                   TextColor="#667085" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="12">
+                        <Button Grid.Column="0"
+                                Text="Hủy"
+                                Clicked="OnCancelDeleteClicked"
+                                BackgroundColor="#ECEEF2"
+                                TextColor="#0F172A"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                CornerRadius="14"
+                                HeightRequest="52" />
+                        <Button Grid.Column="1"
+                                Text="Xóa"
+                                Clicked="OnConfirmDeleteClicked"
+                                BackgroundColor="#FF2D3D"
+                                TextColor="White"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                CornerRadius="14"
+                                HeightRequest="52" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+    </Grid>
+</ContentPage>

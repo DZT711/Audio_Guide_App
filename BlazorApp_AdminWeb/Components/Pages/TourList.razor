@@ -1,0 +1,1299 @@
+@page "/tours"
+@using Project_SharedClassLibrary.Constants
+@using System.Globalization
+@implements IAsyncDisposable
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject IJSRuntime JS
+@inject AdminSessionState SessionState
+
+<PageTitle>Tour Management</PageTitle>
+
+@if (!CanView)
+{
+    <div class="management-page tour-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view tours.</div>
+        </div>
+    </div>
+}
+else
+{
+<div class="management-page tour-page">
+    <section class="management-hero" data-reveal>
+        <div>
+            <span class="management-hero__eyebrow">Tours</span>
+            <h1>Tour Management</h1>
+            <p>Build walking routes from POIs on the map, set the order, and calculate total distance, duration, and finish time.</p>
+        </div>
+        <div class="management-hero__actions">
+            @if (CanManage)
+            {
+                <button type="button" class="btn btn-primary btn-lg" @onclick="StartCreateAsync">New Tour</button>
+            }
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">Refresh</button>
+        </div>
+    </section>
+
+    <div class="management-stat-grid" data-stagger data-stagger-step="80">
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-signpost-2"></i></span>
+            <div>
+                <strong class="management-stat__value">@_tours.Count</strong>
+                <span class="management-stat__label">Visible Tours</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
+            <div>
+                <strong class="management-stat__value">@_tours.Count(item => item.Status == 1)</strong>
+                <span class="management-stat__label">Active Tours</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-geo-alt"></i></span>
+            <div>
+                <strong class="management-stat__value">@(CanManage ? PlannerLocations.Count : _tours.Sum(item => item.StopCount))</strong>
+                <span class="management-stat__label">@(CanManage ? "Planner POIs" : "Visible Stops")</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-search"></i></span>
+            <div>
+                <strong class="management-stat__value">@FilteredTours.Count()</strong>
+                <span class="management-stat__label">Matching Results</span>
+            </div>
+        </article>
+    </div>
+
+    <div class="management-layout @(CanManage ? "tour-layout--planner-modal" : string.Empty)">
+        <section class="management-panel" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">Directory</span>
+                    <h2>Routes</h2>
+                </div>
+                <div class="management-toolbar">
+                    <label class="management-search">
+                        <i class="bi bi-search"></i>
+                        <input class="form-control" type="search" placeholder="Search tours..." @bind="_searchText" @bind:event="oninput" />
+                    </label>
+                    <select class="form-select management-filter" @bind="_selectedStatus">
+                        <option value="">All statuses</option>
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+            </div>
+
+            @if (_isLoading)
+            {
+                <div class="tour-skeleton-table">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <div class="skeleton-table-row">
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--line"></div>
+                        </div>
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(_loadError))
+            {
+                <div class="management-error">
+                    <strong>Unable to load tours.</strong>
+                    <div>@_loadError</div>
+                </div>
+            }
+            else if (!FilteredTours.Any())
+            {
+                <div class="app-empty-state">No tours match the current filters.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table management-table">
+                        <thead>
+                            <tr>
+                                <th>Tour</th>
+                                <th>Stops</th>
+                                <th>Distance</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var tour in FilteredTours)
+                            {
+                                <tr class="@GetTourRowClass(tour)" @onclick="() => SelectTour(tour)">
+                                    <td>
+                                        <div class="tour-name">@tour.Name</div>
+                                        <small class="management-muted">@(tour.OwnerName ?? "No owner label")</small>
+                                    </td>
+                                    <td>@tour.StopCount</td>
+                                    <td>@tour.TotalDistanceKm.ToString("0.##") km</td>
+                                    <td>@FormatDuration(tour.EstimatedDurationMinutes)</td>
+                                    <td><span class="@GetStatusClass(tour.Status)">@GetStatusLabel(tour.Status)</span></td>
+                                    <td class="text-end">
+                                        <div class="management-inline-actions">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(tour)">@(CanManage ? "Edit" : "View")</button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || tour.Status == 0)" @onclick="() => PromptArchiveTour(tour)">@(tour.Status == 0 ? "Inactive" : "Archive")</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        @if (SelectedTourForDisplay is null)
+        {
+            if (!CanManage)
+            {
+                <section class="management-panel tour-editor" data-reveal>
+                    <div class="app-empty-state">Select a tour to review its route.</div>
+                </section>
+            }
+        }
+        else if (!CanManage)
+        {
+            var selectedTour = SelectedTourForDisplay!;
+            <section class="management-panel tour-editor" data-reveal>
+                <div class="management-panel__header">
+                    <div>
+                        <span class="management-panel__eyebrow">Read Only</span>
+                        <h2>Tour Details</h2>
+                    </div>
+                </div>
+
+                <div class="tour-readonly">
+                    <div class="tour-readonly__notice">Tours are read-only for your current role.</div>
+                    <div class="tour-summary-grid">
+                        <article class="tour-summary-card">
+                            <span>Total Distance</span>
+                            <strong>@selectedTour.TotalDistanceKm.ToString("0.##") km</strong>
+                            <small>@selectedTour.StopCount stops</small>
+                        </article>
+                        <article class="tour-summary-card">
+                            <span>Estimated Duration</span>
+                            <strong>@FormatDuration(selectedTour.EstimatedDurationMinutes)</strong>
+                            <small>@($"{selectedTour.WalkingSpeedKph:0.##} km/h walking pace")</small>
+                        </article>
+                        <article class="tour-summary-card">
+                            <span>Route Window</span>
+                            <strong>@GetReadonlyScheduleLabel(selectedTour)</strong>
+                            <small>Saved walking route timing.</small>
+                        </article>
+                    </div>
+
+                    <div class="tour-stop-sequence__list">
+                        @foreach (var stop in selectedTour.Stops.OrderBy(item => item.SequenceOrder))
+                        {
+                            <article class="tour-stop-card">
+                                <div class="tour-stop-card__index">@stop.SequenceOrder</div>
+                                <div class="tour-stop-card__body">
+                                    <div class="tour-stop-card__top">
+                                        <strong>@stop.LocationName</strong>
+                                        <span class="@GetStatusClass(stop.Status)">@GetStatusLabel(stop.Status)</span>
+                                    </div>
+                                    <div class="management-muted">@(stop.OwnerName ?? "No owner")</div>
+                                    @if (stop.SequenceOrder > 1 && stop.SegmentDistanceKm > 0)
+                                    {
+                                        <div class="tour-stop-card__segment">+ @stop.SegmentDistanceKm.ToString("0.##") km from previous stop</div>
+                                    }
+                                </div>
+                            </article>
+                        }
+                    </div>
+                </div>
+            </section>
+        }
+</div>
+</div>
+
+@if (CanManage)
+{
+    <div class="@GetEditorModalClass()" @onclick="CancelEditAsync" aria-hidden="@(!_isEditorOpen)">
+        <section class="management-panel tour-editor tour-editor--modal" role="dialog" aria-modal="true" aria-labelledby="tour-editor-title" @onclick:stopPropagation="true">
+            <div class="tour-editor__topbar">
+                <div>
+                    <span class="management-panel__eyebrow">Planner</span>
+                    <h2 id="tour-editor-title">@(_editingId is null ? "Create Tour" : "Edit Tour")</h2>
+                    <div class="management-field__hint">Create and edit tours in a focused popup planner without shrinking the main table view.</div>
+                </div>
+                <button type="button" class="btn-close" aria-label="Close planner" @onclick="CancelEditAsync"></button>
+            </div>
+
+            <EditForm Model="_formModel" OnValidSubmit="SaveTourAsync" class="management-form">
+                <DataAnnotationsValidator />
+
+                <div class="management-form__grid">
+                    <div class="management-field">
+                        <label for="tour-name">Tour Name</label>
+                        <InputText id="tour-name" class="form-control" @bind-Value="_formModel.Name" />
+                        <ValidationMessage For="() => _formModel.Name" />
+                    </div>
+
+                    <div class="management-field">
+                        <label for="tour-start">Start Time</label>
+                        <input id="tour-start" class="form-control" type="time" step="60" value="@_startTimeInput" @onchange="HandleStartTimeChangedAsync" />
+                        <ValidationMessage For="() => _formModel.StartTime" />
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <label for="tour-description">Description</label>
+                        <InputTextArea id="tour-description" class="form-control" rows="3" @bind-Value="_formModel.Description" />
+                        <ValidationMessage For="() => _formModel.Description" />
+                    </div>
+
+                    <div class="management-field">
+                        <span class="management-field__label">Status</span>
+                        <div class="management-chip-group">
+                            <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
+                            <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                        </div>
+                    </div>
+
+                    <div class="management-field">
+                        <span class="management-field__label">Walking Pace</span>
+                        <div class="tour-editor__hint-card">Automatic @TourDefaults.DefaultWalkingSpeedKph.ToString("0.#") km/h default for every tour.</div>
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <div class="tour-summary-grid">
+                            <article class="tour-summary-card">
+                                <span>Total Distance</span>
+                                <strong>@CalculatedDistanceKm.ToString("0.##") km</strong>
+                                <small>@GetDistanceSummaryHint()</small>
+                            </article>
+                            <article class="tour-summary-card">
+                                <span>Estimated Duration</span>
+                                <strong>@FormatDuration(CalculatedDurationMinutes)</strong>
+                                <small>@GetDurationSummaryHint()</small>
+                            </article>
+                            <article class="tour-summary-card">
+                                <span>Expected Time</span>
+                                <strong>@GetCalculatedScheduleLabel()</strong>
+                                <small>Start time and calculated finish time.</small>
+                            </article>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_routePreviewMessage))
+                    {
+                        <div class="management-field management-field--full">
+                            <div class="tour-editor__notice">@_routePreviewMessage</div>
+                        </div>
+                    }
+
+                    <div class="management-field management-field--full">
+                        <div class="tour-planner">
+                            <div class="tour-planner__header">
+                                <div>
+                                    <span class="management-field__label">Map Planner</span>
+                                    <div class="management-field__hint">Click a marker to add or remove a POI from the route.</div>
+                                </div>
+                                <div class="tour-planner__actions">
+                                    @if (_isRoutePreviewLoading)
+                                    {
+                                        <span class="tour-planner__status">Refreshing route...</span>
+                                    }
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="RefitMapAsync">Refit Route</button>
+                                </div>
+                            </div>
+                            <div class="tour-planner__map" @ref="_mapElement"></div>
+                        </div>
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <div class="tour-stop-layout">
+                            <div class="tour-stop-catalog">
+                                <div class="tour-stop-catalog__header">
+                                    <div>
+                                        <span class="management-field__label">POI Catalog</span>
+                                        <div class="management-field__hint">Only active POIs can be added as new stops.</div>
+                                    </div>
+                                    <label class="management-search tour-stop-search">
+                                        <i class="bi bi-search"></i>
+                                        <input class="form-control" type="search" placeholder="Search POIs..." @bind="_locationSearchText" @bind:event="oninput" />
+                                    </label>
+                                </div>
+
+                                <div class="tour-stop-catalog__list">
+                                    @foreach (var location in FilteredPlannerLocations)
+                                    {
+                                        var isSelected = _formModel.StopLocationIds.Contains(location.Id);
+                                        <article class="tour-catalog-card">
+                                            <div>
+                                                <strong>@location.Name</strong>
+                                                <div class="management-muted">@(location.OwnerName ?? "No owner")</div>
+                                            </div>
+                                            <button type="button" class="btn btn-sm @(isSelected ? "btn-outline-secondary" : "btn-outline-primary")" disabled="@(!isSelected && location.Status != 1)" @onclick="() => ToggleStopAsync(location.Id)">
+                                                @(isSelected ? "Remove" : "Add")
+                                            </button>
+                                        </article>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="tour-stop-sequence">
+                                <div>
+                                    <span class="management-field__label">Selected Route</span>
+                                    <div class="management-field__hint">Move stops to change the route order and recalculate the walking route.</div>
+                                </div>
+                                <ValidationMessage For="() => _formModel.StopLocationIds" />
+
+                                @if (SelectedStopLocations.Count == 0)
+                                {
+                                    <div class="app-empty-state">Choose at least one POI to build a tour.</div>
+                                }
+                                else
+                                {
+                                    <div class="tour-stop-sequence__list">
+                                        @for (var index = 0; index < SelectedStopLocations.Count; index++)
+                                        {
+                                            var currentIndex = index;
+                                            var stop = SelectedStopLocations[currentIndex];
+                                            <article class="tour-stop-card" @key="stop.Id">
+                                                <div class="tour-stop-card__index">@(currentIndex + 1)</div>
+                                                <div class="tour-stop-card__body">
+                                                    <div class="tour-stop-card__top">
+                                                        <strong>@stop.Name</strong>
+                                                        <span class="@GetStatusClass(stop.Status)">@GetStatusLabel(stop.Status)</span>
+                                                    </div>
+                                                    <div class="management-muted">@(stop.OwnerName ?? "No owner")</div>
+                                                    @if (currentIndex > 0)
+                                                    {
+                                                        <div class="tour-stop-card__segment">+ @GetSegmentDistanceKm(currentIndex).ToString("0.##") km from previous stop</div>
+                                                    }
+                                                </div>
+                                                <div class="tour-stop-card__actions">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(currentIndex == 0)" @onclick="() => MoveStopAsync(currentIndex, -1)"><i class="bi bi-arrow-up"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(currentIndex == SelectedStopLocations.Count - 1)" @onclick="() => MoveStopAsync(currentIndex, 1)"><i class="bi bi-arrow-down"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveStopAsync(currentIndex)"><i class="bi bi-x-lg"></i></button>
+                                                </div>
+                                            </article>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="management-actions">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _isRoutePreviewLoading)">@(_isSaving ? "Saving..." : _editingId is null ? "Create Tour" : "Save Changes")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">Cancel</button>
+                </div>
+            </EditForm>
+        </section>
+    </div>
+}
+
+<AdminConfirmDialog Visible="@(_pendingArchivedTour is not null)"
+                    Eyebrow="Archive Tour"
+                    Title="Archive this tour?"
+                    Message="@GetPendingArchiveTourMessage()"
+                    ConfirmLabel="Archive Tour"
+                    ConfirmButtonClass="btn btn-danger"
+                    OnConfirm="ConfirmArchiveTourAsync"
+                    OnCancel="CancelArchiveTour" />
+}
+
+@code {
+    private readonly TourFormModel _formModel = new();
+    private readonly List<TourDto> _tours = [];
+    private readonly List<LocationDto> _locations = [];
+    private DotNetObjectReference<TourList>? _mapReference;
+    private TourDto? _selectedTour;
+    private TourDto? _pendingArchivedTour;
+    private CancellationTokenSource? _routePreviewCts;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isEditorOpen;
+    private bool _isRoutePreviewLoading;
+    private bool _mapSyncPending;
+    private int? _editingId;
+    private string _searchText = "";
+    private string _selectedStatus = "";
+    private string _locationSearchText = "";
+    private string _startTimeInput = TourDefaults.DefaultStartTime;
+    private string? _loadError;
+    private string? _routePreviewMessage;
+    private ElementReference _mapElement;
+    private TourRoutePreviewDto _routePreview = new()
+    {
+        WalkingSpeedKph = TourDefaults.DefaultWalkingSpeedKph,
+        StartTime = TourDefaults.DefaultStartTime,
+        FinishTime = TourDefaults.DefaultStartTime
+    };
+
+    private bool CanView => SessionState.HasPermission(AdminPermissions.TourRead);
+    private bool CanManage => SessionState.HasPermission(AdminPermissions.TourManage);
+
+    private IReadOnlyList<LocationDto> PlannerLocations => _locations
+        .Where(item => item.Status == 1)
+        .OrderBy(item => item.Name)
+        .ToList();
+
+    private IEnumerable<LocationDto> FilteredPlannerLocations =>
+        PlannerLocations.Where(item =>
+            string.IsNullOrWhiteSpace(_locationSearchText)
+            || item.Name.Contains(_locationSearchText, StringComparison.OrdinalIgnoreCase)
+            || (item.OwnerName?.Contains(_locationSearchText, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    private IEnumerable<TourDto> FilteredTours =>
+        _tours
+            .Where(item =>
+                (string.IsNullOrWhiteSpace(_searchText)
+                || item.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+                || (item.Description?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+                || item.Stops.Any(stop => stop.LocationName.Contains(_searchText, StringComparison.OrdinalIgnoreCase)))
+                && (string.IsNullOrWhiteSpace(_selectedStatus) || item.Status.ToString() == _selectedStatus))
+            .OrderByDescending(item => item.Status)
+            .ThenBy(item => item.Name);
+
+    private IReadOnlyList<LocationDto> SelectedStopLocations => _formModel.StopLocationIds
+        .Select(GetLocationById)
+        .Where(item => item is not null)
+        .Cast<LocationDto>()
+        .ToList();
+
+    private TourDto? SelectedTourForDisplay => _selectedTour
+        ?? _tours.OrderByDescending(item => item.Status).ThenBy(item => item.Name).FirstOrDefault();
+
+    private double CalculatedDistanceKm => _routePreview.TotalDistanceKm;
+
+    private int CalculatedDurationMinutes => _routePreview.EstimatedDurationMinutes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ResetForm();
+        await RefreshRoutePreviewAsync();
+        await LoadDataAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && CanManage)
+        {
+            _mapReference = DotNetObjectReference.Create(this);
+            await InitializeMapAsync();
+        }
+
+        if (CanManage && _mapSyncPending)
+        {
+            _mapSyncPending = false;
+            await SyncMapAsync();
+        }
+    }
+
+    private async Task LoadDataAsync(int? preferredTourId = null)
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            var toursTask = ApiClient.GetToursAsync();
+            var locationsTask = CanManage
+                ? ApiClient.GetLocationsAsync()
+                : Task.FromResult<IReadOnlyList<LocationDto>>([]);
+
+            await Task.WhenAll(toursTask, locationsTask);
+
+            _tours.Clear();
+            _tours.AddRange(await toursTask);
+
+            _locations.Clear();
+            _locations.AddRange((await locationsTask)
+                .OrderByDescending(item => item.Status)
+                .ThenBy(item => item.Name));
+            RemoveInactiveStopsFromForm();
+
+            var selectedId = preferredTourId ?? _selectedTour?.Id;
+            _selectedTour = selectedId.HasValue
+                ? _tours.FirstOrDefault(item => item.Id == selectedId.Value)
+                : _tours.OrderByDescending(item => item.Status).ThenBy(item => item.Name).FirstOrDefault();
+
+            QueueMapSync();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Tour load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task InitializeMapAsync()
+    {
+        try
+        {
+            var ok = await JS.InvokeAsync<bool>(
+                "smartTourAdmin.map.initializeTourPlanner",
+                _mapElement,
+                _mapReference,
+                BuildPlannerState());
+
+            if (!ok)
+            {
+                Notifications.Warning("The tour map planner is unavailable right now.", "Map unavailable");
+            }
+        }
+        catch (JSException)
+        {
+            Notifications.Warning("The tour map planner is unavailable right now.", "Map unavailable");
+        }
+    }
+
+    private async Task SyncMapAsync()
+    {
+        try
+        {
+            await JS.InvokeAsync<bool>("smartTourAdmin.map.syncTourPlanner", _mapElement, BuildPlannerState());
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private async Task RefreshAsync() => await LoadDataAsync(_selectedTour?.Id);
+
+    private async Task RefitMapAsync()
+    {
+        QueueMapSync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StartCreateAsync()
+    {
+        _editingId = null;
+        _isEditorOpen = true;
+        _locationSearchText = "";
+        ResetForm();
+        await RefreshRoutePreviewAsync();
+        QueueMapSync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StartEditAsync(TourDto tour)
+    {
+        _selectedTour = tour;
+        if (CanManage)
+        {
+            _editingId = tour.Id;
+            _isEditorOpen = true;
+            _locationSearchText = "";
+            ApplyForm(TourFormModel.FromDto(tour));
+            RemoveInactiveStopsFromForm(notifyWhenRemoved: true);
+            await RefreshRoutePreviewAsync();
+            QueueMapSync();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SaveTourAsync()
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view tours but cannot save changes.", "Read-only access");
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            if (_editingId is null)
+            {
+                var createdTour = await ApiClient.CreateTourAsync(_formModel, _routePreview);
+                Notifications.Success("Tour created successfully.", "Tour saved");
+                _selectedTour = createdTour;
+                await LoadDataAsync(createdTour.Id);
+            }
+            else
+            {
+                await ApiClient.UpdateTourAsync(_editingId.Value, _formModel, _routePreview);
+                Notifications.Success("Tour updated successfully.", "Tour saved");
+                await LoadDataAsync(_editingId.Value);
+            }
+
+            await CancelEditAsync();
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Tour save failed");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void PromptArchiveTour(TourDto tour)
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view tours but cannot archive them.", "Read-only access");
+            return;
+        }
+
+        _pendingArchivedTour = tour;
+    }
+
+    private async Task ConfirmArchiveTourAsync()
+    {
+        if (!CanManage || _pendingArchivedTour is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var archivedId = _pendingArchivedTour.Id;
+            await ApiClient.DeleteTourAsync(archivedId);
+            Notifications.Info($"'{_pendingArchivedTour.Name}' is now inactive.", "Tour archived");
+            await LoadDataAsync(_selectedTour?.Id == archivedId ? null : _selectedTour?.Id);
+            if (_editingId == archivedId)
+            {
+                await CancelEditAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Archive failed");
+        }
+        finally
+        {
+            CancelArchiveTour();
+        }
+    }
+
+    private async Task ToggleStopAsync(int locationId)
+    {
+        var location = GetLocationById(locationId);
+        if (location is null)
+        {
+            return;
+        }
+
+        var currentIndex = _formModel.StopLocationIds.IndexOf(locationId);
+        if (currentIndex >= 0)
+        {
+            _formModel.StopLocationIds.RemoveAt(currentIndex);
+            await RefreshRoutePreviewAsync();
+            return;
+        }
+
+        if (location.Status != 1)
+        {
+            Notifications.Warning("Only active POIs can be added to a tour.", "POI unavailable");
+            return;
+        }
+
+        _formModel.StopLocationIds.Add(locationId);
+        await RefreshRoutePreviewAsync();
+    }
+
+    [JSInvokable]
+    public async Task ToggleStopFromMap(int locationId)
+    {
+        if (CanManage)
+        {
+            await ToggleStopAsync(locationId);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RemoveStopAsync(int index)
+    {
+        if (index < 0 || index >= _formModel.StopLocationIds.Count)
+        {
+            return;
+        }
+
+        _formModel.StopLocationIds.RemoveAt(index);
+        await RefreshRoutePreviewAsync();
+    }
+
+    private async Task MoveStopAsync(int index, int delta)
+    {
+        var nextIndex = index + delta;
+        if (index < 0 || nextIndex < 0 || index >= _formModel.StopLocationIds.Count || nextIndex >= _formModel.StopLocationIds.Count)
+        {
+            return;
+        }
+
+        (_formModel.StopLocationIds[index], _formModel.StopLocationIds[nextIndex]) =
+            (_formModel.StopLocationIds[nextIndex], _formModel.StopLocationIds[index]);
+
+        await RefreshRoutePreviewAsync();
+    }
+
+    private async Task CancelEditAsync()
+    {
+        _isEditorOpen = false;
+        _editingId = null;
+        _locationSearchText = "";
+        ResetForm();
+        await RefreshRoutePreviewAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleStartTimeChangedAsync(ChangeEventArgs args)
+    {
+        var value = args.Value?.ToString()?.Trim() ?? string.Empty;
+        _startTimeInput = value;
+        _formModel.StartTime = NormalizeTime(value) ?? value;
+        await RefreshRoutePreviewAsync();
+    }
+
+    private void SetStatus(int status) => _formModel.Status = status;
+
+    private Task SelectTour(TourDto tour)
+    {
+        _selectedTour = tour;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private void CancelArchiveTour() => _pendingArchivedTour = null;
+
+    private void ResetForm()
+    {
+        _formModel.Name = "";
+        _formModel.Description = "";
+        _formModel.WalkingSpeedKph = TourDefaults.DefaultWalkingSpeedKph;
+        _formModel.StartTime = TourDefaults.DefaultStartTime;
+        _startTimeInput = TourDefaults.DefaultStartTime;
+        _formModel.Status = 1;
+        _formModel.StopLocationIds.Clear();
+    }
+
+    private void ApplyForm(TourFormModel model)
+    {
+        _formModel.Name = model.Name;
+        _formModel.Description = model.Description;
+        _formModel.WalkingSpeedKph = TourDefaults.DefaultWalkingSpeedKph;
+        _formModel.StartTime = model.StartTime;
+        _startTimeInput = NormalizeTime(model.StartTime) ?? model.StartTime;
+        _formModel.Status = model.Status;
+        _formModel.StopLocationIds = model.StopLocationIds.ToList();
+    }
+
+    private void RemoveInactiveStopsFromForm(bool notifyWhenRemoved = false)
+    {
+        if (_formModel.StopLocationIds.Count == 0 || _locations.Count == 0)
+        {
+            return;
+        }
+
+        var activeLocationIds = _locations
+            .Where(item => item.Status == 1)
+            .Select(item => item.Id)
+            .ToHashSet();
+        var removedCount = _formModel.StopLocationIds.RemoveAll(locationId => !activeLocationIds.Contains(locationId));
+
+        if (notifyWhenRemoved && removedCount > 0)
+        {
+            Notifications.Warning("Inactive POIs were removed from this tour editor. Only active POIs can be edited in a route.", "Inactive POIs hidden");
+        }
+    }
+
+    private IReadOnlyList<TourRoutePreviewStopRequest> BuildRoutePreviewStops() => SelectedStopLocations
+        .Select((location, index) => new TourRoutePreviewStopRequest
+        {
+            LocationId = location.Id,
+            SequenceOrder = index + 1,
+            Latitude = location.Latitude,
+            Longitude = location.Longitude
+        })
+        .ToList();
+
+    private async Task RefreshRoutePreviewAsync()
+    {
+        if (!CanManage)
+        {
+            return;
+        }
+
+        _routePreviewCts?.Cancel();
+        _routePreviewCts?.Dispose();
+        _routePreviewCts = null;
+        _routePreviewMessage = null;
+
+        var previewStops = BuildRoutePreviewStops();
+        var normalizedStartTime = NormalizeTime(_formModel.StartTime);
+        _routePreview = BuildFallbackRoutePreview(previewStops, normalizedStartTime, previewStops.Count <= 1);
+        QueueMapSync();
+
+        if (previewStops.Count <= 1)
+        {
+            _isRoutePreviewLoading = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _routePreviewCts = cts;
+        _isRoutePreviewLoading = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var preview = await TryBuildRoutePreviewAsync(previewStops, normalizedStartTime, cts.Token);
+
+            if (!ReferenceEquals(_routePreviewCts, cts) || cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _routePreview = preview;
+            if (!preview.UsesRoadRouting)
+            {
+                _routePreviewMessage = "Road routing is temporarily unavailable for one or more segments, so the preview is using a straight-line fallback.";
+            }
+
+            QueueMapSync();
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception)
+        {
+            if (!ReferenceEquals(_routePreviewCts, cts) || cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _routePreviewMessage = "Road routing is temporarily unavailable, so the preview is using straight-line distance until the service responds again.";
+            QueueMapSync();
+        }
+        finally
+        {
+            if (ReferenceEquals(_routePreviewCts, cts))
+            {
+                _isRoutePreviewLoading = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task<TourRoutePreviewDto> TryBuildRoutePreviewAsync(
+        IReadOnlyList<TourRoutePreviewStopRequest> previewStops,
+        string? normalizedStartTime,
+        CancellationToken cancellationToken)
+    {
+        var browserPreview = await TryBuildBrowserRoutePreviewAsync(previewStops, normalizedStartTime, cancellationToken);
+        var apiPreview = await ApiClient.PreviewTourRouteAsync(new TourRoutePreviewRequest
+        {
+            StartTime = normalizedStartTime,
+            Stops = previewStops.ToList()
+        }, cancellationToken);
+
+        if (HasMatchingRoutePreview(previewStops, browserPreview) && browserPreview!.UsesRoadRouting)
+        {
+            return browserPreview;
+        }
+
+        if (HasMatchingRoutePreview(previewStops, apiPreview) && apiPreview.UsesRoadRouting)
+        {
+            return apiPreview;
+        }
+
+        return HasMatchingRoutePreview(previewStops, browserPreview)
+            ? browserPreview!
+            : HasMatchingRoutePreview(previewStops, apiPreview)
+                ? apiPreview
+            : BuildFallbackRoutePreview(previewStops, normalizedStartTime, usesRoadRouting: false);
+    }
+
+    private async Task<TourRoutePreviewDto?> TryBuildBrowserRoutePreviewAsync(
+        IReadOnlyList<TourRoutePreviewStopRequest> previewStops,
+        string? normalizedStartTime,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await JS.InvokeAsync<TourRoutePreviewDto>(
+                "smartTourAdmin.map.calculateTourRoute",
+                cancellationToken,
+                previewStops,
+                normalizedStartTime,
+                TourDefaults.DefaultWalkingSpeedKph);
+        }
+        catch (JSException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    private static bool HasMatchingRoutePreview(
+        IReadOnlyList<TourRoutePreviewStopRequest> previewStops,
+        TourRoutePreviewDto? preview)
+    {
+        if (preview is null
+            || preview.TotalDistanceKm < 0
+            || preview.EstimatedDurationMinutes < 0)
+        {
+            return false;
+        }
+
+        var orderedStops = previewStops
+            .OrderBy(item => item.SequenceOrder)
+            .ToList();
+        var orderedSegments = preview.Segments
+            .OrderBy(item => item.SequenceOrder)
+            .ToList();
+
+        if (orderedStops.Count != orderedSegments.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < orderedStops.Count; index++)
+        {
+            var stop = orderedStops[index];
+            var segment = orderedSegments[index];
+            if (segment.SequenceOrder != stop.SequenceOrder
+                || segment.LocationId != stop.LocationId
+                || segment.DistanceKm < 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private TourRoutePreviewDto BuildFallbackRoutePreview(
+        IReadOnlyList<TourRoutePreviewStopRequest> orderedStops,
+        string? startTime,
+        bool usesRoadRouting)
+    {
+        var segments = new List<TourRouteSegmentDto>(orderedStops.Count);
+        var path = new List<TourRoutePointDto>();
+        var totalDistanceKm = 0d;
+
+        for (var index = 0; index < orderedStops.Count; index++)
+        {
+            var stop = orderedStops[index];
+            if (index == 0)
+            {
+                segments.Add(new TourRouteSegmentDto
+                {
+                    SequenceOrder = stop.SequenceOrder,
+                    LocationId = stop.LocationId,
+                    DistanceKm = 0d
+                });
+
+                AppendPath(path, new TourRoutePointDto
+                {
+                    Latitude = stop.Latitude,
+                    Longitude = stop.Longitude
+                });
+
+                continue;
+            }
+
+            var previousStop = orderedStops[index - 1];
+            var distanceKm = CalculateDistanceKm(previousStop.Latitude, previousStop.Longitude, stop.Latitude, stop.Longitude);
+            totalDistanceKm += distanceKm;
+            segments.Add(new TourRouteSegmentDto
+            {
+                SequenceOrder = stop.SequenceOrder,
+                LocationId = stop.LocationId,
+                DistanceKm = Math.Round(distanceKm, 2, MidpointRounding.AwayFromZero)
+            });
+
+            AppendPath(path, new TourRoutePointDto
+            {
+                Latitude = previousStop.Latitude,
+                Longitude = previousStop.Longitude
+            });
+            AppendPath(path, new TourRoutePointDto
+            {
+                Latitude = stop.Latitude,
+                Longitude = stop.Longitude
+            });
+        }
+
+        var roundedDistance = Math.Round(totalDistanceKm, 2, MidpointRounding.AwayFromZero);
+        var normalizedStartTime = NormalizeTime(startTime);
+        var durationMinutes = CalculateDurationMinutes(roundedDistance);
+
+        return new TourRoutePreviewDto
+        {
+            TotalDistanceKm = roundedDistance,
+            EstimatedDurationMinutes = durationMinutes,
+            WalkingSpeedKph = TourDefaults.DefaultWalkingSpeedKph,
+            StartTime = normalizedStartTime,
+            FinishTime = TryCalculateFinishTime(normalizedStartTime, durationMinutes),
+            UsesRoadRouting = usesRoadRouting,
+            Segments = segments,
+            Path = path
+        };
+    }
+
+    private TourPlannerState BuildPlannerState() => new(
+        BuildPlannerPoints(),
+        _routePreview.Path
+            .Select(item => new TourPlannerRoutePoint(item.Latitude, item.Longitude))
+            .ToList(),
+        _routePreview.UsesRoadRouting);
+
+    private IReadOnlyList<TourPlannerPoint> BuildPlannerPoints()
+    {
+        var orderLookup = _formModel.StopLocationIds
+            .Select((locationId, index) => new { locationId, index })
+            .ToDictionary(item => item.locationId, item => item.index + 1);
+
+        return PlannerLocations
+            .Select(item => new TourPlannerPoint(
+                item.Id,
+                item.Name,
+                item.OwnerName,
+                item.Latitude,
+                item.Longitude,
+                orderLookup.TryGetValue(item.Id, out var order),
+                order))
+            .ToList();
+    }
+
+    private LocationDto? GetLocationById(int locationId) => _locations.FirstOrDefault(item => item.Id == locationId);
+
+    private void QueueMapSync() => _mapSyncPending = CanManage;
+
+    private string GetPendingArchiveTourMessage() =>
+        _pendingArchivedTour is null
+            ? string.Empty
+            : $"'{_pendingArchivedTour.Name}' will become inactive. Guests can still view historical usage, but the route will no longer be active.";
+
+    private string GetEditorModalClass() => _isEditorOpen
+        ? "tour-editor-modal tour-editor-modal--open"
+        : "tour-editor-modal";
+
+    private static string GetStatusClass(int status) => status == 1
+        ? "management-status management-status--active"
+        : "management-status management-status--inactive";
+
+    private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
+
+    private static string GetChipClass(int status, int currentStatus) => status == currentStatus
+        ? "management-chip management-chip--selected"
+        : "management-chip";
+
+    private string GetTourRowClass(TourDto tour)
+    {
+        var classes = new List<string>();
+        if (tour.Status != 1)
+        {
+            classes.Add("tour-row--inactive");
+        }
+
+        if (_selectedTour?.Id == tour.Id)
+        {
+            classes.Add("tour-row--selected");
+        }
+
+        return string.Join(" ", classes);
+    }
+
+    private static string GetReadonlyScheduleLabel(TourDto tour) =>
+        string.IsNullOrWhiteSpace(tour.StartTime)
+            ? string.IsNullOrWhiteSpace(tour.FinishTime)
+                ? "No saved start time"
+                : $"Finishes at {tour.FinishTime}"
+            : string.IsNullOrWhiteSpace(tour.FinishTime)
+                ? $"Starts at {tour.StartTime}"
+                : $"{tour.StartTime} to {tour.FinishTime}";
+
+    private static string FormatDuration(int totalMinutes)
+    {
+        if (totalMinutes <= 0)
+        {
+            return "0 min";
+        }
+
+        var hours = totalMinutes / 60;
+        var minutes = totalMinutes % 60;
+        return hours == 0
+            ? $"{minutes} min"
+            : minutes == 0
+                ? $"{hours} hr"
+                : $"{hours} hr {minutes} min";
+    }
+
+    private string GetDistanceSummaryHint() =>
+        _isRoutePreviewLoading
+            ? "Refreshing the walking path along nearby roads."
+            : _routePreview.UsesRoadRouting
+                ? "Following the walking road path between each selected POI."
+                : "Using a straight-line fallback until road routing is available.";
+
+    private static string GetDurationSummaryHint() =>
+        $"Calculated automatically with the default {TourDefaults.DefaultWalkingSpeedKph:0.#} km/h walking pace.";
+
+    private string GetCalculatedScheduleLabel()
+    {
+        var normalizedStartTime = NormalizeTime(_startTimeInput) ?? NormalizeTime(_routePreview.StartTime);
+        if (normalizedStartTime is null)
+        {
+            return "Set a valid start time";
+        }
+
+        return string.IsNullOrWhiteSpace(_routePreview.FinishTime)
+            ? $"{normalizedStartTime} - --:--"
+            : $"{normalizedStartTime} - {_routePreview.FinishTime}";
+    }
+
+    private double GetSegmentDistanceKm(int currentIndex)
+    {
+        var sequenceOrder = currentIndex + 1;
+        return _routePreview.Segments
+            .FirstOrDefault(item => item.SequenceOrder == sequenceOrder)
+            ?.DistanceKm ?? 0d;
+    }
+
+    private static int CalculateDurationMinutes(double totalDistanceKm) =>
+        totalDistanceKm <= 0
+            ? 0
+            : (int)Math.Ceiling(totalDistanceKm / TourDefaults.DefaultWalkingSpeedKph * 60d);
+
+    private static double CalculateDistanceKm(double fromLatitude, double fromLongitude, double toLatitude, double toLongitude)
+    {
+        const double EarthRadiusKm = 6371d;
+        var latDelta = DegreesToRadians(toLatitude - fromLatitude);
+        var lonDelta = DegreesToRadians(toLongitude - fromLongitude);
+        var originLatitude = DegreesToRadians(fromLatitude);
+        var destinationLatitude = DegreesToRadians(toLatitude);
+        var haversine =
+            Math.Pow(Math.Sin(latDelta / 2d), 2d)
+            + Math.Cos(originLatitude) * Math.Cos(destinationLatitude) * Math.Pow(Math.Sin(lonDelta / 2d), 2d);
+        var arc = 2d * Math.Atan2(Math.Sqrt(haversine), Math.Sqrt(1d - haversine));
+        return EarthRadiusKm * arc;
+    }
+
+    private static string? NormalizeTime(string? startTime) =>
+        TryParseTime(startTime, out var parsedStartTime)
+            ? parsedStartTime.ToString(@"hh\:mm")
+            : null;
+
+    private static double DegreesToRadians(double value) => value * Math.PI / 180d;
+
+    private static string? TryCalculateFinishTime(string? startTime, int durationMinutes) =>
+        TryParseTime(startTime, out var parsedStartTime)
+            ? parsedStartTime.Add(TimeSpan.FromMinutes(Math.Max(0, durationMinutes))).ToString(@"hh\:mm")
+            : null;
+
+    private static bool TryParseTime(string? value, out TimeSpan time)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            time = default;
+            return false;
+        }
+
+        var normalizedValue = value.Trim();
+        if (TimeSpan.TryParseExact(
+            normalizedValue,
+            ["hh\\:mm", "h\\:mm", "hh\\:mm\\:ss", "h\\:mm\\:ss"],
+            CultureInfo.InvariantCulture,
+            out time))
+        {
+            return true;
+        }
+
+        if (DateTime.TryParseExact(
+                normalizedValue,
+                ["h:mm tt", "hh:mm tt", "h:mm:ss tt", "hh:mm:ss tt"],
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out var parsedDateTime)
+            || DateTime.TryParse(
+                normalizedValue,
+                CultureInfo.CurrentCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out parsedDateTime)
+            || DateTime.TryParse(
+                normalizedValue,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out parsedDateTime))
+        {
+            time = parsedDateTime.TimeOfDay;
+            return true;
+        }
+
+        time = default;
+        return false;
+    }
+
+    private static void AppendPath(ICollection<TourRoutePointDto> path, TourRoutePointDto point)
+    {
+        if (path.Count > 0
+            && path.Last() is { } lastPoint
+            && Math.Abs(lastPoint.Latitude - point.Latitude) < 0.000001d
+            && Math.Abs(lastPoint.Longitude - point.Longitude) < 0.000001d)
+        {
+            return;
+        }
+
+        path.Add(point);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _routePreviewCts?.Cancel();
+        _routePreviewCts?.Dispose();
+
+        try
+        {
+            if (CanManage)
+            {
+                await JS.InvokeVoidAsync("smartTourAdmin.map.disposeTourPlanner", _mapElement);
+            }
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+
+        _mapReference?.Dispose();
+    }
+
+    private sealed record TourPlannerPoint(
+        int Id,
+        string Name,
+        string? OwnerName,
+        double Latitude,
+        double Longitude,
+        bool IsSelected,
+        int Order);
+
+    private sealed record TourPlannerRoutePoint(
+        double Latitude,
+        double Longitude);
+
+    private sealed record TourPlannerState(
+        IReadOnlyList<TourPlannerPoint> Points,
+        IReadOnlyList<TourPlannerRoutePoint> RoutePath,
+        bool UsesRoadRouting);
+}

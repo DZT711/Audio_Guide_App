@@ -1,0 +1,109 @@
+.inbox-page {
+    gap: 1.35rem;
+}
+
+.inbox-broadcast {
+    display: grid;
+    gap: 1rem;
+    padding: 1.15rem;
+    margin-bottom: 1.35rem;
+    border: 1px solid rgba(59, 130, 246, 0.16);
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 26%),
+        linear-gradient(180deg, rgba(239, 246, 255, 0.94) 0%, rgba(255, 255, 255, 0.96) 100%);
+}
+
+.inbox-broadcast__header {
+    align-items: flex-start;
+}
+
+.inbox-broadcast__grid {
+    gap: 1rem;
+}
+
+.inbox-list {
+    display: grid;
+    gap: 1.1rem;
+}
+
+.inbox-card {
+    display: grid;
+    gap: 1rem;
+    padding: 1.2rem 1.25rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.05);
+}
+
+.inbox-card--unread {
+    border-color: rgba(15, 118, 110, 0.3);
+    box-shadow:
+        inset 4px 0 0 rgba(20, 184, 166, 0.85),
+        0 18px 36px rgba(15, 23, 42, 0.07);
+}
+
+.inbox-card--announcement {
+    border-color: rgba(59, 130, 246, 0.2);
+    background:
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 28%),
+        linear-gradient(180deg, rgba(239, 246, 255, 0.96) 0%, rgba(255, 255, 255, 0.98) 100%);
+}
+
+.inbox-card__header,
+.inbox-card__footer,
+.inbox-card__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+}
+
+.inbox-card__header small,
+.inbox-card__footer small {
+    color: var(--app-muted);
+}
+
+.inbox-card__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-bottom: 0.45rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.inbox-card__title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.inbox-card--announcement .inbox-card__title {
+    color: #1d4ed8;
+}
+
+.inbox-card__type--announcement {
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+}
+
+@media (max-width: 575.98px) {
+    .inbox-card__header,
+    .inbox-card__footer,
+    .inbox-card__meta {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .inbox-broadcast {
+        padding: 1rem;
+    }
+}
