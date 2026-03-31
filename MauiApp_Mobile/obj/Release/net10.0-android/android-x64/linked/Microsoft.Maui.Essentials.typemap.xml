@@ -1,0 +1,16 @@
+<api type="release" assembly-name="Microsoft.Maui.Essentials" mvid="dacb077ca6124382870a75b1983f7a0c">
+  <module assembly-name="Microsoft.Maui.Essentials" mvid="dacb077ca6124382870a75b1983f7a0c" mvid-bytes="fAfL2hKmgkOHCnWxmD96DA==">
+    <types-scratch>
+      <entry key="crc6468b6408a11370c2f/WebAuthenticatorIntermediateActivity" java-name="crc6468b6408a11370c2f/WebAuthenticatorIntermediateActivity" managed-type-name="Microsoft.Maui.Authentication.WebAuthenticatorIntermediateActivity" token="33554443" />
+      <entry key="microsoft/maui/essentials/fileProvider" java-name="microsoft/maui/essentials/fileProvider" managed-type-name="Microsoft.Maui.Storage.FileProvider" token="33554460" />
+      <entry key="crc64e53d2f592022988e/ConnectivityBroadcastReceiver" java-name="crc64e53d2f592022988e/ConnectivityBroadcastReceiver" managed-type-name="Microsoft.Maui.Networking.ConnectivityBroadcastReceiver" token="33554462" />
+      <entry key="crc64ba438d8f48cf7e75/ActivityResultCallback_1" java-name="crc64ba438d8f48cf7e75/ActivityResultCallback_1" managed-type-name="Microsoft.Maui.ApplicationModel.ActivityResultCallback`1" token="33554502" skip-in-java-to-managed="True" />
+      <entry key="crc64ba438d8f48cf7e75/ActivityLifecycleContextListener" java-name="crc64ba438d8f48cf7e75/ActivityLifecycleContextListener" managed-type-name="Microsoft.Maui.ApplicationModel.ActivityLifecycleContextListener" token="33554509" />
+      <entry key="crc64ba438d8f48cf7e75/IntermediateActivity" java-name="crc64ba438d8f48cf7e75/IntermediateActivity" managed-type-name="Microsoft.Maui.ApplicationModel.IntermediateActivity" token="33554510" />
+      <entry key="crc640a8d9a12ddbf2cf2/DeviceDisplayImplementation_Listener" java-name="crc640a8d9a12ddbf2cf2/DeviceDisplayImplementation_Listener" managed-type-name="Microsoft.Maui.Devices.DeviceDisplayImplementation/Listener" token="33554524" />
+      <entry key="crc640a8d9a12ddbf2cf2/BatteryBroadcastReceiver" java-name="crc640a8d9a12ddbf2cf2/BatteryBroadcastReceiver" managed-type-name="Microsoft.Maui.Devices.BatteryBroadcastReceiver" token="33554534" />
+      <entry key="crc640a8d9a12ddbf2cf2/EnergySaverBroadcastReceiver" java-name="crc640a8d9a12ddbf2cf2/EnergySaverBroadcastReceiver" managed-type-name="Microsoft.Maui.Devices.EnergySaverBroadcastReceiver" token="33554535" />
+      <entry key="crc64f62664462a8937a9/SingleLocationListener" java-name="crc64f62664462a8937a9/SingleLocationListener" managed-type-name="Microsoft.Maui.Devices.Sensors.SingleLocationListener" token="33554550" />
+    </types-scratch>
+  </module>
+</api>

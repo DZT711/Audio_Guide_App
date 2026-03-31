@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>smartTOUR Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        body { padding: 0; margin: 0; }
+        html, body, #map { height: 100%; width: 100%; }
+        .leaflet-popup-content {
+            font-family: Arial, sans-serif;
+            margin: 10px 12px;
+            width: 248px !important;
+        }
+        .poi-popup {
+            width: 248px;
+        }
+        .poi-popup img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            display: block;
+        }
+        .poi-popup-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0F172A;
+            margin-bottom: 4px;
+        }
+        .poi-popup-desc {
+            font-size: 13px;
+            color: #475569;
+            line-height: 1.35;
+            margin-bottom: 8px;
+        }
+        .poi-popup-audio {
+            font-size: 12px;
+            color: #334155;
+            line-height: 1.4;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+        .poi-popup-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .poi-chip {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .poi-chip-category {
+            background: #FFE3E3;
+            color: #E53935;
+        }
+        .poi-chip-rating {
+            background: #FFF7D6;
+            color: #CA8A04;
+        }
+        .poi-chip-nearest {
+            background: #FEE2E2;
+            color: #B91C1C;
+        }
+        .poi-detail-list {
+            margin-top: 4px;
+            border-top: 1px dashed #E2E8F0;
+            padding-top: 6px;
+        }
+        .poi-detail-row {
+            font-size: 12px;
+            color: #334155;
+            margin-bottom: 4px;
+            line-height: 1.35;
+        }
+        .poi-detail-link {
+            color: #166534;
+            text-decoration: none;
+            font-weight: 700;
+        }
+        .poi-detail-button {
+            width: 100%;
+            border: 0;
+            border-radius: 10px;
+            background: #18A94B;
+            color: #FFFFFF;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 8px 10px;
+            margin-top: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        // Initialize map near current location sample area (TP.HCM)
+        var map = L.map('map').setView([10.778762, 106.684330], 15);
+
+        // Cách 1: Sử dụng CartoDB Light (khô tính, nhẹ, không yêu cầu API Key)
+        // Như gợi ý trong ảnh đầu tiên: dùng CartoDB thay vì OSM, style sạch
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // Cách 2 (dự phòng): Nếu muốn dùng Esri (miễn phí cho POC/học tập)
+        // Bỏ comment dòng dưới nếu muốn thử Esri thay CartoDB
+        /*
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri'
+        }).addTo(map);
+        */
+
+        // Places to add as POI (đồng bộ dữ liệu mẫu màn Địa điểm)
+        var places = [
+            {
+                lat: 10.779120,
+                lon: 106.683900,
+                title: "Cơm Tấm Góc Sài Gòn",
+                description: "Quán cơm tấm đông khách, vị đậm đà gần trung tâm",
+                audioDescription: "Cơm Tấm Góc Sài Gòn nổi bật với sườn nướng thơm, bì chả đầy đặn và nước mắm pha vừa vị.",
+                category: "Món ăn đặc trưng",
+                rating: "9/10",
+                address: "58 Võ Văn Tần, Quận 3, TP.HCM",
+                phone: "(028) 3820 1122",
+                email: "comtamgocsaigon@example.vn",
+                website: "comtamgocsaigon.vn",
+                establishedYear: "2016",
+                radiusText: "75m"
+            },
+            {
+                lat: 10.777950,
+                lon: 106.685150,
+                title: "Phở Bò Nguyễn Đình Chiểu",
+                description: "Tô phở nóng với nước dùng thanh và bò mềm",
+                audioDescription: "Phở Bò Nguyễn Đình Chiểu phục vụ phở truyền thống với nước dùng trong, thơm mùi quế hồi.",
+                category: "Món ăn đặc trưng",
+                rating: "9/10",
+                address: "124 Nguyễn Đình Chiểu, Quận 3, TP.HCM",
+                phone: "(028) 3930 2233",
+                email: "phobondc@example.vn",
+                website: "phobondc.vn",
+                establishedYear: "2018",
+                radiusText: "90m"
+            },
+            {
+                lat: 10.780020,
+                lon: 106.686050,
+                title: "Bún Bò Huế Chị Mai",
+                description: "Bún bò cay nhẹ, topping đầy đủ và nước dùng đậm",
+                audioDescription: "Bún Bò Huế Chị Mai nổi tiếng với nước lèo đậm vị, chả cua thơm và thịt bò mềm.",
+                category: "Món ăn đặc trưng",
+                rating: "8/10",
+                address: "36 Trần Quốc Thảo, Quận 3, TP.HCM",
+                phone: "(028) 3932 4455",
+                email: "bunbochimai@example.vn",
+                website: "bunbochimai.vn",
+                establishedYear: "2019",
+                radiusText: "110m"
+            },
+            {
+                lat: 10.776980,
+                lon: 106.683480,
+                title: "Quán Mộc Garden Sài Gòn",
+                description: "Không gian sân vườn mát, phù hợp ăn uống nhóm nhỏ",
+                audioDescription: "Quán Mộc Garden Sài Gòn có không gian xanh và thực đơn Việt hiện đại, phù hợp gặp gỡ bạn bè.",
+                category: "Quán nổi tiếng",
+                rating: "9/10",
+                address: "22 Pasteur, Quận 3, TP.HCM",
+                phone: "(028) 3829 6677",
+                email: "mocgarden@example.vn",
+                website: "mocgardensaigon.vn",
+                establishedYear: "2017",
+                radiusText: "120m"
+            },
+            {
+                lat: 10.779640,
+                lon: 106.682950,
+                title: "Cafe Sông Xanh",
+                description: "Quán cà phê yên tĩnh, thích hợp nghỉ chân buổi chiều",
+                audioDescription: "Cafe Sông Xanh phục vụ cà phê rang mộc và nhiều loại đồ uống nhẹ trong không gian thư giãn.",
+                category: "Đồ uống",
+                rating: "8/10",
+                address: "75 Nam Kỳ Khởi Nghĩa, Quận 3, TP.HCM",
+                phone: "(028) 3911 7788",
+                email: "cafesongxanh@example.vn",
+                website: "cafesongxanh.vn",
+                establishedYear: "2020",
+                radiusText: "95m"
+            }
+        ];
+
+        var defaultCenter = [10.778762, 106.684330];
+        var defaultZoom = 15;
+        var mapMarkers = [];
+        var searchMarker = null;
+        var currentLocationMarker = null;
+        var normalPoiIcon = createPoiPinIcon('#2A86FF', '#1D4ED8');
+        var nearestPoiIcon = createPoiPinIcon('#FF5A5F', '#DC2626');
+
+        function normalizeText(value) {
+            return (value || '')
+                .toString()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim();
+        }
+
+        function escapeHtml(value) {
+            return (value || '')
+                .toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function getInitials(text) {
+            var words = (text || '').trim().split(/\s+/).filter(Boolean);
+            if (!words.length) return 'POI';
+            if (words.length === 1) return words[0].substring(0, 3).toUpperCase();
+            return (words[0][0] + words[1][0]).toUpperCase();
+        }
+
+        function hueFromText(text) {
+            var hash = 0;
+            for (var i = 0; i < text.length; i++) {
+                hash = text.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return Math.abs(hash) % 360;
+        }
+
+        function createPoiThumbnail(title) {
+            var hue = hueFromText(title || '');
+            var initials = getInitials(title);
+            var svg =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220" viewBox="0 0 400 220">' +
+                '<defs>' +
+                '<linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+                '<stop offset="0%" stop-color="hsl(' + hue + ', 75%, 52%)"/>' +
+                '<stop offset="100%" stop-color="hsl(' + ((hue + 40) % 360) + ', 80%, 42%)"/>' +
+                '</linearGradient>' +
+                '</defs>' +
+                '<rect width="400" height="220" fill="url(#g)"/>' +
+                '<circle cx="68" cy="66" r="36" fill="rgba(255,255,255,0.22)"/>' +
+                '<text x="68" y="77" text-anchor="middle" font-size="34" fill="#ffffff">📍</text>' +
+                '<text x="200" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#ffffff">' + escapeHtml(initials) + '</text>' +
+                '</svg>';
+
+            return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+        }
+
+        function createPoiPinIcon(fillColor, strokeColor) {
+            var svg =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">' +
+                '<path d="M17 1C8.2 1 1 8.2 1 17c0 12 16 26 16 26s16-14 16-26C33 8.2 25.8 1 17 1z" fill="' + fillColor + '" stroke="' + strokeColor + '" stroke-width="2"/>' +
+                '<circle cx="17" cy="17" r="6" fill="#ffffff"/>' +
+                '</svg>';
+
+            return L.icon({
+                iconUrl: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+                iconSize: [34, 44],
+                iconAnchor: [17, 44],
+                popupAnchor: [0, -36]
+            });
+        }
+
+        function toRadians(value) {
+            return value * Math.PI / 180;
+        }
+
+        function getDistanceInMeters(lat1, lon1, lat2, lon2) {
+            var earthRadius = 6371000;
+            var dLat = toRadians(lat2 - lat1);
+            var dLon = toRadians(lon2 - lon1);
+            var a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+            return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function formatDistance(distanceMeters) {
+            if (distanceMeters < 1000) {
+                return Math.round(distanceMeters) + 'm';
+            }
+
+            return (distanceMeters / 1000).toFixed(2) + 'km';
+        }
+
+        function buildPoiPopup(place) {
+            var nearestChip = place.isNearest
+                ? '<span class="poi-chip poi-chip-nearest">📍 Gần bạn nhất</span>'
+                : '';
+            var distanceRow = place.distanceMeters != null
+                ? '<div class="poi-detail-row">📏 Khoảng cách: <strong>' + formatDistance(place.distanceMeters) + '</strong></div>'
+                : '';
+
+            return (
+                '<div class="poi-popup">' +
+                '<img src="' + place.image + '" alt="' + escapeHtml(place.title) + '">' +
+                '<div class="poi-popup-title">' + escapeHtml(place.title) + '</div>' +
+                '<div class="poi-popup-desc">' + escapeHtml(place.description) + '</div>' +
+                '<div class="poi-popup-audio">🔊 ' + escapeHtml(place.audioDescription) + '</div>' +
+                '<div class="poi-popup-meta">' +
+                    '<span class="poi-chip poi-chip-category">' + escapeHtml(place.category) + '</span>' +
+                    '<span class="poi-chip poi-chip-rating">⭐ ' + escapeHtml(place.rating) + '</span>' +
+                    nearestChip +
+                '</div>' +
+                '<div class="poi-detail-list">' +
+                    '<div class="poi-detail-row">📍 ' + escapeHtml(place.address) + '</div>' +
+                    '<div class="poi-detail-row">☎️ ' + escapeHtml(place.phone) + '</div>' +
+                    '<div class="poi-detail-row">✉️ ' + escapeHtml(place.email) + '</div>' +
+                    '<div class="poi-detail-row">🌐 <a class="poi-detail-link" href="https://' + escapeHtml(place.website) + '" target="_blank" rel="noopener">' + escapeHtml(place.website) + '</a></div>' +
+                    '<div class="poi-detail-row">📅 Thành lập: ' + escapeHtml(place.establishedYear) + '</div>' +
+                    '<div class="poi-detail-row">🎯 Bán kính kích hoạt: ' + escapeHtml(place.radiusText) + '</div>' +
+                    '<div class="poi-detail-row">🧭 GPS: ' + place.lat.toFixed(6) + ', ' + place.lon.toFixed(6) + '</div>' +
+                    distanceRow +
+                '</div>' +
+                '<button class="poi-detail-button" type="button" onclick="window.openPoiDetail(' + place.id + ')">Chi tiết POI</button>' +
+                '</div>'
+            );
+        }
+
+        function refreshPoiStyles() {
+            mapMarkers.forEach(function(item) {
+                item.marker.setIcon(item.place.isNearest ? nearestPoiIcon : normalPoiIcon);
+                item.marker.setPopupContent(buildPoiPopup(item.place));
+                item.marker.setZIndexOffset(item.place.isNearest ? 1000 : 0);
+            });
+        }
+
+        function highlightNearestPoi(referenceLat, referenceLon) {
+            if (!mapMarkers.length) {
+                return null;
+            }
+
+            var nearestItem = null;
+            var minDistance = Number.MAX_VALUE;
+
+            mapMarkers.forEach(function(item) {
+                item.place.isNearest = false;
+                item.place.distanceMeters = getDistanceInMeters(referenceLat, referenceLon, item.place.lat, item.place.lon);
+                if (item.place.distanceMeters < minDistance) {
+                    minDistance = item.place.distanceMeters;
+                    nearestItem = item;
+                }
+            });
+
+            if (nearestItem) {
+                nearestItem.place.isNearest = true;
+            }
+
+            refreshPoiStyles();
+            return nearestItem;
+        }
+
+        places = places.map(function(place, index) {
+            return Object.assign({}, place, {
+                id: index,
+                image: createPoiThumbnail(place.title),
+                isNearest: false,
+                distanceMeters: null
+            });
+        });
+
+        // Add markers for each place
+        places.forEach(function(place) {
+            var marker = L.marker([place.lat, place.lon], {
+                title: place.title,
+                icon: normalPoiIcon
+            }).addTo(map);
+            
+            marker.bindPopup(buildPoiPopup(place));
+
+            mapMarkers.push({
+                place: place,
+                marker: marker
+            });
+        });
+
+        highlightNearestPoi(defaultCenter[0], defaultCenter[1]);
+
+        window.openPoiDetail = function(placeId) {
+            var target = mapMarkers.find(function(item) {
+                return item.place.id === placeId;
+            });
+
+            if (!target) {
+                return false;
+            }
+
+            map.flyTo([target.place.lat, target.place.lon], 16, {
+                duration: 1
+            });
+            target.marker.openPopup();
+            return true;
+        };
+
+        window.focusPlaceByKeyword = function(keyword) {
+            var normalizedKeyword = normalizeText(keyword);
+
+            if (searchMarker) {
+                map.removeLayer(searchMarker);
+                searchMarker = null;
+            }
+
+            if (!normalizedKeyword) {
+                return JSON.stringify({
+                    found: false,
+                    matchCount: 0,
+                    title: ''
+                });
+            }
+
+            var matches = mapMarkers.filter(function(item) {
+                return normalizeText(item.place.title).includes(normalizedKeyword) ||
+                    normalizeText(item.place.description).includes(normalizedKeyword);
+            });
+
+            if (matches.length === 0) {
+                return JSON.stringify({
+                    found: false,
+                    matchCount: 0,
+                    title: ''
+                });
+            }
+
+            var firstMatch = matches[0];
+            map.flyTo([firstMatch.place.lat, firstMatch.place.lon], 16, {
+                duration: 1.2
+            });
+            firstMatch.marker.openPopup();
+
+            return JSON.stringify({
+                found: true,
+                matchCount: matches.length,
+                title: firstMatch.place.title
+            });
+        };
+
+        window.resetMapView = function() {
+            map.closePopup();
+            if (searchMarker) {
+                map.removeLayer(searchMarker);
+                searchMarker = null;
+            }
+            if (currentLocationMarker) {
+                map.removeLayer(currentLocationMarker);
+                currentLocationMarker = null;
+            }
+            highlightNearestPoi(defaultCenter[0], defaultCenter[1]);
+            map.flyTo(defaultCenter, defaultZoom, {
+                duration: 1
+            });
+        };
+
+        window.showSearchResult = function(lat, lon, title, description) {
+            if (searchMarker) {
+                map.removeLayer(searchMarker);
+            }
+
+            searchMarker = L.marker([lat, lon], {
+                title: title || 'Kết quả tìm kiếm'
+            }).addTo(map);
+
+            searchMarker.bindPopup(
+                '<strong>' + (title || 'Kết quả tìm kiếm') + '</strong><br/>' +
+                (description || '')
+            );
+
+            map.flyTo([lat, lon], 16, {
+                duration: 1.2
+            });
+            searchMarker.openPopup();
+
+            return true;
+        };
+
+        window.showCurrentLocation = function(lat, lon) {
+            if (currentLocationMarker) {
+                map.removeLayer(currentLocationMarker);
+            }
+
+            currentLocationMarker = L.circleMarker([lat, lon], {
+                radius: 9,
+                color: '#0EA5E9',
+                weight: 2,
+                fillColor: '#38BDF8',
+                fillOpacity: 0.9
+            }).addTo(map);
+
+            currentLocationMarker.bindPopup(
+                '<strong>Vị trí hiện tại</strong><br/>' +
+                lat.toFixed(6) + ', ' + lon.toFixed(6)
+            );
+
+            var nearest = highlightNearestPoi(lat, lon);
+            if (nearest) {
+                currentLocationMarker.bindPopup(
+                    '<strong>Vị trí hiện tại</strong><br/>' +
+                    lat.toFixed(6) + ', ' + lon.toFixed(6) + '<br/>' +
+                    'POI gần nhất: <strong>' + escapeHtml(nearest.place.title) + '</strong> (' + formatDistance(nearest.place.distanceMeters || 0) + ')'
+                );
+            }
+
+            map.flyTo([lat, lon], 16, {
+                duration: 1.2
+            });
+            currentLocationMarker.openPopup();
+
+            return true;
+        };
+    </script>
+</body>
+</html>
+

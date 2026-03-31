@@ -16,6 +16,7 @@ public partial class AppShell : Shell
         PlacesTab.Title = LocalizationService.Instance.T("Places.Title");
         MapTab.Title = LocalizationService.Instance.T("Map.Title");
         HistoryTab.Title = LocalizationService.Instance.T("History.Title");
+        OfflineTab.Title = "Offline";
         SettingsTab.Title = LocalizationService.Instance.T("Settings.Title");
     }
 }

@@ -39,6 +39,13 @@
             ContentTemplate="{DataTemplate views:HistoryPage}" />
 
         <ShellContent
+            x:Name="OfflineTab"
+            Title="Offline"
+            Route="offline"
+            Icon="offline.png"
+            ContentTemplate="{DataTemplate views:OfflinePage}" />
+
+        <ShellContent
             x:Name="SettingsTab"
             Title="Cài đặt"
             Route="settings"

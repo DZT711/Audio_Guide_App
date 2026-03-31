@@ -56,6 +56,59 @@
                 <Setter Property="FontSize" Value="18" />
                 <Setter Property="HeightRequest" Value="64" />
             </Style>
+
+            <Style x:Key="TopHeaderGridStyle" TargetType="Grid">
+                <Setter Property="BackgroundColor" Value="{StaticResource PrimaryGreen}" />
+                <Setter Property="Padding" Value="18,12,18,10" />
+                <Setter Property="MinimumHeightRequest" Value="118" />
+            </Style>
+
+            <Style x:Key="TopHeaderTitleStyle"
+                   TargetType="Label"
+                   BasedOn="{StaticResource PageTitleStyle}">
+                <Setter Property="FontSize" Value="22" />
+                <Setter Property="VerticalOptions" Value="Center" />
+            </Style>
+
+            <Style x:Key="TopHeaderSubtitleStyle" TargetType="Label">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="TextColor" Value="#DDF7E7" />
+            </Style>
+
+            <Style x:Key="TopHeaderSearchFrameStyle" TargetType="Frame">
+                <Setter Property="BackgroundColor" Value="White" />
+                <Setter Property="BorderColor" Value="Transparent" />
+                <Setter Property="CornerRadius" Value="16" />
+                <Setter Property="HasShadow" Value="False" />
+                <Setter Property="Padding" Value="14,8" />
+            </Style>
+
+            <Style x:Key="TopHeaderSearchIconStyle" TargetType="Label">
+                <Setter Property="FontSize" Value="20" />
+                <Setter Property="TextColor" Value="{StaticResource MutedText}" />
+                <Setter Property="VerticalOptions" Value="Center" />
+            </Style>
+
+            <Style x:Key="TopHeaderActionFrameStyle" TargetType="Frame">
+                <Setter Property="WidthRequest" Value="42" />
+                <Setter Property="HeightRequest" Value="42" />
+                <Setter Property="CornerRadius" Value="12" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="HasShadow" Value="False" />
+                <Setter Property="BackgroundColor" Value="#45C26F" />
+                <Setter Property="VerticalOptions" Value="Center" />
+            </Style>
+
+            <Style x:Key="TopHeaderActionButtonStyle" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="#46C768" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="CornerRadius" Value="16" />
+                <Setter Property="Padding" Value="12,6" />
+                <Setter Property="HeightRequest" Value="34" />
+                <Setter Property="VerticalOptions" Value="Center" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

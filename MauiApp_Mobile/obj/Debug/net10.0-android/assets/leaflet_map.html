@@ -1,0 +1,432 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>smartTOUR Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        html, body, #map { height: 100%; width: 100%; }
+        .leaflet-popup-content-wrapper { border-radius: 12px; }
+        .leaflet-popup-content {
+            font-family: Arial, sans-serif;
+            width: 250px !important;
+            margin: 10px 12px;
+        }
+        .poi-popup img {
+            width: 100%;
+            height: 116px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            display: block;
+        }
+        .poi-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0F172A;
+            margin-bottom: 6px;
+        }
+        .poi-desc {
+            font-size: 13px;
+            color: #475569;
+            line-height: 1.35;
+            margin-bottom: 8px;
+        }
+        .poi-audio {
+            font-size: 12px;
+            color: #334155;
+            line-height: 1.35;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+        .poi-row {
+            font-size: 12px;
+            color: #334155;
+            line-height: 1.35;
+            margin-bottom: 4px;
+        }
+        .poi-chip-wrap { margin: 0 0 8px 0; }
+        .poi-chip {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 999px;
+            padding: 3px 8px;
+            margin-right: 6px;
+            margin-bottom: 4px;
+        }
+        .chip-category { background: #FFE3E3; color: #E53935; }
+        .chip-rating { background: #FFF7D6; color: #CA8A04; }
+        .chip-nearest { background: #FEE2E2; color: #B91C1C; }
+        .poi-hr { border-top: 1px dashed #E2E8F0; margin: 8px 0 6px; }
+        .poi-link { color: #166534; text-decoration: none; font-weight: 700; }
+        .map-error {
+            position: absolute;
+            left: 12px;
+            top: 12px;
+            right: 12px;
+            z-index: 9999;
+            background: #FEE2E2;
+            color: #991B1B;
+            border: 1px solid #FCA5A5;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        (function () {
+            if (!window.L) {
+                var error = document.createElement('div');
+                error.className = 'map-error';
+                error.innerText = 'Khong tai duoc thu vien ban do (Leaflet). Vui long kiem tra ket noi mang.';
+                document.body.appendChild(error);
+                return;
+            }
+
+            var defaultCenter = [10.778762, 106.684330];
+            var defaultZoom = 15;
+
+            var map = L.map('map', { zoomControl: true }).setView(defaultCenter, defaultZoom);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }).addTo(map);
+
+            var places = [
+                {
+                    lat: 10.779120,
+                    lon: 106.683900,
+                    title: 'Com Tam Goc Sai Gon',
+                    description: 'Quan com tam dong khach, vi dam da gan trung tam',
+                    audioDescription: 'Com Tam Goc Sai Gon noi bat voi suon nuong thom, bi cha day dan va nuoc mam vua vi.',
+                    category: 'Mon an dac trung',
+                    rating: '9/10',
+                    address: '58 Vo Van Tan, Quan 3, TP.HCM',
+                    phone: '(028) 3820 1122',
+                    email: 'comtamgocsaigon@example.vn',
+                    website: 'comtamgocsaigon.vn',
+                    establishedYear: '2016',
+                    radiusText: '75m'
+                },
+                {
+                    lat: 10.777950,
+                    lon: 106.685150,
+                    title: 'Pho Bo Nguyen Dinh Chieu',
+                    description: 'To pho nong voi nuoc dung thanh va bo mem',
+                    audioDescription: 'Pho Bo Nguyen Dinh Chieu phuc vu pho truyen thong voi nuoc dung trong, thom mui que hoi.',
+                    category: 'Mon an dac trung',
+                    rating: '9/10',
+                    address: '124 Nguyen Dinh Chieu, Quan 3, TP.HCM',
+                    phone: '(028) 3930 2233',
+                    email: 'phobondc@example.vn',
+                    website: 'phobondc.vn',
+                    establishedYear: '2018',
+                    radiusText: '90m'
+                },
+                {
+                    lat: 10.780020,
+                    lon: 106.686050,
+                    title: 'Bun Bo Hue Chi Mai',
+                    description: 'Bun bo cay nhe, topping day du va nuoc dung dam',
+                    audioDescription: 'Bun Bo Hue Chi Mai noi tieng voi nuoc leo dam vi, cha cua thom va thit bo mem.',
+                    category: 'Mon an dac trung',
+                    rating: '8/10',
+                    address: '36 Tran Quoc Thao, Quan 3, TP.HCM',
+                    phone: '(028) 3932 4455',
+                    email: 'bunbochimai@example.vn',
+                    website: 'bunbochimai.vn',
+                    establishedYear: '2019',
+                    radiusText: '110m'
+                },
+                {
+                    lat: 10.776980,
+                    lon: 106.683480,
+                    title: 'Quan Moc Garden Sai Gon',
+                    description: 'Khong gian san vuon mat, phu hop an uong nhom nho',
+                    audioDescription: 'Quan Moc Garden Sai Gon co khong gian xanh va thuc don Viet hien dai, phu hop gap go ban be.',
+                    category: 'Quan noi tieng',
+                    rating: '9/10',
+                    address: '22 Pasteur, Quan 3, TP.HCM',
+                    phone: '(028) 3829 6677',
+                    email: 'mocgarden@example.vn',
+                    website: 'mocgardensaigon.vn',
+                    establishedYear: '2017',
+                    radiusText: '120m'
+                },
+                {
+                    lat: 10.779640,
+                    lon: 106.682950,
+                    title: 'Cafe Song Xanh',
+                    description: 'Quan ca phe yen tinh, thich hop nghi chan buoi chieu',
+                    audioDescription: 'Cafe Song Xanh phuc vu ca phe rang moc va nhieu loai do uong nhe trong khong gian thu gian.',
+                    category: 'Do uong',
+                    rating: '8/10',
+                    address: '75 Nam Ky Khoi Nghia, Quan 3, TP.HCM',
+                    phone: '(028) 3911 7788',
+                    email: 'cafesongxanh@example.vn',
+                    website: 'cafesongxanh.vn',
+                    establishedYear: '2020',
+                    radiusText: '95m'
+                }
+            ];
+
+            var mapMarkers = [];
+            var searchMarker = null;
+            var currentLocationMarker = null;
+
+            function escapeHtml(value) {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function normalizeText(value) {
+                return String(value || '').toLowerCase().trim();
+            }
+
+            function getInitials(text) {
+                var words = String(text || '').trim().split(/\s+/).filter(Boolean);
+                if (!words.length) return 'POI';
+                if (words.length === 1) return words[0].substring(0, 3).toUpperCase();
+                return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+            }
+
+            function hueFromText(text) {
+                var hash = 0;
+                var i;
+                for (i = 0; i < text.length; i++) {
+                    hash = text.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                return Math.abs(hash) % 360;
+            }
+
+            function createPoiThumbnail(title) {
+                var hue = hueFromText(title || '');
+                var initials = getInitials(title);
+                var svg = '' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220" viewBox="0 0 400 220">' +
+                    '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+                    '<stop offset="0%" stop-color="hsl(' + hue + ',75%,52%)"/>' +
+                    '<stop offset="100%" stop-color="hsl(' + ((hue + 40) % 360) + ',80%,42%)"/>' +
+                    '</linearGradient></defs>' +
+                    '<rect width="400" height="220" fill="url(#g)"/>' +
+                    '<text x="200" y="128" text-anchor="middle" font-size="52" font-weight="700" fill="#fff" font-family="Arial">' + escapeHtml(initials) + '</text>' +
+                    '</svg>';
+                return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+            }
+
+            function createPinIcon(fillColor, strokeColor) {
+                var svg = '' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">' +
+                    '<path d="M17 1C8.2 1 1 8.2 1 17c0 12 16 26 16 26s16-14 16-26C33 8.2 25.8 1 17 1z" fill="' + fillColor + '" stroke="' + strokeColor + '" stroke-width="2"/>' +
+                    '<circle cx="17" cy="17" r="6" fill="#FFFFFF"/>' +
+                    '</svg>';
+
+                return L.icon({
+                    iconUrl: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+                    iconSize: [34, 44],
+                    iconAnchor: [17, 44],
+                    popupAnchor: [0, -36]
+                });
+            }
+
+            var normalPoiIcon = createPinIcon('#2A86FF', '#1D4ED8');
+            var nearestPoiIcon = createPinIcon('#FF5A5F', '#DC2626');
+
+            function metersBetween(lat1, lon1, lat2, lon2) {
+                var R = 6371000;
+                var dLat = (lat2 - lat1) * Math.PI / 180;
+                var dLon = (lon2 - lon1) * Math.PI / 180;
+                var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            }
+
+            function formatDistance(meters) {
+                if (meters < 1000) {
+                    return Math.round(meters) + 'm';
+                }
+                return (meters / 1000).toFixed(2) + 'km';
+            }
+
+            function popupHtml(place) {
+                var nearestChip = place.isNearest ? '<span class="poi-chip chip-nearest">Gan ban nhat</span>' : '';
+                var distanceRow = place.distanceMeters != null ? '<div class="poi-row">Khoang cach: <strong>' + formatDistance(place.distanceMeters) + '</strong></div>' : '';
+                return '' +
+                    '<div class="poi-popup">' +
+                        '<img src="' + place.image + '" alt="' + escapeHtml(place.title) + '">' +
+                        '<div class="poi-title">' + escapeHtml(place.title) + '</div>' +
+                        '<div class="poi-desc">' + escapeHtml(place.description) + '</div>' +
+                        '<div class="poi-audio">' + escapeHtml(place.audioDescription) + '</div>' +
+                        '<div class="poi-chip-wrap">' +
+                            '<span class="poi-chip chip-category">' + escapeHtml(place.category) + '</span>' +
+                            '<span class="poi-chip chip-rating">' + escapeHtml(place.rating) + '</span>' +
+                            nearestChip +
+                        '</div>' +
+                        '<div class="poi-hr"></div>' +
+                        '<div class="poi-row">Dia chi: ' + escapeHtml(place.address) + '</div>' +
+                        '<div class="poi-row">Phone: ' + escapeHtml(place.phone) + '</div>' +
+                        '<div class="poi-row">Email: ' + escapeHtml(place.email) + '</div>' +
+                        '<div class="poi-row">Web: <a class="poi-link" href="https://' + escapeHtml(place.website) + '" target="_blank" rel="noopener">' + escapeHtml(place.website) + '</a></div>' +
+                        '<div class="poi-row">Thanh lap: ' + escapeHtml(place.establishedYear) + '</div>' +
+                        '<div class="poi-row">Ban kinh kich hoat: ' + escapeHtml(place.radiusText) + '</div>' +
+                        '<div class="poi-row">GPS: ' + place.lat.toFixed(6) + ', ' + place.lon.toFixed(6) + '</div>' +
+                        distanceRow +
+                    '</div>';
+            }
+
+            function refreshMarkerLook() {
+                var i;
+                for (i = 0; i < mapMarkers.length; i++) {
+                    var item = mapMarkers[i];
+                    item.marker.setIcon(item.place.isNearest ? nearestPoiIcon : normalPoiIcon);
+                    item.marker.setPopupContent(popupHtml(item.place));
+                    item.marker.setZIndexOffset(item.place.isNearest ? 1000 : 0);
+                }
+            }
+
+            function highlightNearestPoi(fromLat, fromLon) {
+                if (!mapMarkers.length) return null;
+
+                var nearest = null;
+                var minDistance = Number.MAX_VALUE;
+                var i;
+
+                for (i = 0; i < mapMarkers.length; i++) {
+                    var item = mapMarkers[i];
+                    item.place.isNearest = false;
+                    item.place.distanceMeters = metersBetween(fromLat, fromLon, item.place.lat, item.place.lon);
+                    if (item.place.distanceMeters < minDistance) {
+                        minDistance = item.place.distanceMeters;
+                        nearest = item;
+                    }
+                }
+
+                if (nearest) nearest.place.isNearest = true;
+                refreshMarkerLook();
+                return nearest;
+            }
+
+            var idx;
+            for (idx = 0; idx < places.length; idx++) {
+                places[idx].id = idx;
+                places[idx].image = createPoiThumbnail(places[idx].title);
+                places[idx].isNearest = false;
+                places[idx].distanceMeters = null;
+
+                var marker = L.marker([places[idx].lat, places[idx].lon], {
+                    title: places[idx].title,
+                    icon: normalPoiIcon
+                }).addTo(map);
+
+                marker.bindPopup(popupHtml(places[idx]));
+                mapMarkers.push({ place: places[idx], marker: marker });
+            }
+
+            highlightNearestPoi(defaultCenter[0], defaultCenter[1]);
+
+            window.focusPlaceByKeyword = function (keyword) {
+                var normalized = normalizeText(keyword);
+                var i;
+
+                if (searchMarker) {
+                    map.removeLayer(searchMarker);
+                    searchMarker = null;
+                }
+
+                if (!normalized) {
+                    return JSON.stringify({ found: false, matchCount: 0, title: '' });
+                }
+
+                var matches = [];
+                for (i = 0; i < mapMarkers.length; i++) {
+                    var p = mapMarkers[i].place;
+                    var hay = normalizeText(p.title + ' ' + p.description + ' ' + p.address);
+                    if (hay.indexOf(normalized) >= 0) matches.push(mapMarkers[i]);
+                }
+
+                if (!matches.length) {
+                    return JSON.stringify({ found: false, matchCount: 0, title: '' });
+                }
+
+                map.flyTo([matches[0].place.lat, matches[0].place.lon], 16, { duration: 1.1 });
+                matches[0].marker.openPopup();
+                return JSON.stringify({ found: true, matchCount: matches.length, title: matches[0].place.title });
+            };
+
+            window.resetMapView = function () {
+                map.closePopup();
+
+                if (searchMarker) {
+                    map.removeLayer(searchMarker);
+                    searchMarker = null;
+                }
+                if (currentLocationMarker) {
+                    map.removeLayer(currentLocationMarker);
+                    currentLocationMarker = null;
+                }
+
+                highlightNearestPoi(defaultCenter[0], defaultCenter[1]);
+                map.flyTo(defaultCenter, defaultZoom, { duration: 1.0 });
+            };
+
+            window.showSearchResult = function (lat, lon, title, description) {
+                if (searchMarker) map.removeLayer(searchMarker);
+
+                searchMarker = L.marker([lat, lon], {
+                    title: title || 'Ket qua tim kiem'
+                }).addTo(map);
+
+                searchMarker.bindPopup('<strong>' + escapeHtml(title || 'Ket qua tim kiem') + '</strong><br/>' + escapeHtml(description || ''));
+                map.flyTo([lat, lon], 16, { duration: 1.1 });
+                searchMarker.openPopup();
+                return true;
+            };
+
+            window.showCurrentLocation = function (lat, lon) {
+                if (currentLocationMarker) {
+                    map.removeLayer(currentLocationMarker);
+                    currentLocationMarker = null;
+                }
+
+                currentLocationMarker = L.circleMarker([lat, lon], {
+                    radius: 9,
+                    color: '#0EA5E9',
+                    weight: 2,
+                    fillColor: '#38BDF8',
+                    fillOpacity: 0.9
+                }).addTo(map);
+
+                var nearest = highlightNearestPoi(lat, lon);
+
+                var popup = '<strong>Vi tri hien tai</strong><br/>' + lat.toFixed(6) + ', ' + lon.toFixed(6);
+                if (nearest) {
+                    popup += '<br/>Gan nhat: <strong>' + escapeHtml(nearest.place.title) + '</strong> (' + formatDistance(nearest.place.distanceMeters || 0) + ')';
+                }
+
+                currentLocationMarker.bindPopup(popup);
+                map.flyTo([lat, lon], 16, { duration: 1.1 });
+                currentLocationMarker.openPopup();
+                return true;
+            };
+        })();
+    </script>
+</body>
+</html>

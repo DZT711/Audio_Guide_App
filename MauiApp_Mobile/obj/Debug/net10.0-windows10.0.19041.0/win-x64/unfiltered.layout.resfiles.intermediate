@@ -49,6 +49,7 @@ appiconWideTile.scale-400.png
 history.scale-100.png
 location.scale-100.png
 map.scale-100.png
+offline.scale-100.png
 route.scale-100.png
 settings.scale-100.png
 splashSplashScreen.scale-100.png
@@ -56,4 +57,6 @@ splashSplashScreen.scale-125.png
 splashSplashScreen.scale-150.png
 splashSplashScreen.scale-200.png
 splashSplashScreen.scale-400.png
+_leaflet_debug.html
 AboutAssets.txt
+leaflet_map.html

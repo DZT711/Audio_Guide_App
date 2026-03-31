@@ -3,26 +3,24 @@
     x:Class="MauiApp_Mobile.MainPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:MauiApp_Mobile"
+    Shell.NavBarIsVisible="False"
+    Padding="0"
     BackgroundColor="{StaticResource LightBg}">
 
-    <Grid RowDefinitions="180,*">
+    <Grid RowDefinitions="Auto,*" RowSpacing="0">
 
-        <Grid BackgroundColor="{StaticResource PrimaryGreen}" Padding="20,50,20,20">
-            <VerticalStackLayout Spacing="18">
+        <Grid Style="{StaticResource TopHeaderGridStyle}"
+              MinimumHeightRequest="122">
+            <VerticalStackLayout Spacing="8" VerticalOptions="Center">
                 <Label x:Name="TitleLabel"
                        Text="Địa điểm"
-                       Style="{StaticResource PageTitleStyle}" />
+                       Style="{StaticResource TopHeaderTitleStyle}" />
 
-                <Frame BackgroundColor="White"
-                       BorderColor="Transparent"
-                       CornerRadius="18"
-                       HasShadow="False"
-                       Padding="16,10">
+                <Frame Style="{StaticResource TopHeaderSearchFrameStyle}">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
                         <Label Text="🔍"
-                               FontSize="22"
-                               TextColor="{StaticResource MutedText}"
-                               VerticalOptions="Center" />
+                               Style="{StaticResource TopHeaderSearchIconStyle}" />
 
                         <Entry x:Name="SearchEntry"
                                Grid.Column="1"
@@ -37,9 +35,9 @@
             </VerticalStackLayout>
         </Grid>
 
-        <Grid Grid.Row="1" Padding="16,14,16,12" RowDefinitions="Auto,Auto,*">
+        <Grid Grid.Row="1" Padding="16,8,16,12" RowDefinitions="Auto,Auto,*" RowSpacing="8">
 
-            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,14">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
                 <Label x:Name="CountLabel"
                        Text="10 địa điểm"
                        FontSize="15"
@@ -66,7 +64,7 @@
                                  Grid.Row="1"
                                  IsVisible="False"
                                  Spacing="8"
-                                 Padding="0,12,0,12">
+                                 Padding="0,8,0,8">
                 <Label Text="🔎"
                        FontSize="34"
                        HorizontalOptions="Center" />
@@ -91,6 +89,9 @@
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
                         <Frame Style="{StaticResource CardFrameStyle}">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnPlaceTapped" />
+                            </Frame.GestureRecognizers>
                             <Grid ColumnDefinitions="88,*,Auto" ColumnSpacing="14">
                                 <Image Source="{Binding Image}"
                                        WidthRequest="88"
@@ -133,11 +134,14 @@
                                        BackgroundColor="{StaticResource PrimaryGreen}"
                                        HorizontalOptions="End"
                                        VerticalOptions="Center">
-                                    <Label Text="▶"
+                                    <Label Text="{Binding PlayIcon}"
                                            HorizontalOptions="Center"
                                            VerticalOptions="Center"
                                            TextColor="White"
                                            FontSize="18" />
+                                    <Frame.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnPlayTapped" />
+                                    </Frame.GestureRecognizers>
                                 </Frame>
                             </Grid>
                         </Frame>
@@ -347,6 +351,188 @@
                         </Grid>
                     </VerticalStackLayout>
                 </ScrollView>
+            </Border>
+        </Grid>
+
+        <Grid Grid.RowSpan="2"
+              IsVisible="{Binding IsPlaceDetailVisible}"
+              BackgroundColor="#66000000"
+              RowDefinitions="*,Auto"
+              ZIndex="90">
+
+            <Grid Grid.Row="0">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnPlaceDetailBackdropTapped" />
+                </Grid.GestureRecognizers>
+            </Grid>
+
+            <Border x:Name="PlaceDetailSheet"
+                    Grid.Row="1"
+                    BackgroundColor="White"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 24,24,0,0"
+                    Padding="0,0,0,10"
+                    TranslationY="520">
+
+                <Grid RowDefinitions="Auto,190,*">
+                    <Grid Grid.Row="0"
+                          Padding="0,10,0,8"
+                          HorizontalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <PanGestureRecognizer PanUpdated="OnPlaceDetailPanUpdated" />
+                                                        <TapGestureRecognizer Tapped="OnPlaceDetailHandleTapped" />
+                        </Grid.GestureRecognizers>
+                        <Border WidthRequest="52"
+                                HeightRequest="6"
+                                BackgroundColor="#D0D5DD"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 3"
+                                HorizontalOptions="Center" />
+                    </Grid>
+
+                    <Grid Grid.Row="1">
+                        <Grid.GestureRecognizers>
+                            <PanGestureRecognizer PanUpdated="OnPlaceDetailPanUpdated" />
+                        </Grid.GestureRecognizers>
+                        <Image Source="{Binding SelectedPlace.Image}" Aspect="AspectFill" />
+
+                        <Grid Padding="14"
+                              RowDefinitions="Auto,*,Auto"
+                              BackgroundColor="#33000000">
+                            <Border BackgroundColor="#FDECEC"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 12"
+                                    Padding="10,4"
+                                    HorizontalOptions="Start">
+                                <Label Text="{Binding SelectedPlace.Category}"
+                                       FontSize="12"
+                                       TextColor="#E53935" />
+                            </Border>
+
+                            <Button Grid.Row="0"
+                                    Text="✕"
+                                    Clicked="OnClosePlaceDetail"
+                                    WidthRequest="38"
+                                    HeightRequest="38"
+                                    CornerRadius="19"
+                                    BackgroundColor="#88000000"
+                                    TextColor="White"
+                                    HorizontalOptions="End"
+                                    VerticalOptions="Start" />
+
+                            <VerticalStackLayout Grid.Row="2" Spacing="4">
+                                <Label Text="{Binding SelectedPlace.Name}"
+                                       FontSize="36"
+                                       FontAttributes="Bold"
+                                       TextColor="White" />
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label Text="★★★★★" FontSize="12" TextColor="#FACC15" />
+                                    <Label Text="{Binding DetailPriorityText}" FontSize="12" TextColor="White" />
+                                    <Border BackgroundColor="#16A34A"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 10"
+                                            Padding="8,2">
+                                        <Label Text="GPS" FontSize="11" TextColor="White" />
+                                    </Border>
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Grid>
+
+                    <ScrollView Grid.Row="2">
+                        <VerticalStackLayout Padding="14,12" Spacing="12">
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                                <Border BackgroundColor="#ECFDF3"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 12"
+                                        Padding="10">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="Bán kính kích hoạt" FontSize="12" TextColor="#64748B" />
+                                        <Label Text="{Binding SelectedPlace.RadiusText}" FontSize="20" FontAttributes="Bold" TextColor="#0F172A" />
+                                    </VerticalStackLayout>
+                                </Border>
+
+                                <Border Grid.Column="1"
+                                        BackgroundColor="#EFF6FF"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 12"
+                                        Padding="10">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="Tọa độ GPS" FontSize="12" TextColor="#64748B" />
+                                        <Label Text="{Binding SelectedPlace.GpsText}" FontSize="20" FontAttributes="Bold" TextColor="#0F172A" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </Grid>
+
+                            <Label Text="🔊 Audio mô tả"
+                                   FontSize="22"
+                                   FontAttributes="Bold"
+                                   TextColor="#0F172A" />
+
+                            <Label Text="{Binding SelectedPlace.AudioDescription}"
+                                   FontSize="15"
+                                   TextColor="#344054" />
+
+                            <Border BackgroundColor="#F8FAFC"
+                                    Stroke="#E5E7EB"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 14"
+                                    Padding="12">
+                                <VerticalStackLayout Spacing="6">
+                                    <Label Text="{Binding SelectedPlace.Address, StringFormat='📍 {0}'}" FontSize="14" TextColor="#334155" />
+                                    <Label Text="{Binding SelectedPlace.Phone, StringFormat='📞 {0}'}" FontSize="14" TextColor="#16A34A" />
+                                    <Label Text="{Binding SelectedPlace.Email, StringFormat='✉ {0}'}" FontSize="14" TextColor="#16A34A" />
+                                    <Label Text="{Binding SelectedPlace.Website, StringFormat='🌐 {0}'}" FontSize="14" TextColor="#16A34A" />
+                                    <Label Text="{Binding SelectedPlace.EstablishedYear, StringFormat='📅 Thành lập năm {0}'}" FontSize="14" TextColor="#334155" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <Label Text="{Binding AudioTracksTitle}"
+                                   FontSize="19"
+                                   FontAttributes="Bold"
+                                   TextColor="#0F172A" />
+
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding SelectedPlaceTracks}" Spacing="8">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="local:PlaceAudioTrack">
+                                        <Border BackgroundColor="White"
+                                                Stroke="#E5E7EB"
+                                                StrokeThickness="1"
+                                                StrokeShape="RoundRectangle 14"
+                                                Padding="10">
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                                <Border WidthRequest="42"
+                                                        HeightRequest="42"
+                                                        BackgroundColor="#16A34A"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 21">
+                                                    <Label Text="▶" FontSize="16" TextColor="White" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                                                </Border>
+
+                                                <VerticalStackLayout Grid.Column="1" Spacing="3">
+                                                    <HorizontalStackLayout Spacing="8">
+                                                        <Label Text="{Binding LanguageCode}" FontSize="12" TextColor="#64748B" />
+                                                        <Label Text="{Binding Title}" FontSize="15" FontAttributes="Bold" TextColor="#0F172A" />
+                                                        <Label Text="⏱ {Binding Duration}" FontSize="12" TextColor="#98A2B3" HorizontalOptions="EndAndExpand" />
+                                                    </HorizontalStackLayout>
+
+                                                    <HorizontalStackLayout Spacing="6">
+                                                        <Border BackgroundColor="#F1F5F9" StrokeThickness="0" StrokeShape="RoundRectangle 9" Padding="8,2">
+                                                            <Label Text="{Binding LanguageCode}" FontSize="11" TextColor="#475569" />
+                                                        </Border>
+                                                        <Border BackgroundColor="#D1FAE5" StrokeThickness="0" StrokeShape="RoundRectangle 9" Padding="8,2">
+                                                            <Label Text="{Binding Description}" FontSize="11" TextColor="#065F46" />
+                                                        </Border>
+                                                    </HorizontalStackLayout>
+                                                </VerticalStackLayout>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </ScrollView>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

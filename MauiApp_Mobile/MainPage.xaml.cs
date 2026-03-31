@@ -1,122 +1,71 @@
 ﻿using System.Collections.ObjectModel;
 using MauiApp_Mobile.Services;
+using MauiApp_Mobile.Models;
+#if ANDROID
+using AndroidColor = Android.Graphics.Color;
+using Android.Views;
+using Microsoft.Maui.ApplicationModel;
+#endif
 
 namespace MauiApp_Mobile;
 
 public partial class MainPage : ContentPage
 {
+    private const double PlaceDetailOpenTopInset = 16;
+    private const double PlaceDetailFallbackClosedOffset = 520;
+    private const double PlaceDetailHalfVisibleRatio = 0.58;
     private readonly List<PlaceItem> _allPlaces = new();
+    private ObservableCollection<PlaceAudioTrack> _selectedPlaceTracks = new();
     private string _selectedCategory = "Tất cả";
+    private bool _isPlaceDetailVisible;
+    private PlaceItem? _selectedPlace;
+    private double _detailSheetStartY;
+    private double _placeDetailExpandedY = PlaceDetailOpenTopInset;
+    private double _placeDetailHalfY = 180;
+    private double _placeDetailClosedY = PlaceDetailFallbackClosedOffset;
 
     public ObservableCollection<PlaceItem> Places { get; set; } = new();
+
+    public bool IsPlaceDetailVisible
+    {
+        get => _isPlaceDetailVisible;
+        set
+        {
+            _isPlaceDetailVisible = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public PlaceItem? SelectedPlace
+    {
+        get => _selectedPlace;
+        set
+        {
+            _selectedPlace = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(DetailPriorityText));
+        }
+    }
+
+    public ObservableCollection<PlaceAudioTrack> SelectedPlaceTracks
+    {
+        get => _selectedPlaceTracks;
+        set
+        {
+            _selectedPlaceTracks = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AudioTracksTitle));
+        }
+    }
+
+    public string DetailPriorityText => SelectedPlace == null ? string.Empty : $"Độ ưu tiên {SelectedPlace.Rating}";
+    public string AudioTracksTitle => $"🔊 Danh sách Audio ({SelectedPlaceTracks.Count})";
 
     public MainPage()
     {
         InitializeComponent();
 
-        _allPlaces.AddRange(new List<PlaceItem>
-        {
-            new PlaceItem
-            {
-                Name = "Bún bò Huế",
-                Description = "Món ăn đặc trưng nổi tiếng với vị cay nồng đậm đà",
-                Category = "Món ăn đặc trưng",
-                Rating = "10/10",
-                Image = "dotnet_bot.png",
-                CategoryColor = Color.FromArgb("#FFE3E3"),
-                CategoryTextColor = Color.FromArgb("#E53935")
-            },
-            new PlaceItem
-            {
-                Name = "Phở Hà Nội",
-                Description = "Món phở truyền thống với nước dùng thơm ngon",
-                Category = "Món ăn đặc trưng",
-                Rating = "10/10",
-                Image = "dotnet_bot.png",
-                CategoryColor = Color.FromArgb("#FFE3E3"),
-                CategoryTextColor = Color.FromArgb("#E53935")
-            },
-            new PlaceItem
-            {
-                Name = "Cơm tấm Sài Gòn",
-                Description = "Món cơm tấm quen thuộc với sườn nướng hấp dẫn",
-                Category = "Món ăn đặc trưng",
-                Rating = "9/10",
-                Image = "dotnet_bot.png",
-                CategoryColor = Color.FromArgb("#FFE3E3"),
-                CategoryTextColor = Color.FromArgb("#E53935")
-            },
-            new PlaceItem
-            {
-                Name = "Quán Mộc",
-                Description = "Quán nổi tiếng với không gian đẹp và món Việt chất lượng",
-                Category = "Quán nổi tiếng",
-                Rating = "9/10",
-                Image = "dotnet_bot.png",
-                CategoryColor = Color.FromArgb("#FFF7D6"),
-                CategoryTextColor = Color.FromArgb("#CA8A04")
-            },
-            new PlaceItem
-            {
-                Name = "Nhà hàng Ngon Garden",
-                Description = "Địa điểm nổi tiếng với nhiều món Việt truyền thống",
-                Category = "Quán nổi tiếng",
-                Rating = "9/10",
-                Image = "dotnet_bot.png",
-                CategoryColor = Color.FromArgb("#FFF7D6"),
-                CategoryTextColor = Color.FromArgb("#CA8A04")
-            },
-            new PlaceItem
-            {
-                Name = "Trà sữa Phúc Long",
-                Description = "Chuỗi đồ uống nổi tiếng với trà và cà phê",
-                Category = "Đồ uống",
-                Rating = "8/10",
-                Image = "dotnet_bot.png",
-                CategoryColor = Color.FromArgb("#E6F4FF"),
-                CategoryTextColor = Color.FromArgb("#2563EB")
-            },
-            new PlaceItem
-            {
-                Name = "Cà phê sữa đá",
-                Description = "Thức uống đặc trưng của Việt Nam, đậm vị cà phê",
-                Category = "Đồ uống",
-                Rating = "10/10",
-                Image = "dotnet_bot.png",
-                CategoryColor = Color.FromArgb("#E6F4FF"),
-                CategoryTextColor = Color.FromArgb("#2563EB")
-            },
-            new PlaceItem
-            {
-                Name = "Chợ Bến Thành",
-                Description = "Nơi khám phá văn hóa ẩm thực đặc sắc của Sài Gòn",
-                Category = "Văn hóa ẩm thực",
-                Rating = "9/10",
-                Image = "dotnet_bot.png",
-                CategoryColor = Color.FromArgb("#E8F7EE"),
-                CategoryTextColor = Color.FromArgb("#18A94B")
-            },
-            new PlaceItem
-            {
-                Name = "Phố ẩm thực Nguyễn Thượng Hiền",
-                Description = "Khu phố nổi bật với nhiều món ăn đường phố",
-                Category = "Văn hóa ẩm thực",
-                Rating = "9/10",
-                Image = "dotnet_bot.png",
-                CategoryColor = Color.FromArgb("#E8F7EE"),
-                CategoryTextColor = Color.FromArgb("#18A94B")
-            },
-            new PlaceItem
-            {
-                Name = "Cửa hàng tiện lợi 24h",
-                Description = "Điểm tiện ích mua sắm nhanh chóng gần khu du lịch",
-                Category = "Tiện ích",
-                Rating = "8/10",
-                Image = "dotnet_bot.png",
-                CategoryColor = Color.FromArgb("#F2E8FF"),
-                CategoryTextColor = Color.FromArgb("#7C3AED")
-            }
-        });
+        _allPlaces.AddRange(BuildSamplePlacesNearCurrentLocation());
 
         BindingContext = this;
         ApplyTexts();
@@ -128,6 +77,32 @@ public partial class MainPage : ContentPage
             ApplyTexts();
             UpdateCount();
         };
+    }
+
+    protected override void OnSizeAllocated(double width, double height)
+    {
+        base.OnSizeAllocated(width, height);
+        UpdatePlaceDetailSheetLayout();
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+
+#if ANDROID
+        var window = Platform.CurrentActivity?.Window;
+        if (window is not null)
+        {
+            window.SetStatusBarColor(AndroidColor.ParseColor("#18A94B"));
+
+            // Keep status bar icons readable on green background.
+            var decor = window.DecorView;
+            if (decor is not null)
+            {
+                decor.SystemUiVisibility &= ~((StatusBarVisibility)SystemUiFlags.LightStatusBar);
+            }
+        }
+#endif
     }
 
     private void ApplyTexts()
@@ -267,14 +242,251 @@ public partial class MainPage : ContentPage
     private void OnFilterFoodCultureTapped(object sender, TappedEventArgs e) => ApplyCategory("Văn hóa ẩm thực");
     private void OnFilterUtilityTapped(object sender, TappedEventArgs e) => ApplyCategory("Tiện ích");
 
-    public class PlaceItem
+    // public class PlaceItem --> Moved to Models/PlaceItem.cs
+
+    private async void OnPlaceTapped(object sender, TappedEventArgs e)
     {
-        public string Name { get; set; } = "";
-        public string Description { get; set; } = "";
-        public string Category { get; set; } = "";
-        public string Rating { get; set; } = "";
-        public string Image { get; set; } = "";
-        public Color CategoryColor { get; set; } = Colors.LightGray;
-        public Color CategoryTextColor { get; set; } = Colors.Black;
+        if (sender is not Frame card || card.BindingContext is not PlaceItem item)
+            return;
+
+        SelectedPlace = item;
+        SelectedPlaceTracks = BuildPlaceTracks(item);
+        IsPlaceDetailVisible = true;
+
+        await Task.Yield();
+        UpdatePlaceDetailSheetLayout();
+        PlaceDetailSheet.TranslationY = _placeDetailClosedY;
+        await PlaceDetailSheet.TranslateTo(0, _placeDetailHalfY, 300, Easing.CubicOut);
     }
+
+    private async void OnPlaceDetailPanUpdated(object? sender, PanUpdatedEventArgs e)
+    {
+        if (!IsPlaceDetailVisible)
+            return;
+
+        switch (e.StatusType)
+        {
+            case GestureStatus.Started:
+                _detailSheetStartY = PlaceDetailSheet.TranslationY;
+                break;
+
+            case GestureStatus.Running:
+                var nextY = Math.Clamp(_detailSheetStartY + e.TotalY, _placeDetailExpandedY, _placeDetailClosedY);
+                PlaceDetailSheet.TranslationY = nextY;
+                break;
+
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+                var targetY = ResolvePlaceDetailSnapTarget(PlaceDetailSheet.TranslationY, e.TotalY);
+                if (targetY >= _placeDetailClosedY - 1)
+                {
+                    await HidePlaceDetail();
+                }
+                else
+                {
+                    await PlaceDetailSheet.TranslateTo(0, targetY, 170, Easing.CubicOut);
+                }
+                break;
+        }
+    }
+
+    private async void OnClosePlaceDetail(object sender, EventArgs e)
+    {
+        await HidePlaceDetail();
+    }
+
+    private async void OnPlaceDetailHandleTapped(object sender, TappedEventArgs e)
+    {
+        await HidePlaceDetail();
+    }
+
+    private async void OnPlaceDetailBackdropTapped(object sender, TappedEventArgs e)
+    {
+        await HidePlaceDetail();
+    }
+
+    private async Task HidePlaceDetail()
+    {
+        if (!IsPlaceDetailVisible)
+            return;
+
+        UpdatePlaceDetailSheetLayout();
+        await PlaceDetailSheet.TranslateTo(0, _placeDetailClosedY, 230, Easing.CubicIn);
+        IsPlaceDetailVisible = false;
+        SelectedPlace = null;
+        SelectedPlaceTracks = new ObservableCollection<PlaceAudioTrack>();
+    }
+
+    private void UpdatePlaceDetailSheetLayout()
+    {
+        if (Height <= 0)
+            return;
+
+        // Keep detail sheet balanced on screen so the close button remains reachable.
+        var maxSheetHeight = Math.Max(360, Height * 0.88);
+        PlaceDetailSheet.MaximumHeightRequest = maxSheetHeight;
+
+        _placeDetailExpandedY = PlaceDetailOpenTopInset;
+        var halfVisibleHeight = Math.Max(320, Height * PlaceDetailHalfVisibleRatio);
+        _placeDetailHalfY = Math.Clamp(
+            maxSheetHeight - halfVisibleHeight,
+            _placeDetailExpandedY + 72,
+            _placeDetailExpandedY + 300);
+        _placeDetailClosedY = Math.Max(PlaceDetailFallbackClosedOffset, maxSheetHeight + 48);
+
+        if (!IsPlaceDetailVisible)
+            PlaceDetailSheet.TranslationY = _placeDetailClosedY;
+    }
+
+    private static IEnumerable<PlaceItem> BuildSamplePlacesNearCurrentLocation()
+    {
+        return new List<PlaceItem>
+        {
+            new()
+            {
+                Name = "Cơm Tấm Góc Sài Gòn",
+                Description = "Quán cơm tấm đông khách, vị đậm đà gần trung tâm",
+                AudioDescription = "Cơm Tấm Góc Sài Gòn nổi bật với sườn nướng thơm, bì chả đầy đặn và nước mắm pha vừa vị.",
+                Category = "Món ăn đặc trưng",
+                Rating = "9/10",
+                Image = "dotnet_bot.png",
+                Address = "58 Võ Văn Tần, Quận 3, TP.HCM",
+                Phone = "(028) 3820 1122",
+                Email = "comtamgocsaigon@example.vn",
+                Website = "comtamgocsaigon.vn",
+                EstablishedYear = "2016",
+                RadiusText = "75m",
+                GpsText = "10.779120, 106.683900",
+                CategoryColor = Color.FromArgb("#FFE3E3"),
+                CategoryTextColor = Color.FromArgb("#E53935")
+            },
+            new()
+            {
+                Name = "Phở Bò Nguyễn Đình Chiểu",
+                Description = "Tô phở nóng với nước dùng thanh và bò mềm",
+                AudioDescription = "Phở Bò Nguyễn Đình Chiểu phục vụ phở truyền thống với nước dùng trong, thơm mùi quế hồi.",
+                Category = "Món ăn đặc trưng",
+                Rating = "9/10",
+                Image = "dotnet_bot.png",
+                Address = "124 Nguyễn Đình Chiểu, Quận 3, TP.HCM",
+                Phone = "(028) 3930 2233",
+                Email = "phobondc@example.vn",
+                Website = "phobondc.vn",
+                EstablishedYear = "2018",
+                RadiusText = "90m",
+                GpsText = "10.777950, 106.685150",
+                CategoryColor = Color.FromArgb("#FFE3E3"),
+                CategoryTextColor = Color.FromArgb("#E53935")
+            },
+            new()
+            {
+                Name = "Bún Bò Huế Chị Mai",
+                Description = "Bún bò cay nhẹ, topping đầy đủ và nước dùng đậm",
+                AudioDescription = "Bún Bò Huế Chị Mai nổi tiếng với nước lèo đậm vị, chả cua thơm và thịt bò mềm.",
+                Category = "Món ăn đặc trưng",
+                Rating = "8/10",
+                Image = "dotnet_bot.png",
+                Address = "36 Trần Quốc Thảo, Quận 3, TP.HCM",
+                Phone = "(028) 3932 4455",
+                Email = "bunbochimai@example.vn",
+                Website = "bunbochimai.vn",
+                EstablishedYear = "2019",
+                RadiusText = "110m",
+                GpsText = "10.780020, 106.686050",
+                CategoryColor = Color.FromArgb("#FFE3E3"),
+                CategoryTextColor = Color.FromArgb("#E53935")
+            },
+            new()
+            {
+                Name = "Quán Mộc Garden Sài Gòn",
+                Description = "Không gian sân vườn mát, phù hợp ăn uống nhóm nhỏ",
+                AudioDescription = "Quán Mộc Garden Sài Gòn có không gian xanh và thực đơn Việt hiện đại, phù hợp gặp gỡ bạn bè.",
+                Category = "Quán nổi tiếng",
+                Rating = "9/10",
+                Image = "dotnet_bot.png",
+                Address = "22 Pasteur, Quận 3, TP.HCM",
+                Phone = "(028) 3829 6677",
+                Email = "mocgarden@example.vn",
+                Website = "mocgardensaigon.vn",
+                EstablishedYear = "2017",
+                RadiusText = "120m",
+                GpsText = "10.776980, 106.683480",
+                CategoryColor = Color.FromArgb("#FFF7D6"),
+                CategoryTextColor = Color.FromArgb("#CA8A04")
+            },
+            new()
+            {
+                Name = "Cafe Sông Xanh",
+                Description = "Quán cà phê yên tĩnh, thích hợp nghỉ chân buổi chiều",
+                AudioDescription = "Cafe Sông Xanh phục vụ cà phê rang mộc và nhiều loại đồ uống nhẹ trong không gian thư giãn.",
+                Category = "Đồ uống",
+                Rating = "8/10",
+                Image = "dotnet_bot.png",
+                Address = "75 Nam Kỳ Khởi Nghĩa, Quận 3, TP.HCM",
+                Phone = "(028) 3911 7788",
+                Email = "cafesongxanh@example.vn",
+                Website = "cafesongxanh.vn",
+                EstablishedYear = "2020",
+                RadiusText = "95m",
+                GpsText = "10.779640, 106.682950",
+                CategoryColor = Color.FromArgb("#E6F4FF"),
+                CategoryTextColor = Color.FromArgb("#2563EB")
+            }
+        };
+    }
+
+    private double ResolvePlaceDetailSnapTarget(double currentY, double totalDragY)
+    {
+        var expandedHalfMid = (_placeDetailExpandedY + _placeDetailHalfY) / 2;
+        var halfClosedMid = (_placeDetailHalfY + _placeDetailClosedY) / 2;
+
+        if (totalDragY < -80)
+            return _placeDetailExpandedY;
+
+        if (totalDragY > 160 && currentY > _placeDetailHalfY + 24)
+            return _placeDetailClosedY;
+
+        if (currentY <= expandedHalfMid)
+            return _placeDetailExpandedY;
+
+        if (currentY <= halfClosedMid)
+            return _placeDetailHalfY;
+
+        return _placeDetailClosedY;
+    }
+
+    private static ObservableCollection<PlaceAudioTrack> BuildPlaceTracks(PlaceItem item)
+    {
+        return new ObservableCollection<PlaceAudioTrack>
+        {
+            new() { LanguageCode = "VI", Title = $"Lịch sử {item.Name}", Description = "Tự động", Duration = "4:27" },
+            new() { LanguageCode = "EN", Title = $"History of {item.Name}", Description = "Recorded", Duration = "4:13" },
+            new() { LanguageCode = "JA", Title = $"{item.Name} の紹介", Description = "Thủ công", Duration = "3:09" },
+            new() { LanguageCode = "ZH", Title = $"{item.Name} 简介", Description = "TTS", Duration = "4:01" }
+        };
+    }
+
+    private async void OnPlayTapped(object sender, TappedEventArgs e)
+    {
+        if (sender is Frame frame && frame.BindingContext is PlaceItem item)
+        {
+            // Toggle play state
+            item.IsPlayed = !item.IsPlayed;
+
+            // Add to history
+            if (item.IsPlayed)
+            {
+                HistoryService.Instance.AddToHistory(item);
+                // Notification removed as per user request
+            }
+        }
+    }
+}
+
+public class PlaceAudioTrack
+{
+    public string LanguageCode { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Duration { get; set; } = string.Empty;
 }
