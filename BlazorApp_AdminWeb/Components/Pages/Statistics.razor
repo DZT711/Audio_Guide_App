@@ -148,24 +148,34 @@ else
                                     else
                                     {
                                         <div class="statistics-layout">
-                                            <section class="management-panel statistics-panel" data-reveal>
-                                                <div class="management-panel__header">
+                                            <section class="@GetHeatmapPanelClass()" data-reveal>
+                                                <div class="management-panel__header statistics-panel__header">
                                                     <div>
                                                         <span class="management-panel__eyebrow">Heatmap</span>
                                                         <h2>User Position Hotspots</h2>
                                                     </div>
-                                                    <div class="statistics-legend">
-                                                        <span><svg class="legend-icon" viewBox="0 0 20 20">
-                                                            <polygon points="10,2 16,6 14,15 6,15 4,6" fill="#FF8C42" opacity="0.8" />
-                                                        </svg> Orange: 1 user/area</span>
-                                                        <span><svg class="legend-icon" viewBox="0 0 20 20">
-                                                            <polygon points="10,2 16,6 14,15 6,15 4,6" fill="#FFD700" opacity="0.8" />
-                                                        </svg> Yellow: 2-5 users/area</span>
-                                                        <span><svg class="legend-icon" viewBox="0 0 20 20">
-                                                            <polygon points="10,2 16,6 14,15 6,15 4,6" fill="#E63946" opacity="0.8" />
-                                                        </svg> Red: >5 users/area</span>
-                                                        <span><i class="bi bi-bezier2"></i> Selected route</span>
-                                                        <span><i class="bi bi-geo-alt-fill"></i> POIs</span>
+                                                    <div class="statistics-panel__tools">
+                                                        <div class="statistics-legend">
+                                                            <span><svg class="legend-icon" viewBox="0 0 20 20" aria-hidden="true">
+                                                                <polygon points="10,1.5 16.5,5.25 16.5,12.75 10,16.5 3.5,12.75 3.5,5.25" fill="#FF9736" opacity="0.9" />
+                                                            </svg> Warm: 1 user/area</span>
+                                                            <span><svg class="legend-icon" viewBox="0 0 20 20" aria-hidden="true">
+                                                                <polygon points="10,1.5 16.5,5.25 16.5,12.75 10,16.5 3.5,12.75 3.5,5.25" fill="#FFD24A" opacity="0.9" />
+                                                            </svg> Gold: 2-5 users/area</span>
+                                                            <span><svg class="legend-icon" viewBox="0 0 20 20" aria-hidden="true">
+                                                                <polygon points="10,1.5 16.5,5.25 16.5,12.75 10,16.5 3.5,12.75 3.5,5.25" fill="#EF4444" opacity="0.92" />
+                                                            </svg> Red: 6+ users/area</span>
+                                                            <span><i class="bi bi-bezier2"></i> Selected route</span>
+                                                            <span><i class="bi bi-geo-alt-fill"></i> POIs</span>
+                                                        </div>
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-secondary statistics-panel__expand"
+                                                                @onclick="ToggleHeatmapExpandedAsync"
+                                                                aria-expanded="@_isHeatmapExpanded"
+                                                                aria-label="@(_isHeatmapExpanded ? "Close full heatmap view" : "Open heatmap in full view")">
+                                                            <i class="@(_isHeatmapExpanded ? "bi bi-fullscreen-exit" : "bi bi-arrows-fullscreen")"></i>
+                                                            @(_isHeatmapExpanded ? "Close full view" : "Full view")
+                                                        </button>
                                                     </div>
                                                 </div>
 
@@ -443,6 +453,8 @@ else
     private ElementReference _statisticsMapElement;
     private bool _statisticsMapInitialized;
     private bool _statisticsMapSyncPending;
+    private bool _statisticsMapLayoutRefreshPending;
+    private bool _isHeatmapExpanded;
 
     private int _currentRoutePage = 1;
     private const int RoutesPerPage = 4;
@@ -468,14 +480,26 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
         if (!_statisticsMapInitialized)
         {
             _statisticsMapInitialized = await InitializeStatisticsMapAsync();
+            if (!_statisticsMapInitialized)
+            {
+                _statisticsMapSyncPending = false;
+                _statisticsMapLayoutRefreshPending = false;
+                return;
+            }
+
             _statisticsMapSyncPending = false;
-            return;
         }
 
         if (_statisticsMapSyncPending)
         {
             _statisticsMapSyncPending = false;
             await SyncStatisticsMapAsync();
+        }
+
+        if (_statisticsMapLayoutRefreshPending)
+        {
+            _statisticsMapLayoutRefreshPending = false;
+            await RefreshStatisticsMapLayoutAsync();
         }
     }
 
@@ -535,6 +559,13 @@ StringComparison.OrdinalIgnoreCase))
         _statisticsMapSyncPending = true;
     }
 
+    private Task ToggleHeatmapExpandedAsync()
+    {
+        _isHeatmapExpanded = !_isHeatmapExpanded;
+        _statisticsMapLayoutRefreshPending = true;
+        return Task.CompletedTask;
+    }
+
     private void NextRoutePage()
     {
         if (CurrentRoutePage < TotalRoutePages)
@@ -557,6 +588,9 @@ StringComparison.OrdinalIgnoreCase))
         string.Equals(route.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgnoreCase)
             ? "statistics-route-card statistics-route-card--selected"
             : "statistics-route-card";
+    private string GetHeatmapPanelClass() => _isHeatmapExpanded
+        ? "management-panel statistics-panel statistics-panel--heatmap statistics-panel--heatmap-expanded"
+        : "management-panel statistics-panel statistics-panel--heatmap";
 
     private static string JoinItems(IReadOnlyList<string> items) => items.Count == 0 ? "No linked content" : string.Join(", ", items);
     private static string GetRouteLabel(StatisticsRouteHistoryDto route) => route.SessionId ?? route.DeviceId ??
@@ -673,6 +707,17 @@ route.SessionKey;
         }
     }
 
+    private async Task RefreshStatisticsMapLayoutAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.map.invalidateStatisticsMap", _statisticsMapElement);
+        }
+        catch (JSException)
+        {
+        }
+    }
+
     private async Task DisposeStatisticsMapAsync()
     {
         if (!_statisticsMapInitialized)
@@ -694,6 +739,7 @@ route.SessionKey;
         {
             _statisticsMapInitialized = false;
             _statisticsMapSyncPending = false;
+            _statisticsMapLayoutRefreshPending = false;
         }
     }
 

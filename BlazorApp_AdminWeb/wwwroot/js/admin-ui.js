@@ -827,6 +827,18 @@
             && Number.isFinite(Number(point?.longitude)))
         .map((point) => [Number(point.latitude), Number(point.longitude)]);
 
+    const normalizeStatisticsHeatPoints = (points) => (Array.isArray(points) ? points : [])
+        .map((point) => ({
+            latitude: Number(point?.latitude),
+            longitude: Number(point?.longitude),
+            sessionCount: Math.max(1, Number(point?.sessionCount) || 1),
+            intensity: Math.max(1, Number(point?.intensity) || 1),
+            ward: String(point?.ward ?? "").trim()
+        }))
+        .filter((point) =>
+            Number.isFinite(point.latitude)
+            && Number.isFinite(point.longitude));
+
     const getStatisticsHeatTone = (sessionCount) => {
         const normalizedCount = Number(sessionCount) || 0;
         if (normalizedCount > 5) {
@@ -840,17 +852,30 @@
         return "orange";
     };
 
+    const getStatisticsHeatColor = (sessionCount) => {
+        const tone = getStatisticsHeatTone(sessionCount);
+        if (tone === "red") {
+            return "#ef4444";
+        }
+
+        if (tone === "yellow") {
+            return "#ffd24a";
+        }
+
+        return "#ff9736";
+    };
+
     const getStatisticsHeatSize = (sessionCount) => {
         const normalizedCount = Number(sessionCount) || 0;
         if (normalizedCount > 5) {
-            return 56;
+            return 58;
         }
 
         if (normalizedCount > 1) {
-            return 48;
+            return 50;
         }
 
-        return 40;
+        return 42;
     };
 
     const createStatisticsHeatIcon = (point) => {
@@ -864,6 +889,151 @@
             html: `<div class="statistics-map__heat-icon statistics-map__heat-icon--${tone}" style="--heat-size:${size}px;"><span>${escapeHtml(label)}</span></div>`,
             iconSize: [size, size],
             iconAnchor: [size / 2, size / 2]
+        });
+    };
+
+    const getStatisticsEntryValue = (entry, key, fallbackValue = 0) => {
+        const original = entry?.o ?? entry;
+        const numericValue = Number(original?.[key]);
+        return Number.isFinite(numericValue) ? numericValue : fallbackValue;
+    };
+
+    const getStatisticsBinSessionCount = (bin) => bin.reduce((total, entry) =>
+        total + Math.max(1, getStatisticsEntryValue(entry, "sessionCount", 1)), 0);
+
+    const getStatisticsBinIntensity = (bin) => bin.reduce((total, entry) =>
+        total + Math.max(1, getStatisticsEntryValue(entry, "intensity", 1)), 0);
+
+    const getStatisticsBinWards = (bin) => [...new Set(bin
+        .map((entry) => String(entry?.o?.ward ?? entry?.ward ?? "").trim())
+        .filter(Boolean))];
+
+    const getStatisticsBinWardLabel = (bin) => {
+        const wards = getStatisticsBinWards(bin);
+        if (!wards.length) {
+            return "Hotspot cluster";
+        }
+
+        if (wards.length === 1) {
+            return wards[0];
+        }
+
+        return `${wards[0]} +${wards.length - 1} more`;
+    };
+
+    const createStatisticsHexbinPopupContent = (bin) => {
+        const totalUsers = getStatisticsBinSessionCount(bin);
+        const totalTrackingPoints = getStatisticsBinIntensity(bin);
+        const hotspotCount = Array.isArray(bin) ? bin.length : 0;
+        const wardLabel = getStatisticsBinWardLabel(bin);
+
+        return `
+            <div class="statistics-map__popup">
+                <strong>${escapeHtml(wardLabel)}</strong>
+                <div>${escapeHtml(`${totalUsers} user(s) across ${hotspotCount} hotspot cell(s)`)}</div>
+                <div>${escapeHtml(`${totalTrackingPoints} tracking point(s) captured`)}</div>
+            </div>
+        `;
+    };
+
+    const supportsStatisticsHexbin = () =>
+        typeof L !== "undefined"
+        && typeof L.hexbinLayer === "function"
+        && typeof window.d3 !== "undefined";
+
+    const redrawStatisticsHexLayer = (statisticsMap) => {
+        if (!statisticsMap?.hexLayer || typeof statisticsMap.hexLayer.redraw !== "function") {
+            return;
+        }
+
+        try {
+            statisticsMap.hexLayer.redraw();
+        } catch {
+        }
+    };
+
+    const bindStatisticsHexbinInteractions = (statisticsMap) => {
+        if (!statisticsMap?.hexLayer || statisticsMap.hexLayerEventsBound) {
+            return;
+        }
+
+        const dispatch = statisticsMap.hexLayer.dispatch();
+        dispatch.on("click.statistics", (event, bin) => {
+            if (!Array.isArray(bin) || !bin.length) {
+                return;
+            }
+
+            const targetPoint = L.point(bin.x, bin.y);
+            const popupLatLng = statisticsMap.map.layerPointToLatLng(targetPoint);
+
+            L.popup({
+                offset: [0, -12]
+            })
+                .setLatLng(popupLatLng)
+                .setContent(createStatisticsHexbinPopupContent(bin))
+                .openOn(statisticsMap.map);
+        });
+
+        statisticsMap.hexLayerEventsBound = true;
+    };
+
+    const ensureStatisticsHexLayer = (statisticsMap) => {
+        if (!supportsStatisticsHexbin()) {
+            return null;
+        }
+
+        if (statisticsMap.hexLayer) {
+            return statisticsMap.hexLayer;
+        }
+
+        const hexLayer = L.hexbinLayer({
+            radius: 22,
+            opacity: 0.88,
+            duration: 220,
+            colorScaleExtent: [1, 12],
+            radiusScaleExtent: [1, 12],
+            radiusRange: [18, 26],
+            pointerEvents: "visiblePainted"
+        })
+            .lng((item) => Number(item?.longitude))
+            .lat((item) => Number(item?.latitude))
+            .colorValue((bin) => getStatisticsBinSessionCount(bin))
+            .radiusValue((bin) => getStatisticsBinSessionCount(bin))
+            .fill((bin) => getStatisticsHeatColor(getStatisticsBinSessionCount(bin)))
+            .hoverHandler(L.HexbinHoverHandler.resizeScale({
+                radiusScale: 0.16
+            }));
+
+        hexLayer.addTo(statisticsMap.map);
+        statisticsMap.hexLayer = hexLayer;
+        bindStatisticsHexbinInteractions(statisticsMap);
+        return hexLayer;
+    };
+
+    const renderStatisticsHeatFallback = (statisticsMap, heatPoints) => {
+        statisticsMap.fallbackHeatLayer.clearLayers();
+
+        heatPoints.forEach((point) => {
+            const marker = L.marker([point.latitude, point.longitude], {
+                icon: createStatisticsHeatIcon(point),
+                keyboard: false,
+                zIndexOffset: point.sessionCount > 5 ? 400 : 250
+            });
+
+            marker.bindTooltip(`${point.sessionCount} user(s) in this area`, {
+                direction: "top",
+                offset: [0, -10]
+            });
+
+            marker.bindPopup(`
+                <div class="statistics-map__popup">
+                    <strong>${escapeHtml(point.ward || "Hotspot cluster")}</strong>
+                    <div>${escapeHtml(`${point.sessionCount} user(s) in this area`)}</div>
+                    <div>${escapeHtml(`${point.intensity} tracking point(s) captured here`)}</div>
+                </div>
+            `);
+
+            statisticsMap.fallbackHeatLayer.addLayer(marker);
         });
     };
 
@@ -894,56 +1064,33 @@
     };
 
     const renderStatisticsMap = (statisticsMap, state, fitBounds) => {
-        const heatPoints = Array.isArray(state?.heatPoints) ? state.heatPoints : [];
+        const heatPoints = normalizeStatisticsHeatPoints(state?.heatPoints);
         const locations = Array.isArray(state?.locations) ? state.locations : [];
         const routePoints = Array.isArray(state?.selectedRoute?.points) ? state.selectedRoute.points : [];
+        statisticsMap.state = state;
 
-        statisticsMap.layerGroup.clearLayers();
+        statisticsMap.routeLayer.clearLayers();
+        statisticsMap.poiLayer.clearLayers();
+        statisticsMap.fallbackHeatLayer.clearLayers();
 
-        heatPoints.forEach((point) => {
-            const latitude = Number(point?.latitude);
-            const longitude = Number(point?.longitude);
-            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-                return;
-            }
-
-            const marker = L.marker([latitude, longitude], {
-                icon: createStatisticsHeatIcon(point),
-                keyboard: false,
-                zIndexOffset: Number(point?.sessionCount) > 5 ? 400 : 250
-            });
-
-            const sessionCount = Math.max(1, Number(point?.sessionCount) || 1);
-            const intensity = Math.max(1, Number(point?.intensity) || 1);
-            const ward = String(point?.ward ?? "").trim() || "Unassigned";
-
-            marker.bindTooltip(`${sessionCount} user(s) in this area`, {
-                direction: "top",
-                offset: [0, -10]
-            });
-
-            marker.bindPopup(`
-                <div class="statistics-map__popup">
-                    <strong>${escapeHtml(ward)}</strong>
-                    <div>${escapeHtml(`${sessionCount} user(s) in this area`)}</div>
-                    <div>${escapeHtml(`${intensity} tracking point(s) captured here`)}</div>
-                </div>
-            `);
-
-            statisticsMap.layerGroup.addLayer(marker);
-        });
+        const hexLayer = ensureStatisticsHexLayer(statisticsMap);
+        if (hexLayer) {
+            hexLayer.data(heatPoints);
+        } else {
+            renderStatisticsHeatFallback(statisticsMap, heatPoints);
+        }
 
         const routeLatLngs = normalizeStatisticsLatLngs(routePoints);
         if (routeLatLngs.length > 1) {
-            statisticsMap.layerGroup.addLayer(L.polyline(routeLatLngs, {
+            statisticsMap.routeLayer.addLayer(L.polyline(routeLatLngs, {
                 color: "#0f766e",
                 weight: 5,
-                opacity: 0.9,
+                opacity: 0.92,
                 lineCap: "round",
                 lineJoin: "round"
             }));
 
-            statisticsMap.layerGroup.addLayer(L.circleMarker(routeLatLngs[0], {
+            statisticsMap.routeLayer.addLayer(L.circleMarker(routeLatLngs[0], {
                 radius: 6,
                 color: "#ffffff",
                 weight: 2,
@@ -951,13 +1098,21 @@
                 fillOpacity: 1
             }).bindTooltip("Route start"));
 
-            statisticsMap.layerGroup.addLayer(L.circleMarker(routeLatLngs[routeLatLngs.length - 1], {
+            statisticsMap.routeLayer.addLayer(L.circleMarker(routeLatLngs[routeLatLngs.length - 1], {
                 radius: 6,
                 color: "#ffffff",
                 weight: 2,
                 fillColor: "#0f172a",
                 fillOpacity: 1
             }).bindTooltip("Route end"));
+        } else if (routeLatLngs.length === 1) {
+            statisticsMap.routeLayer.addLayer(L.circleMarker(routeLatLngs[0], {
+                radius: 7,
+                color: "#ffffff",
+                weight: 2,
+                fillColor: "#10b981",
+                fillOpacity: 1
+            }).bindTooltip("Route point"));
         }
 
         locations.forEach((location) => {
@@ -993,7 +1148,7 @@
                 </div>
             `);
 
-            statisticsMap.layerGroup.addLayer(marker);
+            statisticsMap.poiLayer.addLayer(marker);
         });
 
         if (fitBounds) {
@@ -1001,6 +1156,7 @@
         }
 
         statisticsMap.map.invalidateSize();
+        redrawStatisticsHexLayer(statisticsMap);
     };
 
     const delayAsync = (durationMs) => new Promise((resolve) => {
@@ -1028,7 +1184,7 @@
         return hasUsableMapSize(element);
     };
 
-    const invalidateLeafletMap = (map) => {
+    const invalidateLeafletMap = (map, afterInvalidate) => {
         if (!map) {
             return;
         }
@@ -1038,6 +1194,13 @@
                 map.invalidateSize();
             } catch {
             }
+
+            if (typeof afterInvalidate === "function") {
+                try {
+                    afterInvalidate();
+                } catch {
+                }
+            }
         };
 
         invalidate();
@@ -1046,13 +1209,13 @@
         window.setTimeout(invalidate, 420);
     };
 
-    const attachMapResizeHandling = (element, map) => {
-        const handleResize = () => invalidateLeafletMap(map);
+    const attachMapResizeHandling = (element, map, afterInvalidate) => {
+        const handleResize = () => invalidateLeafletMap(map, afterInvalidate);
         window.addEventListener("resize", handleResize);
 
         let resizeObserver = null;
         if ("ResizeObserver" in window && element) {
-            resizeObserver = new ResizeObserver(() => invalidateLeafletMap(map));
+            resizeObserver = new ResizeObserver(() => invalidateLeafletMap(map, afterInvalidate));
             resizeObserver.observe(element);
         }
 
@@ -1223,7 +1386,7 @@
             const existingMap = statisticsMaps.get(element);
             if (existingMap) {
                 renderStatisticsMap(existingMap, state, true);
-                invalidateLeafletMap(existingMap.map);
+                invalidateLeafletMap(existingMap.map, () => redrawStatisticsHexLayer(existingMap));
                 return true;
             }
 
@@ -1239,16 +1402,26 @@
             const statisticsMap = {
                 element,
                 map,
-                layerGroup: L.layerGroup().addTo(map)
+                state,
+                hexLayer: null,
+                hexLayerEventsBound: false,
+                fallbackHeatLayer: null,
+                routeLayer: null,
+                poiLayer: null
             };
 
-            const resizeHandling = attachMapResizeHandling(element, map);
+            ensureStatisticsHexLayer(statisticsMap);
+            statisticsMap.fallbackHeatLayer = L.layerGroup().addTo(map);
+            statisticsMap.routeLayer = L.layerGroup().addTo(map);
+            statisticsMap.poiLayer = L.layerGroup().addTo(map);
+
+            const resizeHandling = attachMapResizeHandling(element, map, () => redrawStatisticsHexLayer(statisticsMap));
             statisticsMap.handleResize = resizeHandling.handleResize;
             statisticsMap.resizeObserver = resizeHandling.resizeObserver;
 
             renderStatisticsMap(statisticsMap, state, true);
             statisticsMaps.set(element, statisticsMap);
-            invalidateLeafletMap(map);
+            invalidateLeafletMap(map, () => redrawStatisticsHexLayer(statisticsMap));
 
             return true;
         },
@@ -1260,7 +1433,17 @@
 
             await waitForMapSizeAsync(element, 8, 90);
             renderStatisticsMap(statisticsMap, state, true);
-            invalidateLeafletMap(statisticsMap.map);
+            invalidateLeafletMap(statisticsMap.map, () => redrawStatisticsHexLayer(statisticsMap));
+            return true;
+        },
+        invalidateStatisticsMap: async (element) => {
+            const statisticsMap = statisticsMaps.get(element);
+            if (!statisticsMap) {
+                return false;
+            }
+
+            await waitForMapSizeAsync(element, 8, 90);
+            invalidateLeafletMap(statisticsMap.map, () => redrawStatisticsHexLayer(statisticsMap));
             return true;
         },
         disposeStatisticsMap: (element) => {
