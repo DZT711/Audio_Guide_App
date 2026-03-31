@@ -1,3 +1,0 @@
-D:\visua studio code\Smart-Tourism-MAUI-Test\MauiApp_Mobile\bin\Release\net10.0-android\publish\com.companyname.mauiapp_mobile-Signed.apk
-D:\visua studio code\Smart-Tourism-MAUI-Test\MauiApp_Mobile\bin\Release\net10.0-android\publish\com.companyname.mauiapp_mobile.apk
-D:\visua studio code\Smart-Tourism-MAUI-Test\MauiApp_Mobile\bin\Release\net10.0-android\publish\_Microsoft.Android.Resource.Designer.dll

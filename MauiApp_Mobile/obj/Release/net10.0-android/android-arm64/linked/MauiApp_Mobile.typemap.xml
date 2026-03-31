@@ -1,8 +1,0 @@
-<api type="release" assembly-name="MauiApp_Mobile" mvid="b5e58f8ec5914b29b47ea0297539938c">
-  <module assembly-name="MauiApp_Mobile" mvid="b5e58f8ec5914b29b47ea0297539938c" mvid-bytes="jo/ltZHFKUu0fqApdTmTjA==">
-    <types-scratch>
-      <entry key="crc64fca0f034e18ac706/MainActivity" java-name="crc64fca0f034e18ac706/MainActivity" managed-type-name="MauiApp_Mobile.MainActivity" token="33554453" />
-      <entry key="crc64fca0f034e18ac706/MainApplication" java-name="crc64fca0f034e18ac706/MainApplication" managed-type-name="MauiApp_Mobile.MainApplication" token="33554454" />
-    </types-scratch>
-  </module>
-</api>
