@@ -1,9 +1,539 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="MauiApp_Mobile.MainPage"
-             Title="Smart Tourism">
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MauiApp_Mobile.MainPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:MauiApp_Mobile"
+    Shell.NavBarIsVisible="False"
+    Padding="0"
+    BackgroundColor="{StaticResource LightBg}">
 
+    <Grid RowDefinitions="Auto,*" RowSpacing="0">
 
+        <Grid Style="{StaticResource TopHeaderGridStyle}"
+              MinimumHeightRequest="122">
+            <VerticalStackLayout Spacing="8" VerticalOptions="Center">
+                <Label x:Name="TitleLabel"
+                       Text="Địa điểm"
+                       Style="{StaticResource TopHeaderTitleStyle}" />
 
+                <Frame Style="{StaticResource TopHeaderSearchFrameStyle}">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Label Text="🔍"
+                               Style="{StaticResource TopHeaderSearchIconStyle}" />
+
+                        <Entry x:Name="SearchEntry"
+                               Grid.Column="1"
+                               Placeholder="Tìm kiếm điểm..."
+                               PlaceholderColor="{StaticResource MutedText}"
+                               BackgroundColor="Transparent"
+                               TextColor="{StaticResource BodyText}"
+                               ClearButtonVisibility="WhileEditing"
+                               TextChanged="OnSearchChanged" />
+                    </Grid>
+                </Frame>
+            </VerticalStackLayout>
+        </Grid>
+
+        <Grid Grid.Row="1" Padding="16,8,16,12" RowDefinitions="Auto,Auto,*" RowSpacing="8">
+
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                <Label x:Name="CountLabel"
+                       Text="10 địa điểm"
+                       FontSize="15"
+                       TextColor="{StaticResource BodyText}" />
+
+                <Grid Grid.Column="1">
+                    <HorizontalStackLayout Spacing="6">
+                        <Label Text="⚙"
+                               FontSize="16"
+                               TextColor="{StaticResource MutedText}" />
+                        <Label x:Name="FilterLabel"
+                               Text="Lọc"
+                               FontSize="15"
+                               TextColor="{StaticResource BodyText}" />
+                    </HorizontalStackLayout>
+
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnToggleFilterPopup" />
+                    </Grid.GestureRecognizers>
+                </Grid>
+            </Grid>
+
+            <VerticalStackLayout x:Name="EmptyStateLayout"
+                                 Grid.Row="1"
+                                 IsVisible="False"
+                                 Spacing="8"
+                                 Padding="0,8,0,8">
+                <Label Text="🔎"
+                       FontSize="34"
+                       HorizontalOptions="Center" />
+                <Label x:Name="EmptyTitleLabel"
+                       Text="Không tìm thấy địa điểm"
+                       FontSize="18"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource BodyText}"
+                       HorizontalTextAlignment="Center" />
+                <Label x:Name="EmptySubtitleLabel"
+                       Text="Thử nhập từ khóa khác"
+                       FontSize="14"
+                       TextColor="{StaticResource MutedText}"
+                       HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+
+            <CollectionView x:Name="PlacesCollectionView"
+                            Grid.Row="2"
+                            SelectionMode="None"
+                            VerticalOptions="FillAndExpand"
+                            ItemsLayout="VerticalList">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame Style="{StaticResource CardFrameStyle}">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnPlaceTapped" />
+                            </Frame.GestureRecognizers>
+                            <Grid ColumnDefinitions="88,*,Auto" ColumnSpacing="14">
+                                <Image Source="{Binding Image}"
+                                       WidthRequest="88"
+                                       HeightRequest="88"
+                                       Aspect="AspectFill" />
+
+                                <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                    <Label Text="{Binding Name}"
+                                           FontSize="18"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource BodyText}" />
+
+                                    <Label Text="{Binding Description}"
+                                           FontSize="13"
+                                           TextColor="#667085" />
+
+                                    <HorizontalStackLayout Spacing="8" Margin="0,6,0,0">
+                                        <Frame Padding="10,4"
+                                               CornerRadius="10"
+                                               HasShadow="False"
+                                               BackgroundColor="{Binding CategoryColor}"
+                                               BorderColor="Transparent">
+                                            <Label Text="{Binding Category}"
+                                                   FontSize="12"
+                                                   TextColor="{Binding CategoryTextColor}" />
+                                        </Frame>
+
+                                        <Label Text="{Binding Rating, StringFormat='⭐ {0}'}"
+                                               FontSize="13"
+                                               TextColor="#667085"
+                                               VerticalOptions="Center" />
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+
+                                <Frame Grid.Column="2"
+                                       WidthRequest="44"
+                                       HeightRequest="44"
+                                       CornerRadius="22"
+                                       Padding="0"
+                                       BackgroundColor="{StaticResource PrimaryGreen}"
+                                       HorizontalOptions="End"
+                                       VerticalOptions="Center">
+                                    <Label Text="{Binding PlayIcon}"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"
+                                           TextColor="White"
+                                           FontSize="18" />
+                                    <Frame.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnPlayTapped" />
+                                    </Frame.GestureRecognizers>
+                                </Frame>
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Border x:Name="FilterPopup"
+                    Grid.RowSpan="3"
+                    IsVisible="False"
+                    Stroke="#E5E7EB"
+                    StrokeThickness="1"
+                    BackgroundColor="White"
+                    StrokeShape="RoundRectangle 18"
+                    HorizontalOptions="End"
+                    VerticalOptions="Start"
+                    Margin="0,38,0,0"
+                    WidthRequest="270"
+                    MaximumHeightRequest="430"
+                    ZIndex="10">
+
+                <ScrollView>
+                    <VerticalStackLayout Spacing="0">
+                        <Label x:Name="FilterPopupTitleLabel"
+                               Text="DANH MỤC"
+                               Padding="18,16,18,12"
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               TextColor="#667085" />
+
+                        <!-- All -->
+                        <Grid x:Name="FilterAllItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterAllIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="📍"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterAllLabel"
+                                   Grid.Column="2"
+                                   Text="Tất cả"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterAllTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <!-- Signature -->
+                        <Grid x:Name="FilterSignatureDishItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterSignatureDishIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="🍜"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterSignatureDishLabel"
+                                   Grid.Column="2"
+                                   Text="Món ăn đặc trưng"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterSignatureDishTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <!-- Famous -->
+                        <Grid x:Name="FilterFamousRestaurantItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterFamousRestaurantIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="🏆"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterFamousRestaurantLabel"
+                                   Grid.Column="2"
+                                   Text="Quán nổi tiếng"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterFamousRestaurantTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <!-- Drinks -->
+                        <Grid x:Name="FilterDrinksItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterDrinksIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="🥤"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterDrinksLabel"
+                                   Grid.Column="2"
+                                   Text="Đồ uống"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterDrinksTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <!-- Culture -->
+                        <Grid x:Name="FilterFoodCultureItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterFoodCultureIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="🎎"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterFoodCultureLabel"
+                                   Grid.Column="2"
+                                   Text="Văn hóa ẩm thực"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterFoodCultureTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+
+                        <!-- Utility -->
+                        <Grid x:Name="FilterUtilityItem"
+                              Padding="0"
+                              ColumnDefinitions="4,Auto,*"
+                              ColumnSpacing="12"
+                              BackgroundColor="Transparent"
+                              MinimumHeightRequest="56">
+                            <BoxView x:Name="FilterUtilityIndicator"
+                                     Grid.Column="0"
+                                     Color="#18A94B"
+                                     IsVisible="False" />
+                            <Label Grid.Column="1"
+                                   Text="🏪"
+                                   FontSize="18"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="16,0,0,0" />
+                            <Label x:Name="FilterUtilityLabel"
+                                   Grid.Column="2"
+                                   Text="Tiện ích"
+                                   FontSize="16"
+                                   TextColor="{StaticResource BodyText}"
+                                   VerticalOptions="Center" />
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnFilterUtilityTapped" />
+                            </Grid.GestureRecognizers>
+                        </Grid>
+                    </VerticalStackLayout>
+                </ScrollView>
+            </Border>
+        </Grid>
+
+        <Grid Grid.RowSpan="2"
+              IsVisible="{Binding IsPlaceDetailVisible}"
+              BackgroundColor="#66000000"
+              RowDefinitions="*,Auto"
+              ZIndex="90">
+
+            <Grid Grid.Row="0">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnPlaceDetailBackdropTapped" />
+                </Grid.GestureRecognizers>
+            </Grid>
+
+            <Border x:Name="PlaceDetailSheet"
+                    Grid.Row="1"
+                    BackgroundColor="White"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 24,24,0,0"
+                    Padding="0,0,0,10"
+                    TranslationY="520">
+
+                <Grid RowDefinitions="Auto,190,*">
+                    <Grid Grid.Row="0"
+                          Padding="0,10,0,8"
+                          HorizontalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <PanGestureRecognizer PanUpdated="OnPlaceDetailPanUpdated" />
+                                                        <TapGestureRecognizer Tapped="OnPlaceDetailHandleTapped" />
+                        </Grid.GestureRecognizers>
+                        <Border WidthRequest="52"
+                                HeightRequest="6"
+                                BackgroundColor="#D0D5DD"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 3"
+                                HorizontalOptions="Center" />
+                    </Grid>
+
+                    <Grid Grid.Row="1">
+                        <Grid.GestureRecognizers>
+                            <PanGestureRecognizer PanUpdated="OnPlaceDetailPanUpdated" />
+                        </Grid.GestureRecognizers>
+                        <Image Source="{Binding SelectedPlace.Image}" Aspect="AspectFill" />
+
+                        <Grid Padding="14"
+                              RowDefinitions="Auto,*,Auto"
+                              BackgroundColor="#33000000">
+                            <Border BackgroundColor="#FDECEC"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 12"
+                                    Padding="10,4"
+                                    HorizontalOptions="Start">
+                                <Label Text="{Binding SelectedPlace.Category}"
+                                       FontSize="12"
+                                       TextColor="#E53935" />
+                            </Border>
+
+                            <Button Grid.Row="0"
+                                    Text="✕"
+                                    Clicked="OnClosePlaceDetail"
+                                    WidthRequest="38"
+                                    HeightRequest="38"
+                                    CornerRadius="19"
+                                    BackgroundColor="#88000000"
+                                    TextColor="White"
+                                    HorizontalOptions="End"
+                                    VerticalOptions="Start" />
+
+                            <VerticalStackLayout Grid.Row="2" Spacing="4">
+                                <Label Text="{Binding SelectedPlace.Name}"
+                                       FontSize="36"
+                                       FontAttributes="Bold"
+                                       TextColor="White" />
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label Text="★★★★★" FontSize="12" TextColor="#FACC15" />
+                                    <Label Text="{Binding DetailPriorityText}" FontSize="12" TextColor="White" />
+                                    <Border BackgroundColor="#16A34A"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 10"
+                                            Padding="8,2">
+                                        <Label Text="GPS" FontSize="11" TextColor="White" />
+                                    </Border>
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Grid>
+
+                    <ScrollView Grid.Row="2">
+                        <VerticalStackLayout Padding="14,12" Spacing="12">
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                                <Border BackgroundColor="#ECFDF3"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 12"
+                                        Padding="10">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="Bán kính kích hoạt" FontSize="12" TextColor="#64748B" />
+                                        <Label Text="{Binding SelectedPlace.RadiusText}" FontSize="20" FontAttributes="Bold" TextColor="#0F172A" />
+                                    </VerticalStackLayout>
+                                </Border>
+
+                                <Border Grid.Column="1"
+                                        BackgroundColor="#EFF6FF"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 12"
+                                        Padding="10">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="Tọa độ GPS" FontSize="12" TextColor="#64748B" />
+                                        <Label Text="{Binding SelectedPlace.GpsText}" FontSize="20" FontAttributes="Bold" TextColor="#0F172A" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </Grid>
+
+                            <Label Text="🔊 Audio mô tả"
+                                   FontSize="22"
+                                   FontAttributes="Bold"
+                                   TextColor="#0F172A" />
+
+                            <Label Text="{Binding SelectedPlace.AudioDescription}"
+                                   FontSize="15"
+                                   TextColor="#344054" />
+
+                            <Border BackgroundColor="#F8FAFC"
+                                    Stroke="#E5E7EB"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 14"
+                                    Padding="12">
+                                <VerticalStackLayout Spacing="6">
+                                    <Label Text="{Binding SelectedPlace.Address, StringFormat='📍 {0}'}" FontSize="14" TextColor="#334155" />
+                                    <Label Text="{Binding SelectedPlace.Phone, StringFormat='📞 {0}'}" FontSize="14" TextColor="#16A34A" />
+                                    <Label Text="{Binding SelectedPlace.Email, StringFormat='✉ {0}'}" FontSize="14" TextColor="#16A34A" />
+                                    <Label Text="{Binding SelectedPlace.Website, StringFormat='🌐 {0}'}" FontSize="14" TextColor="#16A34A" />
+                                    <Label Text="{Binding SelectedPlace.EstablishedYear, StringFormat='📅 Thành lập năm {0}'}" FontSize="14" TextColor="#334155" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <Label Text="{Binding AudioTracksTitle}"
+                                   FontSize="19"
+                                   FontAttributes="Bold"
+                                   TextColor="#0F172A" />
+
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding SelectedPlaceTracks}" Spacing="8">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="local:PlaceAudioTrack">
+                                        <Border BackgroundColor="White"
+                                                Stroke="#E5E7EB"
+                                                StrokeThickness="1"
+                                                StrokeShape="RoundRectangle 14"
+                                                Padding="10">
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                                <Border WidthRequest="42"
+                                                        HeightRequest="42"
+                                                        BackgroundColor="#16A34A"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 21">
+                                                    <Label Text="▶" FontSize="16" TextColor="White" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                                                </Border>
+
+                                                <VerticalStackLayout Grid.Column="1" Spacing="3">
+                                                    <HorizontalStackLayout Spacing="8">
+                                                        <Label Text="{Binding LanguageCode}" FontSize="12" TextColor="#64748B" />
+                                                        <Label Text="{Binding Title}" FontSize="15" FontAttributes="Bold" TextColor="#0F172A" />
+                                                        <Label Text="⏱ {Binding Duration}" FontSize="12" TextColor="#98A2B3" HorizontalOptions="EndAndExpand" />
+                                                    </HorizontalStackLayout>
+
+                                                    <HorizontalStackLayout Spacing="6">
+                                                        <Border BackgroundColor="#F1F5F9" StrokeThickness="0" StrokeShape="RoundRectangle 9" Padding="8,2">
+                                                            <Label Text="{Binding LanguageCode}" FontSize="11" TextColor="#475569" />
+                                                        </Border>
+                                                        <Border BackgroundColor="#D1FAE5" StrokeThickness="0" StrokeShape="RoundRectangle 9" Padding="8,2">
+                                                            <Label Text="{Binding Description}" FontSize="11" TextColor="#065F46" />
+                                                        </Border>
+                                                    </HorizontalStackLayout>
+                                                </VerticalStackLayout>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </ScrollView>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
 </ContentPage>
