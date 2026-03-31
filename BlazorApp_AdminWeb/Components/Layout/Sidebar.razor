@@ -1,4 +1,6 @@
+@implements IAsyncDisposable
 @inject AdminSessionState SessionState
+@inject InboxState InboxState
 @using Project_SharedClassLibrary.Security
 
 <nav class="@GetSidebarClass()">
@@ -40,6 +42,10 @@
             <NavLink class="sidebar-link" href="/inbox" title="Inbox" aria-label="Inbox" @attributes="GetDismissAttributes()">
                 <i class="bi bi-inbox-fill"></i>
                 <span class="sidebar-link__text">Inbox</span>
+                @if (InboxState.UnreadCount > 0)
+                {
+                    <span class="sidebar-link__badge">@GetInboxBadgeLabel()</span>
+                }
             </NavLink>
         }
     </div>
@@ -114,11 +120,26 @@
 </nav>
 
 @code {
+    private CancellationTokenSource? _inboxPollingCancellationSource;
+    private Task? _inboxPollingTask;
+
     [Parameter]
     public bool DismissOnNavigate { get; set; }
 
     [Parameter]
     public bool Collapsed { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        SessionState.Changed += HandleSessionChanged;
+        InboxState.Changed += HandleInboxStateChanged;
+
+        if (SessionState.HasPermission(AdminPermissions.InboxView))
+        {
+            await InboxState.RefreshAsync();
+            StartInboxPolling();
+        }
+    }
 
     private string GetSidebarClass() => Collapsed
         ? "sidebar-nav sidebar-nav--collapsed"
@@ -140,7 +161,88 @@
             ? "Admin session"
             : $"{SessionState.Role} · {SessionState.StatusLabel}";
 
+    private string GetInboxBadgeLabel() => InboxState.UnreadCount > 99
+        ? "99+"
+        : InboxState.UnreadCount.ToString();
+
     private bool CanViewAdminSection =>
         SessionState.HasPermission(AdminPermissions.UserRead)
         || SessionState.HasPermission(AdminPermissions.ModerationView);
+
+    private void HandleSessionChanged() => _ = RefreshForSessionAsync();
+
+    private void HandleInboxStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task RefreshForSessionAsync()
+    {
+        if (!SessionState.HasPermission(AdminPermissions.InboxView))
+        {
+            await StopInboxPollingAsync();
+            InboxState.Reset();
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        await InboxState.RefreshAsync();
+        StartInboxPolling();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void StartInboxPolling()
+    {
+        if (_inboxPollingTask is { IsCompleted: false })
+        {
+            return;
+        }
+
+        _inboxPollingCancellationSource = new CancellationTokenSource();
+        _inboxPollingTask = RunInboxPollingAsync(_inboxPollingCancellationSource.Token);
+    }
+
+    private async Task RunInboxPollingAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(45));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InboxState.RefreshAsync(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task StopInboxPollingAsync()
+    {
+        if (_inboxPollingCancellationSource is null)
+        {
+            return;
+        }
+
+        await _inboxPollingCancellationSource.CancelAsync();
+
+        if (_inboxPollingTask is not null)
+        {
+            try
+            {
+                await _inboxPollingTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        _inboxPollingCancellationSource.Dispose();
+        _inboxPollingCancellationSource = null;
+        _inboxPollingTask = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        SessionState.Changed -= HandleSessionChanged;
+        InboxState.Changed -= HandleInboxStateChanged;
+        await StopInboxPollingAsync();
+    }
 }

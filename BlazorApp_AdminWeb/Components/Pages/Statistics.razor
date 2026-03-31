@@ -1,6 +1,7 @@
 @page "/statistics"
 @implements IAsyncDisposable
 @using System.Globalization
+@using System.Text.Json.Serialization
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject AdminSessionState SessionState
@@ -178,6 +179,63 @@ else
                                                         </button>
                                                     </div>
                                                 </div>
+
+                                                <div class="statistics-map-tools">
+                                                    <div class="statistics-map-tools__actions">
+                                                        <button type="button"
+                                                                class="btn btn-outline-secondary btn-sm"
+                                                                @onclick="ToggleCurrentLocationTrackingAsync"
+                                                                disabled="@_isLocationTrackingBusy">
+                                                            <i class="bi @(_isLocationTrackingBusy ? "bi-hourglass-split" : _isTrackingCurrentLocation ? "bi-pause-circle" : "bi-crosshair") me-1"></i>
+                                                            @(_isLocationTrackingBusy
+                                                                ? "Updating..."
+                                                                : _isTrackingCurrentLocation
+                                                                    ? "Stop tracking"
+                                                                    : "Track my location")
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="statistics-map-search">
+                                                        <label class="statistics-map-search__box" for="statistics-map-search">
+                                                            <i class="bi bi-search"></i>
+                                                            <input id="statistics-map-search"
+                                                                   class="form-control"
+                                                                   type="search"
+                                                                   placeholder="Search a landmark, street, or address on the heatmap"
+                                                                   @bind="_mapSearchText"
+                                                                   @bind:event="oninput" />
+                                                        </label>
+
+                                                        <button type="button"
+                                                                class="btn btn-outline-secondary btn-sm"
+                                                                @onclick="SearchMapAsync"
+                                                                disabled="@(_isMapSearching || string.IsNullOrWhiteSpace(_mapSearchText))">
+                                                            <i class="bi @(_isMapSearching ? "bi-hourglass-split" : "bi-search") me-1"></i>
+                                                            @(_isMapSearching ? "Searching..." : "Find place")
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                @if (!string.IsNullOrWhiteSpace(_mapSearchError))
+                                                {
+                                                    <div class="statistics-map-search__feedback" aria-live="polite">@_mapSearchError</div>
+                                                }
+                                                else if (_mapSearchResults.Count > 0)
+                                                {
+                                                    <div class="statistics-map-results" aria-live="polite">
+                                                        @foreach (var result in _mapSearchResults)
+                                                        {
+                                                            <button type="button" class="statistics-map-result" @onclick="() => SelectMapSearchResultAsync(result)">
+                                                                <strong>@GetMapSearchResultTitle(result)</strong>
+                                                                @if (!string.IsNullOrWhiteSpace(result.Address))
+                                                                {
+                                                                    <small>@result.Address</small>
+                                                                }
+                                                                <span class="statistics-map-result__coords">@($"{result.Latitude:F6}, {result.Longitude:F6}")</span>
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                }
 
                                                 <div class="statistics-map">
                                                     <div class="statistics-map__canvas" @ref="_statisticsMapElement" role="img" aria-label="Anonymous route heatmap"></div>
@@ -444,16 +502,23 @@ else
     private StatisticsOverviewDto _overview = new();
     private DateTime? _fromDate = DateTime.UtcNow.Date.AddDays(-14);
     private DateTime? _toDate = DateTime.UtcNow.Date;
+    private readonly List<MapSearchResult> _mapSearchResults = new();
     private string _selectedTourValue = "";
     private string _selectedWard = "";
     private string _searchText = "";
+    private string _mapSearchText = "";
     private string? _selectedSessionKey;
     private bool _isLoading = true;
+    private bool _isMapSearching;
+    private bool _isTrackingCurrentLocation;
+    private bool _isLocationTrackingBusy;
     private string? _loadError;
+    private string? _mapSearchError;
     private ElementReference _statisticsMapElement;
     private bool _statisticsMapInitialized;
     private bool _statisticsMapSyncPending;
     private bool _statisticsMapLayoutRefreshPending;
+    private bool _statisticsMapTrackingRefreshPending;
     private bool _isHeatmapExpanded;
 
     private int _currentRoutePage = 1;
@@ -501,6 +566,12 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
             _statisticsMapLayoutRefreshPending = false;
             await RefreshStatisticsMapLayoutAsync();
         }
+
+        if (_statisticsMapTrackingRefreshPending)
+        {
+            _statisticsMapTrackingRefreshPending = false;
+            await RestoreCurrentLocationTrackingAsync();
+        }
     }
 
     private async Task RefreshAsync() => await LoadAsync();
@@ -519,6 +590,7 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
     private async Task LoadAsync()
     {
         await DisposeStatisticsMapAsync();
+        _statisticsMapTrackingRefreshPending = _isTrackingCurrentLocation;
         _isLoading = true;
         _loadError = null;
         _currentRoutePage = 1;
@@ -566,6 +638,127 @@ StringComparison.OrdinalIgnoreCase))
         return Task.CompletedTask;
     }
 
+    private async Task SearchMapAsync()
+    {
+        var query = _mapSearchText.Trim();
+        _mapSearchResults.Clear();
+        _mapSearchError = null;
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            _mapSearchError = "Enter a landmark, street, or address to search the heatmap.";
+            return;
+        }
+
+        _isMapSearching = true;
+
+        try
+        {
+            var results = await JS.InvokeAsync<MapSearchResult[]>(
+                "smartTourAdmin.map.searchLocationPicker",
+                query);
+
+            _mapSearchResults.Clear();
+            _mapSearchResults.AddRange(results
+                .Where(item => item.HasCoordinates)
+                .Take(6));
+
+            if (_mapSearchResults.Count == 0)
+            {
+                _mapSearchError = $"No places were found for '{query}'.";
+            }
+        }
+        catch (JSException)
+        {
+            _mapSearchError = "Map search is unavailable right now.";
+        }
+        finally
+        {
+            _isMapSearching = false;
+        }
+    }
+
+    private async Task SelectMapSearchResultAsync(MapSearchResult result)
+    {
+        if (!_statisticsMapInitialized)
+        {
+            _mapSearchError = "The heatmap is still loading. Try again in a moment.";
+            return;
+        }
+
+        _mapSearchError = null;
+        _mapSearchResults.Clear();
+
+        if (!string.IsNullOrWhiteSpace(result.Address))
+        {
+            _mapSearchText = result.Address;
+        }
+        else if (!string.IsNullOrWhiteSpace(result.Name))
+        {
+            _mapSearchText = result.Name;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "smartTourAdmin.map.focusStatisticsMapLocation",
+                _statisticsMapElement,
+                Math.Round(result.Latitude, 6),
+                Math.Round(result.Longitude, 6),
+                GetMapSearchResultTitle(result),
+                result.Address);
+        }
+        catch (JSException)
+        {
+            _mapSearchError = "The heatmap could not focus on that place right now.";
+        }
+    }
+
+    private async Task ToggleCurrentLocationTrackingAsync()
+    {
+        if (_isLocationTrackingBusy)
+        {
+            return;
+        }
+
+        _isLocationTrackingBusy = true;
+
+        try
+        {
+            if (_isTrackingCurrentLocation)
+            {
+                await JS.InvokeAsync<bool>(
+                    "smartTourAdmin.map.stopStatisticsMapTracking",
+                    _statisticsMapElement);
+
+                _isTrackingCurrentLocation = false;
+                Notifications.Info("Live location tracking stopped for the heatmap.", "Tracking stopped");
+                return;
+            }
+
+            var started = await JS.InvokeAsync<bool>(
+                "smartTourAdmin.map.startStatisticsMapTracking",
+                _statisticsMapElement);
+
+            if (!started)
+            {
+                Notifications.Warning("The browser could not start live location tracking for the heatmap.", "Location unavailable");
+                return;
+            }
+
+            _isTrackingCurrentLocation = true;
+            Notifications.Success("Live location tracking is active on the heatmap.", "Tracking enabled");
+        }
+        catch (JSException)
+        {
+            Notifications.Warning("The browser could not access your location for the heatmap.", "Location unavailable");
+        }
+        finally
+        {
+            _isLocationTrackingBusy = false;
+        }
+    }
+
     private void NextRoutePage()
     {
         if (CurrentRoutePage < TotalRoutePages)
@@ -591,6 +784,20 @@ StringComparison.OrdinalIgnoreCase))
     private string GetHeatmapPanelClass() => _isHeatmapExpanded
         ? "management-panel statistics-panel statistics-panel--heatmap statistics-panel--heatmap-expanded"
         : "management-panel statistics-panel statistics-panel--heatmap";
+    private static string GetMapSearchResultTitle(MapSearchResult result)
+    {
+        if (!string.IsNullOrWhiteSpace(result.Name))
+        {
+            return result.Name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.Address))
+        {
+            return result.Address;
+        }
+
+        return "Map result";
+    }
 
     private static string JoinItems(IReadOnlyList<string> items) => items.Count == 0 ? "No linked content" : string.Join(", ", items);
     private static string GetRouteLabel(StatisticsRouteHistoryDto route) => route.SessionId ?? route.DeviceId ??
@@ -718,6 +925,39 @@ route.SessionKey;
         }
     }
 
+    private async Task RestoreCurrentLocationTrackingAsync()
+    {
+        if (!_isTrackingCurrentLocation || !_statisticsMapInitialized)
+        {
+            return;
+        }
+
+        var stateChanged = false;
+
+        try
+        {
+            var started = await JS.InvokeAsync<bool>(
+                "smartTourAdmin.map.startStatisticsMapTracking",
+                _statisticsMapElement);
+
+            if (!started)
+            {
+                _isTrackingCurrentLocation = false;
+                stateChanged = true;
+            }
+        }
+        catch (JSException)
+        {
+            _isTrackingCurrentLocation = false;
+            stateChanged = true;
+        }
+
+        if (stateChanged)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     private async Task DisposeStatisticsMapAsync()
     {
         if (!_statisticsMapInitialized)
@@ -746,5 +986,23 @@ route.SessionKey;
     public async ValueTask DisposeAsync()
     {
         await DisposeStatisticsMapAsync();
+    }
+
+    private sealed class MapSearchResult
+    {
+        [JsonPropertyName("name")]
+        public string Name { get; init; } = "";
+
+        [JsonPropertyName("address")]
+        public string Address { get; init; } = "";
+
+        [JsonPropertyName("latitude")]
+        public double Latitude { get; init; }
+
+        [JsonPropertyName("longitude")]
+        public double Longitude { get; init; }
+
+        [JsonIgnore]
+        public bool HasCoordinates => double.IsFinite(Latitude) && double.IsFinite(Longitude);
     }
 }

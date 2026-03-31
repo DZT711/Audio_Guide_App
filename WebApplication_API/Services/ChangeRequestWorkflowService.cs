@@ -338,16 +338,18 @@ public sealed partial class ChangeRequestWorkflowService(
         changeRequest.AdminNote = Normalize(adminNote);
         changeRequest.UpdatedAt = DateTime.UtcNow;
 
-        context.InboxMessages.Add(new InboxMessage
-        {
-            UserId = changeRequest.OwnerId,
-            RelatedRequestId = changeRequest.RequestId,
-            Title = $"{GetFriendlyType(changeRequest.TargetTable)} request approved",
-            Body = BuildApprovalMessage(changeRequest, reviewer, adminNote),
-            MessageType = "Approval",
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow
-        });
+        context.InboxMessages.Add(CreateInboxMessage(
+            changeRequest.OwnerId,
+            changeRequest.RequestId,
+            $"{GetFriendlyType(changeRequest.TargetTable)} request approved",
+            BuildApprovalMessage(changeRequest, reviewer, adminNote),
+            "Approval"));
+        context.InboxMessages.Add(CreateInboxMessage(
+            reviewer.UserId,
+            changeRequest.RequestId,
+            $"You approved {GetFriendlyType(changeRequest.TargetTable)} request #{changeRequest.RequestId}",
+            BuildReviewerApprovalMessage(changeRequest, adminNote),
+            "Approval"));
 
         await context.SaveChangesAsync(cancellationToken);
         DeleteManagedFiles(orphanedPaths);
@@ -377,16 +379,18 @@ public sealed partial class ChangeRequestWorkflowService(
         changeRequest.AdminNote = adminNote.Trim();
         changeRequest.UpdatedAt = DateTime.UtcNow;
 
-        context.InboxMessages.Add(new InboxMessage
-        {
-            UserId = changeRequest.OwnerId,
-            RelatedRequestId = changeRequest.RequestId,
-            Title = $"{GetFriendlyType(changeRequest.TargetTable)} request rejected",
-            Body = BuildRejectionMessage(changeRequest, reviewer, adminNote),
-            MessageType = "Rejection",
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow
-        });
+        context.InboxMessages.Add(CreateInboxMessage(
+            changeRequest.OwnerId,
+            changeRequest.RequestId,
+            $"{GetFriendlyType(changeRequest.TargetTable)} request rejected",
+            BuildRejectionMessage(changeRequest, reviewer, adminNote),
+            "Rejection"));
+        context.InboxMessages.Add(CreateInboxMessage(
+            reviewer.UserId,
+            changeRequest.RequestId,
+            $"You rejected {GetFriendlyType(changeRequest.TargetTable)} request #{changeRequest.RequestId}",
+            BuildReviewerRejectionMessage(changeRequest, adminNote),
+            "Rejection"));
 
         await context.SaveChangesAsync(cancellationToken);
         DeleteManagedFiles(orphanedPaths);
@@ -463,6 +467,40 @@ public sealed partial class ChangeRequestWorkflowService(
 
         message.IsRead = true;
         message.ReadAt = DateTime.UtcNow;
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task BroadcastAnnouncementAsync(
+        DashboardUser sender,
+        InboxAnnouncementRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var title = request.Title.Trim();
+        var body = request.Body.Trim();
+        var senderName = sender.FullName ?? sender.Username;
+        var timestamp = DateTime.UtcNow;
+
+        var userIds = await context.DashboardUsers
+            .AsNoTracking()
+            .Select(item => item.UserId)
+            .ToListAsync(cancellationToken);
+
+        if (userIds.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var userId in userIds)
+        {
+            context.InboxMessages.Add(CreateInboxMessage(
+                userId,
+                relatedRequestId: null,
+                title,
+                $"{body}\n\nSent by {senderName}.",
+                "Announcement",
+                timestamp));
+        }
+
         await context.SaveChangesAsync(cancellationToken);
     }
 
@@ -1135,10 +1173,42 @@ public sealed partial class ChangeRequestWorkflowService(
             : $"{GetFriendlyType(request.TargetTable)} request #{request.RequestId} was approved by {reviewerName}. Note: {adminNote.Trim()}";
     }
 
+    private static string BuildReviewerApprovalMessage(ChangeRequest request, string? adminNote) =>
+        string.IsNullOrWhiteSpace(adminNote)
+            ? $"You approved {GetFriendlyType(request.TargetTable)} request #{request.RequestId} and the owner inbox was updated."
+            : $"You approved {GetFriendlyType(request.TargetTable)} request #{request.RequestId}. Shared note: {adminNote.Trim()}";
+
     private static string BuildRejectionMessage(ChangeRequest request, DashboardUser reviewer, string adminNote)
     {
         var reviewerName = reviewer.FullName ?? reviewer.Username;
         return $"{GetFriendlyType(request.TargetTable)} request #{request.RequestId} was rejected by {reviewerName}. Reason: {adminNote.Trim()}";
+    }
+
+    private static string BuildReviewerRejectionMessage(ChangeRequest request, string adminNote) =>
+        $"You rejected {GetFriendlyType(request.TargetTable)} request #{request.RequestId}. Shared reason: {adminNote.Trim()}";
+
+    private static InboxMessage CreateInboxMessage(
+        int userId,
+        int? relatedRequestId,
+        string title,
+        string body,
+        string messageType,
+        DateTime? createdAt = null) =>
+        new()
+        {
+            UserId = userId,
+            RelatedRequestId = relatedRequestId,
+            Title = TrimToLength(title, 200),
+            Body = TrimToLength(body, 4000),
+            MessageType = TrimToLength(messageType, 32),
+            IsRead = false,
+            CreatedAt = createdAt ?? DateTime.UtcNow
+        };
+
+    private static string TrimToLength(string value, int maxLength)
+    {
+        var normalized = value.Trim();
+        return normalized.Length <= maxLength ? normalized : normalized[..maxLength];
     }
 
     private static void EnsurePending(ChangeRequest request)

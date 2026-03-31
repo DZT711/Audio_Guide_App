@@ -433,6 +433,14 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to mark the message as read.");
     }
 
+    public async Task CreateInboxAnnouncementAsync(InboxAnnouncementRequest request, CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PostAsJsonAsync($"{ApiRoutes.Inbox}/announcement", request, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to send the announcement.");
+    }
+
     public async Task<string?> ResolvePlayableAudioUrlAsync(string? audioPath, CancellationToken cancellationToken = default)
     {
         foreach (var candidate in GetContentUrlCandidates(audioPath, SharedStoragePaths.NormalizePublicAudioPath))

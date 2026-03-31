@@ -169,19 +169,19 @@ else
         }
     </section>
 
-    <section class="users-table-card mt-4" data-reveal>
+    <section class="users-table-card users-editor-card mt-4" data-reveal>
         <div class="users-table-card__header">
             <div>
                 <span class="users-table-card__eyebrow">Editor</span>
                 <h2>@GetEditorTitle()</h2>
             </div>
-            <span class="users-table-card__count">@GetEditorSubtitle()</span>
+            <span class="users-table-card__count users-editor-card__count">@GetEditorSubtitle()</span>
         </div>
 
-        <EditForm Model="_formModel" OnValidSubmit="SaveUserAsync" class="management-form">
+        <EditForm Model="_formModel" OnValidSubmit="SaveUserAsync" class="management-form users-editor-form">
             <DataAnnotationsValidator />
 
-            <div class="management-form__grid">
+            <div class="management-form__grid users-editor-form__grid">
                 <div class="management-field">
                     <label for="user-username">Username</label>
                     <InputText id="user-username" class="form-control" @bind-Value="_formModel.Username" />

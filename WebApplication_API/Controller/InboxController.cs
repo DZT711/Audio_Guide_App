@@ -45,4 +45,17 @@ public class InboxController(
             return NotFound(new { message = ex.Message });
         }
     }
+
+    [HttpPost("announcement")]
+    public async Task<IActionResult> BroadcastAnnouncement([FromBody] InboxAnnouncementRequest request, CancellationToken cancellationToken)
+    {
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.ModerationManage);
+        if (!access.Succeeded)
+        {
+            return access.ToFailureResult();
+        }
+
+        await workflowService.BroadcastAnnouncementAsync(access.User!, request, cancellationToken);
+        return Ok(new ApiMessageResponse { Message = "System announcement sent to every inbox." });
+    }
 }

@@ -30,6 +30,17 @@ public sealed class InboxQueryDto
     public bool UnreadOnly { get; init; }
 }
 
+public sealed class InboxAnnouncementRequest
+{
+    [Required]
+    [StringLength(200)]
+    public string Title { get; set; } = "";
+
+    [Required]
+    [StringLength(4000)]
+    public string Body { get; set; } = "";
+}
+
 public sealed class ChangeRequestDto
 {
     public int Id { get; init; }

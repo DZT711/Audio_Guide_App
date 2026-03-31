@@ -1,5 +1,6 @@
 @page "/inbox"
 @inject AdminApiClient ApiClient
+@inject InboxState InboxState
 @inject NotificationService Notifications
 @inject AdminSessionState SessionState
 
@@ -66,6 +67,39 @@ else
     </div>
 
     <section class="management-panel" data-reveal>
+        @if (CanBroadcast)
+        {
+            <div class="inbox-broadcast">
+                <div class="management-panel__header inbox-broadcast__header">
+                    <div>
+                        <span class="management-panel__eyebrow">Broadcast</span>
+                        <h2>System Announcement</h2>
+                        <p class="management-muted mb-0">Send one highlighted inbox message to every account, including Admin and Developer users.</p>
+                    </div>
+                    <span class="inbox-card__eyebrow">SYSTEM ANNOUNCEMENT</span>
+                </div>
+
+                <div class="management-form__grid inbox-broadcast__grid">
+                    <div class="management-field">
+                        <label for="announcement-title">Highlighted Title</label>
+                        <InputText id="announcement-title" class="form-control" @bind-Value="_announcementTitle" />
+                        <span class="management-field__hint">This title is emphasized in every recipient inbox.</span>
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <label for="announcement-body">Message</label>
+                        <InputTextArea id="announcement-body" class="form-control" rows="5" @bind-Value="_announcementBody" />
+                    </div>
+                </div>
+
+                <div class="management-actions">
+                    <button type="button" class="btn btn-primary" disabled="@_isSendingAnnouncement" @onclick="SendAnnouncementAsync">
+                        @(_isSendingAnnouncement ? "Sending..." : "Send Announcement")
+                    </button>
+                </div>
+            </div>
+        }
+
         <div class="management-panel__header">
             <div>
                 <span class="management-panel__eyebrow">Messages</span>
@@ -112,6 +146,10 @@ else
                     <article class="@GetMessageCardClass(message)">
                         <div class="inbox-card__header">
                             <div>
+                                @if (IsAnnouncement(message))
+                                {
+                                    <div class="inbox-card__eyebrow">SYSTEM ANNOUNCEMENT</div>
+                                }
                                 <div class="inbox-card__title">@message.Title</div>
                                 <small>@message.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
                             </div>
@@ -128,7 +166,7 @@ else
                         <p class="audio-card__description">@message.Body</p>
 
                         <div class="inbox-card__footer">
-                            <small class="management-muted">@(message.RelatedRequestId is null ? "General announcement" : $"Request #{message.RelatedRequestId}")</small>
+                            <small class="management-muted">@GetMessageContext(message)</small>
                             <div class="management-inline-actions">
                                 @if (!message.IsRead)
                                 {
@@ -167,11 +205,15 @@ else
     private readonly List<InboxMessageDto> _messages = new();
     private InboxOverviewDto _result = new();
     private bool _isLoading = true;
+    private bool _isSendingAnnouncement;
     private bool _unreadOnly;
     private int _currentPage = 1;
+    private string _announcementTitle = "";
+    private string _announcementBody = "";
     private string? _loadError;
 
     private bool CanView => SessionState.HasPermission(AdminPermissions.InboxView);
+    private bool CanBroadcast => SessionState.HasPermission(AdminPermissions.ModerationManage);
 
     protected override async Task OnInitializedAsync()
     {
@@ -222,6 +264,48 @@ else
         }
     }
 
+    private async Task SendAnnouncementAsync()
+    {
+        var title = _announcementTitle.Trim();
+        var body = _announcementBody.Trim();
+
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            Notifications.Warning("Enter a highlighted announcement title before sending.", "Title required");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            Notifications.Warning("Enter an announcement message before sending.", "Message required");
+            return;
+        }
+
+        _isSendingAnnouncement = true;
+
+        try
+        {
+            await ApiClient.CreateInboxAnnouncementAsync(new InboxAnnouncementRequest
+            {
+                Title = title,
+                Body = body
+            });
+
+            _announcementTitle = "";
+            _announcementBody = "";
+            Notifications.Success("The system announcement was sent to every inbox.", "Announcement sent");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Announcement failed");
+        }
+        finally
+        {
+            _isSendingAnnouncement = false;
+        }
+    }
+
     private async Task LoadAsync()
     {
         _isLoading = true;
@@ -239,6 +323,7 @@ else
             _currentPage = _result.Page;
             _messages.Clear();
             _messages.AddRange(_result.Items);
+            InboxState.UpdateUnreadCount(_result.UnreadCount);
         }
         catch (Exception ex)
         {
@@ -257,14 +342,29 @@ else
             : "management-chip";
 
     private static string GetMessageCardClass(InboxMessageDto message) =>
-        message.IsRead
-            ? "moderation-card inbox-card"
-            : "moderation-card inbox-card inbox-card--unread";
+        string.Join(" ", new[]
+        {
+            "moderation-card",
+            "inbox-card",
+            !message.IsRead ? "inbox-card--unread" : null,
+            IsAnnouncement(message) ? "inbox-card--announcement" : null
+        }.Where(item => !string.IsNullOrWhiteSpace(item)));
 
     private static string GetMessageTagClass(string messageType) => messageType switch
     {
         "Approval" => "management-status management-status--active",
         "Rejection" => "management-status management-status--inactive",
+        "Announcement" => "management-status management-status--info inbox-card__type--announcement",
         _ => "management-status management-status--info"
     };
+
+    private static bool IsAnnouncement(InboxMessageDto message) =>
+        string.Equals(message.MessageType, "Announcement", StringComparison.OrdinalIgnoreCase);
+
+    private static string GetMessageContext(InboxMessageDto message) =>
+        IsAnnouncement(message)
+            ? "System announcement for all dashboard accounts"
+            : message.RelatedRequestId is null
+                ? "General announcement"
+                : $"Request #{message.RelatedRequestId}";
 }

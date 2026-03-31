@@ -22,6 +22,7 @@ builder.Services.Configure<AdminApiOptions>(builder.Configuration.GetSection(Adm
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<AdminSessionState>();
 builder.Services.AddScoped<AdminShellState>();
+builder.Services.AddScoped<InboxState>();
 builder.Services.AddScoped<AdminAuthService>();
 builder.Services.AddHttpClient<AdminApiClient>((serviceProvider, client) =>
 {

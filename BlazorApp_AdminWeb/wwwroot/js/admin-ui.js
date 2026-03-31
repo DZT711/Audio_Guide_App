@@ -1159,6 +1159,171 @@
         redrawStatisticsHexLayer(statisticsMap);
     };
 
+    const focusStatisticsMapLocation = (statisticsMap, latitude, longitude, title, subtitle, zoomLevel = 16) => {
+        const normalizedLatitude = Number(latitude);
+        const normalizedLongitude = Number(longitude);
+        if (!statisticsMap?.map
+            || !Number.isFinite(normalizedLatitude)
+            || !Number.isFinite(normalizedLongitude)) {
+            return false;
+        }
+
+        const latLng = [normalizedLatitude, normalizedLongitude];
+        if (!statisticsMap.searchFocusMarker) {
+            statisticsMap.searchFocusMarker = L.circleMarker(latLng, {
+                radius: 9,
+                color: "#ffffff",
+                weight: 3,
+                fillColor: "#2563eb",
+                fillOpacity: 0.96,
+                className: "statistics-map__search-focus"
+            }).addTo(statisticsMap.map);
+        } else {
+            statisticsMap.searchFocusMarker.setLatLng(latLng);
+        }
+
+        const heading = String(title ?? "").trim() || "Searched place";
+        const supportingText = String(subtitle ?? "").trim();
+        statisticsMap.searchFocusMarker.bindPopup(`
+            <div class="statistics-map__popup">
+                <strong>${escapeHtml(heading)}</strong>
+                ${supportingText ? `<div>${escapeHtml(supportingText)}</div>` : ""}
+                <div>${escapeHtml(`${normalizedLatitude.toFixed(6)}, ${normalizedLongitude.toFixed(6)}`)}</div>
+            </div>
+        `);
+
+        statisticsMap.map.setView(latLng, Number.isFinite(Number(zoomLevel)) ? Number(zoomLevel) : 16);
+        statisticsMap.searchFocusMarker.openPopup();
+        return true;
+    };
+
+    const updateStatisticsCurrentLocation = (statisticsMap, latitude, longitude, accuracyMeters, shouldCenter) => {
+        const normalizedLatitude = Number(latitude);
+        const normalizedLongitude = Number(longitude);
+        if (!statisticsMap?.map
+            || !Number.isFinite(normalizedLatitude)
+            || !Number.isFinite(normalizedLongitude)) {
+            return false;
+        }
+
+        const latLng = [normalizedLatitude, normalizedLongitude];
+        if (!statisticsMap.currentLocationMarker) {
+            statisticsMap.currentLocationMarker = L.circleMarker(latLng, {
+                radius: 8,
+                color: "#ffffff",
+                weight: 3,
+                fillColor: "#0ea5e9",
+                fillOpacity: 1,
+                className: "statistics-map__current-focus"
+            }).addTo(statisticsMap.map);
+        } else {
+            statisticsMap.currentLocationMarker.setLatLng(latLng);
+        }
+
+        statisticsMap.currentLocationMarker.bindPopup(`
+            <div class="statistics-map__popup">
+                <strong>Current device location</strong>
+                <div>${escapeHtml(`${normalizedLatitude.toFixed(6)}, ${normalizedLongitude.toFixed(6)}`)}</div>
+            </div>
+        `);
+
+        const normalizedAccuracy = Math.max(0, Number(accuracyMeters) || 0);
+        if (normalizedAccuracy > 0) {
+            if (!statisticsMap.currentLocationAccuracyCircle) {
+                statisticsMap.currentLocationAccuracyCircle = L.circle(latLng, {
+                    radius: normalizedAccuracy,
+                    color: "#0ea5e9",
+                    weight: 1.5,
+                    fillColor: "#38bdf8",
+                    fillOpacity: 0.12,
+                    interactive: false
+                }).addTo(statisticsMap.map);
+            } else {
+                statisticsMap.currentLocationAccuracyCircle.setLatLng(latLng);
+                statisticsMap.currentLocationAccuracyCircle.setRadius(normalizedAccuracy);
+            }
+        } else if (statisticsMap.currentLocationAccuracyCircle) {
+            statisticsMap.map.removeLayer(statisticsMap.currentLocationAccuracyCircle);
+            statisticsMap.currentLocationAccuracyCircle = null;
+        }
+
+        if (shouldCenter) {
+            statisticsMap.map.setView(latLng, Math.max(statisticsMap.map.getZoom(), 15));
+            statisticsMap.currentLocationMarker.openPopup();
+        }
+
+        return true;
+    };
+
+    const stopStatisticsMapTracking = (statisticsMap, removeMarker) => {
+        if (!statisticsMap) {
+            return;
+        }
+
+        if (statisticsMap.trackingWatchId != null && "geolocation" in navigator) {
+            navigator.geolocation.clearWatch(statisticsMap.trackingWatchId);
+        }
+
+        statisticsMap.trackingWatchId = null;
+        statisticsMap.hasCenteredOnCurrentLocation = false;
+
+        if (!removeMarker || !statisticsMap.map) {
+            return;
+        }
+
+        if (statisticsMap.currentLocationMarker) {
+            statisticsMap.map.removeLayer(statisticsMap.currentLocationMarker);
+            statisticsMap.currentLocationMarker = null;
+        }
+
+        if (statisticsMap.currentLocationAccuracyCircle) {
+            statisticsMap.map.removeLayer(statisticsMap.currentLocationAccuracyCircle);
+            statisticsMap.currentLocationAccuracyCircle = null;
+        }
+    };
+
+    const startStatisticsMapTrackingAsync = async (statisticsMap) => await new Promise((resolve) => {
+        if (!statisticsMap?.map || !("geolocation" in navigator)) {
+            resolve(false);
+            return;
+        }
+
+        if (statisticsMap.trackingWatchId != null) {
+            resolve(true);
+            return;
+        }
+
+        let settled = false;
+        const complete = (value) => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            resolve(value);
+        };
+
+        statisticsMap.hasCenteredOnCurrentLocation = false;
+        statisticsMap.trackingWatchId = navigator.geolocation.watchPosition((position) => {
+            updateStatisticsCurrentLocation(
+                statisticsMap,
+                position.coords.latitude,
+                position.coords.longitude,
+                position.coords.accuracy,
+                !statisticsMap.hasCenteredOnCurrentLocation);
+
+            statisticsMap.hasCenteredOnCurrentLocation = true;
+            complete(true);
+        }, () => {
+            stopStatisticsMapTracking(statisticsMap, true);
+            complete(false);
+        }, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 30000
+        });
+    });
+
     const delayAsync = (durationMs) => new Promise((resolve) => {
         window.setTimeout(resolve, durationMs);
     });
@@ -1407,7 +1572,12 @@
                 hexLayerEventsBound: false,
                 fallbackHeatLayer: null,
                 routeLayer: null,
-                poiLayer: null
+                poiLayer: null,
+                searchFocusMarker: null,
+                currentLocationMarker: null,
+                currentLocationAccuracyCircle: null,
+                trackingWatchId: null,
+                hasCenteredOnCurrentLocation: false
             };
 
             ensureStatisticsHexLayer(statisticsMap);
@@ -1446,6 +1616,32 @@
             invalidateLeafletMap(statisticsMap.map, () => redrawStatisticsHexLayer(statisticsMap));
             return true;
         },
+        focusStatisticsMapLocation: (element, latitude, longitude, title, subtitle) => {
+            const statisticsMap = statisticsMaps.get(element);
+            if (!statisticsMap) {
+                return false;
+            }
+
+            return focusStatisticsMapLocation(statisticsMap, latitude, longitude, title, subtitle, 16);
+        },
+        startStatisticsMapTracking: async (element) => {
+            const statisticsMap = statisticsMaps.get(element);
+            if (!statisticsMap) {
+                return false;
+            }
+
+            await waitForMapSizeAsync(element, 8, 90);
+            return await startStatisticsMapTrackingAsync(statisticsMap);
+        },
+        stopStatisticsMapTracking: (element) => {
+            const statisticsMap = statisticsMaps.get(element);
+            if (!statisticsMap) {
+                return false;
+            }
+
+            stopStatisticsMapTracking(statisticsMap, true);
+            return true;
+        },
         disposeStatisticsMap: (element) => {
             const statisticsMap = statisticsMaps.get(element);
             if (!statisticsMap) {
@@ -1460,6 +1656,7 @@
                 window.removeEventListener("resize", statisticsMap.handleResize);
             }
 
+            stopStatisticsMapTracking(statisticsMap, true);
             statisticsMap.map.remove();
             statisticsMaps.delete(element);
         }

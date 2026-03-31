@@ -1,5 +1,6 @@
 @page "/moderation"
 @inject AdminApiClient ApiClient
+@inject InboxState InboxState
 @inject NotificationService Notifications
 @inject AdminSessionState SessionState
 
@@ -412,6 +413,7 @@ else
             Notifications.Success($"'{updated.Name}' was approved and applied to live data.", "Request approved");
             _reviewNote = "";
             await LoadItemsAsync();
+            await InboxState.RefreshAsync();
         }
         catch (Exception ex)
         {
@@ -445,6 +447,7 @@ else
             Notifications.Info($"'{updated.Name}' was rejected and the owner was notified.", "Request rejected");
             _reviewNote = "";
             await LoadItemsAsync();
+            await InboxState.RefreshAsync();
         }
         catch (Exception ex)
         {

@@ -128,6 +128,22 @@
     font-size: 1rem;
 }
 
+.sidebar-link__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.65rem;
+    padding: 0.2rem 0.45rem;
+    margin-left: auto;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ef4444 0%, #fb7185 100%);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 10px 22px rgba(239, 68, 68, 0.22);
+}
+
 .sidebar-link:hover {
     background: rgba(255, 255, 255, 0.92);
     border-color: rgba(45, 212, 191, 0.22);
@@ -145,6 +161,12 @@
 .sidebar-link.active i {
     background: rgba(255, 255, 255, 0.18);
     color: #fff;
+}
+
+.sidebar-link.active .sidebar-link__badge {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+    box-shadow: none;
 }
 
 .sidebar-link.active::after {
@@ -215,6 +237,13 @@
     justify-content: center;
     width: 100%;
     padding: 0.9rem 0.7rem;
+}
+
+.sidebar-nav--collapsed .sidebar-link__badge {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    margin-left: 0;
 }
 
 .sidebar-nav--collapsed .sidebar-link.active::after {
