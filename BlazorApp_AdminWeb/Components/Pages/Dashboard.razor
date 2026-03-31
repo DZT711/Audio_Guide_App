@@ -1,123 +1,376 @@
 @page "/dashboard"
-@using BlazorApp_AdminWeb.Components.Layout
-@rendermode InteractiveServer
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject IJSRuntime JS
+@inject AdminSessionState SessionState
 
 <PageTitle>Dashboard</PageTitle>
 
-<div class="row g-4 mb-4">
-    <!-- Stat Cards -->
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-2">Total POIs</h6>
-                <div class="d-flex align-items-center">
-                    <div class="h2 mb-0 me-3">128</div>
-                    <span class="badge bg-success-subtle text-success">+5.0%</span>
-                </div>
-            </div>
+@if (!CanView)
+{
+    <div class="dashboard-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view the dashboard.</div>
         </div>
     </div>
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-2">Total Audios</h6>
-                <div class="d-flex align-items-center">
-                    <div class="h2 mb-0 me-3">345</div>
-                    <span class="badge bg-success-subtle text-success">+12%</span>
-                </div>
+}
+else if (_isLoading)
+{
+    <div class="dashboard-page">
+        <section class="dashboard-hero" data-reveal>
+            <div class="dashboard-hero__content">
+                <div class="skeleton skeleton--pill"></div>
+                <div class="skeleton skeleton--title"></div>
+                <div class="skeleton skeleton--line"></div>
+                <div class="skeleton skeleton--line skeleton--line-short"></div>
             </div>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-2">Total Users</h6>
-                <div class="d-flex align-items-center">
-                    <div class="h2 mb-0 me-3">2,450</div>
-                    <span class="badge bg-warning-subtle text-warning">-2%</span>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-2">Pending Items</h6>
-                <div class="d-flex align-items-center">
-                    <div class="h2 mb-0 me-3">12</div>
-                    <span class="badge bg-danger-subtle text-danger">Action Required</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white py-3">
-        <h5 class="mb-0">Recent Activity</h5>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>User</th>
-                    <th>Action</th>
-                    <th>Target</th>
-                    <th>Time</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var act in Activities)
+            <div class="dashboard-hero__stats">
+                @for (var i = 0; i < 3; i++)
                 {
-                    <tr>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                                    @act.UserInitials
-                                </div>
-                                <div>@act.UserName</div>
-                            </div>
-                        </td>
-                        <td>@act.Action</td>
-                        <td>@act.TargetName</td>
-                        <td>@act.TimeAgo</td>
-                        <td>
-                            <span class="badge @GetStatusBadge(act.Status)">@act.Status</span>
-                        </td>
-                    </tr>
+                    <article class="hero-stat">
+                        <div class="skeleton skeleton--title"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </article>
                 }
-            </tbody>
-        </table>
+            </div>
+        </section>
+
+        <div class="row g-4">
+            @for (var i = 0; i < 4; i++)
+            {
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="skeleton-card"></div>
+                </div>
+            }
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-xxl-8">
+                <section class="dashboard-panel">
+                    <div class="skeleton-table-row">
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </div>
+                    <div class="skeleton-table-row">
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    </div>
+                </section>
+            </div>
+            <div class="col-12 col-xxl-4">
+                <section class="dashboard-panel">
+                    @for (var i = 0; i < 3; i++)
+                    {
+                        <div class="skeleton skeleton--title"></div>
+                        <div class="skeleton skeleton--line"></div>
+                    }
+                </section>
+            </div>
+        </div>
+    </div>
+}
+else if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <div class="dashboard-page">
+        <div class="management-error">
+            <strong>Unable to load dashboard data.</strong>
+            <div>@_loadError</div>
+        </div>
+    </div>
+}
+else
+{
+<div class="dashboard-page">
+    <section class="dashboard-hero" data-reveal>
+        <div class="dashboard-hero__content">
+            <span class="dashboard-hero__eyebrow">Overview</span>
+            <h1>Admin Dashboard</h1>
+            <p>
+                Track content health, moderation, and platform activity with clearer hierarchy,
+                smoother reveals, and more polished feedback states.
+            </p>
+
+            <div class="dashboard-hero__actions">
+                @if (CanViewUsage)
+                {
+                    <a class="btn btn-light btn-lg" href="/usage">
+                        <i class="bi bi-clock-history me-2"></i>
+                        Usage History
+                    </a>
+                }
+                @if (CanViewStatistics)
+                {
+                    <a class="btn btn-outline-light btn-lg" href="/statistics">
+                        <i class="bi bi-graph-up-arrow me-2"></i>
+                        Statistics
+                    </a>
+                }
+                @if (CanViewTours)
+                {
+                    <a class="btn btn-outline-light btn-lg" href="/tours">
+                        <i class="bi bi-signpost-split me-2"></i>
+                        Tour Management
+                    </a>
+                }
+                @if (CanViewUsers)
+                {
+                    <a class="btn btn-light btn-lg" href="/users">
+                        <i class="bi bi-people me-2"></i>
+                        Manage Users
+                    </a>
+                }
+                else
+                {
+                    <button class="btn btn-light btn-lg" type="button" @onclick="ShowUserAccessNotice">
+                        <i class="bi bi-people me-2"></i>
+                        Manage Users
+                    </button>
+                }
+                <button class="btn btn-outline-light btn-lg" type="button" disabled="@(!CanExport || _isExporting)" @onclick="ExportSnapshotAsync">
+                    <i class="bi bi-download me-2"></i>
+                    @(_isExporting ? "Exporting..." : "Export Snapshot")
+                </button>
+            </div>
+        </div>
+
+        <div class="dashboard-hero__stats" data-stagger data-stagger-step="90">
+            <article class="hero-stat" data-reveal>
+                <strong>94%</strong>
+                <span>Review SLA met this week</span>
+            </article>
+            <article class="hero-stat" data-reveal>
+                <strong>28</strong>
+                <span>New guides drafted today</span>
+            </article>
+            <article class="hero-stat" data-reveal>
+                <strong>3.8k</strong>
+                <span>Audio plays in the last 24 hours</span>
+            </article>
+        </div>
+    </section>
+
+    <div class="row g-4" data-stagger data-stagger-step="80">
+        @foreach (var metric in Metrics)
+        {
+            <div class="col-12 col-md-6 col-xl-3">
+                <article class="metric-card card border-0 h-100" data-reveal style="@GetMetricStyle(metric)">
+                    <div class="card-body">
+                        <div class="metric-card__top">
+                            <span class="metric-icon">
+                                <i class="bi @metric.Icon"></i>
+                            </span>
+                            <span class="@GetTrendClass(metric.TrendTone)">@metric.Trend</span>
+                        </div>
+
+                        <div class="metric-value">@metric.Value</div>
+                        <h2 class="metric-title">@metric.Title</h2>
+                        <p class="metric-copy">@metric.Description</p>
+                    </div>
+                </article>
+            </div>
+        }
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-xxl-8">
+            <section class="dashboard-panel dashboard-panel--table" data-reveal>
+                <div class="dashboard-panel__header">
+                    <div>
+                        <span class="dashboard-panel__eyebrow">Live Feed</span>
+                        <h2>Recent Activity</h2>
+                    </div>
+                    @if (CanViewModeration)
+                    {
+                        <a class="btn btn-outline-secondary btn-sm" href="/moderation">View All</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-outline-secondary btn-sm" href="/audio">View Audio</a>
+                    }
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table dashboard-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Target</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var act in Activities)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="activity-user">
+                                            <div class="activity-avatar">@act.UserInitials</div>
+                                            <div>
+                                                <strong class="d-block">@act.UserName</strong>
+                                                <span class="text-muted small">Admin workspace</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>@act.Action</td>
+                                    <td>@act.TargetName</td>
+                                    <td>@act.TimeAgo</td>
+                                    <td>
+                                        <span class="@GetStatusBadgeClass(act.Status)">@act.Status</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12 col-xxl-4">
+            <section class="dashboard-panel dashboard-panel--stack" data-reveal>
+                <div class="dashboard-panel__header">
+                    <div>
+                        <span class="dashboard-panel__eyebrow">Focus Area</span>
+                        <h2>Team Priorities</h2>
+                    </div>
+                </div>
+
+                <div class="focus-list" data-stagger data-stagger-step="90">
+                    @foreach (var item in FocusItems)
+                    {
+                        <article class="@GetFocusCardClass(item.Tone)" data-reveal>
+                            <div class="focus-card__icon">
+                                <i class="bi @item.Icon"></i>
+                            </div>
+                            <div class="focus-card__body">
+                                <div class="focus-card__top">
+                                    <h3>@item.Title</h3>
+                                    <span>@item.Progress%</span>
+                                </div>
+                                <p>@item.Description</p>
+                                <div class="focus-progress">
+                                    <span style="@($"width: {item.Progress}%")"></span>
+                                </div>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+        </div>
     </div>
 </div>
+}
 
 @code {
-    private List<ActivityLog> Activities = new()
-    {
-        new ActivityLog { UserName = "Amanda Harvey", UserInitials = "AH", Action = "Created POI", TargetName = "Hanoi Old Quarter", TimeAgo = "2 mins ago", Status = "Completed" },
-        new ActivityLog { UserName = "Anne Richard", UserInitials = "AR", Action = "Uploaded Audio", TargetName = "Pho Bat Dan Guide", TimeAgo = "15 mins ago", Status = "Processing" },
-        new ActivityLog { UserName = "David Harrison", UserInitials = "DH", Action = "Updated Profile", TargetName = "Self", TimeAgo = "1 hour ago", Status = "Completed" },
-        new ActivityLog { UserName = "Finch Hoot", UserInitials = "FH", Action = "Deleted POI", TargetName = "Cafe Giang", TimeAgo = "3 hours ago", Status = "Failed" },
-        new ActivityLog { UserName = "Bob Smith", UserInitials = "BS", Action = "Requested Review", TargetName = "Walking Tour Script", TimeAgo = "1 day ago", Status = "Pending" },
-    };
+    private List<DashboardMetricDto> Metrics { get; set; } = [];
+    private List<DashboardActivityDto> Activities { get; set; } = [];
+    private List<FocusItemDto> FocusItems { get; set; } = [];
+    private bool _isLoading = true;
+    private bool _isExporting;
+    private string? _loadError;
+    private bool CanView => SessionState.HasPermission(AdminPermissions.DashboardView);
+    private bool CanExport => SessionState.HasPermission(AdminPermissions.DashboardExport);
+    private bool CanViewUsage => SessionState.HasPermission(AdminPermissions.UsageHistoryView);
+    private bool CanViewStatistics => SessionState.HasPermission(AdminPermissions.AnalyticsView);
+    private bool CanViewTours => SessionState.HasPermission(AdminPermissions.TourRead);
+    private bool CanViewUsers => SessionState.HasPermission(AdminPermissions.UserRead);
+    private bool CanViewModeration => SessionState.HasPermission(AdminPermissions.ModerationView);
 
-    private string GetStatusBadge(string status) => status switch
+    protected override async Task OnInitializedAsync()
     {
-        "Completed" => "bg-success",
-        "Processing" => "bg-primary",
-        "Pending" => "bg-warning text-dark",
-        "Failed" => "bg-danger",
-        _ => "bg-secondary"
-    };
-
-    public class ActivityLog
-    {
-        public string UserName { get; set; } = "";
-        public string UserInitials { get; set; } = "";
-        public string Action { get; set; } = "";
-        public string TargetName { get; set; } = "";
-        public string TimeAgo { get; set; } = "";
-        public string Status { get; set; } = "";
+        await LoadOverviewAsync();
     }
+
+    private async Task LoadOverviewAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            var overview = await ApiClient.GetDashboardOverviewAsync();
+            Metrics = overview.Metrics.ToList();
+            Activities = overview.Activities.ToList();
+            FocusItems = overview.FocusItems.ToList();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Dashboard load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ExportSnapshotAsync()
+    {
+        if (!CanExport)
+        {
+            Notifications.Warning("Your role can view the dashboard but cannot export it.", "Export blocked");
+            return;
+        }
+
+        _isExporting = true;
+        try
+        {
+            var snapshot = await ApiClient.GetDashboardSnapshotAsync();
+            var payload = JsonSerializer.Serialize(snapshot, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            {
+                WriteIndented = true
+            });
+
+            var fileName = $"smart-tourism-snapshot-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+            await JS.InvokeVoidAsync("smartTourAdmin.download.text", fileName, payload, "application/json");
+            Notifications.Success("The dashboard snapshot was exported as JSON.", "Export ready");
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Export failed");
+        }
+        finally
+        {
+            _isExporting = false;
+        }
+    }
+
+    private void ShowUserAccessNotice()
+    {
+        Notifications.Info("Your current role can open the dashboard but cannot access the user management screen.", "Limited access");
+    }
+
+    private string GetMetricStyle(DashboardMetricDto metric) => $"--metric-start:{metric.AccentStart}; --metric-end:{metric.AccentEnd};";
+
+    private string GetTrendClass(string tone) => tone switch
+    {
+        "positive" => "trend-pill trend-pill--positive",
+        "warning" => "trend-pill trend-pill--warning",
+        "negative" => "trend-pill trend-pill--negative",
+        _ => "trend-pill"
+    };
+
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "Completed" => "status-pill status-pill--success",
+        "Processing" => "status-pill status-pill--processing",
+        "Pending" => "status-pill status-pill--pending",
+        "Failed" => "status-pill status-pill--failed",
+        _ => "status-pill"
+    };
+
+    private string GetFocusCardClass(string tone) => tone switch
+    {
+        "teal" => "focus-card focus-card--teal",
+        "amber" => "focus-card focus-card--amber",
+        "blue" => "focus-card focus-card--blue",
+        _ => "focus-card"
+    };
+
 }

@@ -1,0 +1,467 @@
+@page "/categories"
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject IJSRuntime JS
+@inject AdminSessionState SessionState
+
+<PageTitle>Category Management</PageTitle>
+
+@if (!CanView)
+{
+    <div class="management-page category-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view categories.</div>
+        </div>
+    </div>
+}
+else
+{
+<div class="management-page category-page">
+    <section class="management-hero" data-reveal>
+        <div>
+            <span class="management-hero__eyebrow">Taxonomy</span>
+            <h1>Category Management</h1>
+            <p>
+                Organize tourism content with live API-backed category management, quick editing,
+                and lightweight loading feedback while SQLite-backed data is loading.
+            </p>
+        </div>
+
+        <div class="management-hero__actions">
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
+                <i class="bi bi-arrow-clockwise me-2"></i>
+                Refresh
+            </button>
+        </div>
+    </section>
+
+    <div class="management-stat-grid" data-stagger data-stagger-step="80">
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-diagram-3"></i></span>
+            <div>
+                <strong class="management-stat__value">@_categories.Count</strong>
+                <span class="management-stat__label">Total Categories</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
+            <div>
+                <strong class="management-stat__value">@_categories.Count(item => item.Status == 1)</strong>
+                <span class="management-stat__label">Active</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-pause-circle"></i></span>
+            <div>
+                <strong class="management-stat__value">@_categories.Count(item => item.Status == 0)</strong>
+                <span class="management-stat__label">Inactive</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-search"></i></span>
+            <div>
+                <strong class="management-stat__value">@FilteredCategories.Count()</strong>
+                <span class="management-stat__label">Matching Search</span>
+            </div>
+        </article>
+    </div>
+
+    <div class="management-layout">
+        <section class="management-panel" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">Directory</span>
+                    <h2>Available Categories</h2>
+                </div>
+
+                <label class="management-search">
+                    <i class="bi bi-search"></i>
+                    <input class="form-control" type="search" placeholder="Search categories..." @bind="_searchText" @bind:event="oninput" />
+                </label>
+            </div>
+
+            @if (_isLoading)
+            {
+                <div class="category-skeleton-list">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <div class="category-skeleton-card">
+                            <div class="skeleton skeleton--title"></div>
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--line skeleton--line-short"></div>
+                        </div>
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(_loadError))
+            {
+                <div class="management-error">
+                    <strong>Unable to load categories.</strong>
+                    <div>@_loadError</div>
+                </div>
+            }
+            else if (!FilteredCategories.Any())
+            {
+                <div class="app-empty-state">
+                    No categories match the current search.
+                </div>
+            }
+            else
+            {
+                <div class="category-list">
+                    @foreach (var category in PagedCategories)
+                    {
+                        <article class="@GetCategoryCardClass(category.Status)">
+                            <div class="category-card__copy">
+                                <div class="category-card__top">
+                                    <h3>@category.Name</h3>
+                                    <span class="@GetStatusClass(category.Status)">@GetStatusLabel(category.Status)</span>
+                                </div>
+                                <p>@(string.IsNullOrWhiteSpace(category.Description) ? "No description provided yet." : category.Description)</p>
+                            </div>
+
+                            <div class="management-inline-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">@(CanManage ? "Edit" : "View")</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || category.Status == 0)" @onclick="() => PromptArchiveCategory(category)">
+                                    @(category.Status == 0 ? "Inactive" : "Archive")
+                                </button>
+                            </div>
+                        </article>
+                    }
+                </div>
+
+                @if (TotalCategoryPages > 1)
+                {
+                    <div class="management-pagination">
+                        <span class="management-pagination__info">Page @CurrentCategoryPage of @TotalCategoryPages (@FilteredCategories.Count() total categories)</span>
+                        <div class="management-pagination__actions">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousCategoryPage" disabled="@(CurrentCategoryPage <= 1)">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextCategoryPage" disabled="@(CurrentCategoryPage >= TotalCategoryPages)">
+                                Next <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+        </section>
+
+        <section class="management-panel category-editor" data-reveal>
+            <div class="management-panel__header">
+                <div>
+                    <span class="management-panel__eyebrow">@(CanManage ? "Editor" : "Read Only")</span>
+                    <h2>@(CanManage ? (_editingId is null ? "Create Category" : "Edit Category") : "Category Details")</h2>
+                </div>
+            </div>
+
+            @if (CanManage)
+            {
+            <EditForm Model="_formModel" OnValidSubmit="SaveCategoryAsync" class="management-form">
+                <DataAnnotationsValidator />
+
+                <div class="management-field management-field--full">
+                    <label for="category-name">Name</label>
+                    <InputText id="category-name" class="form-control" @bind-Value="_formModel.Name" />
+                    <ValidationMessage For="() => _formModel.Name" />
+                </div>
+
+                <div class="management-field management-field--full">
+                    <label for="category-description">Description</label>
+                    <InputTextArea id="category-description" class="form-control" rows="4" @bind-Value="_formModel.Description" />
+                    <ValidationMessage For="() => _formModel.Description" />
+                </div>
+
+                <div class="management-field management-field--full">
+                    <span class="management-field__label">Status</span>
+                    <div class="management-chip-group">
+                        <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
+                        <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                    </div>
+                </div>
+
+                <div class="management-actions">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !CanManage)">
+                        @(_isSaving ? "Saving..." : _editingId is null ? "Create Category" : "Save Changes")
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(CanManage ? (_editingId is null ? "Reset" : "Cancel Edit") : "Read Only")</button>
+                </div>
+            </EditForm>
+            }
+            else if (SelectedCategoryForDisplay is null)
+            {
+                <div class="app-empty-state">
+                    Select a category to review its details.
+                </div>
+            }
+            else
+            {
+                var selectedCategory = SelectedCategoryForDisplay!;
+
+                <div class="category-readonly">
+                    <div class="category-readonly__notice">
+                        Category changes require an Admin or Developer account.
+                    </div>
+
+                    <div class="category-detail-card">
+                        <span>Name</span>
+                        <strong>@selectedCategory.Name</strong>
+                        <small>@GetStatusLabel(selectedCategory.Status)</small>
+                    </div>
+
+                    <div class="category-detail-card">
+                        <span>Description</span>
+                        <strong>@(string.IsNullOrWhiteSpace(selectedCategory.Description) ? "No description provided yet." : selectedCategory.Description)</strong>
+                    </div>
+                </div>
+            }
+        </section>
+    </div>
+</div>
+
+<AdminConfirmDialog Visible="@(_pendingArchivedCategory is not null)"
+                    Eyebrow="Archive Category"
+                    Title="Archive this category?"
+                    Message="@GetPendingArchiveCategoryMessage()"
+                    ConfirmLabel="Archive Category"
+                    ConfirmButtonClass="btn btn-danger"
+                    OnConfirm="ConfirmArchiveCategoryAsync"
+                    OnCancel="CancelArchiveCategory" />
+}
+
+@code {
+    private readonly CategoryFormModel _formModel = new();
+    private readonly List<CategoryDto> _categories = new();
+    private CategoryDto? _selectedCategory;
+    private CategoryDto? _pendingArchivedCategory;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private int? _editingId;
+    private string _searchText = "";
+    private string? _loadError;
+    private int _currentCategoryPage = 1;
+    private const int CategoriesPerPage = 4;
+    private bool CanView => SessionState.HasPermission(AdminPermissions.CategoryRead);
+    private bool CanManage => SessionState.HasPermission(AdminPermissions.CategoryManage);
+    private CategoryDto? SelectedCategoryForDisplay => ResolveSelectedCategory();
+
+    private IEnumerable<CategoryDto> FilteredCategories =>
+        _categories.Where(category =>
+            string.IsNullOrWhiteSpace(_searchText)
+            || category.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+            || (category.Description?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false));
+    private int TotalCategoryPages => Math.Max(1, (int)Math.Ceiling((double)FilteredCategories.Count() / CategoriesPerPage));
+    private int CurrentCategoryPage => Math.Min(Math.Max(_currentCategoryPage, 1), TotalCategoryPages);
+    private IReadOnlyList<CategoryDto> PagedCategories => FilteredCategories
+        .Skip((CurrentCategoryPage - 1) * CategoriesPerPage)
+        .Take(CategoriesPerPage)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategoriesAsync();
+    }
+
+    private async Task RefreshAsync() => await LoadCategoriesAsync();
+
+    private async Task LoadCategoriesAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            var categories = await ApiClient.GetCategoriesAsync();
+            _categories.Clear();
+            _categories.AddRange(categories
+                .OrderByDescending(item => item.Status)
+                .ThenBy(item => item.Name));
+
+            SyncSelectedCategory();
+            _currentCategoryPage = 1;
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Category load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void NextCategoryPage()
+    {
+        if (CurrentCategoryPage < TotalCategoryPages)
+        {
+            _currentCategoryPage = CurrentCategoryPage + 1;
+        }
+    }
+
+    private void PreviousCategoryPage()
+    {
+        if (CurrentCategoryPage > 1)
+        {
+            _currentCategoryPage = CurrentCategoryPage - 1;
+        }
+    }
+
+    private void StartCreate()
+    {
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void StartEdit(CategoryDto category)
+    {
+        _selectedCategory = category;
+        _editingId = category.Id;
+
+        if (!CanManage)
+        {
+            _editingId = null;
+            return;
+        }
+
+        var snapshot = CategoryFormModel.FromDto(category);
+        _formModel.Name = snapshot.Name;
+        _formModel.Description = snapshot.Description;
+        _formModel.Status = snapshot.Status;
+    }
+
+    private async Task SaveCategoryAsync()
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view categories but cannot save changes.", "Read-only access");
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            if (_editingId is null)
+            {
+                await ApiClient.CreateCategoryAsync(_formModel);
+                Notifications.Success("Category created successfully.", "Category saved");
+            }
+            else
+            {
+                await ApiClient.UpdateCategoryAsync(_editingId.Value, _formModel);
+                Notifications.Success("Category updated successfully.", "Category saved");
+            }
+
+            await LoadCategoriesAsync();
+            StartCreate();
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Category save failed");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void PromptArchiveCategory(CategoryDto category)
+    {
+        if (!CanManage)
+        {
+            Notifications.Warning("Your role can view categories but cannot archive them.", "Read-only access");
+            return;
+        }
+
+        _pendingArchivedCategory = category;
+    }
+
+    private async Task ConfirmArchiveCategoryAsync()
+    {
+        if (!CanManage || _pendingArchivedCategory is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await ApiClient.DeleteCategoryAsync(_pendingArchivedCategory.Id);
+            Notifications.Info($"'{_pendingArchivedCategory.Name}' is now inactive.", "Category archived");
+            await LoadCategoriesAsync();
+
+            if (_editingId == _pendingArchivedCategory.Id)
+            {
+                StartCreate();
+            }
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "Delete failed");
+        }
+        finally
+        {
+            CancelArchiveCategory();
+        }
+    }
+
+    private void ResetForm()
+    {
+        _formModel.Name = "";
+        _formModel.Description = "";
+        _formModel.Status = 1;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void SetStatus(int status) => _formModel.Status = status;
+
+    private CategoryDto? ResolveSelectedCategory()
+    {
+        if (_selectedCategory is not null)
+        {
+            return _categories.FirstOrDefault(item => item.Id == _selectedCategory.Id) ?? _selectedCategory;
+        }
+
+        return FilteredCategories.FirstOrDefault() ?? _categories.FirstOrDefault();
+    }
+
+    private void SyncSelectedCategory()
+    {
+        if (_selectedCategory is not null)
+        {
+            _selectedCategory = _categories.FirstOrDefault(item => item.Id == _selectedCategory.Id);
+        }
+
+        if (!CanManage && _selectedCategory is null)
+        {
+            _selectedCategory = _categories.FirstOrDefault();
+        }
+    }
+
+    private static string GetStatusClass(int status) => status == 1
+        ? "management-status management-status--active"
+        : "management-status management-status--inactive";
+
+    private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
+
+    private static string GetChipClass(int status, int currentStatus) => status == currentStatus
+        ? "management-chip management-chip--selected"
+        : "management-chip";
+
+    private static string GetCategoryCardClass(int status) => status == 1
+        ? "category-card"
+        : "category-card category-card--inactive";
+
+    private string GetPendingArchiveCategoryMessage() =>
+        _pendingArchivedCategory is null
+            ? string.Empty
+            : $"'{_pendingArchivedCategory.Name}' will become inactive and will no longer be available for new or edited location assignments.";
+
+    private void CancelArchiveCategory() => _pendingArchivedCategory = null;
+}

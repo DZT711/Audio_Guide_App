@@ -1,5 +1,6 @@
 # 📱 PRD — App Thuyết Minh Phố Ẩm Thực Vĩnh Khánh
-# Audio Guide App for Vinh Khanh Food Street
+
+<h1> Audio Guide App for Vinh Khanh Food Street </h1>
 
 ---
 
@@ -18,8 +19,8 @@
 
 | # | Họ và tên | MSSV | Vai trò |
 |---|---|---|---|
-| 1 | Nguyễn Sĩ Huy | 3123411122 | Product Owner · Mobile Dev |
-| 2 | Nguyễn Văn Cường | 3123411045 | Backend Dev · Admin Web Dev |
+| 1 | Nguyễn Sĩ Huy | 3123411122 | Product Owner · Mobile Dev · Backend Dev |
+| 2 | Nguyễn Văn Cường | 3123411045 | Admin Web Dev |
 
 ### 🔗 Bên Liên Quan (Stakeholders)
 

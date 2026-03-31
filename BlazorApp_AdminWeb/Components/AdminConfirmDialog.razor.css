@@ -1,0 +1,68 @@
+.admin-confirm__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: rgba(15, 23, 42, 0.38);
+    backdrop-filter: blur(8px);
+}
+
+.admin-confirm__panel {
+    width: min(100%, 32rem);
+    display: grid;
+    gap: 1rem;
+    padding: 1.3rem;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 22px 48px rgba(15, 23, 42, 0.18);
+}
+
+.admin-confirm__copy {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.admin-confirm__eyebrow {
+    color: #0f766e;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.admin-confirm__copy h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.admin-confirm__copy p {
+    margin: 0;
+    color: var(--app-muted);
+    line-height: 1.6;
+}
+
+.admin-confirm__body {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.admin-confirm__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+@media (max-width: 575.98px) {
+    .admin-confirm__actions {
+        justify-content: stretch;
+    }
+
+    .admin-confirm__actions .btn {
+        width: 100%;
+    }
+}

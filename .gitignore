@@ -1,0 +1,43 @@
+# Build outputs
+bin/
+obj/
+
+# .NET SDK telemetry & sentinel files
+.dotnet/
+.dotnet-cli/
+
+# Codex build artifacts
+.codex-build/
+
+# Verify tool outputs
+.verify/
+.verify-*.err.log
+.verify-*.out.log
+
+# SQLite database (runtime data, not source)
+*.db
+*.db-shm
+*.db-wal
+
+# User-specific project settings
+*.user
+
+# IDE & OS
+.vs/
+.vscode/
+*.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+# Codex & Build tools
+.codex-build/
+.verify/
+.dotnet/
+.dotnet-cli/
+.codex-temp/
+
+# Log files
+*.log
+.verify-adminweb.err.log
+.verify-adminweb.out.log

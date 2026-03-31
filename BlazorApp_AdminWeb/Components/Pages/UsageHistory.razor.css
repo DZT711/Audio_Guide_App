@@ -1,0 +1,12 @@
+.tour-skeleton-table {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.usage-table td {
+    min-width: 10rem;
+}
+
+.usage-table td:first-child {
+    min-width: 9rem;
+}
