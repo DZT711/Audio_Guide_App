@@ -10,15 +10,3 @@ C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\Project_Shared
 C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\Project_SharedClassLibrary\obj\Debug\net10.0\refint\Shared_ClassLibrary.dll
 C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.pdb
 C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\78061b9efd615c9f\Project_SharedClassLibrary\obj\Debug\net10.0\ref\Shared_ClassLibrary.dll
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\bin\Debug\net10.0\Shared_ClassLibrary.deps.json
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\bin\Debug\net10.0\Shared_ClassLibrary.dll
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\bin\Debug\net10.0\Shared_ClassLibrary.pdb
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.GeneratedMSBuildEditorConfig.editorconfig
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.AssemblyInfoInputs.cache
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.AssemblyInfo.cs
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.csproj.CoreCompileInputs.cache
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.sourcelink.json
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.dll
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\obj\Debug\net10.0\refint\Shared_ClassLibrary.dll
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\obj\Debug\net10.0\Shared_ClassLibrary.pdb
-D:\Projects\Smart-Tourism-MAUI\Project_SharedClassLibrary\obj\Debug\net10.0\ref\Shared_ClassLibrary.dll
