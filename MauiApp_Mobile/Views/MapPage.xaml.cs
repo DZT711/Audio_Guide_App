@@ -721,11 +721,30 @@ public partial class MapPage : ContentPage
                 Category = point.Category,
                 Latitude = point.Latitude,
                 Longitude = point.Longitude,
-                Image = await ResolveMapImageSourceAsync(point.Image)
+                Image = await ResolveMapImageSourceAsync(point.Image),
+                GalleryImages = await ResolveMapImageSourcesAsync(point.GalleryImages)
             });
         }
 
         return preparedPoints;
+    }
+
+    private async Task<IReadOnlyList<string>> ResolveMapImageSourcesAsync(IReadOnlyList<string> imageSources)
+    {
+        if (imageSources.Count == 0)
+            return Array.Empty<string>();
+
+        var resolvedSources = new List<string>(imageSources.Count);
+        foreach (var imageSource in imageSources)
+        {
+            var resolvedSource = await ResolveMapImageSourceAsync(imageSource);
+            if (!string.IsNullOrWhiteSpace(resolvedSource))
+            {
+                resolvedSources.Add(resolvedSource);
+            }
+        }
+
+        return resolvedSources;
     }
 
     private async Task<string> ResolveMapImageSourceAsync(string imageSource)
@@ -753,6 +772,7 @@ public partial class MapPage : ContentPage
             {
                 ".jpg" or ".jpeg" => "image/jpeg",
                 ".webp" => "image/webp",
+                ".svg" => "image/svg+xml",
                 _ => "image/png"
             };
 
@@ -987,6 +1007,7 @@ public partial class MapPage : ContentPage
         public double Latitude { get; init; }
         public double Longitude { get; init; }
         public string Image { get; init; } = string.Empty;
+        public IReadOnlyList<string> GalleryImages { get; init; } = Array.Empty<string>();
     }
 
     private sealed class MapStringPayload

@@ -233,11 +233,14 @@ public partial class MainPage : ContentPage
         var warningText = ThemeService.Instance.GetColor("WarningText", "#CA8A04");
         var softOrange = ThemeService.Instance.GetColor("SoftOrange", "#FFE8D8");
         var softPurple = ThemeService.Instance.GetColor("SoftPurple", "#EFF6FF");
+        var galleryImages = place.GalleryImages.Count > 0
+            ? place.GalleryImages
+            : [place.Image];
 
         return
         [
             CreateGallerySlide(
-                place,
+                GetGalleryImage(galleryImages, 0),
                 place.Category,
                 LocalizationService.Instance.T("Places.GalleryOverview"),
                 place.Name,
@@ -248,7 +251,7 @@ public partial class MainPage : ContentPage
                 place.CategoryColor,
                 place.CategoryTextColor),
             CreateGallerySlide(
-                place,
+                GetGalleryImage(galleryImages, 1),
                 "GPS",
                 LocalizationService.Instance.T("Places.GalleryVisit"),
                 place.Address,
@@ -259,7 +262,7 @@ public partial class MainPage : ContentPage
                 softPurple,
                 infoText),
             CreateGallerySlide(
-                place,
+                GetGalleryImage(galleryImages, 2),
                 LocalizationService.Instance.T("Places.GalleryAudio"),
                 LocalizationService.Instance.T("Places.GalleryAudio"),
                 place.Name,
@@ -272,8 +275,16 @@ public partial class MainPage : ContentPage
         ];
     }
 
+    private static string GetGalleryImage(IReadOnlyList<string> images, int index)
+    {
+        if (images.Count == 0)
+            return string.Empty;
+
+        return images[index % images.Count];
+    }
+
     private static PlaceGallerySlide CreateGallerySlide(
-        PlaceItem place,
+        string image,
         string badgeText,
         string eyebrow,
         string title,
@@ -286,7 +297,7 @@ public partial class MainPage : ContentPage
     {
         return new PlaceGallerySlide
         {
-            Image = place.Image,
+            Image = image,
             BadgeText = badgeText,
             Eyebrow = eyebrow,
             Title = title,

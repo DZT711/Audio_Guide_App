@@ -12,6 +12,7 @@ public class PlaceItem : INotifyPropertyChanged
     public string Category { get; set; } = "";
     public string Rating { get; set; } = "";
     public string Image { get; set; } = "";
+    public IReadOnlyList<string> GalleryImages { get; set; } = Array.Empty<string>();
     public string Address { get; set; } = ""; // Added for History page detail
     public string Phone { get; set; } = "";
     public string Email { get; set; } = "";

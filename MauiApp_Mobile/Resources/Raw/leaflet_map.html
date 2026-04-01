@@ -136,8 +136,8 @@
             display: block;
             border-radius: 999px;
             object-fit: cover;
+            object-position: center center;
             background: #dce8dd;
-            transform: scale(1.01);
         }
 
         .poi-marker__halo {
@@ -240,6 +240,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            object-position: center center;
             display: block;
         }
 
@@ -533,12 +534,23 @@
                 : createPoiThumbnail(title || "");
         }
 
-        function buildPlaceGalleryImages(place, imageSource) {
+        function buildPlaceGalleryImages(place, imageSource, providedGalleryImages) {
             var title = place.title || place.Title || "";
             var description = place.description || place.Description || "";
             var address = place.address || place.Address || "";
             var category = place.category || place.Category || "";
             var primaryImage = getResolvedPlaceImage(imageSource, title);
+            var hydratedImages = (providedGalleryImages || [])
+                .map(function(item) {
+                    return getResolvedPlaceImage(item, title);
+                })
+                .filter(function(item, index, items) {
+                    return !!item && items.indexOf(item) === index;
+                });
+
+            if (hydratedImages.length) {
+                return hydratedImages;
+            }
 
             return [
                 primaryImage,
@@ -899,6 +911,7 @@
             return (items || []).map(function(place) {
                 var imageSource = place.image || place.Image || "";
                 var title = place.title || place.Title || "";
+                var providedGalleryImages = place.galleryImages || place.GalleryImages || [];
                 return {
                     id: (place.id || place.Id || "").toString(),
                     lat: Number(place.latitude || place.Latitude),
@@ -908,7 +921,7 @@
                     address: place.address || place.Address || "",
                     category: place.category || place.Category || "",
                     image: getResolvedPlaceImage(imageSource, title),
-                    galleryImages: buildPlaceGalleryImages(place, imageSource),
+                    galleryImages: buildPlaceGalleryImages(place, imageSource, providedGalleryImages),
                     isNearest: false
                 };
             }).filter(function(place) {
