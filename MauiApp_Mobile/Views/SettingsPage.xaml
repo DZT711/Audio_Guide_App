@@ -3,7 +3,7 @@
     x:Class="MauiApp_Mobile.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    BackgroundColor="{StaticResource LightBg}">
+    BackgroundColor="{DynamicResource LightBg}">
 
     <Grid RowDefinitions="Auto,*">
         <Grid Style="{StaticResource TopHeaderGridStyle}">
@@ -24,7 +24,8 @@
                                Style="{StaticResource SectionTitleStyle}" />
                     </HorizontalStackLayout>
 
-                    <Frame Style="{StaticResource CardFrameStyle}">
+                    <Border x:Name="AudioCard"
+                            Style="{StaticResource CardBorderStyle}">
                         <VerticalStackLayout Spacing="18">
 
                             <!-- Dòng ngôn ngữ -->
@@ -32,13 +33,13 @@
                                 <Label x:Name="LanguageRowLabel"
                                        Text="Ngôn ngữ"
                                        FontSize="16"
-                                       TextColor="{StaticResource BodyText}" />
+                                       TextColor="{DynamicResource BodyText}" />
 
                                 <Label x:Name="LanguageValueLabel"
                                        Grid.Column="1"
                                        Text="Tiếng Việt ›"
                                        FontSize="16"
-                                       TextColor="{StaticResource PrimaryGreen}"
+                                       TextColor="{DynamicResource PrimaryGreen}"
                                        FontAttributes="Bold"
                                        VerticalOptions="Center" />
 
@@ -51,27 +52,31 @@
                                 <Label x:Name="VoiceRowLabel"
                                        Text="Giọng đọc"
                                        FontSize="16"
-                                       TextColor="{StaticResource BodyText}" />
+                                       TextColor="{DynamicResource BodyText}" />
                                 <Label x:Name="VoiceValueLabel"
                                        Grid.Column="1"
                                        Text="Giọng nữ miền Nam ▼"
                                        FontSize="16"
-                                       TextColor="{StaticResource PrimaryGreen}"
+                                       TextColor="{DynamicResource PrimaryGreen}"
                                        FontAttributes="Bold" />
                             </Grid>
 
                             <Label x:Name="ReadingSpeedLabel"
                                    Text="Tốc độ đọc"
                                    FontSize="16"
-                                   TextColor="{StaticResource BodyText}" />
+                                   TextColor="{DynamicResource BodyText}" />
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Slider Minimum="0.5"
                                         Maximum="2"
                                         Value="1.0"
-                                        MinimumTrackColor="{StaticResource PrimaryGreen}"
-                                        MaximumTrackColor="#D1D5DB" />
-                                <Label Grid.Column="1"
+                                        MinimumTrackColor="{DynamicResource PrimaryGreen}"
+                                        MaximumTrackColor="{DynamicResource BorderColor}"
+                                        ThumbColor="{DynamicResource PrimaryGreen}"
+                                        x:Name="ReadingSpeedSlider"
+                                        ValueChanged="OnReadingSpeedChanged" />
+                                <Label x:Name="ReadingSpeedValueLabel"
+                                       Grid.Column="1"
                                        Text="1.0x"
                                        Margin="10,0,0,0"
                                        VerticalOptions="Center"
@@ -82,15 +87,19 @@
                             <Label x:Name="VolumeLabel"
                                    Text="Âm lượng"
                                    FontSize="16"
-                                   TextColor="{StaticResource BodyText}" />
+                                   TextColor="{DynamicResource BodyText}" />
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Slider Minimum="0"
                                         Maximum="100"
                                         Value="100"
-                                        MinimumTrackColor="{StaticResource PrimaryGreen}"
-                                        MaximumTrackColor="#D1D5DB" />
-                                <Label Grid.Column="1"
+                                        MinimumTrackColor="{DynamicResource PrimaryGreen}"
+                                        MaximumTrackColor="{DynamicResource BorderColor}"
+                                        ThumbColor="{DynamicResource PrimaryGreen}"
+                                        x:Name="VolumeSlider"
+                                        ValueChanged="OnVolumeChanged" />
+                                <Label x:Name="VolumeValueLabel"
+                                       Grid.Column="1"
                                        Text="100%"
                                        Margin="10,0,0,0"
                                        VerticalOptions="Center"
@@ -102,7 +111,226 @@
                                     Text="🎙 Test giọng đọc"
                                     Style="{StaticResource PrimaryButtonStyle}" />
                         </VerticalStackLayout>
-                    </Frame>
+                    </Border>
+
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="🎨" FontSize="18" />
+                        <Label x:Name="AppearanceLabel"
+                               Text="Giao diện"
+                               Style="{StaticResource SectionTitleStyle}" />
+                    </HorizontalStackLayout>
+
+                    <Border x:Name="AppearanceCard"
+                            Style="{StaticResource CardBorderStyle}">
+                        <VerticalStackLayout Spacing="14">
+                            <Label x:Name="ThemeHintLabel"
+                                   Text="Chọn theme phù hợp với hành trình của bạn. Áp dụng ngay lập tức trên toàn app."
+                                   FontSize="14"
+                                   TextColor="{DynamicResource MutedText}" />
+
+                            <ScrollView Orientation="Horizontal">
+                                <HorizontalStackLayout Spacing="12">
+                                    <Border x:Name="ThemeEcoCard"
+                                            BackgroundColor="{DynamicResource CardBg}"
+                                            Padding="12"
+                                            Stroke="{DynamicResource BorderColor}"
+                                            StrokeShape="RoundRectangle 20"
+                                            StrokeThickness="1"
+                                            WidthRequest="208">
+                                        <Grid RowDefinitions="Auto,Auto,Auto"
+                                              RowSpacing="10">
+                                            <Grid HeightRequest="74">
+                                                <Border BackgroundColor="#109245"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 16" />
+                                                <BoxView Color="#A7F3C5"
+                                                         CornerRadius="18"
+                                                         HeightRequest="36"
+                                                         HorizontalOptions="End"
+                                                         Margin="0,10,12,0"
+                                                         VerticalOptions="Start"
+                                                         WidthRequest="36" />
+                                                <Border BackgroundColor="White"
+                                                        HeightRequest="18"
+                                                        HorizontalOptions="Start"
+                                                        Margin="14,44,0,0"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 9"
+                                                        VerticalOptions="Start"
+                                                        WidthRequest="86" />
+                                                <Border x:Name="ThemeEcoBadge"
+                                                        BackgroundColor="{DynamicResource PrimaryGreen}"
+                                                        HorizontalOptions="End"
+                                                        IsVisible="False"
+                                                        Padding="7,4"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 12"
+                                                        VerticalOptions="Start">
+                                                    <Label Text="✓"
+                                                           FontSize="11"
+                                                           FontAttributes="Bold"
+                                                           TextColor="{DynamicResource OnAccentText}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Label x:Name="ThemeEcoTitleLabel"
+                                                   Grid.Row="1"
+                                                   Text="Eco Light"
+                                                   FontSize="16"
+                                                   FontAttributes="Bold"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1"
+                                                   TextColor="{DynamicResource TitleText}" />
+
+                                            <Label x:Name="ThemeEcoSubtitleLabel"
+                                                   Grid.Row="2"
+                                                   Text="Tươi, sáng và gần gũi cho bản đồ khám phá ban ngày."
+                                                   FontSize="13"
+                                                   LineBreakMode="WordWrap"
+                                                   MaxLines="3"
+                                                   TextColor="{DynamicResource MutedText}" />
+
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnThemeEcoTapped" />
+                                            </Border.GestureRecognizers>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border x:Name="ThemeMidnightCard"
+                                            BackgroundColor="{DynamicResource CardBg}"
+                                            Padding="12"
+                                            Stroke="{DynamicResource BorderColor}"
+                                            StrokeShape="RoundRectangle 20"
+                                            StrokeThickness="1"
+                                            WidthRequest="208">
+                                        <Grid RowDefinitions="Auto,Auto,Auto"
+                                              RowSpacing="10">
+                                            <Grid HeightRequest="74">
+                                                <Border BackgroundColor="#08141D"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 16" />
+                                                <BoxView Color="#58D18E"
+                                                         CornerRadius="18"
+                                                         HeightRequest="36"
+                                                         HorizontalOptions="End"
+                                                         Margin="0,10,12,0"
+                                                         VerticalOptions="Start"
+                                                         WidthRequest="36" />
+                                                <Border BackgroundColor="#173242"
+                                                        HeightRequest="18"
+                                                        HorizontalOptions="Start"
+                                                        Margin="14,44,0,0"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 9"
+                                                        VerticalOptions="Start"
+                                                        WidthRequest="86" />
+                                                <Border x:Name="ThemeMidnightBadge"
+                                                        BackgroundColor="{DynamicResource PrimaryGreen}"
+                                                        HorizontalOptions="End"
+                                                        IsVisible="False"
+                                                        Padding="7,4"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 12"
+                                                        VerticalOptions="Start">
+                                                    <Label Text="✓"
+                                                           FontSize="11"
+                                                           FontAttributes="Bold"
+                                                           TextColor="{DynamicResource OnAccentText}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Label x:Name="ThemeMidnightTitleLabel"
+                                                   Grid.Row="1"
+                                                   Text="Midnight"
+                                                   FontSize="16"
+                                                   FontAttributes="Bold"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1"
+                                                   TextColor="{DynamicResource TitleText}" />
+
+                                            <Label x:Name="ThemeMidnightSubtitleLabel"
+                                                   Grid.Row="2"
+                                                   Text="Độ tương phản dịu mắt hơn khi đi buổi tối hoặc ngoài trời tối."
+                                                   FontSize="13"
+                                                   LineBreakMode="WordWrap"
+                                                   MaxLines="3"
+                                                   TextColor="{DynamicResource MutedText}" />
+
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnThemeMidnightTapped" />
+                                            </Border.GestureRecognizers>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border x:Name="ThemeHeritageCard"
+                                            BackgroundColor="{DynamicResource CardBg}"
+                                            Padding="12"
+                                            Stroke="{DynamicResource BorderColor}"
+                                            StrokeShape="RoundRectangle 20"
+                                            StrokeThickness="1"
+                                            WidthRequest="208">
+                                        <Grid RowDefinitions="Auto,Auto,Auto"
+                                              RowSpacing="10">
+                                            <Grid HeightRequest="74">
+                                                <Border BackgroundColor="#8E4A26"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 16" />
+                                                <BoxView Color="#F4C9A7"
+                                                         CornerRadius="18"
+                                                         HeightRequest="36"
+                                                         HorizontalOptions="End"
+                                                         Margin="0,10,12,0"
+                                                         VerticalOptions="Start"
+                                                         WidthRequest="36" />
+                                                <Border BackgroundColor="#FFF6EA"
+                                                        HeightRequest="18"
+                                                        HorizontalOptions="Start"
+                                                        Margin="14,44,0,0"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 9"
+                                                        VerticalOptions="Start"
+                                                        WidthRequest="86" />
+                                                <Border x:Name="ThemeHeritageBadge"
+                                                        BackgroundColor="{DynamicResource PrimaryGreen}"
+                                                        HorizontalOptions="End"
+                                                        IsVisible="False"
+                                                        Padding="7,4"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 12"
+                                                        VerticalOptions="Start">
+                                                    <Label Text="✓"
+                                                           FontSize="11"
+                                                           FontAttributes="Bold"
+                                                           TextColor="{DynamicResource OnAccentText}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Label x:Name="ThemeHeritageTitleLabel"
+                                                   Grid.Row="1"
+                                                   Text="Heritage"
+                                                   FontSize="16"
+                                                   FontAttributes="Bold"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1"
+                                                   TextColor="{DynamicResource TitleText}" />
+
+                                            <Label x:Name="ThemeHeritageSubtitleLabel"
+                                                   Grid.Row="2"
+                                                   Text="Tông ấm gợi cảm giác di sản và du lịch văn hóa."
+                                                   FontSize="13"
+                                                   LineBreakMode="WordWrap"
+                                                   MaxLines="3"
+                                                   TextColor="{DynamicResource MutedText}" />
+
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnThemeHeritageTapped" />
+                                            </Border.GestureRecognizers>
+                                        </Grid>
+                                    </Border>
+                                </HorizontalStackLayout>
+                            </ScrollView>
+                        </VerticalStackLayout>
+                    </Border>
 
                     <HorizontalStackLayout Spacing="8">
                         <Label Text="🛰" FontSize="18" />
@@ -111,34 +339,39 @@
                                Style="{StaticResource SectionTitleStyle}" />
                     </HorizontalStackLayout>
 
-                    <Frame Style="{StaticResource CardFrameStyle}">
+                    <Border x:Name="GpsCard"
+                            Style="{StaticResource CardBorderStyle}">
                         <VerticalStackLayout Spacing="18">
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="GpsAccuracyLabel"
                                        Text="Độ chính xác GPS"
                                        FontSize="16"
-                                       TextColor="{StaticResource BodyText}" />
+                                       TextColor="{DynamicResource BodyText}" />
                                 <Label x:Name="GpsAccuracyValueLabel"
                                        Grid.Column="1"
                                        Text="Cao"
                                        FontSize="16"
-                                       TextColor="{StaticResource PrimaryGreen}"
+                                       TextColor="{DynamicResource PrimaryGreen}"
                                        FontAttributes="Bold" />
                             </Grid>
 
                             <Label x:Name="TriggerRadiusLabel"
                                    Text="Bán kính kích hoạt"
                                    FontSize="16"
-                                   TextColor="{StaticResource BodyText}" />
+                                   TextColor="{DynamicResource BodyText}" />
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Slider Minimum="10"
                                         Maximum="100"
                                         Value="50"
-                                        MinimumTrackColor="{StaticResource PrimaryGreen}"
-                                        MaximumTrackColor="#D1D5DB" />
-                                <Label Grid.Column="1"
+                                        MinimumTrackColor="{DynamicResource PrimaryGreen}"
+                                        MaximumTrackColor="{DynamicResource BorderColor}"
+                                        ThumbColor="{DynamicResource PrimaryGreen}"
+                                        x:Name="TriggerRadiusSlider"
+                                        ValueChanged="OnTriggerRadiusChanged" />
+                                <Label x:Name="TriggerRadiusValueLabel"
+                                       Grid.Column="1"
                                        Text="50m"
                                        Margin="10,0,0,0"
                                        VerticalOptions="Center"
@@ -149,15 +382,19 @@
                             <Label x:Name="AlertRadiusLabel"
                                    Text="Bán kính cảnh báo"
                                    FontSize="16"
-                                   TextColor="{StaticResource BodyText}" />
+                                   TextColor="{DynamicResource BodyText}" />
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Slider Minimum="20"
                                         Maximum="200"
                                         Value="100"
-                                        MinimumTrackColor="{StaticResource PrimaryGreen}"
-                                        MaximumTrackColor="#D1D5DB" />
-                                <Label Grid.Column="1"
+                                        MinimumTrackColor="{DynamicResource PrimaryGreen}"
+                                        MaximumTrackColor="{DynamicResource BorderColor}"
+                                        ThumbColor="{DynamicResource PrimaryGreen}"
+                                        x:Name="AlertRadiusSlider"
+                                        ValueChanged="OnAlertRadiusChanged" />
+                                <Label x:Name="AlertRadiusValueLabel"
+                                       Grid.Column="1"
                                        Text="100m"
                                        Margin="10,0,0,0"
                                        VerticalOptions="Center"
@@ -168,15 +405,19 @@
                             <Label x:Name="WaitTimeLabel"
                                    Text="Thời gian chờ"
                                    FontSize="16"
-                                   TextColor="{StaticResource BodyText}" />
+                                   TextColor="{DynamicResource BodyText}" />
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Slider Minimum="60"
                                         Maximum="600"
                                         Value="300"
-                                        MinimumTrackColor="{StaticResource PrimaryGreen}"
-                                        MaximumTrackColor="#D1D5DB" />
-                                <Label Grid.Column="1"
+                                        MinimumTrackColor="{DynamicResource PrimaryGreen}"
+                                        MaximumTrackColor="{DynamicResource BorderColor}"
+                                        ThumbColor="{DynamicResource PrimaryGreen}"
+                                        x:Name="WaitTimeSlider"
+                                        ValueChanged="OnWaitTimeChanged" />
+                                <Label x:Name="WaitTimeValueLabel"
+                                       Grid.Column="1"
                                        Text="300s"
                                        Margin="10,0,0,0"
                                        VerticalOptions="Center"
@@ -184,7 +425,7 @@
                                        FontAttributes="Bold" />
                             </Grid>
                         </VerticalStackLayout>
-                    </Frame>
+                    </Border>
 
                     <HorizontalStackLayout Spacing="8">
                         <Label Text="⤴" FontSize="18" />
@@ -193,51 +434,53 @@
                                Style="{StaticResource SectionTitleStyle}" />
                     </HorizontalStackLayout>
 
-                    <Frame Style="{StaticResource CardFrameStyle}">
+                    <Border x:Name="BehaviorCard"
+                            Style="{StaticResource CardBorderStyle}">
                         <VerticalStackLayout Spacing="18">
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="AutoPlayLabel"
                                        Text="Tự động phát khi vào vùng"
                                        FontSize="16"
-                                       TextColor="{StaticResource BodyText}" />
-                                <Switch Grid.Column="1" IsToggled="True" OnColor="{StaticResource PrimaryGreen}" />
+                                       TextColor="{DynamicResource BodyText}" />
+                                <Switch Grid.Column="1" IsToggled="True" OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="NotifyNearLabel"
                                        Text="Thông báo khi đến gần"
                                        FontSize="16"
-                                       TextColor="{StaticResource BodyText}" />
-                                <Switch Grid.Column="1" IsToggled="True" OnColor="{StaticResource PrimaryGreen}" />
+                                       TextColor="{DynamicResource BodyText}" />
+                                <Switch Grid.Column="1" IsToggled="True" OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="BackgroundTrackingLabel"
                                        Text="Theo dõi ở nền"
                                        FontSize="16"
-                                       TextColor="{StaticResource BodyText}" />
-                                <Switch Grid.Column="1" IsToggled="True" OnColor="{StaticResource PrimaryGreen}" />
+                                       TextColor="{DynamicResource BodyText}" />
+                                <Switch Grid.Column="1" IsToggled="True" OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="BatterySaverLabel"
                                        Text="Chế độ tiết kiệm pin"
                                        FontSize="16"
-                                       TextColor="{StaticResource BodyText}" />
-                                <Switch Grid.Column="1" IsToggled="False" OnColor="{StaticResource PrimaryGreen}" />
+                                       TextColor="{DynamicResource BodyText}" />
+                                <Switch Grid.Column="1" IsToggled="False" OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="OfflineModeLabel"
                                        Text="Chế độ Offline"
                                        FontSize="16"
-                                       TextColor="{StaticResource BodyText}" />
-                                <Switch Grid.Column="1" IsToggled="False" OnColor="{StaticResource PrimaryGreen}" />
+                                       TextColor="{DynamicResource BodyText}" />
+                                <Switch Grid.Column="1" IsToggled="False" OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
                         </VerticalStackLayout>
-                    </Frame>
+                    </Border>
 
                     <Button x:Name="SaveButton"
+                            Clicked="OnSaveTapped"
                             Text="💾 Lưu cài đặt"
                             Style="{StaticResource PrimaryButtonStyle}" />
                 </VerticalStackLayout>
@@ -246,9 +489,9 @@
             <!-- Popup chọn ngôn ngữ -->
             <Border x:Name="LanguagePopup"
                     IsVisible="False"
-                    Stroke="#E5E7EB"
+                    Stroke="{DynamicResource BorderColor}"
                     StrokeThickness="1"
-                    BackgroundColor="White"
+                    BackgroundColor="{DynamicResource PopupBg}"
                     StrokeShape="RoundRectangle 18"
                     HorizontalOptions="End"
                     VerticalOptions="Start"
@@ -264,7 +507,7 @@
                                Padding="18,16,18,12"
                                FontSize="15"
                                FontAttributes="Bold"
-                               TextColor="#667085" />
+                               TextColor="{DynamicResource MutedText}" />
 
                         <Grid x:Name="LangViItem"
                               Padding="0"
@@ -274,7 +517,7 @@
                               BackgroundColor="Transparent">
                             <BoxView x:Name="LangViIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="VN"
@@ -287,13 +530,13 @@
                                    Text="Tiếng Việt"
                                    FontSize="16"
                                    VerticalOptions="Center"
-                                   TextColor="{StaticResource BodyText}" />
+                                   TextColor="{DynamicResource BodyText}" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnLanguageViTapped" />
                             </Grid.GestureRecognizers>
                         </Grid>
 
-                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+                        <BoxView HeightRequest="1" Color="{DynamicResource DividerColor}" />
 
                         <Grid x:Name="LangEnItem"
                               Padding="0"
@@ -303,7 +546,7 @@
                               BackgroundColor="Transparent">
                             <BoxView x:Name="LangEnIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="GB"
@@ -316,13 +559,13 @@
                                    Text="English"
                                    FontSize="16"
                                    VerticalOptions="Center"
-                                   TextColor="{StaticResource BodyText}" />
+                                   TextColor="{DynamicResource BodyText}" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnLanguageEnTapped" />
                             </Grid.GestureRecognizers>
                         </Grid>
 
-                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+                        <BoxView HeightRequest="1" Color="{DynamicResource DividerColor}" />
 
                         <Grid x:Name="LangCnItem"
                               Padding="0"
@@ -332,7 +575,7 @@
                               BackgroundColor="Transparent">
                             <BoxView x:Name="LangCnIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="CN"
@@ -345,13 +588,13 @@
                                    Text="中文"
                                    FontSize="16"
                                    VerticalOptions="Center"
-                                   TextColor="{StaticResource BodyText}" />
+                                   TextColor="{DynamicResource BodyText}" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnLanguageCnTapped" />
                             </Grid.GestureRecognizers>
                         </Grid>
 
-                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+                        <BoxView HeightRequest="1" Color="{DynamicResource DividerColor}" />
 
                         <Grid x:Name="LangJpItem"
                               Padding="0"
@@ -361,7 +604,7 @@
                               BackgroundColor="Transparent">
                             <BoxView x:Name="LangJpIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="JP"
@@ -374,13 +617,13 @@
                                    Text="日本語"
                                    FontSize="16"
                                    VerticalOptions="Center"
-                                   TextColor="{StaticResource BodyText}" />
+                                   TextColor="{DynamicResource BodyText}" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnLanguageJpTapped" />
                             </Grid.GestureRecognizers>
                         </Grid>
 
-                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+                        <BoxView HeightRequest="1" Color="{DynamicResource DividerColor}" />
 
                         <Grid x:Name="LangKrItem"
                               Padding="0"
@@ -390,7 +633,7 @@
                               BackgroundColor="Transparent">
                             <BoxView x:Name="LangKrIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="KR"
@@ -403,13 +646,13 @@
                                    Text="한국어"
                                    FontSize="16"
                                    VerticalOptions="Center"
-                                   TextColor="{StaticResource BodyText}" />
+                                   TextColor="{DynamicResource BodyText}" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnLanguageKrTapped" />
                             </Grid.GestureRecognizers>
                         </Grid>
 
-                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+                        <BoxView HeightRequest="1" Color="{DynamicResource DividerColor}" />
 
                         <Grid x:Name="LangFrItem"
                               Padding="0"
@@ -419,7 +662,7 @@
                               BackgroundColor="Transparent">
                             <BoxView x:Name="LangFrIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="FR"
@@ -432,7 +675,7 @@
                                    Text="Français"
                                    FontSize="16"
                                    VerticalOptions="Center"
-                                   TextColor="{StaticResource BodyText}" />
+                                   TextColor="{DynamicResource BodyText}" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnLanguageFrTapped" />
                             </Grid.GestureRecognizers>

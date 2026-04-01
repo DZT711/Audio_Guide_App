@@ -4,21 +4,54 @@ namespace MauiApp_Mobile.Views;
 
 public partial class LanguagePage : ContentPage
 {
+    private bool _hasAnimated;
+    private bool _isRefreshingLanguageText;
+
     public LanguagePage()
     {
         InitializeComponent();
-        ApplyLanguage("vi");
+        ApplyLanguage("vi", animateText: false);
+        ThemeService.Instance.PropertyChanged += (_, _) => ApplyLanguage(LocalizationService.Instance.Language);
     }
 
-    private void ApplyLanguage(string languageCode)
+    protected override void OnAppearing()
     {
+        base.OnAppearing();
+
+        if (_hasAnimated)
+            return;
+
+        _hasAnimated = true;
+        _ = UiEffectsService.AnimateEntranceAsync(HeroStack, LanguageCardGrid, StartButton, FooterLabel);
+    }
+
+    private void ApplyLanguage(string languageCode, bool animateText = true)
+    {
+        if (_isRefreshingLanguageText)
+            return;
+
+        _isRefreshingLanguageText = true;
+
         LocalizationService.Instance.Language = languageCode;
 
-        TitleLabel.Text = LocalizationService.Instance.T("Lang.Title");
-        SubtitleLabel.Text = LocalizationService.Instance.T("Lang.Subtitle");
-        ChooseLanguageLabel.Text = LocalizationService.Instance.T("Lang.Choose");
-        StartButton.Text = LocalizationService.Instance.T("Lang.Start");
-        FooterLabel.Text = LocalizationService.Instance.T("Lang.Footer");
+        Action updateText = () =>
+        {
+            TitleLabel.Text = LocalizationService.Instance.T("Lang.Title");
+            SubtitleLabel.Text = LocalizationService.Instance.T("Lang.Subtitle");
+            ChooseLanguageLabel.Text = LocalizationService.Instance.T("Lang.Choose");
+            StartButton.Text = LocalizationService.Instance.T("Lang.Start");
+            FooterLabel.Text = LocalizationService.Instance.T("Lang.Footer");
+        };
+
+        if (animateText && _hasAnimated)
+        {
+            _ = AnimateLanguageTextAsync(updateText);
+        }
+        else
+        {
+            updateText();
+            _isRefreshingLanguageText = false;
+        }
 
         ResetSelectionStyle();
 
@@ -33,6 +66,19 @@ public partial class LanguagePage : ContentPage
         }
     }
 
+    private async Task AnimateLanguageTextAsync(Action updateText)
+    {
+        await UiEffectsService.CrossfadeTextAsync(
+            updateText,
+            TitleLabel,
+            SubtitleLabel,
+            ChooseLanguageLabel,
+            StartButton,
+            FooterLabel);
+
+        _isRefreshingLanguageText = false;
+    }
+
     private void ResetSelectionStyle()
     {
         ResetCard(CardVN, TickVN);
@@ -43,17 +89,19 @@ public partial class LanguagePage : ContentPage
         ResetCard(CardFR, TickFR);
     }
 
-    private void ResetCard(Frame card, Frame tick)
+    private void ResetCard(Border card, Border tick)
     {
-        card.BorderColor = Color.FromArgb("#D6DBE3");
-        card.BackgroundColor = Colors.White;
+        card.Stroke = new SolidColorBrush(ThemeService.Instance.GetColor("BorderColor", "#D6DBE3"));
+        card.StrokeThickness = 1;
+        card.BackgroundColor = ThemeService.Instance.GetColor("CardBg", "#FFFFFF");
         tick.IsVisible = false;
     }
 
-    private void SelectCard(Frame card, Frame tick)
+    private void SelectCard(Border card, Border tick)
     {
-        card.BorderColor = Color.FromArgb("#18A94B");
-        card.BackgroundColor = Color.FromArgb("#EEF8F1");
+        card.Stroke = new SolidColorBrush(ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B"));
+        card.StrokeThickness = 1.4;
+        card.BackgroundColor = ThemeService.Instance.GetColor("SoftGreen", "#EEF8F1");
         tick.IsVisible = true;
     }
 
@@ -66,6 +114,8 @@ public partial class LanguagePage : ContentPage
 
     private async void OnStartClicked(object sender, EventArgs e)
     {
+        await StartButton.ScaleToAsync(0.98, 70, Easing.CubicIn);
+        await StartButton.ScaleToAsync(1, 160, Easing.CubicOut);
         await Shell.Current.GoToAsync("//places");
     }
 }

@@ -21,6 +21,11 @@ public class LocalizationService : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    private LocalizationService()
+    {
+        SeedExtendedTranslations();
+    }
+
     private readonly Dictionary<string, Dictionary<string, string>> _texts = new()
     {
         ["vi"] = new()
@@ -40,7 +45,14 @@ public class LocalizationService : INotifyPropertyChanged
 
             ["Map.Title"] = "Bản đồ",
             ["Map.Search"] = "Tìm kiếm địa điểm...",
+            ["Map.SearchPoi"] = "Tìm theo tên POI...",
+            ["Map.SearchAddress"] = "Tìm theo địa chỉ...",
             ["Map.Area"] = "Khu vực bản đồ",
+            ["Map.LocateHint"] = "Chạm la bàn để lấy vị trí hiện tại",
+            ["Map.ModePoi"] = "Tên POI",
+            ["Map.ModeAddress"] = "Địa chỉ",
+            ["Map.ResultsPoi"] = "Kết quả POI",
+            ["Map.ResultsAddress"] = "Kết quả địa chỉ",
 
             ["History.Title"] = "Lịch sử",
             ["History.Subtitle"] = "Các địa điểm đã nghe thuyết minh",
@@ -71,6 +83,16 @@ public class LocalizationService : INotifyPropertyChanged
             ["Settings.BatterySaver"] = "Chế độ tiết kiệm pin",
             ["Settings.Offline"] = "Chế độ Offline",
             ["Settings.Save"] = "💾 Lưu cài đặt",
+            ["Settings.SaveSuccess"] = "Theme và các thiết lập demo đã được áp dụng.",
+            ["Settings.ChooseLanguage"] = "CHỌN NGÔN NGỮ",
+            ["Settings.Appearance"] = "Giao diện",
+            ["Settings.ThemeHint"] = "Chọn theme phù hợp với hành trình của bạn. Áp dụng ngay lập tức trên toàn app.",
+            ["Settings.ThemeEcoTitle"] = "Eco Light",
+            ["Settings.ThemeEcoSubtitle"] = "Tươi, sáng và gần gũi cho bản đồ khám phá ban ngày.",
+            ["Settings.ThemeMidnightTitle"] = "Midnight",
+            ["Settings.ThemeMidnightSubtitle"] = "Độ tương phản dịu mắt hơn khi đi buổi tối hoặc ngoài trời tối.",
+            ["Settings.ThemeHeritageTitle"] = "Heritage",
+            ["Settings.ThemeHeritageSubtitle"] = "Tông ấm gợi cảm giác di sản và du lịch văn hóa.",
 
             ["Filter.Title"] = "DANH MỤC",
             ["Filter.All"] = "Tất cả",
@@ -98,7 +120,14 @@ public class LocalizationService : INotifyPropertyChanged
 
             ["Map.Title"] = "Map",
             ["Map.Search"] = "Search places...",
+            ["Map.SearchPoi"] = "Search by POI name...",
+            ["Map.SearchAddress"] = "Search by address...",
             ["Map.Area"] = "Map area",
+            ["Map.LocateHint"] = "Tap the compass to jump to your current location",
+            ["Map.ModePoi"] = "POI name",
+            ["Map.ModeAddress"] = "Address",
+            ["Map.ResultsPoi"] = "POI results",
+            ["Map.ResultsAddress"] = "Address results",
 
             ["History.Title"] = "History",
             ["History.Subtitle"] = "Places you listened to",
@@ -129,6 +158,16 @@ public class LocalizationService : INotifyPropertyChanged
             ["Settings.BatterySaver"] = "Battery saver mode",
             ["Settings.Offline"] = "Offline mode",
             ["Settings.Save"] = "💾 Save settings",
+            ["Settings.SaveSuccess"] = "Your theme and demo settings have been applied.",
+            ["Settings.ChooseLanguage"] = "CHOOSE LANGUAGE",
+            ["Settings.Appearance"] = "Appearance",
+            ["Settings.ThemeHint"] = "Pick the look that fits your trip. Changes apply instantly across the app.",
+            ["Settings.ThemeEcoTitle"] = "Eco Light",
+            ["Settings.ThemeEcoSubtitle"] = "Fresh and bright for daytime map exploration.",
+            ["Settings.ThemeMidnightTitle"] = "Midnight",
+            ["Settings.ThemeMidnightSubtitle"] = "Softer contrast for evening walks and dark surroundings.",
+            ["Settings.ThemeHeritageTitle"] = "Heritage",
+            ["Settings.ThemeHeritageSubtitle"] = "A warm palette inspired by culture trips and historic spaces.",
 
             ["Filter.Title"] = "CATEGORY",
             ["Filter.All"] = "All",
@@ -157,6 +196,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.Title"] = "地图",
             ["Map.Search"] = "搜索地点...",
             ["Map.Area"] = "地图区域",
+            ["Map.LocateHint"] = "点击指南针即可定位到当前位置",
 
             ["History.Title"] = "历史记录",
             ["History.Subtitle"] = "已收听讲解的地点",
@@ -187,6 +227,16 @@ public class LocalizationService : INotifyPropertyChanged
             ["Settings.BatterySaver"] = "省电模式",
             ["Settings.Offline"] = "离线模式",
             ["Settings.Save"] = "💾 保存设置",
+            ["Settings.SaveSuccess"] = "主题和演示设置已应用。",
+            ["Settings.ChooseLanguage"] = "选择语言",
+            ["Settings.Appearance"] = "外观",
+            ["Settings.ThemeHint"] = "选择适合旅程氛围的主题，切换后会立即应用到整个应用。",
+            ["Settings.ThemeEcoTitle"] = "Eco Light",
+            ["Settings.ThemeEcoSubtitle"] = "清新明亮，适合白天查看地图。",
+            ["Settings.ThemeMidnightTitle"] = "Midnight",
+            ["Settings.ThemeMidnightSubtitle"] = "夜间出行时更柔和、更护眼。",
+            ["Settings.ThemeHeritageTitle"] = "Heritage",
+            ["Settings.ThemeHeritageSubtitle"] = "温暖色调，适合文化与历史类旅程。",
 
             ["Filter.Title"] = "分类",
             ["Filter.All"] = "全部",
@@ -215,6 +265,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.Title"] = "地図",
             ["Map.Search"] = "場所を検索...",
             ["Map.Area"] = "地図エリア",
+            ["Map.LocateHint"] = "コンパスをタップすると現在地へ移動します",
 
             ["History.Title"] = "履歴",
             ["History.Subtitle"] = "音声案内を聞いた場所",
@@ -245,6 +296,16 @@ public class LocalizationService : INotifyPropertyChanged
             ["Settings.BatterySaver"] = "省電力モード",
             ["Settings.Offline"] = "オフラインモード",
             ["Settings.Save"] = "💾 設定を保存",
+            ["Settings.SaveSuccess"] = "テーマとデモ設定を適用しました。",
+            ["Settings.ChooseLanguage"] = "言語を選択",
+            ["Settings.Appearance"] = "外観",
+            ["Settings.ThemeHint"] = "旅の雰囲気に合うテーマを選ぶと、アプリ全体にすぐ反映されます。",
+            ["Settings.ThemeEcoTitle"] = "Eco Light",
+            ["Settings.ThemeEcoSubtitle"] = "昼間の地図探索に合う、明るく爽やかな表示です。",
+            ["Settings.ThemeMidnightTitle"] = "Midnight",
+            ["Settings.ThemeMidnightSubtitle"] = "夜の散策や暗い場所でも目にやさしい表示です。",
+            ["Settings.ThemeHeritageTitle"] = "Heritage",
+            ["Settings.ThemeHeritageSubtitle"] = "文化遺産の旅に合う、あたたかみのある配色です。",
 
             ["Filter.Title"] = "カテゴリ",
             ["Filter.All"] = "すべて",
@@ -273,6 +334,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.Title"] = "지도",
             ["Map.Search"] = "장소 검색...",
             ["Map.Area"] = "지도 영역",
+            ["Map.LocateHint"] = "나침반을 누르면 현재 위치로 이동합니다",
 
             ["History.Title"] = "기록",
             ["History.Subtitle"] = "설명을 들은 장소",
@@ -303,6 +365,16 @@ public class LocalizationService : INotifyPropertyChanged
             ["Settings.BatterySaver"] = "절전 모드",
             ["Settings.Offline"] = "오프라인 모드",
             ["Settings.Save"] = "💾 설정 저장",
+            ["Settings.SaveSuccess"] = "테마와 데모 설정이 적용되었습니다.",
+            ["Settings.ChooseLanguage"] = "언어 선택",
+            ["Settings.Appearance"] = "테마",
+            ["Settings.ThemeHint"] = "여행 분위기에 맞는 테마를 선택하면 앱 전체에 바로 적용됩니다.",
+            ["Settings.ThemeEcoTitle"] = "Eco Light",
+            ["Settings.ThemeEcoSubtitle"] = "낮 시간 지도 탐색에 어울리는 밝고 산뜻한 테마입니다.",
+            ["Settings.ThemeMidnightTitle"] = "Midnight",
+            ["Settings.ThemeMidnightSubtitle"] = "야간 이동이나 어두운 환경에서 눈부심을 줄여 줍니다.",
+            ["Settings.ThemeHeritageTitle"] = "Heritage",
+            ["Settings.ThemeHeritageSubtitle"] = "문화와 유산 여행에 잘 어울리는 따뜻한 색감입니다。",
 
             ["Filter.Title"] = "카테고리",
             ["Filter.All"] = "전체",
@@ -331,6 +403,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.Title"] = "Carte",
             ["Map.Search"] = "Rechercher un lieu...",
             ["Map.Area"] = "Zone de la carte",
+            ["Map.LocateHint"] = "Touchez la boussole pour afficher votre position actuelle",
 
             ["History.Title"] = "Historique",
             ["History.Subtitle"] = "Lieux déjà écoutés",
@@ -361,6 +434,16 @@ public class LocalizationService : INotifyPropertyChanged
             ["Settings.BatterySaver"] = "Mode économie d’énergie",
             ["Settings.Offline"] = "Mode hors ligne",
             ["Settings.Save"] = "💾 Enregistrer",
+            ["Settings.SaveSuccess"] = "Le theme et les reglages de demonstration sont appliques.",
+            ["Settings.ChooseLanguage"] = "CHOISIR LA LANGUE",
+            ["Settings.Appearance"] = "Apparence",
+            ["Settings.ThemeHint"] = "Choisissez le theme qui correspond a votre parcours. Le changement est immediat dans toute l'application.",
+            ["Settings.ThemeEcoTitle"] = "Eco Light",
+            ["Settings.ThemeEcoSubtitle"] = "Un style clair et frais pour explorer la carte en journee.",
+            ["Settings.ThemeMidnightTitle"] = "Midnight",
+            ["Settings.ThemeMidnightSubtitle"] = "Un contraste plus doux pour les sorties du soir et les lieux sombres.",
+            ["Settings.ThemeHeritageTitle"] = "Heritage",
+            ["Settings.ThemeHeritageSubtitle"] = "Une palette chaude inspiree des voyages culturels et patrimoniaux.",
 
             ["Filter.Title"] = "CATÉGORIE",
             ["Filter.All"] = "Tous",
@@ -371,6 +454,167 @@ public class LocalizationService : INotifyPropertyChanged
             ["Filter.Utility"] = "Utilitaires"
         }
     };
+
+    private void SeedExtendedTranslations()
+    {
+        UpsertTexts("vi", new Dictionary<string, string>
+        {
+            ["Places.DetailPriority"] = "Độ ưu tiên {0}",
+            ["Places.AudioTracksTitle"] = "🔊 Danh sách Audio ({0})",
+            ["Places.GalleryOverview"] = "Khám phá",
+            ["Places.GalleryVisit"] = "Ghé thăm",
+            ["Places.GalleryAudio"] = "Audio",
+            ["Map.ViewDetails"] = "Xem chi tiết",
+            ["Map.NearestLabel"] = "Gần bạn nhất",
+            ["Map.CurrentLocationTitle"] = "Vị trí hiện tại",
+            ["Map.SearchResultTitle"] = "Kết quả tìm kiếm",
+            ["Map.NearestPrefix"] = "Gần nhất",
+            ["Map.PoiTapSearchHint"] = "Nhập tên POI rồi chạm tìm kiếm để xem kết quả.",
+            ["Map.AddressTapSearchHint"] = "Nhập địa chỉ rồi chạm tìm kiếm để tra cứu trực tuyến.",
+            ["Map.SearchingPoi"] = "Đang tìm POI...",
+            ["Map.SearchingAddress"] = "Đang tìm địa chỉ...",
+            ["Map.TypeMorePoi"] = "Nhập ít nhất 2 ký tự để tìm POI.",
+            ["Map.TypeMoreAddress"] = "Nhập ít nhất 3 ký tự để tìm địa chỉ."
+        });
+
+        UpsertTexts("en", new Dictionary<string, string>
+        {
+            ["Places.DetailPriority"] = "Priority {0}",
+            ["Places.AudioTracksTitle"] = "🔊 Audio tracks ({0})",
+            ["Places.GalleryOverview"] = "Overview",
+            ["Places.GalleryVisit"] = "Visit",
+            ["Places.GalleryAudio"] = "Audio",
+            ["Map.ViewDetails"] = "View details",
+            ["Map.NearestLabel"] = "Nearest to you",
+            ["Map.CurrentLocationTitle"] = "Current location",
+            ["Map.SearchResultTitle"] = "Search result",
+            ["Map.NearestPrefix"] = "Nearest",
+            ["Map.PoiTapSearchHint"] = "Enter a POI name, then tap search to see results.",
+            ["Map.AddressTapSearchHint"] = "Enter an address, then tap search to look it up online.",
+            ["Map.SearchingPoi"] = "Searching POIs...",
+            ["Map.SearchingAddress"] = "Searching addresses...",
+            ["Map.TypeMorePoi"] = "Type at least 2 characters to search POIs.",
+            ["Map.TypeMoreAddress"] = "Type at least 3 characters to search addresses."
+        });
+
+        UpsertTexts("cn", new Dictionary<string, string>
+        {
+            ["Places.DetailPriority"] = "优先级 {0}",
+            ["Places.AudioTracksTitle"] = "🔊 音频列表 ({0})",
+            ["Places.GalleryOverview"] = "概览",
+            ["Places.GalleryVisit"] = "到访",
+            ["Places.GalleryAudio"] = "音频",
+            ["Map.SearchPoi"] = "按 POI 名称搜索...",
+            ["Map.SearchAddress"] = "按地址搜索...",
+            ["Map.ModePoi"] = "POI 名称",
+            ["Map.ModeAddress"] = "地址",
+            ["Map.ResultsPoi"] = "POI 结果",
+            ["Map.ResultsAddress"] = "地址结果",
+            ["Map.ViewDetails"] = "查看详情",
+            ["Map.NearestLabel"] = "离您最近",
+            ["Map.CurrentLocationTitle"] = "当前位置",
+            ["Map.SearchResultTitle"] = "搜索结果",
+            ["Map.NearestPrefix"] = "最近",
+            ["Map.PoiTapSearchHint"] = "输入 POI 名称后点击搜索查看结果。",
+            ["Map.AddressTapSearchHint"] = "输入地址后点击搜索即可在线查询。",
+            ["Map.SearchingPoi"] = "正在搜索 POI...",
+            ["Map.SearchingAddress"] = "正在搜索地址...",
+            ["Map.TypeMorePoi"] = "请输入至少 2 个字符来搜索 POI。",
+            ["Map.TypeMoreAddress"] = "请输入至少 3 个字符来搜索地址。"
+        });
+
+        UpsertTexts("jp", new Dictionary<string, string>
+        {
+            ["Places.DetailPriority"] = "優先度 {0}",
+            ["Places.AudioTracksTitle"] = "🔊 オーディオ一覧 ({0})",
+            ["Places.GalleryOverview"] = "概要",
+            ["Places.GalleryVisit"] = "訪問",
+            ["Places.GalleryAudio"] = "音声",
+            ["Map.SearchPoi"] = "POI 名で検索...",
+            ["Map.SearchAddress"] = "住所で検索...",
+            ["Map.ModePoi"] = "POI 名",
+            ["Map.ModeAddress"] = "住所",
+            ["Map.ResultsPoi"] = "POI 結果",
+            ["Map.ResultsAddress"] = "住所結果",
+            ["Map.ViewDetails"] = "詳細を見る",
+            ["Map.NearestLabel"] = "現在地から最寄り",
+            ["Map.CurrentLocationTitle"] = "現在地",
+            ["Map.SearchResultTitle"] = "検索結果",
+            ["Map.NearestPrefix"] = "最寄り",
+            ["Map.PoiTapSearchHint"] = "POI 名を入力してから検索をタップすると結果を表示します。",
+            ["Map.AddressTapSearchHint"] = "住所を入力してから検索をタップするとオンライン検索します。",
+            ["Map.SearchingPoi"] = "POI を検索中...",
+            ["Map.SearchingAddress"] = "住所を検索中...",
+            ["Map.TypeMorePoi"] = "POI を検索するには 2 文字以上入力してください。",
+            ["Map.TypeMoreAddress"] = "住所を検索するには 3 文字以上入力してください。"
+        });
+
+        UpsertTexts("kr", new Dictionary<string, string>
+        {
+            ["Places.DetailPriority"] = "우선순위 {0}",
+            ["Places.AudioTracksTitle"] = "🔊 오디오 목록 ({0})",
+            ["Places.GalleryOverview"] = "개요",
+            ["Places.GalleryVisit"] = "방문",
+            ["Places.GalleryAudio"] = "오디오",
+            ["Map.SearchPoi"] = "POI 이름으로 검색...",
+            ["Map.SearchAddress"] = "주소로 검색...",
+            ["Map.ModePoi"] = "POI 이름",
+            ["Map.ModeAddress"] = "주소",
+            ["Map.ResultsPoi"] = "POI 결과",
+            ["Map.ResultsAddress"] = "주소 결과",
+            ["Map.ViewDetails"] = "상세 보기",
+            ["Map.NearestLabel"] = "가장 가까운 장소",
+            ["Map.CurrentLocationTitle"] = "현재 위치",
+            ["Map.SearchResultTitle"] = "검색 결과",
+            ["Map.NearestPrefix"] = "가장 가까운 곳",
+            ["Map.PoiTapSearchHint"] = "POI 이름을 입력한 뒤 검색 버튼을 눌러 결과를 확인하세요.",
+            ["Map.AddressTapSearchHint"] = "주소를 입력한 뒤 검색 버튼을 눌러 온라인으로 찾아보세요.",
+            ["Map.SearchingPoi"] = "POI 검색 중...",
+            ["Map.SearchingAddress"] = "주소 검색 중...",
+            ["Map.TypeMorePoi"] = "POI 검색을 위해 2자 이상 입력하세요.",
+            ["Map.TypeMoreAddress"] = "주소 검색을 위해 3자 이상 입력하세요."
+        });
+
+        UpsertTexts("fr", new Dictionary<string, string>
+        {
+            ["Places.DetailPriority"] = "Priorite {0}",
+            ["Places.AudioTracksTitle"] = "🔊 Pistes audio ({0})",
+            ["Places.GalleryOverview"] = "Apercu",
+            ["Places.GalleryVisit"] = "Visite",
+            ["Places.GalleryAudio"] = "Audio",
+            ["Map.SearchPoi"] = "Rechercher par nom de POI...",
+            ["Map.SearchAddress"] = "Rechercher par adresse...",
+            ["Map.ModePoi"] = "Nom du POI",
+            ["Map.ModeAddress"] = "Adresse",
+            ["Map.ResultsPoi"] = "Resultats POI",
+            ["Map.ResultsAddress"] = "Resultats d'adresse",
+            ["Map.ViewDetails"] = "Voir le detail",
+            ["Map.NearestLabel"] = "Le plus proche",
+            ["Map.CurrentLocationTitle"] = "Position actuelle",
+            ["Map.SearchResultTitle"] = "Resultat de recherche",
+            ["Map.NearestPrefix"] = "Plus proche",
+            ["Map.PoiTapSearchHint"] = "Saisissez un nom de POI puis touchez rechercher pour voir les resultats.",
+            ["Map.AddressTapSearchHint"] = "Saisissez une adresse puis touchez rechercher pour lancer la recherche en ligne.",
+            ["Map.SearchingPoi"] = "Recherche des POI...",
+            ["Map.SearchingAddress"] = "Recherche des adresses...",
+            ["Map.TypeMorePoi"] = "Saisissez au moins 2 caracteres pour chercher un POI.",
+            ["Map.TypeMoreAddress"] = "Saisissez au moins 3 caracteres pour chercher une adresse."
+        });
+    }
+
+    private void UpsertTexts(string language, IReadOnlyDictionary<string, string> values)
+    {
+        if (!_texts.TryGetValue(language, out var target))
+        {
+            target = new Dictionary<string, string>();
+            _texts[language] = target;
+        }
+
+        foreach (var pair in values)
+        {
+            target[pair.Key] = pair.Value;
+        }
+    }
 
     public string T(string key)
     {

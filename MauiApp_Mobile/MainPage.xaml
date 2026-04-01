@@ -4,9 +4,10 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:MauiApp_Mobile"
+    xmlns:models="clr-namespace:MauiApp_Mobile.Models"
     Shell.NavBarIsVisible="False"
     Padding="0"
-    BackgroundColor="{StaticResource LightBg}">
+    BackgroundColor="{DynamicResource LightBg}">
 
     <Grid RowDefinitions="Auto,*" RowSpacing="0">
 
@@ -25,9 +26,9 @@
                         <Entry x:Name="SearchEntry"
                                Grid.Column="1"
                                Placeholder="Tìm kiếm điểm..."
-                               PlaceholderColor="{StaticResource MutedText}"
+                               PlaceholderColor="{DynamicResource MutedText}"
                                BackgroundColor="Transparent"
-                               TextColor="{StaticResource BodyText}"
+                               TextColor="{DynamicResource BodyText}"
                                ClearButtonVisibility="WhileEditing"
                                TextChanged="OnSearchChanged" />
                     </Grid>
@@ -41,17 +42,17 @@
                 <Label x:Name="CountLabel"
                        Text="10 địa điểm"
                        FontSize="15"
-                       TextColor="{StaticResource BodyText}" />
+                       TextColor="{DynamicResource BodyText}" />
 
                 <Grid Grid.Column="1">
                     <HorizontalStackLayout Spacing="6">
                         <Label Text="⚙"
                                FontSize="16"
-                               TextColor="{StaticResource MutedText}" />
+                               TextColor="{DynamicResource MutedText}" />
                         <Label x:Name="FilterLabel"
                                Text="Lọc"
                                FontSize="15"
-                               TextColor="{StaticResource BodyText}" />
+                               TextColor="{DynamicResource BodyText}" />
                     </HorizontalStackLayout>
 
                     <Grid.GestureRecognizers>
@@ -72,17 +73,46 @@
                        Text="Không tìm thấy địa điểm"
                        FontSize="18"
                        FontAttributes="Bold"
-                       TextColor="{StaticResource BodyText}"
+                       TextColor="{DynamicResource BodyText}"
                        HorizontalTextAlignment="Center" />
                 <Label x:Name="EmptySubtitleLabel"
                        Text="Thử nhập từ khóa khác"
                        FontSize="14"
-                       TextColor="{StaticResource MutedText}"
+                       TextColor="{DynamicResource MutedText}"
                        HorizontalTextAlignment="Center" />
             </VerticalStackLayout>
 
+            <Grid x:Name="PlacesLoadingOverlay"
+                  Grid.RowSpan="3"
+                  IsVisible="True"
+                  Padding="0,4,0,0"
+                  RowDefinitions="Auto,Auto,*"
+                  RowSpacing="12"
+                  ZIndex="8">
+                <Border x:Name="PlacesCountSkeleton"
+                        HeightRequest="18"
+                        HorizontalOptions="Start"
+                        Style="{StaticResource SkeletonBoneStyle}"
+                        WidthRequest="110" />
+
+                <VerticalStackLayout Grid.Row="1"
+                                     Spacing="14">
+                    <Border x:Name="PlacesCardSkeleton1"
+                            HeightRequest="122"
+                            Style="{StaticResource SkeletonBoneStyle}" />
+                    <Border x:Name="PlacesCardSkeleton2"
+                            HeightRequest="122"
+                            Style="{StaticResource SkeletonBoneStyle}" />
+                    <Border x:Name="PlacesCardSkeleton3"
+                            HeightRequest="122"
+                            Style="{StaticResource SkeletonBoneStyle}" />
+                </VerticalStackLayout>
+            </Grid>
+
             <CollectionView x:Name="PlacesCollectionView"
                             Grid.Row="2"
+                            IsVisible="False"
+                            Opacity="0"
                             SelectionMode="None"
                             VerticalOptions="FillAndExpand"
                             ItemsLayout="VerticalList">
@@ -102,7 +132,7 @@
                                     <Label Text="{Binding Name}"
                                            FontSize="18"
                                            FontAttributes="Bold"
-                                           TextColor="{StaticResource BodyText}" />
+                                           TextColor="{DynamicResource BodyText}" />
 
                                     <Label Text="{Binding Description}"
                                            FontSize="13"
@@ -131,7 +161,7 @@
                                        HeightRequest="44"
                                        CornerRadius="22"
                                        Padding="0"
-                                       BackgroundColor="{StaticResource PrimaryGreen}"
+                                       BackgroundColor="{DynamicResource PrimaryGreen}"
                                        HorizontalOptions="End"
                                        VerticalOptions="Center">
                                     <Label Text="{Binding PlayIcon}"
@@ -152,9 +182,9 @@
             <Border x:Name="FilterPopup"
                     Grid.RowSpan="3"
                     IsVisible="False"
-                    Stroke="#E5E7EB"
+                    Stroke="{DynamicResource BorderColor}"
                     StrokeThickness="1"
-                    BackgroundColor="White"
+                    BackgroundColor="{DynamicResource PopupBg}"
                     StrokeShape="RoundRectangle 18"
                     HorizontalOptions="End"
                     VerticalOptions="Start"
@@ -170,7 +200,7 @@
                                Padding="18,16,18,12"
                                FontSize="15"
                                FontAttributes="Bold"
-                               TextColor="#667085" />
+                               TextColor="{DynamicResource MutedText}" />
 
                         <!-- All -->
                         <Grid x:Name="FilterAllItem"
@@ -181,7 +211,7 @@
                               MinimumHeightRequest="56">
                             <BoxView x:Name="FilterAllIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="📍"
@@ -193,14 +223,14 @@
                                    Grid.Column="2"
                                    Text="Tất cả"
                                    FontSize="16"
-                                   TextColor="{StaticResource BodyText}"
+                                   TextColor="{DynamicResource BodyText}"
                                    VerticalOptions="Center" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnFilterAllTapped" />
                             </Grid.GestureRecognizers>
                         </Grid>
 
-                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+                        <BoxView HeightRequest="1" Color="{DynamicResource DividerColor}" />
 
                         <!-- Signature -->
                         <Grid x:Name="FilterSignatureDishItem"
@@ -211,7 +241,7 @@
                               MinimumHeightRequest="56">
                             <BoxView x:Name="FilterSignatureDishIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="🍜"
@@ -223,14 +253,14 @@
                                    Grid.Column="2"
                                    Text="Món ăn đặc trưng"
                                    FontSize="16"
-                                   TextColor="{StaticResource BodyText}"
+                                   TextColor="{DynamicResource BodyText}"
                                    VerticalOptions="Center" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnFilterSignatureDishTapped" />
                             </Grid.GestureRecognizers>
                         </Grid>
 
-                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+                        <BoxView HeightRequest="1" Color="{DynamicResource DividerColor}" />
 
                         <!-- Famous -->
                         <Grid x:Name="FilterFamousRestaurantItem"
@@ -241,7 +271,7 @@
                               MinimumHeightRequest="56">
                             <BoxView x:Name="FilterFamousRestaurantIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="🏆"
@@ -253,14 +283,14 @@
                                    Grid.Column="2"
                                    Text="Quán nổi tiếng"
                                    FontSize="16"
-                                   TextColor="{StaticResource BodyText}"
+                                   TextColor="{DynamicResource BodyText}"
                                    VerticalOptions="Center" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnFilterFamousRestaurantTapped" />
                             </Grid.GestureRecognizers>
                         </Grid>
 
-                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+                        <BoxView HeightRequest="1" Color="{DynamicResource DividerColor}" />
 
                         <!-- Drinks -->
                         <Grid x:Name="FilterDrinksItem"
@@ -271,7 +301,7 @@
                               MinimumHeightRequest="56">
                             <BoxView x:Name="FilterDrinksIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="🥤"
@@ -283,14 +313,14 @@
                                    Grid.Column="2"
                                    Text="Đồ uống"
                                    FontSize="16"
-                                   TextColor="{StaticResource BodyText}"
+                                   TextColor="{DynamicResource BodyText}"
                                    VerticalOptions="Center" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnFilterDrinksTapped" />
                             </Grid.GestureRecognizers>
                         </Grid>
 
-                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+                        <BoxView HeightRequest="1" Color="{DynamicResource DividerColor}" />
 
                         <!-- Culture -->
                         <Grid x:Name="FilterFoodCultureItem"
@@ -301,7 +331,7 @@
                               MinimumHeightRequest="56">
                             <BoxView x:Name="FilterFoodCultureIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="🎎"
@@ -313,14 +343,14 @@
                                    Grid.Column="2"
                                    Text="Văn hóa ẩm thực"
                                    FontSize="16"
-                                   TextColor="{StaticResource BodyText}"
+                                   TextColor="{DynamicResource BodyText}"
                                    VerticalOptions="Center" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnFilterFoodCultureTapped" />
                             </Grid.GestureRecognizers>
                         </Grid>
 
-                        <BoxView HeightRequest="1" Color="#EEF0F3" />
+                        <BoxView HeightRequest="1" Color="{DynamicResource DividerColor}" />
 
                         <!-- Utility -->
                         <Grid x:Name="FilterUtilityItem"
@@ -331,7 +361,7 @@
                               MinimumHeightRequest="56">
                             <BoxView x:Name="FilterUtilityIndicator"
                                      Grid.Column="0"
-                                     Color="#18A94B"
+                                     Color="{DynamicResource PrimaryGreen}"
                                      IsVisible="False" />
                             <Label Grid.Column="1"
                                    Text="🏪"
@@ -343,7 +373,7 @@
                                    Grid.Column="2"
                                    Text="Tiện ích"
                                    FontSize="16"
-                                   TextColor="{StaticResource BodyText}"
+                                   TextColor="{DynamicResource BodyText}"
                                    VerticalOptions="Center" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnFilterUtilityTapped" />
@@ -356,7 +386,7 @@
 
         <Grid Grid.RowSpan="2"
               IsVisible="{Binding IsPlaceDetailVisible}"
-              BackgroundColor="#66000000"
+              BackgroundColor="{DynamicResource OverlayColor}"
               RowDefinitions="*,Auto"
               ZIndex="90">
 
@@ -368,13 +398,13 @@
 
             <Border x:Name="PlaceDetailSheet"
                     Grid.Row="1"
-                    BackgroundColor="White"
+                    BackgroundColor="{DynamicResource BottomSheetBg}"
                     StrokeThickness="0"
                     StrokeShape="RoundRectangle 24,24,0,0"
                     Padding="0,0,0,10"
                     TranslationY="520">
 
-                <Grid RowDefinitions="Auto,190,*">
+                <Grid RowDefinitions="Auto,214,*">
                     <Grid Grid.Row="0"
                           Padding="0,10,0,8"
                           HorizontalOptions="Fill">
@@ -384,59 +414,149 @@
                         </Grid.GestureRecognizers>
                         <Border WidthRequest="52"
                                 HeightRequest="6"
-                                BackgroundColor="#D0D5DD"
+                                BackgroundColor="{DynamicResource SheetHandleColor}"
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 3"
                                 HorizontalOptions="Center" />
                     </Grid>
 
-                    <Grid Grid.Row="1">
-                        <Grid.GestureRecognizers>
-                            <PanGestureRecognizer PanUpdated="OnPlaceDetailPanUpdated" />
-                        </Grid.GestureRecognizers>
-                        <Image Source="{Binding SelectedPlace.Image}" Aspect="AspectFill" />
+                    <Grid Grid.Row="1"
+                          Padding="12,0,12,10">
+                        <Border BackgroundColor="#11283F"
+                                Stroke="#12000000"
+                                StrokeShape="RoundRectangle 28"
+                                StrokeThickness="0">
+                            <CarouselView x:Name="PlaceDetailCarousel"
+                                          HorizontalOptions="Fill"
+                                          IndicatorView="PlaceDetailIndicator"
+                                          ItemsSource="{Binding SelectedPlaceGallery}"
+                                          Loop="True"
+                                          PeekAreaInsets="0"
+                                          PositionChanged="OnPlaceDetailCarouselPositionChanged"
+                                          VerticalOptions="Fill">
+                                <CarouselView.ItemsLayout>
+                                    <LinearItemsLayout ItemSpacing="0"
+                                                       Orientation="Horizontal"
+                                                       SnapPointsAlignment="Center"
+                                                       SnapPointsType="MandatorySingle" />
+                                </CarouselView.ItemsLayout>
+                                <CarouselView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:PlaceGallerySlide">
+                                        <Grid HorizontalOptions="Fill"
+                                              VerticalOptions="Fill"
+                                              WidthRequest="{Binding Source={x:Reference PlaceDetailCarousel}, Path=Width}">
+                                            <Border StrokeThickness="0">
+                                                <Border.Background>
+                                                    <LinearGradientBrush StartPoint="0,0"
+                                                                         EndPoint="1,1">
+                                                        <GradientStop Color="{Binding GradientStart}" Offset="0.0" />
+                                                        <GradientStop Color="{Binding GradientEnd}" Offset="1.0" />
+                                                    </LinearGradientBrush>
+                                                </Border.Background>
+                                            </Border>
 
-                        <Grid Padding="14"
-                              RowDefinitions="Auto,*,Auto"
-                              BackgroundColor="#33000000">
-                            <Border BackgroundColor="#FDECEC"
-                                    StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 12"
-                                    Padding="10,4"
-                                    HorizontalOptions="Start">
-                                <Label Text="{Binding SelectedPlace.Category}"
-                                       FontSize="12"
-                                       TextColor="#E53935" />
-                            </Border>
+                                            <Image Source="{Binding Image}"
+                                                   Aspect="AspectFill"
+                                                   Opacity="0.16" />
 
-                            <Button Grid.Row="0"
-                                    Text="✕"
-                                    Clicked="OnClosePlaceDetail"
-                                    WidthRequest="38"
-                                    HeightRequest="38"
-                                    CornerRadius="19"
-                                    BackgroundColor="#88000000"
-                                    TextColor="White"
-                                    HorizontalOptions="End"
-                                    VerticalOptions="Start" />
+                                            <Grid Padding="18"
+                                                  RowDefinitions="Auto,*,Auto">
+                                                <Grid ColumnDefinitions="*,Auto"
+                                                      ColumnSpacing="12">
+                                                    <HorizontalStackLayout Spacing="8">
+                                                        <Border BackgroundColor="{Binding BadgeBackground}"
+                                                                Padding="10,4"
+                                                                StrokeThickness="0"
+                                                                StrokeShape="RoundRectangle 12"
+                                                                VerticalOptions="Start">
+                                                            <Label Text="{Binding BadgeText}"
+                                                                   FontAttributes="Bold"
+                                                                   FontSize="11"
+                                                                   TextColor="{Binding BadgeForeground}" />
+                                                        </Border>
 
-                            <VerticalStackLayout Grid.Row="2" Spacing="4">
-                                <Label Text="{Binding SelectedPlace.Name}"
-                                       FontSize="36"
-                                       FontAttributes="Bold"
-                                       TextColor="White" />
-                                <HorizontalStackLayout Spacing="8">
-                                    <Label Text="★★★★★" FontSize="12" TextColor="#FACC15" />
-                                    <Label Text="{Binding DetailPriorityText}" FontSize="12" TextColor="White" />
-                                    <Border BackgroundColor="#16A34A"
-                                            StrokeThickness="0"
-                                            StrokeShape="RoundRectangle 10"
-                                            Padding="8,2">
-                                        <Label Text="GPS" FontSize="11" TextColor="White" />
-                                    </Border>
-                                </HorizontalStackLayout>
-                            </VerticalStackLayout>
-                        </Grid>
+                                                        <Label Text="{Binding Eyebrow}"
+                                                               FontAttributes="Bold"
+                                                               FontSize="11"
+                                                               TextColor="#E2F6EA"
+                                                               VerticalOptions="Center" />
+                                                    </HorizontalStackLayout>
+
+                                                    <Border Grid.Column="1"
+                                                            WidthRequest="68"
+                                                            HeightRequest="68"
+                                                            BackgroundColor="#30FFFFFF"
+                                                            Padding="6"
+                                                            Stroke="#4DFFFFFF"
+                                                            StrokeShape="RoundRectangle 34"
+                                                            StrokeThickness="1">
+                                                        <Border BackgroundColor="#12FFFFFF"
+                                                                Padding="3"
+                                                                StrokeThickness="0"
+                                                                StrokeShape="RoundRectangle 28">
+                                                            <Border StrokeThickness="0"
+                                                                    StrokeShape="RoundRectangle 25">
+                                                                <Image Source="{Binding Image}"
+                                                                       Aspect="AspectFill" />
+                                                            </Border>
+                                                        </Border>
+                                                    </Border>
+                                                </Grid>
+
+                                                <Grid Grid.Row="1">
+                                                    <Border WidthRequest="120"
+                                                            HeightRequest="120"
+                                                            BackgroundColor="#16FFFFFF"
+                                                            HorizontalOptions="End"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 60"
+                                                            TranslationX="32"
+                                                            TranslationY="-8" />
+                                                </Grid>
+
+                                                <VerticalStackLayout Grid.Row="2"
+                                                                     Spacing="6">
+                                                    <Label Text="{Binding Title}"
+                                                           FontSize="26"
+                                                           FontAttributes="Bold"
+                                                           LineBreakMode="TailTruncation"
+                                                           MaxLines="2"
+                                                           TextColor="White" />
+                                                    <Label Text="{Binding Subtitle}"
+                                                           FontSize="13"
+                                                           LineBreakMode="TailTruncation"
+                                                           MaxLines="3"
+                                                           TextColor="#E7F4EC" />
+                                                    <Label Text="{Binding FooterText}"
+                                                           FontSize="12"
+                                                           LineBreakMode="TailTruncation"
+                                                           MaxLines="1"
+                                                           TextColor="#FDF4C4" />
+                                                </VerticalStackLayout>
+                                            </Grid>
+                                        </Grid>
+                                    </DataTemplate>
+                                </CarouselView.ItemTemplate>
+                            </CarouselView>
+                        </Border>
+
+                        <Button Text="✕"
+                                Clicked="OnClosePlaceDetail"
+                                WidthRequest="38"
+                                HeightRequest="38"
+                                CornerRadius="19"
+                                BackgroundColor="#88000000"
+                                TextColor="White"
+                                HorizontalOptions="End"
+                                Margin="0,16,18,0"
+                                VerticalOptions="Start" />
+
+                        <IndicatorView x:Name="PlaceDetailIndicator"
+                                       HorizontalOptions="Center"
+                                       IndicatorColor="#6FFFFFFF"
+                                       Margin="0,0,0,20"
+                                       SelectedIndicatorColor="White"
+                                       VerticalOptions="End" />
                     </Grid>
 
                     <ScrollView Grid.Row="2">
@@ -513,7 +633,7 @@
                                                     <HorizontalStackLayout Spacing="8">
                                                         <Label Text="{Binding LanguageCode}" FontSize="12" TextColor="#64748B" />
                                                         <Label Text="{Binding Title}" FontSize="15" FontAttributes="Bold" TextColor="#0F172A" />
-                                                        <Label Text="⏱ {Binding Duration}" FontSize="12" TextColor="#98A2B3" HorizontalOptions="EndAndExpand" />
+                                                        <Label Text="{Binding Duration, StringFormat='⏱ {0}'}" FontSize="12" TextColor="#98A2B3" HorizontalOptions="EndAndExpand" />
                                                     </HorizontalStackLayout>
 
                                                     <HorizontalStackLayout Spacing="6">

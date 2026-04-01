@@ -5,12 +5,14 @@ namespace MauiApp_Mobile.Models;
 
 public class PlaceItem : INotifyPropertyChanged
 {
+    public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public string Description { get; set; } = "";
     public string AudioDescription { get; set; } = "";
     public string Category { get; set; } = "";
     public string Rating { get; set; } = "";
     public string Image { get; set; } = "";
+    public IReadOnlyList<string> GalleryImages { get; set; } = Array.Empty<string>();
     public string Address { get; set; } = ""; // Added for History page detail
     public string Phone { get; set; } = "";
     public string Email { get; set; } = "";
@@ -18,6 +20,8 @@ public class PlaceItem : INotifyPropertyChanged
     public string EstablishedYear { get; set; } = "";
     public string RadiusText { get; set; } = "";
     public string GpsText { get; set; } = "";
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
     public Color CategoryColor { get; set; } = Colors.LightGray;
     public Color CategoryTextColor { get; set; } = Colors.Black;
 

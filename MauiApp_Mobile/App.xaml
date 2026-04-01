@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <Application
     x:Class="MauiApp_Mobile.App"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -9,48 +9,89 @@
             <Color x:Key="PrimaryGreenDark">#148F40</Color>
             <Color x:Key="LightBg">#F3F4F6</Color>
             <Color x:Key="CardBg">#FFFFFF</Color>
+            <Color x:Key="SurfaceAlt">#F8FAFC</Color>
+            <Color x:Key="InputBg">#FFFFFF</Color>
+            <Color x:Key="PopupBg">#FFFFFF</Color>
+            <Color x:Key="BottomSheetBg">#FFFFFF</Color>
             <Color x:Key="MutedText">#8A94A6</Color>
             <Color x:Key="BodyText">#1E3250</Color>
+            <Color x:Key="TitleText">#0F172A</Color>
+            <Color x:Key="OnAccentText">#FFFFFF</Color>
             <Color x:Key="BorderColor">#E5E7EB</Color>
+            <Color x:Key="DividerColor">#EEF0F3</Color>
             <Color x:Key="SoftGreen">#E8F7EE</Color>
-            <Color x:Key="SoftPurple">#F2E8FF</Color>
+            <Color x:Key="SoftPurple">#EFF6FF</Color>
             <Color x:Key="SoftOrange">#FFE8D8</Color>
             <Color x:Key="SoftRed">#FFE3E3</Color>
+            <Color x:Key="InfoText">#2563EB</Color>
+            <Color x:Key="WarningText">#CA8A04</Color>
+            <Color x:Key="DangerText">#E53935</Color>
+            <Color x:Key="SuccessText">#0F8E41</Color>
+            <Color x:Key="OverlayColor">#66000000</Color>
+            <Color x:Key="SheetHandleColor">#D0D5DD</Color>
+            <Color x:Key="SkeletonBaseColor">#E7EBF0</Color>
+            <Color x:Key="SkeletonHighlightColor">#F4F6F8</Color>
+            <Color x:Key="HeroBubbleColor">#49D16F</Color>
+            <Color x:Key="HeroBubbleAltColor">#A7F3C5</Color>
+            <Color x:Key="MapButtonBg">#FFFFFF</Color>
+            <Color x:Key="MapButtonRing">#D6FAE3</Color>
+            <Color x:Key="TabBarBackgroundColor">#FFFFFF</Color>
+            <Color x:Key="TabBarUnselectedColor">#98A2B3</Color>
+            <Color x:Key="HeaderGradientStart">#109245</Color>
+            <Color x:Key="HeaderGradientEnd">#1DB954</Color>
+            <Color x:Key="HeaderActionSurface">#45C26F</Color>
+            <Color x:Key="HeaderSupportText">#E8F7EE</Color>
+
+            <LinearGradientBrush x:Key="HeaderGradientBrush"
+                                 StartPoint="0,0"
+                                 EndPoint="1,1">
+                <GradientStop Color="#109245" Offset="0.0" />
+                <GradientStop Color="#1DB954" Offset="1.0" />
+            </LinearGradientBrush>
 
             <Style x:Key="PageTitleStyle" TargetType="Label">
                 <Setter Property="FontSize" Value="26" />
                 <Setter Property="FontAttributes" Value="Bold" />
-                <Setter Property="TextColor" Value="White" />
+                <Setter Property="TextColor" Value="{DynamicResource OnAccentText}" />
             </Style>
 
             <Style x:Key="SectionTitleStyle" TargetType="Label">
                 <Setter Property="FontSize" Value="18" />
                 <Setter Property="FontAttributes" Value="Bold" />
-                <Setter Property="TextColor" Value="{StaticResource BodyText}" />
+                <Setter Property="TextColor" Value="{DynamicResource TitleText}" />
             </Style>
 
             <Style x:Key="BodyStyle" TargetType="Label">
                 <Setter Property="FontSize" Value="14" />
-                <Setter Property="TextColor" Value="{StaticResource BodyText}" />
+                <Setter Property="TextColor" Value="{DynamicResource BodyText}" />
             </Style>
 
             <Style x:Key="MutedStyle" TargetType="Label">
                 <Setter Property="FontSize" Value="13" />
-                <Setter Property="TextColor" Value="{StaticResource MutedText}" />
+                <Setter Property="TextColor" Value="{DynamicResource MutedText}" />
             </Style>
 
             <Style x:Key="CardFrameStyle" TargetType="Frame">
-                <Setter Property="BackgroundColor" Value="{StaticResource CardBg}" />
-                <Setter Property="BorderColor" Value="{StaticResource BorderColor}" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource CardBg}" />
+                <Setter Property="BorderColor" Value="{DynamicResource BorderColor}" />
                 <Setter Property="CornerRadius" Value="22" />
                 <Setter Property="Padding" Value="16" />
                 <Setter Property="HasShadow" Value="True" />
                 <Setter Property="Margin" Value="0,0,0,14" />
             </Style>
 
+            <Style x:Key="CardBorderStyle" TargetType="Border">
+                <Setter Property="BackgroundColor" Value="{DynamicResource CardBg}" />
+                <Setter Property="Stroke" Value="{DynamicResource BorderColor}" />
+                <Setter Property="StrokeThickness" Value="1" />
+                <Setter Property="StrokeShape" Value="RoundRectangle 22" />
+                <Setter Property="Padding" Value="16" />
+                <Setter Property="Margin" Value="0,0,0,14" />
+            </Style>
+
             <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-                <Setter Property="BackgroundColor" Value="{StaticResource PrimaryGreen}" />
-                <Setter Property="TextColor" Value="White" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource PrimaryGreen}" />
+                <Setter Property="TextColor" Value="{DynamicResource OnAccentText}" />
                 <Setter Property="CornerRadius" Value="18" />
                 <Setter Property="FontAttributes" Value="Bold" />
                 <Setter Property="FontSize" Value="18" />
@@ -58,7 +99,7 @@
             </Style>
 
             <Style x:Key="TopHeaderGridStyle" TargetType="Grid">
-                <Setter Property="BackgroundColor" Value="{StaticResource PrimaryGreen}" />
+                <Setter Property="Background" Value="{DynamicResource HeaderGradientBrush}" />
                 <Setter Property="Padding" Value="18,12,18,10" />
                 <Setter Property="MinimumHeightRequest" Value="118" />
             </Style>
@@ -72,11 +113,11 @@
 
             <Style x:Key="TopHeaderSubtitleStyle" TargetType="Label">
                 <Setter Property="FontSize" Value="13" />
-                <Setter Property="TextColor" Value="#DDF7E7" />
+                <Setter Property="TextColor" Value="{DynamicResource HeaderSupportText}" />
             </Style>
 
             <Style x:Key="TopHeaderSearchFrameStyle" TargetType="Frame">
-                <Setter Property="BackgroundColor" Value="White" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource InputBg}" />
                 <Setter Property="BorderColor" Value="Transparent" />
                 <Setter Property="CornerRadius" Value="16" />
                 <Setter Property="HasShadow" Value="False" />
@@ -85,7 +126,7 @@
 
             <Style x:Key="TopHeaderSearchIconStyle" TargetType="Label">
                 <Setter Property="FontSize" Value="20" />
-                <Setter Property="TextColor" Value="{StaticResource MutedText}" />
+                <Setter Property="TextColor" Value="{DynamicResource MutedText}" />
                 <Setter Property="VerticalOptions" Value="Center" />
             </Style>
 
@@ -95,19 +136,25 @@
                 <Setter Property="CornerRadius" Value="12" />
                 <Setter Property="Padding" Value="0" />
                 <Setter Property="HasShadow" Value="False" />
-                <Setter Property="BackgroundColor" Value="#45C26F" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource HeaderActionSurface}" />
                 <Setter Property="VerticalOptions" Value="Center" />
             </Style>
 
             <Style x:Key="TopHeaderActionButtonStyle" TargetType="Button">
-                <Setter Property="BackgroundColor" Value="#46C768" />
-                <Setter Property="TextColor" Value="White" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource HeaderActionSurface}" />
+                <Setter Property="TextColor" Value="{DynamicResource OnAccentText}" />
                 <Setter Property="FontAttributes" Value="Bold" />
                 <Setter Property="FontSize" Value="13" />
                 <Setter Property="CornerRadius" Value="16" />
                 <Setter Property="Padding" Value="12,6" />
                 <Setter Property="HeightRequest" Value="34" />
                 <Setter Property="VerticalOptions" Value="Center" />
+            </Style>
+
+            <Style x:Key="SkeletonBoneStyle" TargetType="Border">
+                <Setter Property="BackgroundColor" Value="{DynamicResource SkeletonBaseColor}" />
+                <Setter Property="StrokeThickness" Value="0" />
+                <Setter Property="StrokeShape" Value="RoundRectangle 14" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

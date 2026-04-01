@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:MauiApp_Mobile.Views"
     x:Name="ThisPage"
-    BackgroundColor="#F4F5F7"
+    BackgroundColor="{DynamicResource LightBg}"
     Shell.NavBarIsVisible="False">
 
     <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="0">
@@ -34,49 +34,94 @@
 
         <!-- Stats -->
         <Grid Grid.Row="1"
-              BackgroundColor="White"
-              Padding="16,12,16,10"
-              ColumnDefinitions="*,Auto"
-              RowDefinitions="Auto">
+              Padding="16,14,16,12">
+            <VerticalStackLayout Spacing="12">
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="12">
+                    <Border x:Name="OfflineSummaryCard1"
+                            BackgroundColor="{DynamicResource CardBg}"
+                            Padding="14"
+                            Stroke="{DynamicResource BorderColor}"
+                            StrokeShape="RoundRectangle 18"
+                            StrokeThickness="1">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="Sẵn sàng offline"
+                                   FontSize="12"
+                                   TextColor="{DynamicResource MutedText}" />
+                            <Label Text="{Binding DownloadedCountText}"
+                                   FontAttributes="Bold"
+                                   FontSize="22"
+                                   TextColor="{DynamicResource TitleText}" />
+                            <Label Text="Các pack đã tải"
+                                   FontSize="12"
+                                   TextColor="{DynamicResource SuccessText}" />
+                        </VerticalStackLayout>
+                    </Border>
 
-            <HorizontalStackLayout Spacing="16">
-                <HorizontalStackLayout Spacing="6">
-                    <Label Text="◌"
-                           FontSize="14"
-                           TextColor="#18A94B"
-                           VerticalTextAlignment="Center" />
-                    <Label Text="{Binding DownloadedCountText}"
-                           FontSize="18"
-                           TextColor="#344054"
-                           VerticalTextAlignment="Center" />
-                </HorizontalStackLayout>
+                    <Border x:Name="OfflineSummaryCard2"
+                            Grid.Column="1"
+                            BackgroundColor="{DynamicResource CardBg}"
+                            Padding="14"
+                            Stroke="{DynamicResource BorderColor}"
+                            StrokeShape="RoundRectangle 18"
+                            StrokeThickness="1">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="Dung lượng"
+                                   FontSize="12"
+                                   TextColor="{DynamicResource MutedText}" />
+                            <Label Text="{Binding DownloadedSizeText}"
+                                   FontAttributes="Bold"
+                                   FontSize="22"
+                                   TextColor="{DynamicResource TitleText}" />
+                            <Label Text="Đã lưu trong thiết bị"
+                                   FontSize="12"
+                                   TextColor="{DynamicResource InfoText}" />
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
 
-                <HorizontalStackLayout Spacing="6">
-                    <Label Text="▣"
-                           FontSize="14"
-                           TextColor="#3B82F6"
-                           VerticalTextAlignment="Center" />
-                    <Label Text="{Binding DownloadedSizeText}"
-                           FontSize="18"
-                           TextColor="#344054"
-                           VerticalTextAlignment="Center" />
-                </HorizontalStackLayout>
-            </HorizontalStackLayout>
+                <Border x:Name="OfflineProgressCard"
+                        BackgroundColor="{DynamicResource CardBg}"
+                        Padding="14"
+                        Stroke="{DynamicResource BorderColor}"
+                        StrokeShape="RoundRectangle 18"
+                        StrokeThickness="1">
+                    <VerticalStackLayout Spacing="10">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="10">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Thư viện nghe không cần mạng"
+                                       FontAttributes="Bold"
+                                       FontSize="15"
+                                       TextColor="{DynamicResource BodyText}" />
+                                <Label Text="{Binding DownloadProgressText}"
+                                       FontSize="12"
+                                       TextColor="{DynamicResource MutedText}" />
+                            </VerticalStackLayout>
 
-            <Label Grid.Column="1"
-                   Text="🗑 Xóa hết"
-                   TextColor="#FF4D4F"
-                   FontSize="14"
-                   VerticalTextAlignment="Center">
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnClearAllTapped" />
-                </Label.GestureRecognizers>
-            </Label>
+                            <Label Grid.Column="1"
+                                   Text="🗑 Xóa hết"
+                                   FontSize="14"
+                                   TextColor="{DynamicResource DangerText}"
+                                   VerticalTextAlignment="Center">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnClearAllTapped" />
+                                </Label.GestureRecognizers>
+                            </Label>
+                        </Grid>
+
+                        <ProgressBar Progress="{Binding DownloadProgress}"
+                                     ProgressColor="{DynamicResource PrimaryGreen}"
+                                     BackgroundColor="{DynamicResource DividerColor}"
+                                     HeightRequest="10" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
         </Grid>
 
         <!-- Filter -->
         <HorizontalStackLayout Grid.Row="2"
-                               BackgroundColor="White"
+                               BackgroundColor="{DynamicResource CardBg}"
                                Padding="16,0,16,12"
                                Spacing="10">
 
@@ -121,11 +166,14 @@
         </HorizontalStackLayout>
 
         <!-- List -->
-        <CollectionView Grid.Row="3"
-                        ItemsSource="{Binding FilteredItems}"
-                        Margin="0,0,0,0"
-                        ItemSizingStrategy="MeasureFirstItem"
-                        SelectionMode="None">
+        <Grid Grid.Row="3">
+            <CollectionView x:Name="OfflineCollectionView"
+                            IsVisible="{Binding HasItems}"
+                            ItemsSource="{Binding FilteredItems}"
+                            Margin="0,0,0,0"
+                            Opacity="0"
+                            ItemSizingStrategy="MeasureFirstItem"
+                            SelectionMode="None">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Vertical"
                                    ItemSpacing="14" />
@@ -134,7 +182,7 @@
                 <DataTemplate x:DataType="local:OfflinePackItem">
                     <Border Margin="10,0"
                             Padding="12"
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource CardBg}"
                             Stroke="{Binding CardStrokeColor}"
                             StrokeThickness="1"
                             StrokeShape="RoundRectangle 18">
@@ -156,14 +204,14 @@
                                            IsClippedToBounds="True"
                                            WidthRequest="56"
                                            HeightRequest="56"
-                                           BackgroundColor="#E5E7EB">
+                                           BackgroundColor="{DynamicResource SurfaceAlt}">
                                         <Image Source="{Binding Image}"
                                                Aspect="AspectFill" />
                                     </Frame>
 
                                     <Border IsVisible="{Binding IsDownloaded}"
-                                            BackgroundColor="White"
-                                            Stroke="#18A94B"
+                                            BackgroundColor="{DynamicResource CardBg}"
+                                            Stroke="{DynamicResource PrimaryGreen}"
                                             StrokeThickness="1"
                                             StrokeShape="RoundRectangle 10"
                                             WidthRequest="20"
@@ -173,7 +221,7 @@
                                             TranslationX="4"
                                             TranslationY="4">
                                         <Label Text="✓"
-                                               TextColor="#18A94B"
+                                               TextColor="{DynamicResource PrimaryGreen}"
                                                FontSize="12"
                                                HorizontalTextAlignment="Center"
                                                VerticalTextAlignment="Center" />
@@ -198,25 +246,25 @@
                                     <Label Text="{Binding Title}"
                                            FontSize="17"
                                            FontAttributes="Bold"
-                                           TextColor="#101828"
+                                           TextColor="{DynamicResource TitleText}"
                                            LineBreakMode="TailTruncation"
                                            MaxLines="1" />
 
                                     <HorizontalStackLayout Spacing="10">
                                         <Label Text="{Binding AudioCountText}"
                                                FontSize="13"
-                                               TextColor="#667085" />
+                                               TextColor="{DynamicResource MutedText}" />
                                         <Label Text="{Binding Duration}"
                                                FontSize="13"
-                                               TextColor="#667085" />
+                                               TextColor="{DynamicResource MutedText}" />
                                         <Label Text="{Binding Size}"
                                                FontSize="13"
-                                               TextColor="#667085" />
+                                               TextColor="{DynamicResource MutedText}" />
                                     </HorizontalStackLayout>
 
                                     <Label Text="{Binding DownloadedDateText}"
                                            FontSize="13"
-                                           TextColor="#18A94B"
+                                           TextColor="{DynamicResource SuccessText}"
                                            IsVisible="{Binding IsDownloaded}" />
                                 </VerticalStackLayout>
 
@@ -228,7 +276,7 @@
 
                                     <!-- Chưa tải -->
                                     <Border IsVisible="{Binding IsNotDownloaded}"
-                                            BackgroundColor="#18A94B"
+                                            BackgroundColor="{DynamicResource PrimaryGreen}"
                                             StrokeThickness="0"
                                             StrokeShape="RoundRectangle 22"
                                             WidthRequest="44"
@@ -247,7 +295,7 @@
 
                                     <!-- Đã tải: Xóa -->
                                     <Border IsVisible="{Binding IsDownloaded}"
-                                            BackgroundColor="#FDECEC"
+                                            BackgroundColor="{DynamicResource SoftRed}"
                                             StrokeThickness="0"
                                             StrokeShape="RoundRectangle 14"
                                             WidthRequest="44"
@@ -259,14 +307,14 @@
                                         </Border.GestureRecognizers>
                                         <Label Text="&#xE74D;"
                                                FontFamily="Segoe MDL2 Assets"
-                                               TextColor="#FF4D4F"
+                                               TextColor="{DynamicResource DangerText}"
                                                FontSize="18"
                                                HorizontalTextAlignment="Center"
                                                VerticalTextAlignment="Center" />
                                     </Border>
 
                                     <!-- Expand/Collapse -->
-                                    <Border BackgroundColor="#F2F4F7"
+                                    <Border BackgroundColor="{DynamicResource SurfaceAlt}"
                                             StrokeThickness="0"
                                             StrokeShape="RoundRectangle 18"
                                             WidthRequest="36"
@@ -277,7 +325,7 @@
                                                 CommandParameter="{Binding .}" />
                                         </Border.GestureRecognizers>
                                         <Label Text="{Binding ExpandIcon}"
-                                               TextColor="#98A2B3"
+                                               TextColor="{DynamicResource MutedText}"
                                                FontSize="14"
                                                HorizontalTextAlignment="Center"
                                                VerticalTextAlignment="Center" />
@@ -288,8 +336,8 @@
                             <!-- Expanded language list -->
                             <Border Grid.Row="1"
                                     IsVisible="{Binding IsExpanded}"
-                                    BackgroundColor="#F9FAFB"
-                                    Stroke="#EAECF0"
+                                    BackgroundColor="{DynamicResource SurfaceAlt}"
+                                    Stroke="{DynamicResource BorderColor}"
                                     StrokeThickness="1"
                                     StrokeShape="RoundRectangle 14"
                                     Padding="10">
@@ -301,14 +349,14 @@
                                                   ColumnSpacing="8">
                                                 <Label Text="{Binding LanguageCode}"
                                                        FontSize="11"
-                                                       TextColor="#344054"
-                                                       BackgroundColor="#EEF2F6"
+                                                       TextColor="{DynamicResource BodyText}"
+                                                       BackgroundColor="{DynamicResource CardBg}"
                                                        Padding="6,2"
                                                        VerticalTextAlignment="Center" />
                                                 <Label Grid.Column="1"
                                                        Text="{Binding LocalizedName}"
                                                        FontSize="13"
-                                                       TextColor="#344054"
+                                                       TextColor="{DynamicResource BodyText}"
                                                        LineBreakMode="TailTruncation" />
                                             </Grid>
                                         </DataTemplate>
@@ -319,17 +367,55 @@
                     </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
-        </CollectionView>
+            </CollectionView>
+
+            <VerticalStackLayout IsVisible="{Binding ShowEmptyState}"
+                                 Padding="24,36,24,0"
+                                 Spacing="8">
+                <Label Text="📦"
+                       FontSize="32"
+                       HorizontalOptions="Center" />
+                <Label Text="Không có pack phù hợp"
+                       FontAttributes="Bold"
+                       FontSize="18"
+                       HorizontalTextAlignment="Center"
+                       TextColor="{DynamicResource BodyText}" />
+                <Label Text="Thử đổi bộ lọc hoặc tải thêm audio để nghe offline."
+                       FontSize="14"
+                       HorizontalTextAlignment="Center"
+                       TextColor="{DynamicResource MutedText}" />
+            </VerticalStackLayout>
+
+            <Grid x:Name="OfflineLoadingOverlay"
+                  BackgroundColor="{DynamicResource LightBg}"
+                  IsVisible="True"
+                  Padding="10,0,10,0"
+                  RowDefinitions="Auto,Auto,Auto"
+                  RowSpacing="14"
+                  ZIndex="10">
+                <Border x:Name="OfflineSkeletonCard1"
+                        HeightRequest="118"
+                        Style="{StaticResource SkeletonBoneStyle}" />
+                <Border x:Name="OfflineSkeletonCard2"
+                        Grid.Row="1"
+                        HeightRequest="118"
+                        Style="{StaticResource SkeletonBoneStyle}" />
+                <Border x:Name="OfflineSkeletonCard3"
+                        Grid.Row="2"
+                        HeightRequest="118"
+                        Style="{StaticResource SkeletonBoneStyle}" />
+            </Grid>
+        </Grid>
 
         <!-- Delete Confirm Modal -->
         <Grid Grid.RowSpan="4"
               IsVisible="{Binding IsDeleteConfirmVisible}"
-              BackgroundColor="#66000000"
+              BackgroundColor="{DynamicResource OverlayColor}"
               Padding="16"
               ZIndex="99">
 
             <Border VerticalOptions="End"
-                    BackgroundColor="White"
+                    BackgroundColor="{DynamicResource BottomSheetBg}"
                     StrokeThickness="0"
                     StrokeShape="RoundRectangle 24"
                     Padding="16,18,16,16">
@@ -339,7 +425,7 @@
                           ColumnSpacing="12">
                         <Border WidthRequest="42"
                                 HeightRequest="42"
-                                BackgroundColor="#FDECEC"
+                                BackgroundColor="{DynamicResource SoftRed}"
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 21"
                                 VerticalOptions="Start">
@@ -356,10 +442,10 @@
                             <Label Text="{Binding DeleteConfirmTitle}"
                                    FontAttributes="Bold"
                                 FontSize="18"
-                                   TextColor="#0F172A" />
+                                   TextColor="{DynamicResource TitleText}" />
                             <Label Text="{Binding DeleteConfirmDescription}"
                                 FontSize="14"
-                                   TextColor="#667085" />
+                                   TextColor="{DynamicResource MutedText}" />
                         </VerticalStackLayout>
                     </Grid>
 
@@ -368,8 +454,8 @@
                         <Button Grid.Column="0"
                                 Text="Hủy"
                                 Clicked="OnCancelDeleteClicked"
-                                BackgroundColor="#ECEEF2"
-                                TextColor="#0F172A"
+                                BackgroundColor="{DynamicResource SurfaceAlt}"
+                                TextColor="{DynamicResource BodyText}"
                                 FontSize="18"
                                 FontAttributes="Bold"
                                 CornerRadius="14"

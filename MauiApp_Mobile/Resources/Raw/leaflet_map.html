@@ -1,240 +1,1042 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>smartTOUR Map</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <style>
-        body { padding: 0; margin: 0; }
-        html, body, #map { height: 100%; width: 100%; }
-        .leaflet-popup-content { font-family: Arial, sans-serif; }
-        .poi-popup {
-            width: 220px;
+        :root {
+            --panel-bg: #ffffff;
+            --panel-text: #0f172a;
+            --panel-muted: #475569;
+            --panel-border: rgba(15, 23, 42, 0.08);
+            --popup-shadow: rgba(15, 23, 42, 0.18);
+            --poi-fill: #18a94b;
+            --poi-stroke: #148f40;
+            --nearest-fill: #f97316;
+            --nearest-stroke: #c2410c;
+            --search-fill: #3b82f6;
+            --search-stroke: #1d4ed8;
+            --current-fill: #38bdf8;
+            --current-stroke: #0ea5e9;
+            --current-halo: rgba(56, 189, 248, 0.22);
+            --button-bg: #f5fff8;
+            --button-text: #148f40;
         }
-        .poi-popup img {
+
+        body[data-theme='midnight'] {
+            --panel-bg: #112230;
+            --panel-text: #f8fefa;
+            --panel-muted: #b8d6e6;
+            --panel-border: rgba(184, 214, 230, 0.12);
+            --popup-shadow: rgba(2, 6, 12, 0.45);
+            --poi-fill: #58d18e;
+            --poi-stroke: #41b376;
+            --nearest-fill: #f5c979;
+            --nearest-stroke: #d39c2d;
+            --search-fill: #7cc6ff;
+            --search-stroke: #2f8fd1;
+            --current-fill: #8fe1ff;
+            --current-stroke: #4bb7e6;
+            --current-halo: rgba(143, 225, 255, 0.2);
+            --button-bg: #173242;
+            --button-text: #8fe1ff;
+        }
+
+        body[data-theme='heritage'] {
+            --panel-bg: #fff9f2;
+            --panel-text: #30180e;
+            --panel-muted: #7b5a45;
+            --panel-border: rgba(140, 78, 38, 0.12);
+            --popup-shadow: rgba(104, 60, 33, 0.16);
+            --poi-fill: #c46a34;
+            --poi-stroke: #a65627;
+            --nearest-fill: #2d7a78;
+            --nearest-stroke: #1f5b59;
+            --search-fill: #4f8f7a;
+            --search-stroke: #356b5a;
+            --current-fill: #5da9a6;
+            --current-stroke: #2d7a78;
+            --current-halo: rgba(93, 169, 166, 0.2);
+            --button-bg: #fff1e2;
+            --button-text: #a65627;
+        }
+
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        html,
+        body,
+        #map {
+            height: 100%;
             width: 100%;
-            height: 120px;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: var(--panel-bg);
+            color: var(--panel-text);
+            border-radius: 18px;
+            box-shadow: 0 18px 38px var(--popup-shadow);
+            border: 1px solid var(--panel-border);
+        }
+
+        .leaflet-popup-tip {
+            background: var(--panel-bg);
+        }
+
+        .leaflet-popup-content {
+            font-family: Arial, sans-serif;
+            margin: 12px 14px;
+            width: 236px !important;
+        }
+
+        .poi-div-icon {
+            background: transparent !important;
+            border: 0 !important;
+        }
+
+        .poi-div-icon,
+        .poi-div-icon * {
+            box-sizing: border-box;
+        }
+
+        .poi-marker-shell {
+            position: relative;
+            width: 72px;
+            height: 72px;
+        }
+
+        .poi-marker {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            border-radius: 999px;
+            overflow: hidden;
+            background: transparent;
+            border: 3px solid var(--poi-stroke);
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.22);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+
+        .poi-marker__frame {
+            width: 100%;
+            height: 100%;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .poi-marker__image {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 999px;
             object-fit: cover;
-            border-radius: 10px;
-            margin-bottom: 8px;
+            object-position: center center;
+            background: #dce8dd;
+        }
+
+        .poi-marker__halo {
+            position: absolute;
+            z-index: 0;
+            inset: -6px;
+            border-radius: 999px;
+            border: 2px solid transparent;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+        }
+
+        .poi-marker__badge {
+            position: absolute;
+            z-index: 2;
+            right: 2px;
+            bottom: 2px;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 7px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--poi-fill);
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+            border: 2px solid var(--panel-bg);
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.2);
+        }
+
+        .poi-marker--nearest {
+            border-color: var(--nearest-stroke);
+            transform: scale(1.06);
+            box-shadow: 0 18px 36px rgba(194, 65, 12, 0.26);
+        }
+
+        .poi-marker--nearest .poi-marker__halo {
+            border-color: rgba(249, 115, 22, 0.28);
+            opacity: 1;
+            transform: scale(1);
+            animation: nearestPulse 2.25s ease-out infinite;
+        }
+
+        .poi-marker--nearest .poi-marker__badge {
+            background: var(--nearest-fill);
+            color: #ffffff;
+        }
+
+        @keyframes nearestPulse {
+            0% {
+                opacity: 0.78;
+                transform: scale(0.96);
+            }
+
+            70% {
+                opacity: 0;
+                transform: scale(1.22);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(1.22);
+            }
+        }
+
+        .poi-popup {
+            width: 236px;
+        }
+
+        .poi-popup-gallery {
+            position: relative;
+            height: 132px;
+            padding: 8px;
+            overflow: hidden;
+            border-radius: 14px;
+            margin-bottom: 10px;
+            background: #dbe6df;
+        }
+
+        .poi-popup-slide {
+            position: absolute;
+            inset: 8px 8px 0 8px;
+            opacity: 0;
+            transform: scale(1.02);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: opacity 0.28s ease, transform 0.28s ease;
+        }
+
+        .poi-popup-slide.is-active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .poi-popup-slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center center;
             display: block;
         }
+
+        .poi-popup-pagination {
+            position: absolute;
+            left: 50%;
+            bottom: 10px;
+            transform: translateX(-50%);
+            display: inline-flex;
+            gap: 6px;
+            z-index: 2;
+        }
+
+        .poi-popup-dot {
+            width: 8px;
+            height: 8px;
+            border: 0;
+            padding: 0;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.56);
+            transition: width 0.18s ease, background-color 0.18s ease;
+        }
+
+        .poi-popup-dot.is-active {
+            width: 18px;
+            background: #ffffff;
+        }
+
+        .poi-popup-overlay {
+            position: absolute;
+            inset: auto 0 0 0;
+            padding: 22px 12px 10px;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.64) 100%);
+            z-index: 1;
+        }
+
+        .poi-popup-overlay-text {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.94);
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
         .poi-popup-title {
             font-size: 16px;
             font-weight: 700;
-            color: #0F172A;
+            color: var(--panel-text);
             margin-bottom: 4px;
         }
-        .poi-popup-desc {
+
+        .poi-popup-desc,
+        .poi-popup-address,
+        .status-popup {
             font-size: 13px;
-            color: #475569;
-            line-height: 1.35;
+            color: var(--panel-muted);
+            line-height: 1.45;
+        }
+
+        .status-popup strong {
+            color: var(--panel-text);
+        }
+
+        .poi-popup-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .poi-popup-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(24, 169, 75, 0.12);
+            color: var(--poi-stroke);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .poi-popup-chip--nearest {
+            background: rgba(249, 115, 22, 0.14);
+            color: var(--nearest-stroke);
+        }
+
+        body[data-theme='midnight'] .poi-popup-chip {
+            background: rgba(88, 209, 142, 0.16);
+        }
+
+        body[data-theme='midnight'] .poi-popup-chip--nearest {
+            background: rgba(245, 201, 121, 0.18);
+        }
+
+        body[data-theme='heritage'] .poi-popup-chip {
+            background: rgba(196, 106, 52, 0.14);
+            color: var(--poi-stroke);
+        }
+
+        body[data-theme='heritage'] .poi-popup-chip--nearest {
+            background: rgba(45, 122, 120, 0.16);
+            color: var(--nearest-stroke);
+        }
+
+        .poi-popup-action {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 12px;
+            padding: 10px 14px;
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 12px;
+            background: var(--button-bg);
+            color: var(--button-text);
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
         }
     </style>
 </head>
-<body>
+<body data-theme="emerald">
     <div id="map"></div>
     <script>
-        // Initialize map near current location sample area (TP.HCM)
-        var map = L.map('map').setView([10.778762, 106.684330], 15);
-
-        // Cách 1: Sử dụng CartoDB Light (khô tính, nhẹ, không yêu cầu API Key)
-        // Như gợi ý trong ảnh đầu tiên: dùng CartoDB thay vì OSM, style sạch
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap &copy; CARTO',
-            subdomains: 'abcd',
-            maxZoom: 20
-        }).addTo(map);
-
-        // Cách 2 (dự phòng): Nếu muốn dùng Esri (miễn phí cho POC/học tập)
-        // Bỏ comment dòng dưới nếu muốn thử Esri thay CartoDB
-        /*
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri'
-        }).addTo(map);
-        */
-
-        // Places to add as POI (đồng bộ dữ liệu mẫu màn Địa điểm)
-        var places = [
-            {
-                lat: 10.779120,
-                lon: 106.683900,
-                title: "Cơm Tấm Góc Sài Gòn",
-                description: "Quán cơm tấm đông khách, vị đậm đà gần trung tâm"
-            },
-            {
-                lat: 10.777950,
-                lon: 106.685150,
-                title: "Phở Bò Nguyễn Đình Chiểu",
-                description: "Tô phở nóng với nước dùng thanh và bò mềm"
-            },
-            {
-                lat: 10.780020,
-                lon: 106.686050,
-                title: "Bún Bò Huế Chị Mai",
-                description: "Bún bò cay nhẹ, topping đầy đủ và nước dùng đậm"
-            },
-            {
-                lat: 10.776980,
-                lon: 106.683480,
-                title: "Quán Mộc Garden Sài Gòn",
-                description: "Không gian sân vườn mát, phù hợp ăn uống nhóm nhỏ"
-            },
-            {
-                lat: 10.779640,
-                lon: 106.682950,
-                title: "Cafe Sông Xanh",
-                description: "Quán cà phê yên tĩnh, thích hợp nghỉ chân buổi chiều"
-            }
-        ];
-
         var defaultCenter = [10.778762, 106.684330];
         var defaultZoom = 15;
+        var currentThemeKey = "emerald";
+        var mapStrings = {
+            viewDetails: "Xem chi tiet",
+            nearestLabel: "Gan ban nhat",
+            currentLocationTitle: "Vi tri hien tai",
+            searchResultTitle: "Ket qua tim kiem",
+            nearestPrefix: "Gan nhat"
+        };
+        var map = L.map("map", {
+            zoomControl: false
+        }).setView(defaultCenter, defaultZoom);
+
+        L.control.zoom({
+            position: "bottomright"
+        }).addTo(map);
+
+        var tileLayer = null;
         var mapMarkers = [];
         var searchMarker = null;
         var currentLocationMarker = null;
+        var currentLocationHalo = null;
+        var lastSearchResult = null;
+        var lastCurrentLocation = null;
+        var places = [];
+        var lastReferencePoint = {
+            lat: defaultCenter[0],
+            lon: defaultCenter[1]
+        };
+        var popupCarouselTimerId = 0;
+        var activePopupGalleryId = "";
 
         function normalizeText(value) {
-            return (value || '')
+            return (value || "")
                 .toString()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
                 .toLowerCase()
                 .trim();
         }
 
         function escapeHtml(value) {
-            return (value || '')
+            return (value || "")
                 .toString()
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function shortenText(value, maxLength) {
+            var text = (value || "").toString().trim();
+            if (text.length <= maxLength) {
+                return text;
+            }
+
+            return text.substring(0, Math.max(0, maxLength - 1)).trim() + "…";
         }
 
         function getInitials(text) {
-            var words = (text || '').trim().split(/\s+/).filter(Boolean);
-            if (!words.length) return 'POI';
+            var words = (text || "").trim().split(/\s+/).filter(Boolean);
+            if (!words.length) return "POI";
             if (words.length === 1) return words[0].substring(0, 3).toUpperCase();
             return (words[0][0] + words[1][0]).toUpperCase();
         }
 
         function hueFromText(text) {
             var hash = 0;
-            for (var i = 0; i < text.length; i++) {
-                hash = text.charCodeAt(i) + ((hash << 5) - hash);
+            for (var index = 0; index < text.length; index++) {
+                hash = text.charCodeAt(index) + ((hash << 5) - hash);
             }
+
             return Math.abs(hash) % 360;
         }
 
         function createPoiThumbnail(title) {
-            var hue = hueFromText(title || '');
-            var initials = getInitials(title);
-            var svg =
-                '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220" viewBox="0 0 400 220">' +
-                '<defs>' +
-                '<linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
-                '<stop offset="0%" stop-color="hsl(' + hue + ', 75%, 52%)"/>' +
-                '<stop offset="100%" stop-color="hsl(' + ((hue + 40) % 360) + ', 80%, 42%)"/>' +
-                '</linearGradient>' +
-                '</defs>' +
-                '<rect width="400" height="220" fill="url(#g)"/>' +
-                '<circle cx="68" cy="66" r="36" fill="rgba(255,255,255,0.22)"/>' +
-                '<text x="68" y="77" text-anchor="middle" font-size="34" fill="#ffffff">📍</text>' +
-                '<text x="200" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#ffffff">' + escapeHtml(initials) + '</text>' +
-                '</svg>';
-
-            return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+            return createPoiStoryCard(title, "", "POI", 0);
         }
 
+        function createPoiStoryCard(title, subtitle, caption, variantIndex) {
+            var hue = hueFromText(title || "");
+            var initials = getInitials(title);
+            var hueShift = variantIndex === 1 ? 34 : (variantIndex === 2 ? 68 : 0);
+            var accentHue = (hue + hueShift) % 360;
+            var secondaryHue = (accentHue + 38) % 360;
+            var safeSubtitle = escapeHtml(shortenText(subtitle, 32));
+            var safeCaption = escapeHtml(shortenText(caption, 18));
+            var svg =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220" viewBox="0 0 400 220">' +
+                "<defs>" +
+                '<linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+                '<stop offset="0%" stop-color="hsl(' + accentHue + ', 76%, 54%)"/>' +
+                '<stop offset="100%" stop-color="hsl(' + secondaryHue + ', 82%, 40%)"/>' +
+                "</linearGradient>" +
+                "</defs>" +
+                '<rect width="400" height="220" fill="url(#g)"/>' +
+                '<rect x="18" y="18" width="108" height="32" rx="16" fill="rgba(255,255,255,0.18)"/>' +
+                '<text x="72" y="39" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#ffffff">' + safeCaption + "</text>" +
+                '<circle cx="68" cy="78" r="38" fill="rgba(255,255,255,0.22)"/>' +
+                '<text x="68" y="77" text-anchor="middle" font-size="34" fill="#ffffff">📍</text>' +
+                '<text x="204" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#ffffff">' + escapeHtml(initials) + "</text>" +
+                '<text x="200" y="168" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="rgba(255,255,255,0.92)">' + safeSubtitle + "</text>" +
+                "</svg>";
+
+            return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+        }
+
+        function getThemePalette() {
+            if (currentThemeKey === "midnight") {
+                return {
+                    poiFill: "#58D18E",
+                    poiStroke: "#41B376",
+                    nearestFill: "#F5C979",
+                    nearestStroke: "#D39C2D",
+                    searchFill: "#7CC6FF",
+                    searchStroke: "#2F8FD1",
+                    currentFill: "#8FE1FF",
+                    currentStroke: "#4BB7E6"
+                };
+            }
+
+            if (currentThemeKey === "heritage") {
+                return {
+                    poiFill: "#C46A34",
+                    poiStroke: "#A65627",
+                    nearestFill: "#2D7A78",
+                    nearestStroke: "#1F5B59",
+                    searchFill: "#4F8F7A",
+                    searchStroke: "#356B5A",
+                    currentFill: "#5DA9A6",
+                    currentStroke: "#2D7A78"
+                };
+            }
+
+            return {
+                poiFill: "#18A94B",
+                poiStroke: "#148F40",
+                nearestFill: "#F97316",
+                nearestStroke: "#C2410C",
+                searchFill: "#3B82F6",
+                searchStroke: "#1D4ED8",
+                currentFill: "#38BDF8",
+                currentStroke: "#0EA5E9"
+            };
+        }
+
+        function createBaseTileLayer(themeKey) {
+            var tileUrl = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+            if (themeKey === "midnight") {
+                tileUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+            } else if (themeKey === "heritage") {
+                tileUrl = "https://{s}.basemaps.cartocdn.com/voyager/{z}/{x}/{y}{r}.png";
+            }
+
+            return L.tileLayer(tileUrl, {
+                attribution: "&copy; OpenStreetMap &copy; CARTO",
+                subdomains: "abcd",
+                maxZoom: 20
+            });
+        }
+
+        function getResolvedPlaceImage(imageSource, title) {
+            return /^data:|^https?:/i.test(String(imageSource))
+                ? String(imageSource)
+                : createPoiThumbnail(title || "");
+        }
+
+        function buildPlaceGalleryImages(place, imageSource, providedGalleryImages) {
+            var title = place.title || place.Title || "";
+            var description = place.description || place.Description || "";
+            var address = place.address || place.Address || "";
+            var category = place.category || place.Category || "";
+            var primaryImage = getResolvedPlaceImage(imageSource, title);
+            var hydratedImages = (providedGalleryImages || [])
+                .map(function(item) {
+                    return getResolvedPlaceImage(item, title);
+                })
+                .filter(function(item, index, items) {
+                    return !!item && items.indexOf(item) === index;
+                });
+
+            if (hydratedImages.length) {
+                return hydratedImages;
+            }
+
+            return [
+                primaryImage,
+                createPoiStoryCard(title, category || description, "POI", 1),
+                createPoiStoryCard(title, address || description, category || "POI", 2)
+            ].filter(function(item, index, items) {
+                return !!item && items.indexOf(item) === index;
+            });
+        }
+
+        function getMarkerBadgeText(place) {
+            var words = (place.category || "").trim().split(/\s+/).filter(Boolean);
+            if (words.length >= 2) {
+                return (words[0][0] + words[1][0]).toUpperCase();
+            }
+
+            if (words.length === 1) {
+                return words[0].substring(0, 2).toUpperCase();
+            }
+
+            return getInitials(place.title).substring(0, 2);
+        }
+
+        function createPoiMarkerIcon(place) {
+            var palette = getThemePalette();
+            var imageSource = place.galleryImages && place.galleryImages.length
+                ? place.galleryImages[0]
+                : place.image;
+            var borderColor = place.isNearest ? palette.nearestStroke : palette.poiStroke;
+            var badgeColor = place.isNearest ? palette.nearestFill : palette.poiFill;
+            var haloStyle = place.isNearest
+                ? ' style="border-color: rgba(249,115,22,0.30);"'
+                : "";
+            var markerClass = place.isNearest ? "poi-marker poi-marker--nearest" : "poi-marker";
+            var badgeText = escapeHtml(getMarkerBadgeText(place));
+            var html =
+                '<div class="poi-marker-shell">' +
+                '<div class="poi-marker__halo"' + haloStyle + "></div>" +
+                '<div class="' + markerClass + '" style="border-color:' + borderColor + ';">' +
+                '<div class="poi-marker__frame">' +
+                '<img class="poi-marker__image" src="' + escapeHtml(imageSource) + '" alt="' + escapeHtml(place.title) + '">' +
+                "</div>" +
+                "</div>" +
+                '<div class="poi-marker__badge" style="background:' + badgeColor + ';">' + badgeText + "</div>" +
+                "</div>";
+
+            return L.divIcon({
+                className: "poi-div-icon",
+                html: html,
+                iconSize: [72, 72],
+                iconAnchor: [36, 36],
+                popupAnchor: [0, -30]
+            });
+        }
+
+        function buildSearchMarkerStyle() {
+            var palette = getThemePalette();
+            return {
+                radius: 10,
+                color: palette.searchStroke,
+                weight: 3,
+                fillColor: palette.searchFill,
+                fillOpacity: 0.95
+            };
+        }
+
+        function buildCurrentLocationStyle() {
+            var palette = getThemePalette();
+            return {
+                radius: 9,
+                color: palette.currentStroke,
+                weight: 3,
+                fillColor: palette.currentFill,
+                fillOpacity: 0.98
+            };
+        }
+
+        function buildCurrentLocationHaloStyle() {
+            var palette = getThemePalette();
+            return {
+                radius: 42,
+                color: palette.currentStroke,
+                weight: 1.4,
+                fillColor: palette.currentFill,
+                fillOpacity: 0.14,
+                opacity: 0.85
+            };
+        }
+
+        function getPopupGalleryElement(galleryId) {
+            return document.querySelector('.poi-popup-gallery[data-gallery-id="' + galleryId + '"]');
+        }
+
+        function stopPopupGalleryAutoplay() {
+            if (popupCarouselTimerId) {
+                window.clearInterval(popupCarouselTimerId);
+                popupCarouselTimerId = 0;
+            }
+
+            activePopupGalleryId = "";
+        }
+
+        function applyPopupGalleryState(galleryId, nextIndex) {
+            var gallery = getPopupGalleryElement(galleryId);
+            if (!gallery) {
+                return;
+            }
+
+            var slides = Array.prototype.slice.call(gallery.querySelectorAll(".poi-popup-slide"));
+            var dots = Array.prototype.slice.call(gallery.querySelectorAll(".poi-popup-dot"));
+            if (!slides.length) {
+                return;
+            }
+
+            var normalizedIndex = ((nextIndex % slides.length) + slides.length) % slides.length;
+            gallery.setAttribute("data-current-index", normalizedIndex);
+
+            slides.forEach(function(slide, index) {
+                slide.classList.toggle("is-active", index === normalizedIndex);
+            });
+
+            dots.forEach(function(dot, index) {
+                dot.classList.toggle("is-active", index === normalizedIndex);
+            });
+        }
+
+        function restartPopupGalleryAutoplay(galleryId) {
+            stopPopupGalleryAutoplay();
+
+            var gallery = getPopupGalleryElement(galleryId);
+            if (!gallery) {
+                return;
+            }
+
+            var slideCount = Number(gallery.getAttribute("data-slide-count") || 0);
+            if (slideCount < 2) {
+                return;
+            }
+
+            activePopupGalleryId = galleryId;
+            popupCarouselTimerId = window.setInterval(function() {
+                var currentIndex = Number(gallery.getAttribute("data-current-index") || 0);
+                applyPopupGalleryState(galleryId, currentIndex + 1);
+            }, 5000);
+        }
+
+        function startPopupGalleryForPopup(popup) {
+            stopPopupGalleryAutoplay();
+
+            if (!popup || typeof popup.getElement !== "function") {
+                return;
+            }
+
+            var popupElement = popup.getElement();
+            if (!popupElement) {
+                return;
+            }
+
+            var gallery = popupElement.querySelector(".poi-popup-gallery");
+            if (!gallery) {
+                return;
+            }
+
+            var galleryId = gallery.getAttribute("data-gallery-id");
+            if (!galleryId) {
+                return;
+            }
+
+            applyPopupGalleryState(galleryId, Number(gallery.getAttribute("data-current-index") || 0));
+            restartPopupGalleryAutoplay(galleryId);
+        }
+
+        window.setPopupGallerySlide = function(galleryId, nextIndex) {
+            applyPopupGalleryState(galleryId, nextIndex);
+            restartPopupGalleryAutoplay(galleryId);
+            return false;
+        };
+
         function buildPoiPopup(place) {
+            var categoryChip = place.category
+                ? '<div class="poi-popup-chip">' + escapeHtml(place.category) + "</div>"
+                : "";
+            var nearestChip = place.isNearest
+                ? '<div class="poi-popup-chip poi-popup-chip--nearest">🧭 ' + escapeHtml(mapStrings.nearestLabel) + "</div>"
+                : "";
+            var addressBlock = place.address
+                ? '<div class="poi-popup-address">' + escapeHtml(place.address) + "</div>"
+                : "";
+            var detailAction = place.id
+                ? '<a class="poi-popup-action" href="smarttour://place/' + encodeURIComponent(place.id) + '">' + escapeHtml(mapStrings.viewDetails) + "</a>"
+                : "";
+            var galleryImages = place.galleryImages && place.galleryImages.length
+                ? place.galleryImages
+                : [place.image];
+            var galleryId = encodeURIComponent(place.id || place.title || "poi");
+            var gallerySlides = galleryImages.map(function(image, index) {
+                var activeClass = index === 0 ? " is-active" : "";
+                return (
+                    '<div class="poi-popup-slide' + activeClass + '">' +
+                    '<img src="' + escapeHtml(image) + '" alt="' + escapeHtml(place.title) + '">' +
+                    "</div>"
+                );
+            }).join("");
+            var galleryDots = galleryImages.length > 1
+                ? galleryImages.map(function(_, index) {
+                    var activeClass = index === 0 ? " is-active" : "";
+                    return '<button type="button" class="poi-popup-dot' + activeClass + '" onclick="window.setPopupGallerySlide(\'' + galleryId + '\', ' + index + '); return false;"></button>';
+                }).join("")
+                : "";
+            var gallery =
+                '<div class="poi-popup-gallery" data-gallery-id="' + galleryId + '" data-current-index="0" data-slide-count="' + galleryImages.length + '">' +
+                gallerySlides +
+                '<div class="poi-popup-overlay"><div class="poi-popup-overlay-text">' + escapeHtml(place.category || mapStrings.searchResultTitle) + "</div></div>" +
+                (galleryDots ? '<div class="poi-popup-pagination">' + galleryDots + "</div>" : "") +
+                "</div>";
+
             return (
                 '<div class="poi-popup">' +
-                '<img src="' + place.image + '" alt="' + escapeHtml(place.title) + '">' +
-                '<div class="poi-popup-title">' + escapeHtml(place.title) + '</div>' +
-                '<div class="poi-popup-desc">' + escapeHtml(place.description) + '</div>' +
-                '</div>'
+                gallery +
+                '<div class="poi-popup-title">' + escapeHtml(place.title) + "</div>" +
+                '<div class="poi-popup-desc">' + escapeHtml(place.description || "") + "</div>" +
+                addressBlock +
+                '<div class="poi-popup-chip-row">' + categoryChip + nearestChip + "</div>" +
+                detailAction +
+                "</div>"
             );
         }
 
-        places = places.map(function(place) {
-            return Object.assign({}, place, {
-                image: createPoiThumbnail(place.title)
+        function buildSearchResultPopup(title, description) {
+            return (
+                '<div class="status-popup"><strong>' +
+                escapeHtml(title || mapStrings.searchResultTitle) +
+                "</strong><br/>" +
+                escapeHtml(description || "") +
+                "</div>"
+            );
+        }
+
+        function buildCurrentLocationPopup(lat, lon, nearest) {
+            var nearestLine = nearest
+                ? "<br/>" + escapeHtml(mapStrings.nearestPrefix) + ": " + escapeHtml(nearest.place.title) + " (" + Math.round(nearest.distanceMeters) + "m)"
+                : "";
+
+            return (
+                '<div class="status-popup"><strong>' +
+                escapeHtml(mapStrings.currentLocationTitle) +
+                "</strong><br/>" +
+                lat.toFixed(6) + ", " + lon.toFixed(6) +
+                nearestLine +
+                "</div>"
+            );
+        }
+
+        function toRadians(value) {
+            return value * Math.PI / 180;
+        }
+
+        function getDistanceInMeters(lat1, lon1, lat2, lon2) {
+            var earthRadius = 6371000;
+            var dLat = toRadians(lat2 - lat1);
+            var dLon = toRadians(lon2 - lon1);
+            var a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+            return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function refreshPoiStyles() {
+            mapMarkers.forEach(function(item) {
+                item.marker.setIcon(createPoiMarkerIcon(item.place));
+                item.marker.setZIndexOffset(item.place.isNearest ? 1800 : 0);
+                item.marker.setPopupContent(buildPoiPopup(item.place));
+
+                if (item.marker.isPopupOpen()) {
+                    window.setTimeout(function() {
+                        startPopupGalleryForPopup(item.marker.getPopup());
+                    }, 0);
+                }
             });
-        });
+        }
 
-        // Add markers for each place
-        places.forEach(function(place) {
-            var marker = L.marker([place.lat, place.lon], {
-                title: place.title
-            }).addTo(map);
-            
-            marker.bindPopup(buildPoiPopup(place));
-
-            mapMarkers.push({
-                place: place,
-                marker: marker
-            });
-        });
-
-        window.focusPlaceByKeyword = function(keyword) {
-            var normalizedKeyword = normalizeText(keyword);
-
+        function refreshSearchMarkerStyles() {
             if (searchMarker) {
-                map.removeLayer(searchMarker);
-                searchMarker = null;
+                searchMarker.setStyle(buildSearchMarkerStyle());
+            }
+        }
+
+        function refreshCurrentLocationStyles() {
+            if (currentLocationMarker) {
+                currentLocationMarker.setStyle(buildCurrentLocationStyle());
             }
 
-            if (!normalizedKeyword) {
+            if (currentLocationHalo) {
+                currentLocationHalo.setStyle(buildCurrentLocationHaloStyle());
+            }
+        }
+
+        function highlightNearestPoi(referenceLat, referenceLon) {
+            if (!mapMarkers.length) {
+                return null;
+            }
+
+            var minDistance = Number.MAX_VALUE;
+            var nearestItem = null;
+
+            mapMarkers.forEach(function(item) {
+                item.place.isNearest = false;
+                var distance = getDistanceInMeters(referenceLat, referenceLon, item.place.lat, item.place.lon);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestItem = item;
+                }
+            });
+
+            if (nearestItem) {
+                nearestItem.place.isNearest = true;
+                nearestItem.marker.setZIndexOffset(1800);
+            }
+
+            refreshPoiStyles();
+
+            if (!nearestItem) {
+                return null;
+            }
+
+            return {
+                place: nearestItem.place,
+                distanceMeters: minDistance
+            };
+        }
+
+        function applyTheme(themeKey) {
+            currentThemeKey = themeKey || "emerald";
+            document.body.setAttribute("data-theme", currentThemeKey);
+
+            if (tileLayer) {
+                map.removeLayer(tileLayer);
+            }
+
+            tileLayer = createBaseTileLayer(currentThemeKey);
+            tileLayer.addTo(map);
+
+            refreshPoiStyles();
+            refreshSearchMarkerStyles();
+            refreshCurrentLocationStyles();
+        }
+
+        function flyToPosition(lat, lon, zoom, durationSeconds) {
+            map.stop();
+            map.flyTo([lat, lon], zoom, {
+                duration: durationSeconds || 0.75
+            });
+        }
+
+        function hydratePlaces(items) {
+            return (items || []).map(function(place) {
+                var imageSource = place.image || place.Image || "";
+                var title = place.title || place.Title || "";
+                var providedGalleryImages = place.galleryImages || place.GalleryImages || [];
+                return {
+                    id: (place.id || place.Id || "").toString(),
+                    lat: Number(place.latitude || place.Latitude),
+                    lon: Number(place.longitude || place.Longitude),
+                    title: title,
+                    description: place.description || place.Description || "",
+                    address: place.address || place.Address || "",
+                    category: place.category || place.Category || "",
+                    image: getResolvedPlaceImage(imageSource, title),
+                    galleryImages: buildPlaceGalleryImages(place, imageSource, providedGalleryImages),
+                    isNearest: false
+                };
+            }).filter(function(place) {
+                return Number.isFinite(place.lat) && Number.isFinite(place.lon);
+            });
+        }
+
+        function renderPlaces() {
+            mapMarkers.forEach(function(item) {
+                map.removeLayer(item.marker);
+            });
+            mapMarkers = [];
+
+            places.forEach(function(place) {
+                var marker = L.marker([place.lat, place.lon], {
+                    icon: createPoiMarkerIcon(place),
+                    keyboard: true,
+                    riseOnHover: true,
+                    zIndexOffset: place.isNearest ? 1800 : 0
+                }).addTo(map);
+                marker.bindPopup(buildPoiPopup(place), {
+                    closeButton: false,
+                    autoPanPaddingTopLeft: [18, 18],
+                    autoPanPaddingBottomRight: [18, 18]
+                });
+
+                mapMarkers.push({
+                    place: place,
+                    marker: marker
+                });
+            });
+
+            highlightNearestPoi(lastReferencePoint.lat, lastReferencePoint.lon);
+        }
+
+        applyTheme(currentThemeKey);
+
+        map.on("popupopen", function(eventArgs) {
+            startPopupGalleryForPopup(eventArgs.popup);
+        });
+
+        map.on("popupclose", function() {
+            stopPopupGalleryAutoplay();
+        });
+
+        window.setPlaces = function(nextPlaces) {
+            places = hydratePlaces(nextPlaces);
+            renderPlaces();
+            return true;
+        };
+
+        window.focusPlaceById = function(placeId) {
+            if (!placeId) {
                 return JSON.stringify({
                     found: false,
                     matchCount: 0,
-                    title: ''
+                    title: ""
                 });
             }
 
-            var matches = mapMarkers.filter(function(item) {
-                return normalizeText(item.place.title).includes(normalizedKeyword) ||
-                    normalizeText(item.place.description).includes(normalizedKeyword);
+            var normalizedId = String(placeId).trim().toLowerCase();
+            var match = mapMarkers.find(function(item) {
+                return String(item.place.id).trim().toLowerCase() === normalizedId;
             });
 
-            if (matches.length === 0) {
+            if (!match) {
                 return JSON.stringify({
                     found: false,
                     matchCount: 0,
-                    title: ''
+                    title: ""
                 });
             }
 
-            var firstMatch = matches[0];
-            map.flyTo([firstMatch.place.lat, firstMatch.place.lon], 16, {
-                duration: 1.2
-            });
-            firstMatch.marker.openPopup();
+            flyToPosition(match.place.lat, match.place.lon, 16, 0.72);
+            match.marker.openPopup();
+            window.setTimeout(function() {
+                startPopupGalleryForPopup(match.marker.getPopup());
+            }, 0);
 
             return JSON.stringify({
                 found: true,
-                matchCount: matches.length,
-                title: firstMatch.place.title
+                matchCount: 1,
+                title: match.place.title
             });
         };
 
         window.resetMapView = function() {
             map.closePopup();
+
             if (searchMarker) {
                 map.removeLayer(searchMarker);
                 searchMarker = null;
             }
+            lastSearchResult = null;
+
             if (currentLocationMarker) {
-                map.removeLayer(currentLocationMarker);
-                currentLocationMarker = null;
+                lastReferencePoint = {
+                    lat: currentLocationMarker.getLatLng().lat,
+                    lon: currentLocationMarker.getLatLng().lng
+                };
+                highlightNearestPoi(lastReferencePoint.lat, lastReferencePoint.lon);
+                flyToPosition(lastReferencePoint.lat, lastReferencePoint.lon, 16, 0.72);
+                return true;
             }
+
+            lastReferencePoint = {
+                lat: defaultCenter[0],
+                lon: defaultCenter[1]
+            };
+            highlightNearestPoi(lastReferencePoint.lat, lastReferencePoint.lon);
+            map.stop();
             map.flyTo(defaultCenter, defaultZoom, {
-                duration: 1
+                duration: 0.72
             });
+            return true;
         };
 
         window.showSearchResult = function(lat, lon, title, description) {
@@ -242,18 +1044,16 @@
                 map.removeLayer(searchMarker);
             }
 
-            searchMarker = L.marker([lat, lon], {
-                title: title || 'Kết quả tìm kiếm'
-            }).addTo(map);
+            lastSearchResult = {
+                lat: lat,
+                lon: lon,
+                title: title,
+                description: description
+            };
+            searchMarker = L.circleMarker([lat, lon], buildSearchMarkerStyle()).addTo(map);
+            searchMarker.bindPopup(buildSearchResultPopup(title, description));
 
-            searchMarker.bindPopup(
-                '<strong>' + (title || 'Kết quả tìm kiếm') + '</strong><br/>' +
-                (description || '')
-            );
-
-            map.flyTo([lat, lon], 16, {
-                duration: 1.2
-            });
+            flyToPosition(lat, lon, 16, 0.78);
             searchMarker.openPopup();
 
             return true;
@@ -264,23 +1064,54 @@
                 map.removeLayer(currentLocationMarker);
             }
 
-            currentLocationMarker = L.circleMarker([lat, lon], {
-                radius: 9,
-                color: '#0EA5E9',
-                weight: 2,
-                fillColor: '#38BDF8',
-                fillOpacity: 0.9
-            }).addTo(map);
+            if (currentLocationHalo) {
+                map.removeLayer(currentLocationHalo);
+            }
 
-            currentLocationMarker.bindPopup(
-                '<strong>Vị trí hiện tại</strong><br/>' +
-                lat.toFixed(6) + ', ' + lon.toFixed(6)
-            );
+            currentLocationHalo = L.circle([lat, lon], buildCurrentLocationHaloStyle()).addTo(map);
+            currentLocationMarker = L.circleMarker([lat, lon], buildCurrentLocationStyle()).addTo(map);
+            lastCurrentLocation = {
+                lat: lat,
+                lon: lon
+            };
 
-            map.flyTo([lat, lon], 16, {
-                duration: 1.2
-            });
+            lastReferencePoint = {
+                lat: lat,
+                lon: lon
+            };
+
+            var nearest = highlightNearestPoi(lat, lon);
+            currentLocationMarker.bindPopup(buildCurrentLocationPopup(lat, lon, nearest));
+
+            flyToPosition(lat, lon, 16, 0.82);
             currentLocationMarker.openPopup();
+
+            return JSON.stringify({
+                found: !!nearest,
+                title: nearest ? nearest.place.title : "",
+                distanceMeters: nearest ? nearest.distanceMeters : 0
+            });
+        };
+
+        window.applyMapTheme = function(themeKey) {
+            applyTheme(themeKey);
+            return true;
+        };
+
+        window.setMapStrings = function(nextStrings) {
+            mapStrings = Object.assign({}, mapStrings, nextStrings || {});
+            refreshPoiStyles();
+
+            if (searchMarker && lastSearchResult) {
+                searchMarker.setPopupContent(
+                    buildSearchResultPopup(lastSearchResult.title, lastSearchResult.description));
+            }
+
+            if (currentLocationMarker && lastCurrentLocation) {
+                var nearest = highlightNearestPoi(lastCurrentLocation.lat, lastCurrentLocation.lon);
+                currentLocationMarker.setPopupContent(
+                    buildCurrentLocationPopup(lastCurrentLocation.lat, lastCurrentLocation.lon, nearest));
+            }
 
             return true;
         };

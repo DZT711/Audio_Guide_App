@@ -19,4 +19,9 @@ public partial class AppShell : Shell
         OfflineTab.Title = "Offline";
         SettingsTab.Title = LocalizationService.Instance.T("Settings.Title");
     }
+
+    public Task NavigateToPlacesTabAsync()
+    {
+        return GoToAsync("//mainTabs/places");
+    }
 }

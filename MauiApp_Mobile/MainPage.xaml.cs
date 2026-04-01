@@ -1,11 +1,7 @@
-﻿using System.Collections.ObjectModel;
-using MauiApp_Mobile.Services;
+using System.Collections.ObjectModel;
+using Microsoft.Maui.Dispatching;
 using MauiApp_Mobile.Models;
-#if ANDROID
-using AndroidColor = Android.Graphics.Color;
-using Android.Views;
-using Microsoft.Maui.ApplicationModel;
-#endif
+using MauiApp_Mobile.Services;
 
 namespace MauiApp_Mobile;
 
@@ -14,6 +10,7 @@ public partial class MainPage : ContentPage
     private const double PlaceDetailOpenTopInset = 16;
     private const double PlaceDetailFallbackClosedOffset = 520;
     private const double PlaceDetailHalfVisibleRatio = 0.58;
+
     private readonly List<PlaceItem> _allPlaces = new();
     private ObservableCollection<PlaceAudioTrack> _selectedPlaceTracks = new();
     private string _selectedCategory = "Tất cả";
@@ -23,8 +20,14 @@ public partial class MainPage : ContentPage
     private double _placeDetailExpandedY = PlaceDetailOpenTopInset;
     private double _placeDetailHalfY = 180;
     private double _placeDetailClosedY = PlaceDetailFallbackClosedOffset;
+    private bool _hasLoadedPlaces;
+    private bool _hasAnimatedPage;
+    private bool _isPlaceGalleryTransitionRunning;
+    private CancellationTokenSource? _placesLoadingCts;
+    private IDispatcherTimer? _placeGalleryTimer;
 
     public ObservableCollection<PlaceItem> Places { get; set; } = new();
+    public ObservableCollection<PlaceGallerySlide> SelectedPlaceGallery { get; } = new();
 
     public bool IsPlaceDetailVisible
     {
@@ -44,6 +47,7 @@ public partial class MainPage : ContentPage
             _selectedPlace = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(DetailPriorityText));
+            RefreshSelectedPlaceGallery(resetPosition: true);
         }
     }
 
@@ -58,24 +62,37 @@ public partial class MainPage : ContentPage
         }
     }
 
-    public string DetailPriorityText => SelectedPlace == null ? string.Empty : $"Độ ưu tiên {SelectedPlace.Rating}";
-    public string AudioTracksTitle => $"🔊 Danh sách Audio ({SelectedPlaceTracks.Count})";
+    public string DetailPriorityText => SelectedPlace == null
+        ? string.Empty
+        : string.Format(LocalizationService.Instance.T("Places.DetailPriority"), SelectedPlace.Rating);
+    public string AudioTracksTitle => string.Format(
+        LocalizationService.Instance.T("Places.AudioTracksTitle"),
+        SelectedPlaceTracks.Count);
 
     public MainPage()
     {
         InitializeComponent();
 
-        _allPlaces.AddRange(BuildSamplePlacesNearCurrentLocation());
-
         BindingContext = this;
         ApplyTexts();
-        ApplyFilter();
         UpdateFilterSelectionUI();
+        PlacesCollectionView.IsVisible = false;
+        EmptyStateLayout.IsVisible = false;
 
         LocalizationService.Instance.PropertyChanged += (_, _) =>
         {
             ApplyTexts();
             UpdateCount();
+            OnPropertyChanged(nameof(DetailPriorityText));
+            OnPropertyChanged(nameof(AudioTracksTitle));
+            RefreshSelectedPlaceGallery(resetPosition: false);
+        };
+
+        ThemeService.Instance.PropertyChanged += (_, _) =>
+        {
+            UpdateFilterSelectionUI();
+            UpdateFilterHeader();
+            RefreshSelectedPlaceGallery(resetPosition: false);
         };
     }
 
@@ -89,20 +106,77 @@ public partial class MainPage : ContentPage
     {
         base.OnAppearing();
 
-#if ANDROID
-        var window = Platform.CurrentActivity?.Window;
-        if (window is not null)
+        if (!_hasLoadedPlaces)
         {
-            window.SetStatusBarColor(AndroidColor.ParseColor("#18A94B"));
-
-            // Keep status bar icons readable on green background.
-            var decor = window.DecorView;
-            if (decor is not null)
-            {
-                decor.SystemUiVisibility &= ~((StatusBarVisibility)SystemUiFlags.LightStatusBar);
-            }
+            _ = LoadPlacesAndHandleNavigationAsync();
         }
-#endif
+        else if (!_hasAnimatedPage)
+        {
+            _hasAnimatedPage = true;
+            _ = UiEffectsService.AnimateEntranceAsync(CountLabel, PlacesCollectionView);
+        }
+        else
+        {
+            _ = TryOpenPendingPlaceAsync();
+        }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _placesLoadingCts?.Cancel();
+        StopPlaceGalleryAutoplay();
+    }
+
+    private async Task LoadPlacesAsync()
+    {
+        if (_hasLoadedPlaces)
+            return;
+
+        _hasLoadedPlaces = true;
+        PlacesLoadingOverlay.IsVisible = true;
+        PlacesLoadingOverlay.Opacity = 1;
+        PlacesCollectionView.Opacity = 0;
+        PlacesCollectionView.IsVisible = false;
+        EmptyStateLayout.IsVisible = false;
+
+        _placesLoadingCts?.Cancel();
+        _placesLoadingCts = new CancellationTokenSource();
+
+        _ = UiEffectsService.RunSkeletonPulseAsync(
+            _placesLoadingCts.Token,
+            PlacesCountSkeleton,
+            PlacesCardSkeleton1,
+            PlacesCardSkeleton2,
+            PlacesCardSkeleton3);
+
+        await Task.Delay(420);
+
+        _allPlaces.Clear();
+        _allPlaces.AddRange(PlaceCatalogService.Instance.GetPlaces());
+        ApplyFilter();
+
+        _placesLoadingCts.Cancel();
+
+        PlacesCollectionView.IsVisible = Places.Count > 0;
+        await Task.WhenAll(
+            PlacesLoadingOverlay.FadeToAsync(0, 180, Easing.CubicOut),
+            PlacesCollectionView.FadeToAsync(1, 220, Easing.CubicOut));
+
+        PlacesLoadingOverlay.IsVisible = false;
+        PlacesLoadingOverlay.Opacity = 1;
+
+        if (!_hasAnimatedPage)
+        {
+            _hasAnimatedPage = true;
+            await UiEffectsService.AnimateEntranceAsync(CountLabel, PlacesCollectionView);
+        }
+    }
+
+    private async Task LoadPlacesAndHandleNavigationAsync()
+    {
+        await LoadPlacesAsync();
+        await TryOpenPendingPlaceAsync();
     }
 
     private void ApplyTexts()
@@ -124,6 +198,179 @@ public partial class MainPage : ContentPage
         UpdateCount();
     }
 
+    private void RefreshSelectedPlaceGallery(bool resetPosition)
+    {
+        SelectedPlaceGallery.Clear();
+
+        if (SelectedPlace is null)
+        {
+            StopPlaceGalleryAutoplay();
+            return;
+        }
+
+        foreach (var slide in BuildPlaceGallery(SelectedPlace))
+        {
+            SelectedPlaceGallery.Add(slide);
+        }
+
+        if (resetPosition && PlaceDetailCarousel is not null && SelectedPlaceGallery.Count > 0)
+        {
+            PlaceDetailCarousel.Position = 0;
+        }
+
+        if (IsPlaceDetailVisible)
+        {
+            StartPlaceGalleryAutoplay();
+        }
+    }
+
+    private IReadOnlyList<PlaceGallerySlide> BuildPlaceGallery(PlaceItem place)
+    {
+        var primaryGreen = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
+        var primaryGreenDark = ThemeService.Instance.GetColor("PrimaryGreenDark", "#148F40");
+        var bodyText = ThemeService.Instance.GetColor("BodyText", "#1E3250");
+        var infoText = ThemeService.Instance.GetColor("InfoText", "#2563EB");
+        var warningText = ThemeService.Instance.GetColor("WarningText", "#CA8A04");
+        var softOrange = ThemeService.Instance.GetColor("SoftOrange", "#FFE8D8");
+        var softPurple = ThemeService.Instance.GetColor("SoftPurple", "#EFF6FF");
+        var galleryImages = place.GalleryImages.Count > 0
+            ? place.GalleryImages
+            : [place.Image];
+
+        return
+        [
+            CreateGallerySlide(
+                GetGalleryImage(galleryImages, 0),
+                place.Category,
+                LocalizationService.Instance.T("Places.GalleryOverview"),
+                place.Name,
+                place.Description,
+                DetailPriorityText,
+                place.CategoryColor,
+                primaryGreenDark,
+                place.CategoryColor,
+                place.CategoryTextColor),
+            CreateGallerySlide(
+                GetGalleryImage(galleryImages, 1),
+                "GPS",
+                LocalizationService.Instance.T("Places.GalleryVisit"),
+                place.Address,
+                $"{place.RadiusText} • {place.GpsText}",
+                place.Phone,
+                infoText,
+                bodyText,
+                softPurple,
+                infoText),
+            CreateGallerySlide(
+                GetGalleryImage(galleryImages, 2),
+                LocalizationService.Instance.T("Places.GalleryAudio"),
+                LocalizationService.Instance.T("Places.GalleryAudio"),
+                place.Name,
+                place.AudioDescription,
+                place.Website,
+                warningText,
+                primaryGreen,
+                softOrange,
+                warningText)
+        ];
+    }
+
+    private static string GetGalleryImage(IReadOnlyList<string> images, int index)
+    {
+        if (images.Count == 0)
+            return string.Empty;
+
+        return images[index % images.Count];
+    }
+
+    private static PlaceGallerySlide CreateGallerySlide(
+        string image,
+        string badgeText,
+        string eyebrow,
+        string title,
+        string subtitle,
+        string footerText,
+        Color gradientStart,
+        Color gradientEnd,
+        Color badgeBackground,
+        Color badgeForeground)
+    {
+        return new PlaceGallerySlide
+        {
+            Image = image,
+            BadgeText = badgeText,
+            Eyebrow = eyebrow,
+            Title = title,
+            Subtitle = subtitle,
+            FooterText = footerText,
+            GradientStart = gradientStart,
+            GradientEnd = gradientEnd,
+            BadgeBackground = badgeBackground,
+            BadgeForeground = badgeForeground
+        };
+    }
+
+    private void StartPlaceGalleryAutoplay()
+    {
+        StopPlaceGalleryAutoplay();
+
+        if (!IsPlaceDetailVisible || SelectedPlaceGallery.Count < 2 || Dispatcher is null)
+            return;
+
+        _placeGalleryTimer = Dispatcher.CreateTimer();
+        _placeGalleryTimer.Interval = TimeSpan.FromSeconds(5);
+        _placeGalleryTimer.Tick += OnPlaceGalleryTimerTick;
+        _placeGalleryTimer.Start();
+    }
+
+    private void StopPlaceGalleryAutoplay()
+    {
+        if (_placeGalleryTimer is null)
+            return;
+
+        _placeGalleryTimer.Stop();
+        _placeGalleryTimer.Tick -= OnPlaceGalleryTimerTick;
+        _placeGalleryTimer = null;
+    }
+
+    private async void OnPlaceGalleryTimerTick(object? sender, EventArgs e)
+    {
+        if (!IsPlaceDetailVisible || SelectedPlaceGallery.Count < 2)
+        {
+            StopPlaceGalleryAutoplay();
+            return;
+        }
+
+        if (_isPlaceGalleryTransitionRunning)
+            return;
+
+        _isPlaceGalleryTransitionRunning = true;
+
+        var nextPosition = PlaceDetailCarousel.Position + 1;
+        if (nextPosition >= SelectedPlaceGallery.Count)
+        {
+            nextPosition = 0;
+        }
+
+        try
+        {
+            PlaceDetailCarousel.ScrollTo(nextPosition, -1, ScrollToPosition.Center, true);
+            await Task.Delay(320);
+        }
+        finally
+        {
+            _isPlaceGalleryTransitionRunning = false;
+        }
+    }
+
+    private void OnPlaceDetailCarouselPositionChanged(object? sender, PositionChangedEventArgs e)
+    {
+        if (!IsPlaceDetailVisible || _isPlaceGalleryTransitionRunning || _placeGalleryTimer is null)
+            return;
+
+        StartPlaceGalleryAutoplay();
+    }
+
     private void OnSearchChanged(object sender, TextChangedEventArgs e)
     {
         ApplyFilter();
@@ -131,23 +378,25 @@ public partial class MainPage : ContentPage
 
     private void ApplyFilter()
     {
-        string keyword = SearchEntry.Text?.Trim().ToLower() ?? "";
+        var keyword = SearchEntry.Text?.Trim().ToLower() ?? string.Empty;
 
         var filtered = _allPlaces
-            .Where(p =>
-                (_selectedCategory == "Tất cả" || p.Category == _selectedCategory) &&
-                (string.IsNullOrWhiteSpace(keyword) || p.Name.ToLower().Contains(keyword)))
+            .Where(place =>
+                (_selectedCategory == "Tất cả" || place.Category == _selectedCategory) &&
+                (string.IsNullOrWhiteSpace(keyword) || place.Name.ToLower().Contains(keyword)))
             .ToList();
 
         Places.Clear();
         foreach (var item in filtered)
+        {
             Places.Add(item);
+        }
 
         PlacesCollectionView.ItemsSource = null;
         PlacesCollectionView.ItemsSource = Places;
 
-        EmptyStateLayout.IsVisible = Places.Count == 0;
-        PlacesCollectionView.IsVisible = Places.Count > 0;
+        EmptyStateLayout.IsVisible = _allPlaces.Count > 0 && Places.Count == 0;
+        PlacesCollectionView.IsVisible = _allPlaces.Count > 0 && Places.Count > 0 && !PlacesLoadingOverlay.IsVisible;
 
         UpdateCount();
         UpdateFilterSelectionUI();
@@ -164,26 +413,23 @@ public partial class MainPage : ContentPage
         if (_selectedCategory == "Tất cả")
         {
             FilterLabel.Text = LocalizationService.Instance.T("Places.Filter");
-            FilterLabel.TextColor = Color.FromArgb("#243B5A");
+            FilterLabel.TextColor = ThemeService.Instance.GetColor("BodyText", "#243B5A");
             return;
         }
 
         FilterLabel.Text = $"{LocalizationService.Instance.T("Places.Filter")}: {_selectedCategory}";
-        FilterLabel.TextColor = Color.FromArgb("#18A94B");
+        FilterLabel.TextColor = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
     }
 
-    private void OnToggleFilterPopup(object sender, TappedEventArgs e)
+    private async void OnToggleFilterPopup(object sender, TappedEventArgs e)
     {
-        FilterPopup.IsVisible = !FilterPopup.IsVisible;
+        await UiEffectsService.TogglePopupAsync(FilterPopup, !FilterPopup.IsVisible);
     }
 
     private void ApplyCategory(string category)
     {
-        if (_selectedCategory == category)
-            _selectedCategory = "Tất cả";
-        else
-            _selectedCategory = category;
-
+        _selectedCategory = _selectedCategory == category ? "Tất cả" : category;
+        _ = UiEffectsService.TogglePopupAsync(FilterPopup, false);
         ApplyFilter();
     }
 
@@ -222,15 +468,15 @@ public partial class MainPage : ContentPage
     private void ResetFilterItem(Grid item, Label label, BoxView indicator)
     {
         item.BackgroundColor = Colors.Transparent;
-        label.TextColor = Color.FromArgb("#243B5A");
+        label.TextColor = ThemeService.Instance.GetColor("BodyText", "#243B5A");
         label.FontAttributes = FontAttributes.None;
         indicator.IsVisible = false;
     }
 
     private void SelectFilterItem(Grid item, Label label, BoxView indicator)
     {
-        item.BackgroundColor = Color.FromArgb("#E8F7EE");
-        label.TextColor = Color.FromArgb("#18A94B");
+        item.BackgroundColor = ThemeService.Instance.GetColor("SoftGreen", "#E8F7EE");
+        label.TextColor = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
         label.FontAttributes = FontAttributes.Bold;
         indicator.IsVisible = true;
     }
@@ -242,21 +488,12 @@ public partial class MainPage : ContentPage
     private void OnFilterFoodCultureTapped(object sender, TappedEventArgs e) => ApplyCategory("Văn hóa ẩm thực");
     private void OnFilterUtilityTapped(object sender, TappedEventArgs e) => ApplyCategory("Tiện ích");
 
-    // public class PlaceItem --> Moved to Models/PlaceItem.cs
-
     private async void OnPlaceTapped(object sender, TappedEventArgs e)
     {
-        if (sender is not Frame card || card.BindingContext is not PlaceItem item)
+        if (sender is not Element element || element.BindingContext is not PlaceItem item)
             return;
 
-        SelectedPlace = item;
-        SelectedPlaceTracks = BuildPlaceTracks(item);
-        IsPlaceDetailVisible = true;
-
-        await Task.Yield();
-        UpdatePlaceDetailSheetLayout();
-        PlaceDetailSheet.TranslationY = _placeDetailClosedY;
-        await PlaceDetailSheet.TranslateTo(0, _placeDetailHalfY, 300, Easing.CubicOut);
+        await ShowPlaceDetailAsync(item);
     }
 
     private async void OnPlaceDetailPanUpdated(object? sender, PanUpdatedEventArgs e)
@@ -284,7 +521,7 @@ public partial class MainPage : ContentPage
                 }
                 else
                 {
-                    await PlaceDetailSheet.TranslateTo(0, targetY, 170, Easing.CubicOut);
+                    await PlaceDetailSheet.TranslateToAsync(0, targetY, 170, Easing.CubicOut);
                 }
                 break;
         }
@@ -310,8 +547,9 @@ public partial class MainPage : ContentPage
         if (!IsPlaceDetailVisible)
             return;
 
+        StopPlaceGalleryAutoplay();
         UpdatePlaceDetailSheetLayout();
-        await PlaceDetailSheet.TranslateTo(0, _placeDetailClosedY, 230, Easing.CubicIn);
+        await PlaceDetailSheet.TranslateToAsync(0, _placeDetailClosedY, 230, Easing.CubicIn);
         IsPlaceDetailVisible = false;
         SelectedPlace = null;
         SelectedPlaceTracks = new ObservableCollection<PlaceAudioTrack>();
@@ -322,7 +560,6 @@ public partial class MainPage : ContentPage
         if (Height <= 0)
             return;
 
-        // Keep detail sheet balanced on screen so the close button remains reachable.
         var maxSheetHeight = Math.Max(360, Height * 0.88);
         PlaceDetailSheet.MaximumHeightRequest = maxSheetHeight;
 
@@ -335,102 +572,74 @@ public partial class MainPage : ContentPage
         _placeDetailClosedY = Math.Max(PlaceDetailFallbackClosedOffset, maxSheetHeight + 48);
 
         if (!IsPlaceDetailVisible)
+        {
             PlaceDetailSheet.TranslationY = _placeDetailClosedY;
+        }
     }
 
-    private static IEnumerable<PlaceItem> BuildSamplePlacesNearCurrentLocation()
+    private async Task TryOpenPendingPlaceAsync()
     {
-        return new List<PlaceItem>
+        var pendingPlaceId = PlaceNavigationService.Instance.ConsumePendingPlaceId();
+        if (string.IsNullOrWhiteSpace(pendingPlaceId))
+            return;
+
+        var place = PlaceCatalogService.Instance.FindById(pendingPlaceId);
+        if (place is null)
+            return;
+
+        if (FilterPopup.IsVisible)
+        {
+            await UiEffectsService.TogglePopupAsync(FilterPopup, false);
+        }
+
+        await ShowPlaceDetailAsync(place);
+    }
+
+    private async Task ShowPlaceDetailAsync(PlaceItem item)
+    {
+        SelectedPlace = item;
+        SelectedPlaceTracks = BuildPlaceTracks(item);
+        IsPlaceDetailVisible = true;
+
+        await Task.Yield();
+        UpdatePlaceDetailSheetLayout();
+        PlaceDetailSheet.TranslationY = _placeDetailClosedY;
+        PlaceDetailCarousel.Position = 0;
+        StartPlaceGalleryAutoplay();
+        await PlaceDetailSheet.TranslateToAsync(0, _placeDetailHalfY, 300, Easing.CubicOut);
+    }
+
+    private static ObservableCollection<PlaceAudioTrack> BuildPlaceTracks(PlaceItem item)
+    {
+        return new ObservableCollection<PlaceAudioTrack>
         {
             new()
             {
-                Name = "Cơm Tấm Góc Sài Gòn",
-                Description = "Quán cơm tấm đông khách, vị đậm đà gần trung tâm",
-                AudioDescription = "Cơm Tấm Góc Sài Gòn nổi bật với sườn nướng thơm, bì chả đầy đặn và nước mắm pha vừa vị.",
-                Category = "Món ăn đặc trưng",
-                Rating = "9/10",
-                Image = "dotnet_bot.png",
-                Address = "58 Võ Văn Tần, Quận 3, TP.HCM",
-                Phone = "(028) 3820 1122",
-                Email = "comtamgocsaigon@example.vn",
-                Website = "comtamgocsaigon.vn",
-                EstablishedYear = "2016",
-                RadiusText = "75m",
-                GpsText = "10.779120, 106.683900",
-                CategoryColor = Color.FromArgb("#FFE3E3"),
-                CategoryTextColor = Color.FromArgb("#E53935")
+                LanguageCode = "VI",
+                Title = $"Lịch sử {item.Name}",
+                Description = "Tự động",
+                Duration = "4:27"
             },
             new()
             {
-                Name = "Phở Bò Nguyễn Đình Chiểu",
-                Description = "Tô phở nóng với nước dùng thanh và bò mềm",
-                AudioDescription = "Phở Bò Nguyễn Đình Chiểu phục vụ phở truyền thống với nước dùng trong, thơm mùi quế hồi.",
-                Category = "Món ăn đặc trưng",
-                Rating = "9/10",
-                Image = "dotnet_bot.png",
-                Address = "124 Nguyễn Đình Chiểu, Quận 3, TP.HCM",
-                Phone = "(028) 3930 2233",
-                Email = "phobondc@example.vn",
-                Website = "phobondc.vn",
-                EstablishedYear = "2018",
-                RadiusText = "90m",
-                GpsText = "10.777950, 106.685150",
-                CategoryColor = Color.FromArgb("#FFE3E3"),
-                CategoryTextColor = Color.FromArgb("#E53935")
+                LanguageCode = "EN",
+                Title = $"History of {item.Name}",
+                Description = "Recorded",
+                Duration = "4:13"
             },
             new()
             {
-                Name = "Bún Bò Huế Chị Mai",
-                Description = "Bún bò cay nhẹ, topping đầy đủ và nước dùng đậm",
-                AudioDescription = "Bún Bò Huế Chị Mai nổi tiếng với nước lèo đậm vị, chả cua thơm và thịt bò mềm.",
-                Category = "Món ăn đặc trưng",
-                Rating = "8/10",
-                Image = "dotnet_bot.png",
-                Address = "36 Trần Quốc Thảo, Quận 3, TP.HCM",
-                Phone = "(028) 3932 4455",
-                Email = "bunbochimai@example.vn",
-                Website = "bunbochimai.vn",
-                EstablishedYear = "2019",
-                RadiusText = "110m",
-                GpsText = "10.780020, 106.686050",
-                CategoryColor = Color.FromArgb("#FFE3E3"),
-                CategoryTextColor = Color.FromArgb("#E53935")
+                LanguageCode = "JA",
+                Title = $"{item.Name} の紹介",
+                Description = "Thủ công",
+                Duration = "3:09"
             },
             new()
             {
-                Name = "Quán Mộc Garden Sài Gòn",
-                Description = "Không gian sân vườn mát, phù hợp ăn uống nhóm nhỏ",
-                AudioDescription = "Quán Mộc Garden Sài Gòn có không gian xanh và thực đơn Việt hiện đại, phù hợp gặp gỡ bạn bè.",
-                Category = "Quán nổi tiếng",
-                Rating = "9/10",
-                Image = "dotnet_bot.png",
-                Address = "22 Pasteur, Quận 3, TP.HCM",
-                Phone = "(028) 3829 6677",
-                Email = "mocgarden@example.vn",
-                Website = "mocgardensaigon.vn",
-                EstablishedYear = "2017",
-                RadiusText = "120m",
-                GpsText = "10.776980, 106.683480",
-                CategoryColor = Color.FromArgb("#FFF7D6"),
-                CategoryTextColor = Color.FromArgb("#CA8A04")
-            },
-            new()
-            {
-                Name = "Cafe Sông Xanh",
-                Description = "Quán cà phê yên tĩnh, thích hợp nghỉ chân buổi chiều",
-                AudioDescription = "Cafe Sông Xanh phục vụ cà phê rang mộc và nhiều loại đồ uống nhẹ trong không gian thư giãn.",
-                Category = "Đồ uống",
-                Rating = "8/10",
-                Image = "dotnet_bot.png",
-                Address = "75 Nam Kỳ Khởi Nghĩa, Quận 3, TP.HCM",
-                Phone = "(028) 3911 7788",
-                Email = "cafesongxanh@example.vn",
-                Website = "cafesongxanh.vn",
-                EstablishedYear = "2020",
-                RadiusText = "95m",
-                GpsText = "10.779640, 106.682950",
-                CategoryColor = Color.FromArgb("#E6F4FF"),
-                CategoryTextColor = Color.FromArgb("#2563EB")
+                LanguageCode = "ZH",
+                Title = $"{item.Name} 简介",
+                Description = "TTS",
+                Duration = "4:01"
             }
         };
     }
@@ -455,30 +664,15 @@ public partial class MainPage : ContentPage
         return _placeDetailClosedY;
     }
 
-    private static ObservableCollection<PlaceAudioTrack> BuildPlaceTracks(PlaceItem item)
+    private void OnPlayTapped(object sender, TappedEventArgs e)
     {
-        return new ObservableCollection<PlaceAudioTrack>
-        {
-            new() { LanguageCode = "VI", Title = $"Lịch sử {item.Name}", Description = "Tự động", Duration = "4:27" },
-            new() { LanguageCode = "EN", Title = $"History of {item.Name}", Description = "Recorded", Duration = "4:13" },
-            new() { LanguageCode = "JA", Title = $"{item.Name} の紹介", Description = "Thủ công", Duration = "3:09" },
-            new() { LanguageCode = "ZH", Title = $"{item.Name} 简介", Description = "TTS", Duration = "4:01" }
-        };
-    }
+        if (sender is not Element element || element.BindingContext is not PlaceItem item)
+            return;
 
-    private async void OnPlayTapped(object sender, TappedEventArgs e)
-    {
-        if (sender is Frame frame && frame.BindingContext is PlaceItem item)
+        item.IsPlayed = !item.IsPlayed;
+        if (item.IsPlayed)
         {
-            // Toggle play state
-            item.IsPlayed = !item.IsPlayed;
-
-            // Add to history
-            if (item.IsPlayed)
-            {
-                HistoryService.Instance.AddToHistory(item);
-                // Notification removed as per user request
-            }
+            HistoryService.Instance.AddToHistory(item);
         }
     }
 }

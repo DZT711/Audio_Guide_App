@@ -1,18 +1,14 @@
 using MauiApp_Mobile.Services;
 using MauiApp_Mobile.Models;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace MauiApp_Mobile.Views;
 
-public partial class HistoryPage : ContentPage, INotifyPropertyChanged
+public partial class HistoryPage : ContentPage
 {
     private const double HistoryDetailClosedOffset = 520;
     private bool _isHistoryDetailVisible;
     private PlaceItem? _selectedHistoryItem;
     private double _historyDetailStartY;
-
-    public new event PropertyChangedEventHandler? PropertyChanged;
 
     public bool IsHistoryDetailVisible
     {
@@ -80,7 +76,7 @@ public partial class HistoryPage : ContentPage, INotifyPropertyChanged
 
     private async void OnHistoryItemTapped(object sender, TappedEventArgs e)
     {
-        if (sender is not Frame frame || frame.BindingContext is not PlaceItem item)
+        if (sender is not Element element || element.BindingContext is not PlaceItem item)
             return;
 
         SelectedHistoryItem = item;
@@ -88,7 +84,7 @@ public partial class HistoryPage : ContentPage, INotifyPropertyChanged
 
         await Task.Yield();
         HistoryDetailSheet.TranslationY = HistoryDetailClosedOffset;
-        await HistoryDetailSheet.TranslateTo(0, 0, 280, Easing.CubicOut);
+        await HistoryDetailSheet.TranslateToAsync(0, 0, 280, Easing.CubicOut);
     }
 
     private async void OnCloseHistoryDetail(object sender, EventArgs e)
@@ -130,7 +126,7 @@ public partial class HistoryPage : ContentPage, INotifyPropertyChanged
                 }
                 else
                 {
-                    await HistoryDetailSheet.TranslateTo(0, 0, 140, Easing.CubicOut);
+                    await HistoryDetailSheet.TranslateToAsync(0, 0, 140, Easing.CubicOut);
                 }
                 break;
         }
@@ -141,7 +137,7 @@ public partial class HistoryPage : ContentPage, INotifyPropertyChanged
         if (!IsHistoryDetailVisible)
             return;
 
-        await HistoryDetailSheet.TranslateTo(0, HistoryDetailClosedOffset, 220, Easing.CubicIn);
+        await HistoryDetailSheet.TranslateToAsync(0, HistoryDetailClosedOffset, 220, Easing.CubicIn);
         IsHistoryDetailVisible = false;
         SelectedHistoryItem = null;
     }
@@ -151,10 +147,5 @@ public partial class HistoryPage : ContentPage, INotifyPropertyChanged
         TitleLabel.Text = LocalizationService.Instance.T("History.Title");
         SubtitleLabel.Text = LocalizationService.Instance.T("History.Subtitle");
         // CountLabel will be updated by UpdateCount()
-    }
-
-    private void OnPropertyChanged([CallerMemberName] string? name = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }
