@@ -1,26 +1,53 @@
+using System.ComponentModel;
 using MauiApp_Mobile.Services;
 
 namespace MauiApp_Mobile.Views;
 
 public partial class SettingsPage : ContentPage
 {
+    private bool _hasAnimated;
+
     public SettingsPage()
     {
         InitializeComponent();
         ApplyTexts();
+        UpdateSliderLabels();
         UpdateLanguageSelectionUI();
+        UpdateThemeSelectionUI();
 
-        LocalizationService.Instance.PropertyChanged += (_, _) =>
-        {
-            ApplyTexts();
-            UpdateLanguageSelectionUI();
-        };
+        LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
+        ThemeService.Instance.PropertyChanged += OnThemeChanged;
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+
+        if (_hasAnimated)
+            return;
+
+        _hasAnimated = true;
+        _ = UiEffectsService.AnimateEntranceAsync(AudioCard, AppearanceCard, GpsCard, BehaviorCard, SaveButton);
+    }
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        ApplyTexts();
+        UpdateLanguageSelectionUI();
+    }
+
+    private void OnThemeChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        UpdateLanguageSelectionUI();
+        UpdateThemeSelectionUI();
     }
 
     private void ApplyTexts()
     {
         TitleLabel.Text = LocalizationService.Instance.T("Settings.Title");
         AudioLabel.Text = LocalizationService.Instance.T("Settings.Audio");
+        AppearanceLabel.Text = LocalizationService.Instance.T("Settings.Appearance");
+        ThemeHintLabel.Text = LocalizationService.Instance.T("Settings.ThemeHint");
         GpsLabel.Text = LocalizationService.Instance.T("Settings.Gps");
         BehaviorLabel.Text = LocalizationService.Instance.T("Settings.Behavior");
         SaveButton.Text = LocalizationService.Instance.T("Settings.Save");
@@ -33,6 +60,13 @@ public partial class SettingsPage : ContentPage
         ReadingSpeedLabel.Text = LocalizationService.Instance.T("Settings.Speed");
         VolumeLabel.Text = LocalizationService.Instance.T("Settings.Volume");
         TestVoiceButton.Text = LocalizationService.Instance.T("Settings.TestVoice");
+
+        ThemeEcoTitleLabel.Text = LocalizationService.Instance.T("Settings.ThemeEcoTitle");
+        ThemeEcoSubtitleLabel.Text = LocalizationService.Instance.T("Settings.ThemeEcoSubtitle");
+        ThemeMidnightTitleLabel.Text = LocalizationService.Instance.T("Settings.ThemeMidnightTitle");
+        ThemeMidnightSubtitleLabel.Text = LocalizationService.Instance.T("Settings.ThemeMidnightSubtitle");
+        ThemeHeritageTitleLabel.Text = LocalizationService.Instance.T("Settings.ThemeHeritageTitle");
+        ThemeHeritageSubtitleLabel.Text = LocalizationService.Instance.T("Settings.ThemeHeritageSubtitle");
 
         GpsAccuracyLabel.Text = LocalizationService.Instance.T("Settings.Accuracy");
         GpsAccuracyValueLabel.Text = LocalizationService.Instance.T("Settings.AccuracyValue");
@@ -56,15 +90,15 @@ public partial class SettingsPage : ContentPage
         LangFrLabel.Text = "Français";
     }
 
-    private void OnToggleLanguagePopupTapped(object sender, TappedEventArgs e)
+    private async void OnToggleLanguagePopupTapped(object sender, TappedEventArgs e)
     {
-        LanguagePopup.IsVisible = !LanguagePopup.IsVisible;
+        await UiEffectsService.TogglePopupAsync(LanguagePopup, !LanguagePopup.IsVisible);
     }
 
     private void ChangeLanguage(string code)
     {
         LocalizationService.Instance.Language = code;
-        LanguagePopup.IsVisible = false;
+        _ = UiEffectsService.TogglePopupAsync(LanguagePopup, false);
         UpdateLanguageSelectionUI();
     }
 
@@ -103,17 +137,72 @@ public partial class SettingsPage : ContentPage
     private void ResetLanguageItem(Grid item, Label label, BoxView indicator)
     {
         item.BackgroundColor = Colors.Transparent;
-        label.TextColor = Color.FromArgb("#243B5A");
+        label.TextColor = ThemeService.Instance.GetColor("BodyText", "#243B5A");
         label.FontAttributes = FontAttributes.None;
         indicator.IsVisible = false;
     }
 
     private void SelectLanguageItem(Grid item, Label label, BoxView indicator)
     {
-        item.BackgroundColor = Color.FromArgb("#E8F7EE");
-        label.TextColor = Color.FromArgb("#18A94B");
+        item.BackgroundColor = ThemeService.Instance.GetColor("SoftGreen", "#E8F7EE");
+        label.TextColor = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
         label.FontAttributes = FontAttributes.Bold;
         indicator.IsVisible = true;
+    }
+
+    private void UpdateThemeSelectionUI()
+    {
+        SetThemeCardState(ThemeEcoCard, ThemeEcoBadge, ThemeService.Instance.CurrentTheme == AppThemeOption.Eco);
+        SetThemeCardState(ThemeMidnightCard, ThemeMidnightBadge, ThemeService.Instance.CurrentTheme == AppThemeOption.Midnight);
+        SetThemeCardState(ThemeHeritageCard, ThemeHeritageBadge, ThemeService.Instance.CurrentTheme == AppThemeOption.Heritage);
+    }
+
+    private void SetThemeCardState(Border card, Border badge, bool isSelected)
+    {
+        card.BackgroundColor = isSelected
+            ? ThemeService.Instance.GetColor("SoftGreen", "#E8F7EE")
+            : ThemeService.Instance.GetColor("CardBg", "#FFFFFF");
+        card.Stroke = new SolidColorBrush(
+            isSelected
+                ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+                : ThemeService.Instance.GetColor("BorderColor", "#E5E7EB"));
+        card.StrokeThickness = isSelected ? 2 : 1;
+        badge.IsVisible = isSelected;
+    }
+
+    private void OnThemeEcoTapped(object sender, TappedEventArgs e) => ApplyTheme(AppThemeOption.Eco);
+    private void OnThemeMidnightTapped(object sender, TappedEventArgs e) => ApplyTheme(AppThemeOption.Midnight);
+    private void OnThemeHeritageTapped(object sender, TappedEventArgs e) => ApplyTheme(AppThemeOption.Heritage);
+
+    private void ApplyTheme(AppThemeOption theme)
+    {
+        ThemeService.Instance.SetTheme(theme);
+        UpdateThemeSelectionUI();
+    }
+
+    private void UpdateSliderLabels()
+    {
+        ReadingSpeedValueLabel.Text = $"{ReadingSpeedSlider.Value:0.0}x";
+        VolumeValueLabel.Text = $"{Math.Round(VolumeSlider.Value):0}%";
+        TriggerRadiusValueLabel.Text = $"{Math.Round(TriggerRadiusSlider.Value):0}m";
+        AlertRadiusValueLabel.Text = $"{Math.Round(AlertRadiusSlider.Value):0}m";
+        WaitTimeValueLabel.Text = $"{Math.Round(WaitTimeSlider.Value):0}s";
+    }
+
+    private void OnReadingSpeedChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
+    private void OnVolumeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
+    private void OnTriggerRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
+    private void OnAlertRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
+    private void OnWaitTimeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
+
+    private async void OnSaveTapped(object sender, EventArgs e)
+    {
+        await SaveButton.ScaleToAsync(0.98, 70, Easing.CubicIn);
+        await SaveButton.ScaleToAsync(1, 150, Easing.CubicOut);
+        await DisplayAlertAsync(
+            LocalizationService.Instance.T("Settings.Title"),
+            LocalizationService.Instance.T("Settings.SaveSuccess"),
+            "OK");
     }
 
     private void OnLanguageViTapped(object sender, TappedEventArgs e) => ChangeLanguage("vi");

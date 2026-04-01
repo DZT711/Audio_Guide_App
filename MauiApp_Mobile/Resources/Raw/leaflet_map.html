@@ -1,62 +1,163 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>smartTOUR Map</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <style>
-        body { padding: 0; margin: 0; }
-        html, body, #map { height: 100%; width: 100%; }
-        .leaflet-popup-content { font-family: Arial, sans-serif; }
-        .poi-popup {
-            width: 220px;
+        :root {
+            --panel-bg: #ffffff;
+            --panel-text: #0f172a;
+            --panel-muted: #475569;
+            --popup-shadow: rgba(15, 23, 42, 0.18);
+            --poi-fill: #18a94b;
+            --poi-stroke: #148f40;
+            --nearest-fill: #f97316;
+            --nearest-stroke: #c2410c;
+            --search-fill: #3b82f6;
+            --search-stroke: #1d4ed8;
+            --current-fill: #38bdf8;
+            --current-stroke: #0ea5e9;
+            --current-halo: rgba(56, 189, 248, 0.22);
         }
+
+        body[data-theme='midnight'] {
+            --panel-bg: #112230;
+            --panel-text: #f8fefa;
+            --panel-muted: #b8d6e6;
+            --popup-shadow: rgba(2, 6, 12, 0.45);
+            --poi-fill: #58d18e;
+            --poi-stroke: #41b376;
+            --nearest-fill: #f5c979;
+            --nearest-stroke: #d39c2d;
+            --search-fill: #7cc6ff;
+            --search-stroke: #2f8fd1;
+            --current-fill: #8fe1ff;
+            --current-stroke: #4bb7e6;
+            --current-halo: rgba(143, 225, 255, 0.2);
+        }
+
+        body[data-theme='heritage'] {
+            --panel-bg: #fff9f2;
+            --panel-text: #30180e;
+            --panel-muted: #7b5a45;
+            --popup-shadow: rgba(104, 60, 33, 0.16);
+            --poi-fill: #c46a34;
+            --poi-stroke: #a65627;
+            --nearest-fill: #2d7a78;
+            --nearest-stroke: #1f5b59;
+            --search-fill: #4f8f7a;
+            --search-stroke: #356b5a;
+            --current-fill: #5da9a6;
+            --current-stroke: #2d7a78;
+            --current-halo: rgba(93, 169, 166, 0.2);
+        }
+
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        html,
+        body,
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: var(--panel-bg);
+            color: var(--panel-text);
+            border-radius: 18px;
+            box-shadow: 0 18px 38px var(--popup-shadow);
+        }
+
+        .leaflet-popup-tip {
+            background: var(--panel-bg);
+        }
+
+        .leaflet-popup-content {
+            font-family: Arial, sans-serif;
+            margin: 12px 14px;
+            width: 236px !important;
+        }
+
+        .poi-popup {
+            width: 236px;
+        }
+
         .poi-popup img {
             width: 100%;
-            height: 120px;
+            height: 122px;
             object-fit: cover;
-            border-radius: 10px;
-            margin-bottom: 8px;
+            border-radius: 12px;
+            margin-bottom: 10px;
             display: block;
         }
+
         .poi-popup-title {
             font-size: 16px;
             font-weight: 700;
-            color: #0F172A;
+            color: var(--panel-text);
             margin-bottom: 4px;
         }
-        .poi-popup-desc {
+
+        .poi-popup-desc,
+        .status-popup {
             font-size: 13px;
-            color: #475569;
-            line-height: 1.35;
+            color: var(--panel-muted);
+            line-height: 1.4;
+        }
+
+        .status-popup strong {
+            color: var(--panel-text);
+        }
+
+        .poi-popup-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 10px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(24, 169, 75, 0.12);
+            color: var(--poi-stroke);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        body[data-theme='midnight'] .poi-popup-chip {
+            background: rgba(88, 209, 142, 0.16);
+        }
+
+        body[data-theme='heritage'] .poi-popup-chip {
+            background: rgba(196, 106, 52, 0.14);
+            color: var(--poi-stroke);
         }
     </style>
 </head>
-<body>
+<body data-theme="emerald">
     <div id="map"></div>
     <script>
-        // Initialize map near current location sample area (TP.HCM)
-        var map = L.map('map').setView([10.778762, 106.684330], 15);
+        var defaultCenter = [10.778762, 106.684330];
+        var defaultZoom = 15;
+        var currentThemeKey = 'emerald';
+        var map = L.map('map', {
+            zoomControl: false
+        }).setView(defaultCenter, defaultZoom);
 
-        // Cách 1: Sử dụng CartoDB Light (khô tính, nhẹ, không yêu cầu API Key)
-        // Như gợi ý trong ảnh đầu tiên: dùng CartoDB thay vì OSM, style sạch
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap &copy; CARTO',
-            subdomains: 'abcd',
-            maxZoom: 20
+        L.control.zoom({
+            position: 'bottomright'
         }).addTo(map);
 
-        // Cách 2 (dự phòng): Nếu muốn dùng Esri (miễn phí cho POC/học tập)
-        // Bỏ comment dòng dưới nếu muốn thử Esri thay CartoDB
-        /*
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri'
-        }).addTo(map);
-        */
+        var tileLayer = null;
+        var mapMarkers = [];
+        var searchMarker = null;
+        var currentLocationMarker = null;
+        var currentLocationHalo = null;
 
-        // Places to add as POI (đồng bộ dữ liệu mẫu màn Địa điểm)
         var places = [
             {
                 lat: 10.779120,
@@ -90,12 +191,6 @@
             }
         ];
 
-        var defaultCenter = [10.778762, 106.684330];
-        var defaultZoom = 15;
-        var mapMarkers = [];
-        var searchMarker = null;
-        var currentLocationMarker = null;
-
         function normalizeText(value) {
             return (value || '')
                 .toString()
@@ -124,9 +219,10 @@
 
         function hueFromText(text) {
             var hash = 0;
-            for (var i = 0; i < text.length; i++) {
-                hash = text.charCodeAt(i) + ((hash << 5) - hash);
+            for (var index = 0; index < text.length; index++) {
+                hash = text.charCodeAt(index) + ((hash << 5) - hash);
             }
+
             return Math.abs(hash) % 360;
         }
 
@@ -151,27 +247,210 @@
         }
 
         function buildPoiPopup(place) {
+            var nearestChip = place.isNearest
+                ? '<div class="poi-popup-chip">🧭 Gần bạn nhất</div>'
+                : '';
+
             return (
                 '<div class="poi-popup">' +
                 '<img src="' + place.image + '" alt="' + escapeHtml(place.title) + '">' +
                 '<div class="poi-popup-title">' + escapeHtml(place.title) + '</div>' +
                 '<div class="poi-popup-desc">' + escapeHtml(place.description) + '</div>' +
+                nearestChip +
                 '</div>'
             );
         }
 
+        function getThemePalette() {
+            if (currentThemeKey === 'midnight') {
+                return {
+                    poiFill: '#58D18E',
+                    poiStroke: '#41B376',
+                    nearestFill: '#F5C979',
+                    nearestStroke: '#D39C2D',
+                    searchFill: '#7CC6FF',
+                    searchStroke: '#2F8FD1',
+                    currentFill: '#8FE1FF',
+                    currentStroke: '#4BB7E6',
+                    currentHalo: 'rgba(143, 225, 255, 0.20)'
+                };
+            }
+
+            if (currentThemeKey === 'heritage') {
+                return {
+                    poiFill: '#C46A34',
+                    poiStroke: '#A65627',
+                    nearestFill: '#2D7A78',
+                    nearestStroke: '#1F5B59',
+                    searchFill: '#4F8F7A',
+                    searchStroke: '#356B5A',
+                    currentFill: '#5DA9A6',
+                    currentStroke: '#2D7A78',
+                    currentHalo: 'rgba(93, 169, 166, 0.20)'
+                };
+            }
+
+            return {
+                poiFill: '#18A94B',
+                poiStroke: '#148F40',
+                nearestFill: '#F97316',
+                nearestStroke: '#C2410C',
+                searchFill: '#3B82F6',
+                searchStroke: '#1D4ED8',
+                currentFill: '#38BDF8',
+                currentStroke: '#0EA5E9',
+                currentHalo: 'rgba(56, 189, 248, 0.22)'
+            };
+        }
+
+        function createBaseTileLayer(themeKey) {
+            var tileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+            if (themeKey === 'midnight') {
+                tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+            } else if (themeKey === 'heritage') {
+                tileUrl = 'https://{s}.basemaps.cartocdn.com/voyager/{z}/{x}/{y}{r}.png';
+            }
+
+            return L.tileLayer(tileUrl, {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 20
+            });
+        }
+
+        function buildPoiMarkerStyle(place) {
+            var palette = getThemePalette();
+            return {
+                radius: place.isNearest ? 10 : 8,
+                color: place.isNearest ? palette.nearestStroke : palette.poiStroke,
+                weight: place.isNearest ? 3 : 2,
+                fillColor: place.isNearest ? palette.nearestFill : palette.poiFill,
+                fillOpacity: 0.96
+            };
+        }
+
+        function buildSearchMarkerStyle() {
+            var palette = getThemePalette();
+            return {
+                radius: 10,
+                color: palette.searchStroke,
+                weight: 3,
+                fillColor: palette.searchFill,
+                fillOpacity: 0.95
+            };
+        }
+
+        function buildCurrentLocationStyle() {
+            var palette = getThemePalette();
+            return {
+                radius: 9,
+                color: palette.currentStroke,
+                weight: 3,
+                fillColor: palette.currentFill,
+                fillOpacity: 0.98
+            };
+        }
+
+        function buildCurrentLocationHaloStyle() {
+            var palette = getThemePalette();
+            return {
+                radius: 42,
+                color: palette.currentStroke,
+                weight: 1.4,
+                fillColor: palette.currentFill,
+                fillOpacity: 0.14,
+                opacity: 0.85
+            };
+        }
+
+        function toRadians(value) {
+            return value * Math.PI / 180;
+        }
+
+        function getDistanceInMeters(lat1, lon1, lat2, lon2) {
+            var earthRadius = 6371000;
+            var dLat = toRadians(lat2 - lat1);
+            var dLon = toRadians(lon2 - lon1);
+            var a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+            return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function highlightNearestPoi(referenceLat, referenceLon) {
+            if (!mapMarkers.length) {
+                return;
+            }
+
+            var minDistance = Number.MAX_VALUE;
+            var nearestItem = null;
+
+            mapMarkers.forEach(function(item) {
+                item.place.isNearest = false;
+                var distance = getDistanceInMeters(referenceLat, referenceLon, item.place.lat, item.place.lon);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestItem = item;
+                }
+            });
+
+            if (nearestItem) {
+                nearestItem.place.isNearest = true;
+            }
+
+            refreshPoiStyles();
+        }
+
+        function refreshPoiStyles() {
+            mapMarkers.forEach(function(item) {
+                item.marker.setStyle(buildPoiMarkerStyle(item.place));
+                item.marker.setPopupContent(buildPoiPopup(item.place));
+            });
+        }
+
+        function refreshCurrentLocationStyles() {
+            if (currentLocationMarker) {
+                currentLocationMarker.setStyle(buildCurrentLocationStyle());
+            }
+
+            if (currentLocationHalo) {
+                currentLocationHalo.setStyle(buildCurrentLocationHaloStyle());
+            }
+        }
+
+        function refreshSearchMarkerStyles() {
+            if (searchMarker) {
+                searchMarker.setStyle(buildSearchMarkerStyle());
+            }
+        }
+
+        function applyTheme(themeKey) {
+            currentThemeKey = themeKey || 'emerald';
+            document.body.setAttribute('data-theme', currentThemeKey);
+
+            if (tileLayer) {
+                map.removeLayer(tileLayer);
+            }
+
+            tileLayer = createBaseTileLayer(currentThemeKey);
+            tileLayer.addTo(map);
+
+            refreshPoiStyles();
+            refreshSearchMarkerStyles();
+            refreshCurrentLocationStyles();
+        }
+
         places = places.map(function(place) {
             return Object.assign({}, place, {
-                image: createPoiThumbnail(place.title)
+                image: createPoiThumbnail(place.title),
+                isNearest: false
             });
         });
 
-        // Add markers for each place
         places.forEach(function(place) {
-            var marker = L.marker([place.lat, place.lon], {
-                title: place.title
-            }).addTo(map);
-            
+            var marker = L.circleMarker([place.lat, place.lon], buildPoiMarkerStyle(place)).addTo(map);
             marker.bindPopup(buildPoiPopup(place));
 
             mapMarkers.push({
@@ -179,6 +458,9 @@
                 marker: marker
             });
         });
+
+        applyTheme(currentThemeKey);
+        highlightNearestPoi(defaultCenter[0], defaultCenter[1]);
 
         window.focusPlaceByKeyword = function(keyword) {
             var normalizedKeyword = normalizeText(keyword);
@@ -224,14 +506,23 @@
 
         window.resetMapView = function() {
             map.closePopup();
+
             if (searchMarker) {
                 map.removeLayer(searchMarker);
                 searchMarker = null;
             }
+
             if (currentLocationMarker) {
                 map.removeLayer(currentLocationMarker);
                 currentLocationMarker = null;
             }
+
+            if (currentLocationHalo) {
+                map.removeLayer(currentLocationHalo);
+                currentLocationHalo = null;
+            }
+
+            highlightNearestPoi(defaultCenter[0], defaultCenter[1]);
             map.flyTo(defaultCenter, defaultZoom, {
                 duration: 1
             });
@@ -242,13 +533,10 @@
                 map.removeLayer(searchMarker);
             }
 
-            searchMarker = L.marker([lat, lon], {
-                title: title || 'Kết quả tìm kiếm'
-            }).addTo(map);
-
+            searchMarker = L.circleMarker([lat, lon], buildSearchMarkerStyle()).addTo(map);
             searchMarker.bindPopup(
-                '<strong>' + (title || 'Kết quả tìm kiếm') + '</strong><br/>' +
-                (description || '')
+                '<div class="status-popup"><strong>' + escapeHtml(title || 'Kết quả tìm kiếm') + '</strong><br/>' +
+                escapeHtml(description || '') + '</div>'
             );
 
             map.flyTo([lat, lon], 16, {
@@ -264,17 +552,18 @@
                 map.removeLayer(currentLocationMarker);
             }
 
-            currentLocationMarker = L.circleMarker([lat, lon], {
-                radius: 9,
-                color: '#0EA5E9',
-                weight: 2,
-                fillColor: '#38BDF8',
-                fillOpacity: 0.9
-            }).addTo(map);
+            if (currentLocationHalo) {
+                map.removeLayer(currentLocationHalo);
+            }
+
+            currentLocationHalo = L.circle([lat, lon], buildCurrentLocationHaloStyle()).addTo(map);
+            currentLocationMarker = L.circleMarker([lat, lon], buildCurrentLocationStyle()).addTo(map);
+
+            highlightNearestPoi(lat, lon);
 
             currentLocationMarker.bindPopup(
-                '<strong>Vị trí hiện tại</strong><br/>' +
-                lat.toFixed(6) + ', ' + lon.toFixed(6)
+                '<div class="status-popup"><strong>Vị trí hiện tại</strong><br/>' +
+                lat.toFixed(6) + ', ' + lon.toFixed(6) + '</div>'
             );
 
             map.flyTo([lat, lon], 16, {
@@ -282,6 +571,11 @@
             });
             currentLocationMarker.openPopup();
 
+            return true;
+        };
+
+        window.applyMapTheme = function(themeKey) {
+            applyTheme(themeKey);
             return true;
         };
     </script>

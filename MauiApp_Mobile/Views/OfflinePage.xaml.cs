@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using MauiApp_Mobile.Services;
 
 namespace MauiApp_Mobile.Views;
 
@@ -35,13 +36,29 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
     public string DownloadedCountText => $"{_allItems.Count(x => x.IsDownloaded)}/{_allItems.Count} pack";
     public string DownloadedSizeText => $"{_allItems.Where(x => x.IsDownloaded).Sum(x => x.SizeValue):0.#} MB";
 
-    public Color AllTabBg => _selectedFilter == "All" ? Color.FromArgb("#18A94B") : Color.FromArgb("#F2F4F7");
-    public Color DownloadedTabBg => _selectedFilter == "Downloaded" ? Color.FromArgb("#18A94B") : Color.FromArgb("#F2F4F7");
-    public Color NotDownloadedTabBg => _selectedFilter == "NotDownloaded" ? Color.FromArgb("#18A94B") : Color.FromArgb("#F2F4F7");
+    public Color AllTabBg => _selectedFilter == "All"
+        ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+        : ThemeService.Instance.GetColor("SurfaceAlt", "#F2F4F7");
 
-    public Color AllTabTextColor => _selectedFilter == "All" ? Colors.White : Color.FromArgb("#475467");
-    public Color DownloadedTabTextColor => _selectedFilter == "Downloaded" ? Colors.White : Color.FromArgb("#475467");
-    public Color NotDownloadedTabTextColor => _selectedFilter == "NotDownloaded" ? Colors.White : Color.FromArgb("#475467");
+    public Color DownloadedTabBg => _selectedFilter == "Downloaded"
+        ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+        : ThemeService.Instance.GetColor("SurfaceAlt", "#F2F4F7");
+
+    public Color NotDownloadedTabBg => _selectedFilter == "NotDownloaded"
+        ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+        : ThemeService.Instance.GetColor("SurfaceAlt", "#F2F4F7");
+
+    public Color AllTabTextColor => _selectedFilter == "All"
+        ? ThemeService.Instance.GetColor("OnAccentText", "#FFFFFF")
+        : ThemeService.Instance.GetColor("MutedText", "#475467");
+
+    public Color DownloadedTabTextColor => _selectedFilter == "Downloaded"
+        ? ThemeService.Instance.GetColor("OnAccentText", "#FFFFFF")
+        : ThemeService.Instance.GetColor("MutedText", "#475467");
+
+    public Color NotDownloadedTabTextColor => _selectedFilter == "NotDownloaded"
+        ? ThemeService.Instance.GetColor("OnAccentText", "#FFFFFF")
+        : ThemeService.Instance.GetColor("MutedText", "#475467");
 
     public bool IsDeleteConfirmVisible
     {
@@ -73,6 +90,16 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
 
         SeedData();
         ApplyFilter();
+
+        ThemeService.Instance.PropertyChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(AllTabBg));
+            OnPropertyChanged(nameof(DownloadedTabBg));
+            OnPropertyChanged(nameof(NotDownloadedTabBg));
+            OnPropertyChanged(nameof(AllTabTextColor));
+            OnPropertyChanged(nameof(DownloadedTabTextColor));
+            OnPropertyChanged(nameof(NotDownloadedTabTextColor));
+        };
     }
 
     private void SeedData()

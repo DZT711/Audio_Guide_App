@@ -1,11 +1,6 @@
-﻿using System.Collections.ObjectModel;
-using MauiApp_Mobile.Services;
+using System.Collections.ObjectModel;
 using MauiApp_Mobile.Models;
-#if ANDROID
-using AndroidColor = Android.Graphics.Color;
-using Android.Views;
-using Microsoft.Maui.ApplicationModel;
-#endif
+using MauiApp_Mobile.Services;
 
 namespace MauiApp_Mobile;
 
@@ -14,6 +9,7 @@ public partial class MainPage : ContentPage
     private const double PlaceDetailOpenTopInset = 16;
     private const double PlaceDetailFallbackClosedOffset = 520;
     private const double PlaceDetailHalfVisibleRatio = 0.58;
+
     private readonly List<PlaceItem> _allPlaces = new();
     private ObservableCollection<PlaceAudioTrack> _selectedPlaceTracks = new();
     private string _selectedCategory = "Tất cả";
@@ -23,6 +19,9 @@ public partial class MainPage : ContentPage
     private double _placeDetailExpandedY = PlaceDetailOpenTopInset;
     private double _placeDetailHalfY = 180;
     private double _placeDetailClosedY = PlaceDetailFallbackClosedOffset;
+    private bool _hasLoadedPlaces;
+    private bool _hasAnimatedPage;
+    private CancellationTokenSource? _placesLoadingCts;
 
     public ObservableCollection<PlaceItem> Places { get; set; } = new();
 
@@ -65,17 +64,22 @@ public partial class MainPage : ContentPage
     {
         InitializeComponent();
 
-        _allPlaces.AddRange(BuildSamplePlacesNearCurrentLocation());
-
         BindingContext = this;
         ApplyTexts();
-        ApplyFilter();
         UpdateFilterSelectionUI();
+        PlacesCollectionView.IsVisible = false;
+        EmptyStateLayout.IsVisible = false;
 
         LocalizationService.Instance.PropertyChanged += (_, _) =>
         {
             ApplyTexts();
             UpdateCount();
+        };
+
+        ThemeService.Instance.PropertyChanged += (_, _) =>
+        {
+            UpdateFilterSelectionUI();
+            UpdateFilterHeader();
         };
     }
 
@@ -89,20 +93,66 @@ public partial class MainPage : ContentPage
     {
         base.OnAppearing();
 
-#if ANDROID
-        var window = Platform.CurrentActivity?.Window;
-        if (window is not null)
+        if (!_hasLoadedPlaces)
         {
-            window.SetStatusBarColor(AndroidColor.ParseColor("#18A94B"));
-
-            // Keep status bar icons readable on green background.
-            var decor = window.DecorView;
-            if (decor is not null)
-            {
-                decor.SystemUiVisibility &= ~((StatusBarVisibility)SystemUiFlags.LightStatusBar);
-            }
+            _ = LoadPlacesAsync();
         }
-#endif
+        else if (!_hasAnimatedPage)
+        {
+            _hasAnimatedPage = true;
+            _ = UiEffectsService.AnimateEntranceAsync(CountLabel, PlacesCollectionView);
+        }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _placesLoadingCts?.Cancel();
+    }
+
+    private async Task LoadPlacesAsync()
+    {
+        if (_hasLoadedPlaces)
+            return;
+
+        _hasLoadedPlaces = true;
+        PlacesLoadingOverlay.IsVisible = true;
+        PlacesLoadingOverlay.Opacity = 1;
+        PlacesCollectionView.Opacity = 0;
+        PlacesCollectionView.IsVisible = false;
+        EmptyStateLayout.IsVisible = false;
+
+        _placesLoadingCts?.Cancel();
+        _placesLoadingCts = new CancellationTokenSource();
+
+        _ = UiEffectsService.RunSkeletonPulseAsync(
+            _placesLoadingCts.Token,
+            PlacesCountSkeleton,
+            PlacesCardSkeleton1,
+            PlacesCardSkeleton2,
+            PlacesCardSkeleton3);
+
+        await Task.Delay(420);
+
+        _allPlaces.Clear();
+        _allPlaces.AddRange(BuildSamplePlacesNearCurrentLocation());
+        ApplyFilter();
+
+        _placesLoadingCts.Cancel();
+
+        PlacesCollectionView.IsVisible = Places.Count > 0;
+        await Task.WhenAll(
+            PlacesLoadingOverlay.FadeToAsync(0, 180, Easing.CubicOut),
+            PlacesCollectionView.FadeToAsync(1, 220, Easing.CubicOut));
+
+        PlacesLoadingOverlay.IsVisible = false;
+        PlacesLoadingOverlay.Opacity = 1;
+
+        if (!_hasAnimatedPage)
+        {
+            _hasAnimatedPage = true;
+            await UiEffectsService.AnimateEntranceAsync(CountLabel, PlacesCollectionView);
+        }
     }
 
     private void ApplyTexts()
@@ -131,23 +181,25 @@ public partial class MainPage : ContentPage
 
     private void ApplyFilter()
     {
-        string keyword = SearchEntry.Text?.Trim().ToLower() ?? "";
+        var keyword = SearchEntry.Text?.Trim().ToLower() ?? string.Empty;
 
         var filtered = _allPlaces
-            .Where(p =>
-                (_selectedCategory == "Tất cả" || p.Category == _selectedCategory) &&
-                (string.IsNullOrWhiteSpace(keyword) || p.Name.ToLower().Contains(keyword)))
+            .Where(place =>
+                (_selectedCategory == "Tất cả" || place.Category == _selectedCategory) &&
+                (string.IsNullOrWhiteSpace(keyword) || place.Name.ToLower().Contains(keyword)))
             .ToList();
 
         Places.Clear();
         foreach (var item in filtered)
+        {
             Places.Add(item);
+        }
 
         PlacesCollectionView.ItemsSource = null;
         PlacesCollectionView.ItemsSource = Places;
 
-        EmptyStateLayout.IsVisible = Places.Count == 0;
-        PlacesCollectionView.IsVisible = Places.Count > 0;
+        EmptyStateLayout.IsVisible = _allPlaces.Count > 0 && Places.Count == 0;
+        PlacesCollectionView.IsVisible = _allPlaces.Count > 0 && Places.Count > 0 && !PlacesLoadingOverlay.IsVisible;
 
         UpdateCount();
         UpdateFilterSelectionUI();
@@ -164,26 +216,23 @@ public partial class MainPage : ContentPage
         if (_selectedCategory == "Tất cả")
         {
             FilterLabel.Text = LocalizationService.Instance.T("Places.Filter");
-            FilterLabel.TextColor = Color.FromArgb("#243B5A");
+            FilterLabel.TextColor = ThemeService.Instance.GetColor("BodyText", "#243B5A");
             return;
         }
 
         FilterLabel.Text = $"{LocalizationService.Instance.T("Places.Filter")}: {_selectedCategory}";
-        FilterLabel.TextColor = Color.FromArgb("#18A94B");
+        FilterLabel.TextColor = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
     }
 
-    private void OnToggleFilterPopup(object sender, TappedEventArgs e)
+    private async void OnToggleFilterPopup(object sender, TappedEventArgs e)
     {
-        FilterPopup.IsVisible = !FilterPopup.IsVisible;
+        await UiEffectsService.TogglePopupAsync(FilterPopup, !FilterPopup.IsVisible);
     }
 
     private void ApplyCategory(string category)
     {
-        if (_selectedCategory == category)
-            _selectedCategory = "Tất cả";
-        else
-            _selectedCategory = category;
-
+        _selectedCategory = _selectedCategory == category ? "Tất cả" : category;
+        _ = UiEffectsService.TogglePopupAsync(FilterPopup, false);
         ApplyFilter();
     }
 
@@ -222,15 +271,15 @@ public partial class MainPage : ContentPage
     private void ResetFilterItem(Grid item, Label label, BoxView indicator)
     {
         item.BackgroundColor = Colors.Transparent;
-        label.TextColor = Color.FromArgb("#243B5A");
+        label.TextColor = ThemeService.Instance.GetColor("BodyText", "#243B5A");
         label.FontAttributes = FontAttributes.None;
         indicator.IsVisible = false;
     }
 
     private void SelectFilterItem(Grid item, Label label, BoxView indicator)
     {
-        item.BackgroundColor = Color.FromArgb("#E8F7EE");
-        label.TextColor = Color.FromArgb("#18A94B");
+        item.BackgroundColor = ThemeService.Instance.GetColor("SoftGreen", "#E8F7EE");
+        label.TextColor = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
         label.FontAttributes = FontAttributes.Bold;
         indicator.IsVisible = true;
     }
@@ -241,8 +290,6 @@ public partial class MainPage : ContentPage
     private void OnFilterDrinksTapped(object sender, TappedEventArgs e) => ApplyCategory("Đồ uống");
     private void OnFilterFoodCultureTapped(object sender, TappedEventArgs e) => ApplyCategory("Văn hóa ẩm thực");
     private void OnFilterUtilityTapped(object sender, TappedEventArgs e) => ApplyCategory("Tiện ích");
-
-    // public class PlaceItem --> Moved to Models/PlaceItem.cs
 
     private async void OnPlaceTapped(object sender, TappedEventArgs e)
     {
@@ -256,7 +303,7 @@ public partial class MainPage : ContentPage
         await Task.Yield();
         UpdatePlaceDetailSheetLayout();
         PlaceDetailSheet.TranslationY = _placeDetailClosedY;
-        await PlaceDetailSheet.TranslateTo(0, _placeDetailHalfY, 300, Easing.CubicOut);
+        await PlaceDetailSheet.TranslateToAsync(0, _placeDetailHalfY, 300, Easing.CubicOut);
     }
 
     private async void OnPlaceDetailPanUpdated(object? sender, PanUpdatedEventArgs e)
@@ -284,7 +331,7 @@ public partial class MainPage : ContentPage
                 }
                 else
                 {
-                    await PlaceDetailSheet.TranslateTo(0, targetY, 170, Easing.CubicOut);
+                    await PlaceDetailSheet.TranslateToAsync(0, targetY, 170, Easing.CubicOut);
                 }
                 break;
         }
@@ -311,7 +358,7 @@ public partial class MainPage : ContentPage
             return;
 
         UpdatePlaceDetailSheetLayout();
-        await PlaceDetailSheet.TranslateTo(0, _placeDetailClosedY, 230, Easing.CubicIn);
+        await PlaceDetailSheet.TranslateToAsync(0, _placeDetailClosedY, 230, Easing.CubicIn);
         IsPlaceDetailVisible = false;
         SelectedPlace = null;
         SelectedPlaceTracks = new ObservableCollection<PlaceAudioTrack>();
@@ -322,7 +369,6 @@ public partial class MainPage : ContentPage
         if (Height <= 0)
             return;
 
-        // Keep detail sheet balanced on screen so the close button remains reachable.
         var maxSheetHeight = Math.Max(360, Height * 0.88);
         PlaceDetailSheet.MaximumHeightRequest = maxSheetHeight;
 
@@ -335,7 +381,9 @@ public partial class MainPage : ContentPage
         _placeDetailClosedY = Math.Max(PlaceDetailFallbackClosedOffset, maxSheetHeight + 48);
 
         if (!IsPlaceDetailVisible)
+        {
             PlaceDetailSheet.TranslationY = _placeDetailClosedY;
+        }
     }
 
     private static IEnumerable<PlaceItem> BuildSamplePlacesNearCurrentLocation()
@@ -466,19 +514,15 @@ public partial class MainPage : ContentPage
         };
     }
 
-    private async void OnPlayTapped(object sender, TappedEventArgs e)
+    private void OnPlayTapped(object sender, TappedEventArgs e)
     {
-        if (sender is Frame frame && frame.BindingContext is PlaceItem item)
-        {
-            // Toggle play state
-            item.IsPlayed = !item.IsPlayed;
+        if (sender is not Frame frame || frame.BindingContext is not PlaceItem item)
+            return;
 
-            // Add to history
-            if (item.IsPlayed)
-            {
-                HistoryService.Instance.AddToHistory(item);
-                // Notification removed as per user request
-            }
+        item.IsPlayed = !item.IsPlayed;
+        if (item.IsPlayed)
+        {
+            HistoryService.Instance.AddToHistory(item);
         }
     }
 }

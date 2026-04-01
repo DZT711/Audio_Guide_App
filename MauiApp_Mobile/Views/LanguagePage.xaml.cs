@@ -4,10 +4,24 @@ namespace MauiApp_Mobile.Views;
 
 public partial class LanguagePage : ContentPage
 {
+    private bool _hasAnimated;
+
     public LanguagePage()
     {
         InitializeComponent();
         ApplyLanguage("vi");
+        ThemeService.Instance.PropertyChanged += (_, _) => ApplyLanguage(LocalizationService.Instance.Language);
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+
+        if (_hasAnimated)
+            return;
+
+        _hasAnimated = true;
+        _ = UiEffectsService.AnimateEntranceAsync(HeroStack, LanguageCardGrid, StartButton, FooterLabel);
     }
 
     private void ApplyLanguage(string languageCode)
@@ -45,15 +59,15 @@ public partial class LanguagePage : ContentPage
 
     private void ResetCard(Frame card, Frame tick)
     {
-        card.BorderColor = Color.FromArgb("#D6DBE3");
-        card.BackgroundColor = Colors.White;
+        card.BorderColor = ThemeService.Instance.GetColor("BorderColor", "#D6DBE3");
+        card.BackgroundColor = ThemeService.Instance.GetColor("CardBg", "#FFFFFF");
         tick.IsVisible = false;
     }
 
     private void SelectCard(Frame card, Frame tick)
     {
-        card.BorderColor = Color.FromArgb("#18A94B");
-        card.BackgroundColor = Color.FromArgb("#EEF8F1");
+        card.BorderColor = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
+        card.BackgroundColor = ThemeService.Instance.GetColor("SoftGreen", "#EEF8F1");
         tick.IsVisible = true;
     }
 
@@ -66,6 +80,8 @@ public partial class LanguagePage : ContentPage
 
     private async void OnStartClicked(object sender, EventArgs e)
     {
+        await StartButton.ScaleToAsync(0.98, 70, Easing.CubicIn);
+        await StartButton.ScaleToAsync(1, 160, Easing.CubicOut);
         await Shell.Current.GoToAsync("//places");
     }
 }

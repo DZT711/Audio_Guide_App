@@ -4,7 +4,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     x:Name="ThisPage"
-    BackgroundColor="{StaticResource LightBg}">
+    BackgroundColor="{DynamicResource LightBg}">
 
     <Grid RowDefinitions="Auto,*">
         <Grid Style="{StaticResource TopHeaderGridStyle}">
@@ -31,7 +31,7 @@
                     <Label x:Name="CountLabel"
                            Text="⏱ 0 địa điểm"
                            FontSize="15"
-                           TextColor="{StaticResource BodyText}" />
+                           TextColor="{DynamicResource BodyText}" />
                 </HorizontalStackLayout>
 
                 <CollectionView x:Name="HistoryCollectionView"
@@ -51,19 +51,19 @@
                                     <Image Source="{Binding Image}" WidthRequest="90" HeightRequest="90" Aspect="AspectFill" />
                                     
                                     <VerticalStackLayout Grid.Column="1" Spacing="4">
-                                        <Label Text="{Binding Name}" FontSize="17" FontAttributes="Bold" TextColor="{StaticResource BodyText}" />
-                                        <Label Text="{Binding Address}" FontSize="13" TextColor="{StaticResource MutedText}" />
+                                        <Label Text="{Binding Name}" FontSize="17" FontAttributes="Bold" TextColor="{DynamicResource BodyText}" />
+                                        <Label Text="{Binding Address}" FontSize="13" TextColor="{DynamicResource MutedText}" />
                                         <HorizontalStackLayout Spacing="10">
                                             <Frame Padding="10,4" CornerRadius="10" HasShadow="False" BackgroundColor="#FFE3E3" BorderColor="Transparent">
                                                 <Label Text="Lịch sử" FontSize="12" TextColor="#E53935" />
                                             </Frame>
-                                            <Label Text="⭐ 10/10" FontSize="13" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+                                            <Label Text="⭐ 10/10" FontSize="13" TextColor="{DynamicResource MutedText}" VerticalOptions="Center" />
                                         </HorizontalStackLayout>
                                     </VerticalStackLayout>
                                     
                                     <VerticalStackLayout Grid.Column="2" Spacing="10" HorizontalOptions="End">
                                         <!-- Play/Speaker Button -->
-                                        <Frame WidthRequest="44" HeightRequest="44" CornerRadius="22" Padding="0" BackgroundColor="{StaticResource PrimaryGreen}" HasShadow="False">
+                                        <Frame WidthRequest="44" HeightRequest="44" CornerRadius="22" Padding="0" BackgroundColor="{DynamicResource PrimaryGreen}" HasShadow="False">
                                             <Label Text="{Binding PlayIcon}" HorizontalOptions="Center" VerticalOptions="Center" TextColor="White" FontSize="18"/>
                                         </Frame>
                                         
@@ -91,7 +91,7 @@
 
         <Grid Grid.RowSpan="2"
               IsVisible="{Binding Source={x:Reference ThisPage}, Path=IsHistoryDetailVisible}"
-              BackgroundColor="#66000000"
+              BackgroundColor="{DynamicResource OverlayColor}"
               RowDefinitions="*,Auto"
               ZIndex="90">
 
@@ -103,7 +103,7 @@
 
             <Border x:Name="HistoryDetailSheet"
                     Grid.Row="1"
-                    BackgroundColor="White"
+                    BackgroundColor="{DynamicResource BottomSheetBg}"
                     StrokeThickness="0"
                     StrokeShape="RoundRectangle 24,24,0,0"
                     Padding="0,0,0,10"
@@ -119,7 +119,7 @@
                         </Grid.GestureRecognizers>
                         <Border WidthRequest="52"
                                 HeightRequest="6"
-                                BackgroundColor="#D0D5DD"
+                                BackgroundColor="{DynamicResource SheetHandleColor}"
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 3"
                                 HorizontalOptions="Center" />
