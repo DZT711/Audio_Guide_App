@@ -26,6 +26,7 @@ public partial class MapPage : ContentPage
     private readonly SemaphoreSlim _mapScriptSemaphore = new(1, 1);
     private readonly ObservableCollection<MapSearchSuggestion> _searchResults = new();
     private readonly Dictionary<string, IReadOnlyList<OnlineSearchResult>> _addressSearchCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _mapImageDataCache = new(StringComparer.OrdinalIgnoreCase);
     private bool _isMapLoaded;
     private bool _isMapReady;
     private bool _hasAnimatedChrome;
@@ -276,7 +277,7 @@ public partial class MapPage : ContentPage
         if (!_isMapReady)
             return;
 
-        var mapPlacesJson = JsonSerializer.Serialize(PlaceCatalogService.Instance.GetMapPoints(), JsonInteropOptions);
+        var mapPlacesJson = JsonSerializer.Serialize(await BuildMapInteropPointsAsync(), JsonInteropOptions);
         await EvaluateMapScriptAsync($"window.setPlaces && window.setPlaces({mapPlacesJson});");
     }
 
@@ -704,6 +705,68 @@ public partial class MapPage : ContentPage
         return await Geolocation.Default.GetLastKnownLocationAsync();
     }
 
+    private async Task<IReadOnlyList<MapPlaceInteropPoint>> BuildMapInteropPointsAsync()
+    {
+        var sourcePoints = PlaceCatalogService.Instance.GetMapPoints();
+        var preparedPoints = new List<MapPlaceInteropPoint>(sourcePoints.Count);
+
+        foreach (var point in sourcePoints)
+        {
+            preparedPoints.Add(new MapPlaceInteropPoint
+            {
+                Id = point.Id,
+                Title = point.Title,
+                Description = point.Description,
+                Address = point.Address,
+                Category = point.Category,
+                Latitude = point.Latitude,
+                Longitude = point.Longitude,
+                Image = await ResolveMapImageSourceAsync(point.Image)
+            });
+        }
+
+        return preparedPoints;
+    }
+
+    private async Task<string> ResolveMapImageSourceAsync(string imageSource)
+    {
+        if (string.IsNullOrWhiteSpace(imageSource))
+            return string.Empty;
+
+        if (imageSource.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
+            imageSource.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            imageSource.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return imageSource;
+        }
+
+        if (_mapImageDataCache.TryGetValue(imageSource, out var cachedSource))
+            return cachedSource;
+
+        try
+        {
+            using var stream = await FileSystem.OpenAppPackageFileAsync(imageSource);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+
+            var mimeType = Path.GetExtension(imageSource).ToLowerInvariant() switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".webp" => "image/webp",
+                _ => "image/png"
+            };
+
+            var dataUri = $"data:{mimeType};base64,{Convert.ToBase64String(memoryStream.ToArray())}";
+            _mapImageDataCache[imageSource] = dataUri;
+            return dataUri;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Map image fallback for {imageSource}: {ex.Message}");
+            return string.Empty;
+        }
+    }
+
     private void SetLocateButtonState(bool isBusy, bool isEnabled)
     {
         CurrentLocationSpinner.IsVisible = isBusy;
@@ -912,6 +975,18 @@ public partial class MapPage : ContentPage
         public double Longitude { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
+    }
+
+    private sealed class MapPlaceInteropPoint
+    {
+        public string Id { get; init; } = string.Empty;
+        public string Title { get; init; } = string.Empty;
+        public string Description { get; init; } = string.Empty;
+        public string Address { get; init; } = string.Empty;
+        public string Category { get; init; } = string.Empty;
+        public double Latitude { get; init; }
+        public double Longitude { get; init; }
+        public string Image { get; init; } = string.Empty;
     }
 
     private sealed class MapStringPayload

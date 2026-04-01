@@ -94,17 +94,204 @@
             width: 236px !important;
         }
 
+        .poi-div-icon {
+            background: transparent !important;
+            border: 0 !important;
+        }
+
+        .poi-div-icon,
+        .poi-div-icon * {
+            box-sizing: border-box;
+        }
+
+        .poi-marker-shell {
+            position: relative;
+            width: 72px;
+            height: 72px;
+        }
+
+        .poi-marker {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 999px;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.96);
+            border: 2px solid var(--poi-stroke);
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.22);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+
+        .poi-marker__frame {
+            width: 100%;
+            height: 100%;
+            padding: 4px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(238, 247, 241, 0.94));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+
+        .poi-marker__image-wrap {
+            width: 100%;
+            height: 100%;
+            padding: 2px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        .poi-marker__image {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 999px;
+            object-fit: cover;
+            background: #dce8dd;
+        }
+
+        .poi-marker__halo {
+            position: absolute;
+            inset: -6px;
+            border-radius: 999px;
+            border: 2px solid transparent;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+        }
+
+        .poi-marker__badge {
+            position: absolute;
+            right: 2px;
+            bottom: 2px;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 7px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--poi-fill);
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+            border: 2px solid var(--panel-bg);
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.2);
+        }
+
+        .poi-marker--nearest {
+            border-color: var(--nearest-stroke);
+            transform: scale(1.06);
+            box-shadow: 0 18px 36px rgba(194, 65, 12, 0.26);
+        }
+
+        .poi-marker--nearest .poi-marker__frame {
+            background: linear-gradient(180deg, rgba(255, 245, 237, 0.98), rgba(255, 255, 255, 0.98));
+        }
+
+        .poi-marker--nearest .poi-marker__halo {
+            border-color: rgba(249, 115, 22, 0.28);
+            opacity: 1;
+            transform: scale(1);
+            animation: nearestPulse 2.25s ease-out infinite;
+        }
+
+        .poi-marker--nearest .poi-marker__badge {
+            background: var(--nearest-fill);
+            color: #ffffff;
+        }
+
+        @keyframes nearestPulse {
+            0% {
+                opacity: 0.78;
+                transform: scale(0.96);
+            }
+
+            70% {
+                opacity: 0;
+                transform: scale(1.22);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(1.22);
+            }
+        }
+
         .poi-popup {
             width: 236px;
         }
 
-        .poi-popup img {
-            width: 100%;
-            height: 122px;
-            object-fit: cover;
-            border-radius: 12px;
+        .poi-popup-gallery {
+            position: relative;
+            height: 132px;
+            padding: 8px;
+            overflow: hidden;
+            border-radius: 14px;
             margin-bottom: 10px;
+            background: #dbe6df;
+        }
+
+        .poi-popup-slide {
+            position: absolute;
+            inset: 8px 8px 0 8px;
+            opacity: 0;
+            transform: scale(1.02);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: opacity 0.28s ease, transform 0.28s ease;
+        }
+
+        .poi-popup-slide.is-active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .poi-popup-slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
             display: block;
+        }
+
+        .poi-popup-pagination {
+            position: absolute;
+            left: 50%;
+            bottom: 10px;
+            transform: translateX(-50%);
+            display: inline-flex;
+            gap: 6px;
+            z-index: 2;
+        }
+
+        .poi-popup-dot {
+            width: 8px;
+            height: 8px;
+            border: 0;
+            padding: 0;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.56);
+            transition: width 0.18s ease, background-color 0.18s ease;
+        }
+
+        .poi-popup-dot.is-active {
+            width: 18px;
+            background: #ffffff;
+        }
+
+        .poi-popup-overlay {
+            position: absolute;
+            inset: auto 0 0 0;
+            padding: 22px 12px 10px;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.64) 100%);
+            z-index: 1;
+        }
+
+        .poi-popup-overlay-text {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.94);
+            font-weight: 700;
+            letter-spacing: 0.02em;
         }
 
         .poi-popup-title {
@@ -218,6 +405,8 @@
             lat: defaultCenter[0],
             lon: defaultCenter[1]
         };
+        var popupCarouselTimerId = 0;
+        var activePopupGalleryId = "";
 
         function normalizeText(value) {
             return (value || "")
@@ -238,6 +427,15 @@
                 .replace(/'/g, "&#39;");
         }
 
+        function shortenText(value, maxLength) {
+            var text = (value || "").toString().trim();
+            if (text.length <= maxLength) {
+                return text;
+            }
+
+            return text.substring(0, Math.max(0, maxLength - 1)).trim() + "…";
+        }
+
         function getInitials(text) {
             var words = (text || "").trim().split(/\s+/).filter(Boolean);
             if (!words.length) return "POI";
@@ -255,20 +453,32 @@
         }
 
         function createPoiThumbnail(title) {
+            return createPoiStoryCard(title, "", "POI", 0);
+        }
+
+        function createPoiStoryCard(title, subtitle, caption, variantIndex) {
             var hue = hueFromText(title || "");
             var initials = getInitials(title);
+            var hueShift = variantIndex === 1 ? 34 : (variantIndex === 2 ? 68 : 0);
+            var accentHue = (hue + hueShift) % 360;
+            var secondaryHue = (accentHue + 38) % 360;
+            var safeSubtitle = escapeHtml(shortenText(subtitle, 32));
+            var safeCaption = escapeHtml(shortenText(caption, 18));
             var svg =
                 '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220" viewBox="0 0 400 220">' +
                 "<defs>" +
                 '<linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
-                '<stop offset="0%" stop-color="hsl(' + hue + ', 75%, 52%)"/>' +
-                '<stop offset="100%" stop-color="hsl(' + ((hue + 40) % 360) + ', 80%, 42%)"/>' +
+                '<stop offset="0%" stop-color="hsl(' + accentHue + ', 76%, 54%)"/>' +
+                '<stop offset="100%" stop-color="hsl(' + secondaryHue + ', 82%, 40%)"/>' +
                 "</linearGradient>" +
                 "</defs>" +
                 '<rect width="400" height="220" fill="url(#g)"/>' +
-                '<circle cx="68" cy="66" r="36" fill="rgba(255,255,255,0.22)"/>' +
+                '<rect x="18" y="18" width="108" height="32" rx="16" fill="rgba(255,255,255,0.18)"/>' +
+                '<text x="72" y="39" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#ffffff">' + safeCaption + "</text>" +
+                '<circle cx="68" cy="78" r="38" fill="rgba(255,255,255,0.22)"/>' +
                 '<text x="68" y="77" text-anchor="middle" font-size="34" fill="#ffffff">📍</text>' +
-                '<text x="200" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#ffffff">' + escapeHtml(initials) + "</text>" +
+                '<text x="204" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#ffffff">' + escapeHtml(initials) + "</text>" +
+                '<text x="200" y="168" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="rgba(255,255,255,0.92)">' + safeSubtitle + "</text>" +
                 "</svg>";
 
             return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
@@ -328,15 +538,73 @@
             });
         }
 
-        function buildPoiMarkerStyle(place) {
+        function getResolvedPlaceImage(imageSource, title) {
+            return /^data:|^https?:/i.test(String(imageSource))
+                ? String(imageSource)
+                : createPoiThumbnail(title || "");
+        }
+
+        function buildPlaceGalleryImages(place, imageSource) {
+            var title = place.title || place.Title || "";
+            var description = place.description || place.Description || "";
+            var address = place.address || place.Address || "";
+            var category = place.category || place.Category || "";
+            var primaryImage = getResolvedPlaceImage(imageSource, title);
+
+            return [
+                primaryImage,
+                createPoiStoryCard(title, category || description, "POI", 1),
+                createPoiStoryCard(title, address || description, category || "POI", 2)
+            ].filter(function(item, index, items) {
+                return !!item && items.indexOf(item) === index;
+            });
+        }
+
+        function getMarkerBadgeText(place) {
+            var words = (place.category || "").trim().split(/\s+/).filter(Boolean);
+            if (words.length >= 2) {
+                return (words[0][0] + words[1][0]).toUpperCase();
+            }
+
+            if (words.length === 1) {
+                return words[0].substring(0, 2).toUpperCase();
+            }
+
+            return getInitials(place.title).substring(0, 2);
+        }
+
+        function createPoiMarkerIcon(place) {
             var palette = getThemePalette();
-            return {
-                radius: place.isNearest ? 10 : 8,
-                color: place.isNearest ? palette.nearestStroke : palette.poiStroke,
-                weight: place.isNearest ? 3 : 2,
-                fillColor: place.isNearest ? palette.nearestFill : palette.poiFill,
-                fillOpacity: 0.96
-            };
+            var imageSource = place.galleryImages && place.galleryImages.length
+                ? place.galleryImages[0]
+                : place.image;
+            var borderColor = place.isNearest ? palette.nearestStroke : palette.poiStroke;
+            var badgeColor = place.isNearest ? palette.nearestFill : palette.poiFill;
+            var haloStyle = place.isNearest
+                ? ' style="border-color: rgba(249,115,22,0.30);"'
+                : "";
+            var markerClass = place.isNearest ? "poi-marker poi-marker--nearest" : "poi-marker";
+            var badgeText = escapeHtml(getMarkerBadgeText(place));
+            var html =
+                '<div class="poi-marker-shell">' +
+                '<div class="' + markerClass + '" style="border-color:' + borderColor + ';">' +
+                '<div class="poi-marker__halo"' + haloStyle + "></div>" +
+                '<div class="poi-marker__frame">' +
+                '<div class="poi-marker__image-wrap">' +
+                '<img class="poi-marker__image" src="' + escapeHtml(imageSource) + '" alt="' + escapeHtml(place.title) + '">' +
+                "</div>" +
+                "</div>" +
+                '<div class="poi-marker__badge" style="background:' + badgeColor + ';">' + badgeText + "</div>" +
+                "</div>" +
+                "</div>";
+
+            return L.divIcon({
+                className: "poi-div-icon",
+                html: html,
+                iconSize: [72, 72],
+                iconAnchor: [36, 36],
+                popupAnchor: [0, -30]
+            });
         }
 
         function buildSearchMarkerStyle() {
@@ -373,6 +641,95 @@
             };
         }
 
+        function getPopupGalleryElement(galleryId) {
+            return document.querySelector('.poi-popup-gallery[data-gallery-id="' + galleryId + '"]');
+        }
+
+        function stopPopupGalleryAutoplay() {
+            if (popupCarouselTimerId) {
+                window.clearInterval(popupCarouselTimerId);
+                popupCarouselTimerId = 0;
+            }
+
+            activePopupGalleryId = "";
+        }
+
+        function applyPopupGalleryState(galleryId, nextIndex) {
+            var gallery = getPopupGalleryElement(galleryId);
+            if (!gallery) {
+                return;
+            }
+
+            var slides = Array.prototype.slice.call(gallery.querySelectorAll(".poi-popup-slide"));
+            var dots = Array.prototype.slice.call(gallery.querySelectorAll(".poi-popup-dot"));
+            if (!slides.length) {
+                return;
+            }
+
+            var normalizedIndex = ((nextIndex % slides.length) + slides.length) % slides.length;
+            gallery.setAttribute("data-current-index", normalizedIndex);
+
+            slides.forEach(function(slide, index) {
+                slide.classList.toggle("is-active", index === normalizedIndex);
+            });
+
+            dots.forEach(function(dot, index) {
+                dot.classList.toggle("is-active", index === normalizedIndex);
+            });
+        }
+
+        function restartPopupGalleryAutoplay(galleryId) {
+            stopPopupGalleryAutoplay();
+
+            var gallery = getPopupGalleryElement(galleryId);
+            if (!gallery) {
+                return;
+            }
+
+            var slideCount = Number(gallery.getAttribute("data-slide-count") || 0);
+            if (slideCount < 2) {
+                return;
+            }
+
+            activePopupGalleryId = galleryId;
+            popupCarouselTimerId = window.setInterval(function() {
+                var currentIndex = Number(gallery.getAttribute("data-current-index") || 0);
+                applyPopupGalleryState(galleryId, currentIndex + 1);
+            }, 5000);
+        }
+
+        function startPopupGalleryForPopup(popup) {
+            stopPopupGalleryAutoplay();
+
+            if (!popup || typeof popup.getElement !== "function") {
+                return;
+            }
+
+            var popupElement = popup.getElement();
+            if (!popupElement) {
+                return;
+            }
+
+            var gallery = popupElement.querySelector(".poi-popup-gallery");
+            if (!gallery) {
+                return;
+            }
+
+            var galleryId = gallery.getAttribute("data-gallery-id");
+            if (!galleryId) {
+                return;
+            }
+
+            applyPopupGalleryState(galleryId, Number(gallery.getAttribute("data-current-index") || 0));
+            restartPopupGalleryAutoplay(galleryId);
+        }
+
+        window.setPopupGallerySlide = function(galleryId, nextIndex) {
+            applyPopupGalleryState(galleryId, nextIndex);
+            restartPopupGalleryAutoplay(galleryId);
+            return false;
+        };
+
         function buildPoiPopup(place) {
             var categoryChip = place.category
                 ? '<div class="poi-popup-chip">' + escapeHtml(place.category) + "</div>"
@@ -386,10 +743,34 @@
             var detailAction = place.id
                 ? '<a class="poi-popup-action" href="smarttour://place/' + encodeURIComponent(place.id) + '">' + escapeHtml(mapStrings.viewDetails) + "</a>"
                 : "";
+            var galleryImages = place.galleryImages && place.galleryImages.length
+                ? place.galleryImages
+                : [place.image];
+            var galleryId = encodeURIComponent(place.id || place.title || "poi");
+            var gallerySlides = galleryImages.map(function(image, index) {
+                var activeClass = index === 0 ? " is-active" : "";
+                return (
+                    '<div class="poi-popup-slide' + activeClass + '">' +
+                    '<img src="' + escapeHtml(image) + '" alt="' + escapeHtml(place.title) + '">' +
+                    "</div>"
+                );
+            }).join("");
+            var galleryDots = galleryImages.length > 1
+                ? galleryImages.map(function(_, index) {
+                    var activeClass = index === 0 ? " is-active" : "";
+                    return '<button type="button" class="poi-popup-dot' + activeClass + '" onclick="window.setPopupGallerySlide(\'' + galleryId + '\', ' + index + '); return false;"></button>';
+                }).join("")
+                : "";
+            var gallery =
+                '<div class="poi-popup-gallery" data-gallery-id="' + galleryId + '" data-current-index="0" data-slide-count="' + galleryImages.length + '">' +
+                gallerySlides +
+                '<div class="poi-popup-overlay"><div class="poi-popup-overlay-text">' + escapeHtml(place.category || mapStrings.searchResultTitle) + "</div></div>" +
+                (galleryDots ? '<div class="poi-popup-pagination">' + galleryDots + "</div>" : "") +
+                "</div>";
 
             return (
                 '<div class="poi-popup">' +
-                '<img src="' + escapeHtml(place.image) + '" alt="' + escapeHtml(place.title) + '">' +
+                gallery +
                 '<div class="poi-popup-title">' + escapeHtml(place.title) + "</div>" +
                 '<div class="poi-popup-desc">' + escapeHtml(place.description || "") + "</div>" +
                 addressBlock +
@@ -442,8 +823,15 @@
 
         function refreshPoiStyles() {
             mapMarkers.forEach(function(item) {
-                item.marker.setStyle(buildPoiMarkerStyle(item.place));
+                item.marker.setIcon(createPoiMarkerIcon(item.place));
+                item.marker.setZIndexOffset(item.place.isNearest ? 1800 : 0);
                 item.marker.setPopupContent(buildPoiPopup(item.place));
+
+                if (item.marker.isPopupOpen()) {
+                    window.setTimeout(function() {
+                        startPopupGalleryForPopup(item.marker.getPopup());
+                    }, 0);
+                }
             });
         }
 
@@ -482,7 +870,7 @@
 
             if (nearestItem) {
                 nearestItem.place.isNearest = true;
-                nearestItem.marker.bringToFront();
+                nearestItem.marker.setZIndexOffset(1800);
             }
 
             refreshPoiStyles();
@@ -523,17 +911,17 @@
         function hydratePlaces(items) {
             return (items || []).map(function(place) {
                 var imageSource = place.image || place.Image || "";
+                var title = place.title || place.Title || "";
                 return {
                     id: (place.id || place.Id || "").toString(),
                     lat: Number(place.latitude || place.Latitude),
                     lon: Number(place.longitude || place.Longitude),
-                    title: place.title || place.Title || "",
+                    title: title,
                     description: place.description || place.Description || "",
                     address: place.address || place.Address || "",
                     category: place.category || place.Category || "",
-                    image: /^data:|^https?:/i.test(String(imageSource))
-                        ? String(imageSource)
-                        : createPoiThumbnail(place.title || place.Title || ""),
+                    image: getResolvedPlaceImage(imageSource, title),
+                    galleryImages: buildPlaceGalleryImages(place, imageSource),
                     isNearest: false
                 };
             }).filter(function(place) {
@@ -548,8 +936,17 @@
             mapMarkers = [];
 
             places.forEach(function(place) {
-                var marker = L.circleMarker([place.lat, place.lon], buildPoiMarkerStyle(place)).addTo(map);
-                marker.bindPopup(buildPoiPopup(place));
+                var marker = L.marker([place.lat, place.lon], {
+                    icon: createPoiMarkerIcon(place),
+                    keyboard: true,
+                    riseOnHover: true,
+                    zIndexOffset: place.isNearest ? 1800 : 0
+                }).addTo(map);
+                marker.bindPopup(buildPoiPopup(place), {
+                    closeButton: false,
+                    autoPanPaddingTopLeft: [18, 18],
+                    autoPanPaddingBottomRight: [18, 18]
+                });
 
                 mapMarkers.push({
                     place: place,
@@ -561,6 +958,14 @@
         }
 
         applyTheme(currentThemeKey);
+
+        map.on("popupopen", function(eventArgs) {
+            startPopupGalleryForPopup(eventArgs.popup);
+        });
+
+        map.on("popupclose", function() {
+            stopPopupGalleryAutoplay();
+        });
 
         window.setPlaces = function(nextPlaces) {
             places = hydratePlaces(nextPlaces);
@@ -592,6 +997,9 @@
 
             flyToPosition(match.place.lat, match.place.lon, 16, 0.72);
             match.marker.openPopup();
+            window.setTimeout(function() {
+                startPopupGalleryForPopup(match.marker.getPopup());
+            }, 0);
 
             return JSON.stringify({
                 found: true,

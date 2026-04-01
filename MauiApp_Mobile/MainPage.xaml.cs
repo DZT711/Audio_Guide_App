@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Microsoft.Maui.Dispatching;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
 
@@ -22,8 +23,10 @@ public partial class MainPage : ContentPage
     private bool _hasLoadedPlaces;
     private bool _hasAnimatedPage;
     private CancellationTokenSource? _placesLoadingCts;
+    private IDispatcherTimer? _placeGalleryTimer;
 
     public ObservableCollection<PlaceItem> Places { get; set; } = new();
+    public ObservableCollection<PlaceGallerySlide> SelectedPlaceGallery { get; } = new();
 
     public bool IsPlaceDetailVisible
     {
@@ -43,6 +46,7 @@ public partial class MainPage : ContentPage
             _selectedPlace = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(DetailPriorityText));
+            RefreshSelectedPlaceGallery(resetPosition: true);
         }
     }
 
@@ -57,8 +61,12 @@ public partial class MainPage : ContentPage
         }
     }
 
-    public string DetailPriorityText => SelectedPlace == null ? string.Empty : $"Độ ưu tiên {SelectedPlace.Rating}";
-    public string AudioTracksTitle => $"🔊 Danh sách Audio ({SelectedPlaceTracks.Count})";
+    public string DetailPriorityText => SelectedPlace == null
+        ? string.Empty
+        : string.Format(LocalizationService.Instance.T("Places.DetailPriority"), SelectedPlace.Rating);
+    public string AudioTracksTitle => string.Format(
+        LocalizationService.Instance.T("Places.AudioTracksTitle"),
+        SelectedPlaceTracks.Count);
 
     public MainPage()
     {
@@ -74,12 +82,16 @@ public partial class MainPage : ContentPage
         {
             ApplyTexts();
             UpdateCount();
+            OnPropertyChanged(nameof(DetailPriorityText));
+            OnPropertyChanged(nameof(AudioTracksTitle));
+            RefreshSelectedPlaceGallery(resetPosition: false);
         };
 
         ThemeService.Instance.PropertyChanged += (_, _) =>
         {
             UpdateFilterSelectionUI();
             UpdateFilterHeader();
+            RefreshSelectedPlaceGallery(resetPosition: false);
         };
     }
 
@@ -112,6 +124,7 @@ public partial class MainPage : ContentPage
     {
         base.OnDisappearing();
         _placesLoadingCts?.Cancel();
+        StopPlaceGalleryAutoplay();
     }
 
     private async Task LoadPlacesAsync()
@@ -182,6 +195,147 @@ public partial class MainPage : ContentPage
 
         UpdateFilterHeader();
         UpdateCount();
+    }
+
+    private void RefreshSelectedPlaceGallery(bool resetPosition)
+    {
+        SelectedPlaceGallery.Clear();
+
+        if (SelectedPlace is null)
+        {
+            StopPlaceGalleryAutoplay();
+            return;
+        }
+
+        foreach (var slide in BuildPlaceGallery(SelectedPlace))
+        {
+            SelectedPlaceGallery.Add(slide);
+        }
+
+        if (resetPosition && PlaceDetailCarousel is not null && SelectedPlaceGallery.Count > 0)
+        {
+            PlaceDetailCarousel.Position = 0;
+        }
+
+        if (IsPlaceDetailVisible)
+        {
+            StartPlaceGalleryAutoplay();
+        }
+    }
+
+    private IReadOnlyList<PlaceGallerySlide> BuildPlaceGallery(PlaceItem place)
+    {
+        var primaryGreen = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
+        var primaryGreenDark = ThemeService.Instance.GetColor("PrimaryGreenDark", "#148F40");
+        var bodyText = ThemeService.Instance.GetColor("BodyText", "#1E3250");
+        var infoText = ThemeService.Instance.GetColor("InfoText", "#2563EB");
+        var warningText = ThemeService.Instance.GetColor("WarningText", "#CA8A04");
+        var softOrange = ThemeService.Instance.GetColor("SoftOrange", "#FFE8D8");
+        var softPurple = ThemeService.Instance.GetColor("SoftPurple", "#EFF6FF");
+
+        return
+        [
+            CreateGallerySlide(
+                place,
+                place.Category,
+                LocalizationService.Instance.T("Places.GalleryOverview"),
+                place.Name,
+                place.Description,
+                DetailPriorityText,
+                place.CategoryColor,
+                primaryGreenDark,
+                place.CategoryColor,
+                place.CategoryTextColor),
+            CreateGallerySlide(
+                place,
+                "GPS",
+                LocalizationService.Instance.T("Places.GalleryVisit"),
+                place.Address,
+                $"{place.RadiusText} • {place.GpsText}",
+                place.Phone,
+                infoText,
+                bodyText,
+                softPurple,
+                infoText),
+            CreateGallerySlide(
+                place,
+                LocalizationService.Instance.T("Places.GalleryAudio"),
+                LocalizationService.Instance.T("Places.GalleryAudio"),
+                place.Name,
+                place.AudioDescription,
+                place.Website,
+                warningText,
+                primaryGreen,
+                softOrange,
+                warningText)
+        ];
+    }
+
+    private static PlaceGallerySlide CreateGallerySlide(
+        PlaceItem place,
+        string badgeText,
+        string eyebrow,
+        string title,
+        string subtitle,
+        string footerText,
+        Color gradientStart,
+        Color gradientEnd,
+        Color badgeBackground,
+        Color badgeForeground)
+    {
+        return new PlaceGallerySlide
+        {
+            Image = place.Image,
+            BadgeText = badgeText,
+            Eyebrow = eyebrow,
+            Title = title,
+            Subtitle = subtitle,
+            FooterText = footerText,
+            GradientStart = gradientStart,
+            GradientEnd = gradientEnd,
+            BadgeBackground = badgeBackground,
+            BadgeForeground = badgeForeground
+        };
+    }
+
+    private void StartPlaceGalleryAutoplay()
+    {
+        StopPlaceGalleryAutoplay();
+
+        if (!IsPlaceDetailVisible || SelectedPlaceGallery.Count < 2 || Dispatcher is null)
+            return;
+
+        _placeGalleryTimer = Dispatcher.CreateTimer();
+        _placeGalleryTimer.Interval = TimeSpan.FromSeconds(5);
+        _placeGalleryTimer.Tick += OnPlaceGalleryTimerTick;
+        _placeGalleryTimer.Start();
+    }
+
+    private void StopPlaceGalleryAutoplay()
+    {
+        if (_placeGalleryTimer is null)
+            return;
+
+        _placeGalleryTimer.Stop();
+        _placeGalleryTimer.Tick -= OnPlaceGalleryTimerTick;
+        _placeGalleryTimer = null;
+    }
+
+    private void OnPlaceGalleryTimerTick(object? sender, EventArgs e)
+    {
+        if (!IsPlaceDetailVisible || SelectedPlaceGallery.Count < 2)
+        {
+            StopPlaceGalleryAutoplay();
+            return;
+        }
+
+        var nextPosition = PlaceDetailCarousel.Position + 1;
+        if (nextPosition >= SelectedPlaceGallery.Count)
+        {
+            nextPosition = 0;
+        }
+
+        PlaceDetailCarousel.Position = nextPosition;
     }
 
     private void OnSearchChanged(object sender, TextChangedEventArgs e)
@@ -360,6 +514,7 @@ public partial class MainPage : ContentPage
         if (!IsPlaceDetailVisible)
             return;
 
+        StopPlaceGalleryAutoplay();
         UpdatePlaceDetailSheetLayout();
         await PlaceDetailSheet.TranslateToAsync(0, _placeDetailClosedY, 230, Easing.CubicIn);
         IsPlaceDetailVisible = false;
@@ -416,6 +571,8 @@ public partial class MainPage : ContentPage
         await Task.Yield();
         UpdatePlaceDetailSheetLayout();
         PlaceDetailSheet.TranslationY = _placeDetailClosedY;
+        PlaceDetailCarousel.Position = 0;
+        StartPlaceGalleryAutoplay();
         await PlaceDetailSheet.TranslateToAsync(0, _placeDetailHalfY, 300, Easing.CubicOut);
     }
 

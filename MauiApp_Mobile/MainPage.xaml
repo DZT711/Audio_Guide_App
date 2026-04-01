@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:MauiApp_Mobile"
+    xmlns:models="clr-namespace:MauiApp_Mobile.Models"
     Shell.NavBarIsVisible="False"
     Padding="0"
     BackgroundColor="{DynamicResource LightBg}">
@@ -403,7 +404,7 @@
                     Padding="0,0,0,10"
                     TranslationY="520">
 
-                <Grid RowDefinitions="Auto,190,*">
+                <Grid RowDefinitions="Auto,214,*">
                     <Grid Grid.Row="0"
                           Padding="0,10,0,8"
                           HorizontalOptions="Fill">
@@ -419,53 +420,135 @@
                                 HorizontalOptions="Center" />
                     </Grid>
 
-                    <Grid Grid.Row="1">
-                        <Grid.GestureRecognizers>
-                            <PanGestureRecognizer PanUpdated="OnPlaceDetailPanUpdated" />
-                        </Grid.GestureRecognizers>
-                        <Image Source="{Binding SelectedPlace.Image}" Aspect="AspectFill" />
+                    <Grid Grid.Row="1"
+                          Padding="12,0,12,10">
+                        <Border BackgroundColor="#11283F"
+                                Stroke="#12000000"
+                                StrokeShape="RoundRectangle 28"
+                                StrokeThickness="0">
+                            <CarouselView x:Name="PlaceDetailCarousel"
+                                          HorizontalOptions="Fill"
+                                          IndicatorView="PlaceDetailIndicator"
+                                          ItemsSource="{Binding SelectedPlaceGallery}"
+                                          PeekAreaInsets="0"
+                                          VerticalOptions="Fill">
+                                <CarouselView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:PlaceGallerySlide">
+                                        <Grid HorizontalOptions="Fill"
+                                              VerticalOptions="Fill"
+                                              WidthRequest="{Binding Source={x:Reference PlaceDetailCarousel}, Path=Width}">
+                                            <Border StrokeThickness="0">
+                                                <Border.Background>
+                                                    <LinearGradientBrush StartPoint="0,0"
+                                                                         EndPoint="1,1">
+                                                        <GradientStop Color="{Binding GradientStart}" Offset="0.0" />
+                                                        <GradientStop Color="{Binding GradientEnd}" Offset="1.0" />
+                                                    </LinearGradientBrush>
+                                                </Border.Background>
+                                            </Border>
 
-                        <Grid Padding="14"
-                              RowDefinitions="Auto,*,Auto"
-                              BackgroundColor="#33000000">
-                            <Border BackgroundColor="#FDECEC"
-                                    StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 12"
-                                    Padding="10,4"
-                                    HorizontalOptions="Start">
-                                <Label Text="{Binding SelectedPlace.Category}"
-                                       FontSize="12"
-                                       TextColor="#E53935" />
-                            </Border>
+                                            <Image Source="{Binding Image}"
+                                                   Aspect="AspectFill"
+                                                   Opacity="0.16" />
 
-                            <Button Grid.Row="0"
-                                    Text="✕"
-                                    Clicked="OnClosePlaceDetail"
-                                    WidthRequest="38"
-                                    HeightRequest="38"
-                                    CornerRadius="19"
-                                    BackgroundColor="#88000000"
-                                    TextColor="White"
-                                    HorizontalOptions="End"
-                                    VerticalOptions="Start" />
+                                            <Grid Padding="18"
+                                                  RowDefinitions="Auto,*,Auto">
+                                                <Grid ColumnDefinitions="*,Auto"
+                                                      ColumnSpacing="12">
+                                                    <HorizontalStackLayout Spacing="8">
+                                                        <Border BackgroundColor="{Binding BadgeBackground}"
+                                                                Padding="10,4"
+                                                                StrokeThickness="0"
+                                                                StrokeShape="RoundRectangle 12"
+                                                                VerticalOptions="Start">
+                                                            <Label Text="{Binding BadgeText}"
+                                                                   FontAttributes="Bold"
+                                                                   FontSize="11"
+                                                                   TextColor="{Binding BadgeForeground}" />
+                                                        </Border>
 
-                            <VerticalStackLayout Grid.Row="2" Spacing="4">
-                                <Label Text="{Binding SelectedPlace.Name}"
-                                       FontSize="36"
-                                       FontAttributes="Bold"
-                                       TextColor="White" />
-                                <HorizontalStackLayout Spacing="8">
-                                    <Label Text="★★★★★" FontSize="12" TextColor="#FACC15" />
-                                    <Label Text="{Binding DetailPriorityText}" FontSize="12" TextColor="White" />
-                                    <Border BackgroundColor="#16A34A"
-                                            StrokeThickness="0"
-                                            StrokeShape="RoundRectangle 10"
-                                            Padding="8,2">
-                                        <Label Text="GPS" FontSize="11" TextColor="White" />
-                                    </Border>
-                                </HorizontalStackLayout>
-                            </VerticalStackLayout>
-                        </Grid>
+                                                        <Label Text="{Binding Eyebrow}"
+                                                               FontAttributes="Bold"
+                                                               FontSize="11"
+                                                               TextColor="#E2F6EA"
+                                                               VerticalOptions="Center" />
+                                                    </HorizontalStackLayout>
+
+                                                    <Border Grid.Column="1"
+                                                            WidthRequest="68"
+                                                            HeightRequest="68"
+                                                            BackgroundColor="#30FFFFFF"
+                                                            Padding="6"
+                                                            Stroke="#4DFFFFFF"
+                                                            StrokeShape="RoundRectangle 34"
+                                                            StrokeThickness="1">
+                                                        <Border BackgroundColor="#12FFFFFF"
+                                                                Padding="3"
+                                                                StrokeThickness="0"
+                                                                StrokeShape="RoundRectangle 28">
+                                                            <Border StrokeThickness="0"
+                                                                    StrokeShape="RoundRectangle 25">
+                                                                <Image Source="{Binding Image}"
+                                                                       Aspect="AspectFill" />
+                                                            </Border>
+                                                        </Border>
+                                                    </Border>
+                                                </Grid>
+
+                                                <Grid Grid.Row="1">
+                                                    <Border WidthRequest="120"
+                                                            HeightRequest="120"
+                                                            BackgroundColor="#16FFFFFF"
+                                                            HorizontalOptions="End"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 60"
+                                                            TranslationX="32"
+                                                            TranslationY="-8" />
+                                                </Grid>
+
+                                                <VerticalStackLayout Grid.Row="2"
+                                                                     Spacing="6">
+                                                    <Label Text="{Binding Title}"
+                                                           FontSize="26"
+                                                           FontAttributes="Bold"
+                                                           LineBreakMode="TailTruncation"
+                                                           MaxLines="2"
+                                                           TextColor="White" />
+                                                    <Label Text="{Binding Subtitle}"
+                                                           FontSize="13"
+                                                           LineBreakMode="TailTruncation"
+                                                           MaxLines="3"
+                                                           TextColor="#E7F4EC" />
+                                                    <Label Text="{Binding FooterText}"
+                                                           FontSize="12"
+                                                           LineBreakMode="TailTruncation"
+                                                           MaxLines="1"
+                                                           TextColor="#FDF4C4" />
+                                                </VerticalStackLayout>
+                                            </Grid>
+                                        </Grid>
+                                    </DataTemplate>
+                                </CarouselView.ItemTemplate>
+                            </CarouselView>
+                        </Border>
+
+                        <Button Text="✕"
+                                Clicked="OnClosePlaceDetail"
+                                WidthRequest="38"
+                                HeightRequest="38"
+                                CornerRadius="19"
+                                BackgroundColor="#88000000"
+                                TextColor="White"
+                                HorizontalOptions="End"
+                                Margin="0,16,18,0"
+                                VerticalOptions="Start" />
+
+                        <IndicatorView x:Name="PlaceDetailIndicator"
+                                       HorizontalOptions="Center"
+                                       IndicatorColor="#6FFFFFFF"
+                                       Margin="0,0,0,20"
+                                       SelectedIndicatorColor="White"
+                                       VerticalOptions="End" />
                     </Grid>
 
                     <ScrollView Grid.Row="2">
@@ -542,7 +625,7 @@
                                                     <HorizontalStackLayout Spacing="8">
                                                         <Label Text="{Binding LanguageCode}" FontSize="12" TextColor="#64748B" />
                                                         <Label Text="{Binding Title}" FontSize="15" FontAttributes="Bold" TextColor="#0F172A" />
-                                                        <Label Text="⏱ {Binding Duration}" FontSize="12" TextColor="#98A2B3" HorizontalOptions="EndAndExpand" />
+                                                        <Label Text="{Binding Duration, StringFormat='⏱ {0}'}" FontSize="12" TextColor="#98A2B3" HorizontalOptions="EndAndExpand" />
                                                     </HorizontalStackLayout>
 
                                                     <HorizontalStackLayout Spacing="6">

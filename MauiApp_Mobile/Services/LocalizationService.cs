@@ -459,6 +459,11 @@ public class LocalizationService : INotifyPropertyChanged
     {
         UpsertTexts("vi", new Dictionary<string, string>
         {
+            ["Places.DetailPriority"] = "Độ ưu tiên {0}",
+            ["Places.AudioTracksTitle"] = "🔊 Danh sách Audio ({0})",
+            ["Places.GalleryOverview"] = "Khám phá",
+            ["Places.GalleryVisit"] = "Ghé thăm",
+            ["Places.GalleryAudio"] = "Audio",
             ["Map.ViewDetails"] = "Xem chi tiết",
             ["Map.NearestLabel"] = "Gần bạn nhất",
             ["Map.CurrentLocationTitle"] = "Vị trí hiện tại",
@@ -474,6 +479,11 @@ public class LocalizationService : INotifyPropertyChanged
 
         UpsertTexts("en", new Dictionary<string, string>
         {
+            ["Places.DetailPriority"] = "Priority {0}",
+            ["Places.AudioTracksTitle"] = "🔊 Audio tracks ({0})",
+            ["Places.GalleryOverview"] = "Overview",
+            ["Places.GalleryVisit"] = "Visit",
+            ["Places.GalleryAudio"] = "Audio",
             ["Map.ViewDetails"] = "View details",
             ["Map.NearestLabel"] = "Nearest to you",
             ["Map.CurrentLocationTitle"] = "Current location",
@@ -489,6 +499,11 @@ public class LocalizationService : INotifyPropertyChanged
 
         UpsertTexts("cn", new Dictionary<string, string>
         {
+            ["Places.DetailPriority"] = "优先级 {0}",
+            ["Places.AudioTracksTitle"] = "🔊 音频列表 ({0})",
+            ["Places.GalleryOverview"] = "概览",
+            ["Places.GalleryVisit"] = "到访",
+            ["Places.GalleryAudio"] = "音频",
             ["Map.SearchPoi"] = "按 POI 名称搜索...",
             ["Map.SearchAddress"] = "按地址搜索...",
             ["Map.ModePoi"] = "POI 名称",
@@ -510,6 +525,11 @@ public class LocalizationService : INotifyPropertyChanged
 
         UpsertTexts("jp", new Dictionary<string, string>
         {
+            ["Places.DetailPriority"] = "優先度 {0}",
+            ["Places.AudioTracksTitle"] = "🔊 オーディオ一覧 ({0})",
+            ["Places.GalleryOverview"] = "概要",
+            ["Places.GalleryVisit"] = "訪問",
+            ["Places.GalleryAudio"] = "音声",
             ["Map.SearchPoi"] = "POI 名で検索...",
             ["Map.SearchAddress"] = "住所で検索...",
             ["Map.ModePoi"] = "POI 名",
@@ -531,6 +551,11 @@ public class LocalizationService : INotifyPropertyChanged
 
         UpsertTexts("kr", new Dictionary<string, string>
         {
+            ["Places.DetailPriority"] = "우선순위 {0}",
+            ["Places.AudioTracksTitle"] = "🔊 오디오 목록 ({0})",
+            ["Places.GalleryOverview"] = "개요",
+            ["Places.GalleryVisit"] = "방문",
+            ["Places.GalleryAudio"] = "오디오",
             ["Map.SearchPoi"] = "POI 이름으로 검색...",
             ["Map.SearchAddress"] = "주소로 검색...",
             ["Map.ModePoi"] = "POI 이름",
@@ -552,6 +577,11 @@ public class LocalizationService : INotifyPropertyChanged
 
         UpsertTexts("fr", new Dictionary<string, string>
         {
+            ["Places.DetailPriority"] = "Priorite {0}",
+            ["Places.AudioTracksTitle"] = "🔊 Pistes audio ({0})",
+            ["Places.GalleryOverview"] = "Apercu",
+            ["Places.GalleryVisit"] = "Visite",
+            ["Places.GalleryAudio"] = "Audio",
             ["Map.SearchPoi"] = "Rechercher par nom de POI...",
             ["Map.SearchAddress"] = "Rechercher par adresse...",
             ["Map.ModePoi"] = "Nom du POI",
