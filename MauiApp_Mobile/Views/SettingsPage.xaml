@@ -24,8 +24,8 @@
                                Style="{StaticResource SectionTitleStyle}" />
                     </HorizontalStackLayout>
 
-                    <Frame x:Name="AudioCard"
-                           Style="{StaticResource CardFrameStyle}">
+                    <Border x:Name="AudioCard"
+                            Style="{StaticResource CardBorderStyle}">
                         <VerticalStackLayout Spacing="18">
 
                             <!-- Dòng ngôn ngữ -->
@@ -111,7 +111,7 @@
                                     Text="🎙 Test giọng đọc"
                                     Style="{StaticResource PrimaryButtonStyle}" />
                         </VerticalStackLayout>
-                    </Frame>
+                    </Border>
 
                     <HorizontalStackLayout Spacing="8">
                         <Label Text="🎨" FontSize="18" />
@@ -120,8 +120,8 @@
                                Style="{StaticResource SectionTitleStyle}" />
                     </HorizontalStackLayout>
 
-                    <Frame x:Name="AppearanceCard"
-                           Style="{StaticResource CardFrameStyle}">
+                    <Border x:Name="AppearanceCard"
+                            Style="{StaticResource CardBorderStyle}">
                         <VerticalStackLayout Spacing="14">
                             <Label x:Name="ThemeHintLabel"
                                    Text="Chọn theme phù hợp với hành trình của bạn. Áp dụng ngay lập tức trên toàn app."
@@ -330,7 +330,7 @@
                                 </HorizontalStackLayout>
                             </ScrollView>
                         </VerticalStackLayout>
-                    </Frame>
+                    </Border>
 
                     <HorizontalStackLayout Spacing="8">
                         <Label Text="🛰" FontSize="18" />
@@ -339,8 +339,8 @@
                                Style="{StaticResource SectionTitleStyle}" />
                     </HorizontalStackLayout>
 
-                    <Frame x:Name="GpsCard"
-                           Style="{StaticResource CardFrameStyle}">
+                    <Border x:Name="GpsCard"
+                            Style="{StaticResource CardBorderStyle}">
                         <VerticalStackLayout Spacing="18">
 
                             <Grid ColumnDefinitions="*,Auto">
@@ -425,7 +425,7 @@
                                        FontAttributes="Bold" />
                             </Grid>
                         </VerticalStackLayout>
-                    </Frame>
+                    </Border>
 
                     <HorizontalStackLayout Spacing="8">
                         <Label Text="⤴" FontSize="18" />
@@ -434,8 +434,8 @@
                                Style="{StaticResource SectionTitleStyle}" />
                     </HorizontalStackLayout>
 
-                    <Frame x:Name="BehaviorCard"
-                           Style="{StaticResource CardFrameStyle}">
+                    <Border x:Name="BehaviorCard"
+                            Style="{StaticResource CardBorderStyle}">
                         <VerticalStackLayout Spacing="18">
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="AutoPlayLabel"
@@ -477,7 +477,7 @@
                                 <Switch Grid.Column="1" IsToggled="False" OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
                         </VerticalStackLayout>
-                    </Frame>
+                    </Border>
 
                     <Button x:Name="SaveButton"
                             Clicked="OnSaveTapped"

@@ -464,7 +464,10 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.CurrentLocationTitle"] = "Vị trí hiện tại",
             ["Map.SearchResultTitle"] = "Kết quả tìm kiếm",
             ["Map.NearestPrefix"] = "Gần nhất",
+            ["Map.PoiTapSearchHint"] = "Nhập tên POI rồi chạm tìm kiếm để xem kết quả.",
             ["Map.AddressTapSearchHint"] = "Nhập địa chỉ rồi chạm tìm kiếm để tra cứu trực tuyến.",
+            ["Map.SearchingPoi"] = "Đang tìm POI...",
+            ["Map.SearchingAddress"] = "Đang tìm địa chỉ...",
             ["Map.TypeMorePoi"] = "Nhập ít nhất 2 ký tự để tìm POI.",
             ["Map.TypeMoreAddress"] = "Nhập ít nhất 3 ký tự để tìm địa chỉ."
         });
@@ -476,7 +479,10 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.CurrentLocationTitle"] = "Current location",
             ["Map.SearchResultTitle"] = "Search result",
             ["Map.NearestPrefix"] = "Nearest",
+            ["Map.PoiTapSearchHint"] = "Enter a POI name, then tap search to see results.",
             ["Map.AddressTapSearchHint"] = "Enter an address, then tap search to look it up online.",
+            ["Map.SearchingPoi"] = "Searching POIs...",
+            ["Map.SearchingAddress"] = "Searching addresses...",
             ["Map.TypeMorePoi"] = "Type at least 2 characters to search POIs.",
             ["Map.TypeMoreAddress"] = "Type at least 3 characters to search addresses."
         });
@@ -494,7 +500,10 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.CurrentLocationTitle"] = "当前位置",
             ["Map.SearchResultTitle"] = "搜索结果",
             ["Map.NearestPrefix"] = "最近",
+            ["Map.PoiTapSearchHint"] = "输入 POI 名称后点击搜索查看结果。",
             ["Map.AddressTapSearchHint"] = "输入地址后点击搜索即可在线查询。",
+            ["Map.SearchingPoi"] = "正在搜索 POI...",
+            ["Map.SearchingAddress"] = "正在搜索地址...",
             ["Map.TypeMorePoi"] = "请输入至少 2 个字符来搜索 POI。",
             ["Map.TypeMoreAddress"] = "请输入至少 3 个字符来搜索地址。"
         });
@@ -512,7 +521,10 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.CurrentLocationTitle"] = "現在地",
             ["Map.SearchResultTitle"] = "検索結果",
             ["Map.NearestPrefix"] = "最寄り",
+            ["Map.PoiTapSearchHint"] = "POI 名を入力してから検索をタップすると結果を表示します。",
             ["Map.AddressTapSearchHint"] = "住所を入力してから検索をタップするとオンライン検索します。",
+            ["Map.SearchingPoi"] = "POI を検索中...",
+            ["Map.SearchingAddress"] = "住所を検索中...",
             ["Map.TypeMorePoi"] = "POI を検索するには 2 文字以上入力してください。",
             ["Map.TypeMoreAddress"] = "住所を検索するには 3 文字以上入力してください。"
         });
@@ -530,7 +542,10 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.CurrentLocationTitle"] = "현재 위치",
             ["Map.SearchResultTitle"] = "검색 결과",
             ["Map.NearestPrefix"] = "가장 가까운 곳",
+            ["Map.PoiTapSearchHint"] = "POI 이름을 입력한 뒤 검색 버튼을 눌러 결과를 확인하세요.",
             ["Map.AddressTapSearchHint"] = "주소를 입력한 뒤 검색 버튼을 눌러 온라인으로 찾아보세요.",
+            ["Map.SearchingPoi"] = "POI 검색 중...",
+            ["Map.SearchingAddress"] = "주소 검색 중...",
             ["Map.TypeMorePoi"] = "POI 검색을 위해 2자 이상 입력하세요.",
             ["Map.TypeMoreAddress"] = "주소 검색을 위해 3자 이상 입력하세요."
         });
@@ -548,7 +563,10 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.CurrentLocationTitle"] = "Position actuelle",
             ["Map.SearchResultTitle"] = "Resultat de recherche",
             ["Map.NearestPrefix"] = "Plus proche",
+            ["Map.PoiTapSearchHint"] = "Saisissez un nom de POI puis touchez rechercher pour voir les resultats.",
             ["Map.AddressTapSearchHint"] = "Saisissez une adresse puis touchez rechercher pour lancer la recherche en ligne.",
+            ["Map.SearchingPoi"] = "Recherche des POI...",
+            ["Map.SearchingAddress"] = "Recherche des adresses...",
             ["Map.TypeMorePoi"] = "Saisissez au moins 2 caracteres pour chercher un POI.",
             ["Map.TypeMoreAddress"] = "Saisissez au moins 3 caracteres pour chercher une adresse."
         });

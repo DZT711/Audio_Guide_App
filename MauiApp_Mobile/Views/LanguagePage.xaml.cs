@@ -89,16 +89,18 @@ public partial class LanguagePage : ContentPage
         ResetCard(CardFR, TickFR);
     }
 
-    private void ResetCard(Frame card, Frame tick)
+    private void ResetCard(Border card, Border tick)
     {
-        card.BorderColor = ThemeService.Instance.GetColor("BorderColor", "#D6DBE3");
+        card.Stroke = new SolidColorBrush(ThemeService.Instance.GetColor("BorderColor", "#D6DBE3"));
+        card.StrokeThickness = 1;
         card.BackgroundColor = ThemeService.Instance.GetColor("CardBg", "#FFFFFF");
         tick.IsVisible = false;
     }
 
-    private void SelectCard(Frame card, Frame tick)
+    private void SelectCard(Border card, Border tick)
     {
-        card.BorderColor = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
+        card.Stroke = new SolidColorBrush(ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B"));
+        card.StrokeThickness = 1.4;
         card.BackgroundColor = ThemeService.Instance.GetColor("SoftGreen", "#EEF8F1");
         tick.IsVisible = true;
     }

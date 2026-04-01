@@ -34,18 +34,18 @@
                                  VerticalOptions="Center"
                                  HorizontalOptions="Center">
 
-                <Frame WidthRequest="76"
-                       HeightRequest="72"
-                       CornerRadius="24"
-                       BackgroundColor="White"
-                       Padding="0"
-                       HasShadow="False">
+                <Border WidthRequest="76"
+                        HeightRequest="72"
+                        BackgroundColor="White"
+                        Padding="0"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 24">
                     <Label Text="📍"
                            HorizontalOptions="Center"
                            VerticalOptions="Center"
                            FontSize="30"
                            TextColor="{DynamicResource PrimaryGreen}" />
-                </Frame>
+                </Border>
 
                 <Label x:Name="TitleLabel"
                        Text="Chào mừng đến với&#10;VietAudio Guide"
@@ -69,18 +69,18 @@
                                      Spacing="18">
 
                     <HorizontalStackLayout Spacing="10">
-                        <Frame WidthRequest="28"
-                               HeightRequest="28"
-                               CornerRadius="14"
-                               Padding="0"
-                               BackgroundColor="{DynamicResource PrimaryGreen}"
-                               HasShadow="False">
+                        <Border WidthRequest="28"
+                                HeightRequest="28"
+                                Padding="0"
+                                BackgroundColor="{DynamicResource PrimaryGreen}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 14">
                             <Label Text="1"
                                    TextColor="White"
                                    FontAttributes="Bold"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center" />
-                        </Frame>
+                        </Border>
 
                         <Label x:Name="ChooseLanguageLabel"
                                Text="Chọn ngôn ngữ của bạn"
@@ -96,15 +96,15 @@
                           ColumnSpacing="12"
                           RowSpacing="12">
 
-                        <Frame x:Name="CardVN"
-                               Grid.Row="0"
-                               Grid.Column="0"
-                               BorderColor="#18A94B"
-                               BackgroundColor="#EEF8F1"
-                               CornerRadius="18"
-                               Padding="16,12"
-                               HeightRequest="84"
-                               HasShadow="False">
+                        <Border x:Name="CardVN"
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                BackgroundColor="#EEF8F1"
+                                Padding="16,12"
+                                HeightRequest="84"
+                                Stroke="#18A94B"
+                                StrokeThickness="1.4"
+                                StrokeShape="RoundRectangle 18">
                             <Grid ColumnDefinitions="Auto,1,*,24"
                                   ColumnSpacing="10">
                                 <Label Text="VN"
@@ -132,36 +132,36 @@
                                            LineBreakMode="TailTruncation"
                                            MaxLines="1" />
                                 </VerticalStackLayout>
-                                <Frame x:Name="TickVN"
-                                       Grid.Column="3"
-                                       WidthRequest="22"
-                                       HeightRequest="22"
-                                       CornerRadius="11"
-                                       Padding="0"
-                                       BackgroundColor="#18A94B"
-                                       HasShadow="False"
-                                       VerticalOptions="Center">
+                                <Border x:Name="TickVN"
+                                        Grid.Column="3"
+                                        WidthRequest="22"
+                                        HeightRequest="22"
+                                        Padding="0"
+                                        BackgroundColor="#18A94B"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 11"
+                                        VerticalOptions="Center">
                                     <Label Text="✓"
                                            TextColor="White"
                                            FontSize="12"
                                            HorizontalOptions="Center"
                                            VerticalOptions="Center" />
-                                </Frame>
+                                </Border>
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnTapVietnamese" />
                                 </Grid.GestureRecognizers>
                             </Grid>
-                        </Frame>
+                        </Border>
 
-                        <Frame x:Name="CardEN"
-                               Grid.Row="0"
-                               Grid.Column="1"
-                               BorderColor="#D6DBE3"
-                               BackgroundColor="White"
-                               CornerRadius="18"
-                               Padding="16,12"
-                               HeightRequest="84"
-                               HasShadow="False">
+                        <Border x:Name="CardEN"
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                BackgroundColor="White"
+                                Padding="16,12"
+                                HeightRequest="84"
+                                Stroke="#D6DBE3"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 18">
                             <Grid ColumnDefinitions="Auto,1,*,24"
                                   ColumnSpacing="10">
                                 <Label Text="GB"
@@ -189,37 +189,37 @@
                                            LineBreakMode="TailTruncation"
                                            MaxLines="1" />
                                 </VerticalStackLayout>
-                                <Frame x:Name="TickEN"
-                                       Grid.Column="3"
-                                       WidthRequest="22"
-                                       HeightRequest="22"
-                                       CornerRadius="11"
-                                       Padding="0"
-                                       BackgroundColor="#18A94B"
-                                       HasShadow="False"
-                                       IsVisible="False"
-                                       VerticalOptions="Center">
+                                <Border x:Name="TickEN"
+                                        Grid.Column="3"
+                                        WidthRequest="22"
+                                        HeightRequest="22"
+                                        Padding="0"
+                                        BackgroundColor="#18A94B"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 11"
+                                        IsVisible="False"
+                                        VerticalOptions="Center">
                                     <Label Text="✓"
                                            TextColor="White"
                                            FontSize="12"
                                            HorizontalOptions="Center"
                                            VerticalOptions="Center" />
-                                </Frame>
+                                </Border>
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnTapEnglish" />
                                 </Grid.GestureRecognizers>
                             </Grid>
-                        </Frame>
+                        </Border>
 
-                        <Frame x:Name="CardCN"
-                               Grid.Row="1"
-                               Grid.Column="0"
-                               BorderColor="#D6DBE3"
-                               BackgroundColor="White"
-                               CornerRadius="18"
-                               Padding="16,12"
-                               HeightRequest="84"
-                               HasShadow="False">
+                        <Border x:Name="CardCN"
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                BackgroundColor="White"
+                                Padding="16,12"
+                                HeightRequest="84"
+                                Stroke="#D6DBE3"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 18">
                             <Grid ColumnDefinitions="Auto,1,*,24"
                                   ColumnSpacing="10">
                                 <Label Text="CN"
@@ -247,37 +247,37 @@
                                            LineBreakMode="TailTruncation"
                                            MaxLines="1" />
                                 </VerticalStackLayout>
-                                <Frame x:Name="TickCN"
-                                       Grid.Column="3"
-                                       WidthRequest="22"
-                                       HeightRequest="22"
-                                       CornerRadius="11"
-                                       Padding="0"
-                                       BackgroundColor="#18A94B"
-                                       HasShadow="False"
-                                       IsVisible="False"
-                                       VerticalOptions="Center">
+                                <Border x:Name="TickCN"
+                                        Grid.Column="3"
+                                        WidthRequest="22"
+                                        HeightRequest="22"
+                                        Padding="0"
+                                        BackgroundColor="#18A94B"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 11"
+                                        IsVisible="False"
+                                        VerticalOptions="Center">
                                     <Label Text="✓"
                                            TextColor="White"
                                            FontSize="12"
                                            HorizontalOptions="Center"
                                            VerticalOptions="Center" />
-                                </Frame>
+                                </Border>
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnTapChinese" />
                                 </Grid.GestureRecognizers>
                             </Grid>
-                        </Frame>
+                        </Border>
 
-                        <Frame x:Name="CardJP"
-                               Grid.Row="1"
-                               Grid.Column="1"
-                               BorderColor="#D6DBE3"
-                               BackgroundColor="White"
-                               CornerRadius="18"
-                               Padding="16,12"
-                               HeightRequest="84"
-                               HasShadow="False">
+                        <Border x:Name="CardJP"
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                BackgroundColor="White"
+                                Padding="16,12"
+                                HeightRequest="84"
+                                Stroke="#D6DBE3"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 18">
                             <Grid ColumnDefinitions="Auto,1,*,24"
                                   ColumnSpacing="10">
                                 <Label Text="JP"
@@ -305,37 +305,37 @@
                                            LineBreakMode="TailTruncation"
                                            MaxLines="1" />
                                 </VerticalStackLayout>
-                                <Frame x:Name="TickJP"
-                                       Grid.Column="3"
-                                       WidthRequest="22"
-                                       HeightRequest="22"
-                                       CornerRadius="11"
-                                       Padding="0"
-                                       BackgroundColor="#18A94B"
-                                       HasShadow="False"
-                                       IsVisible="False"
-                                       VerticalOptions="Center">
+                                <Border x:Name="TickJP"
+                                        Grid.Column="3"
+                                        WidthRequest="22"
+                                        HeightRequest="22"
+                                        Padding="0"
+                                        BackgroundColor="#18A94B"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 11"
+                                        IsVisible="False"
+                                        VerticalOptions="Center">
                                     <Label Text="✓"
                                            TextColor="White"
                                            FontSize="12"
                                            HorizontalOptions="Center"
                                            VerticalOptions="Center" />
-                                </Frame>
+                                </Border>
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnTapJapanese" />
                                 </Grid.GestureRecognizers>
                             </Grid>
-                        </Frame>
+                        </Border>
 
-                        <Frame x:Name="CardKR"
-                               Grid.Row="2"
-                               Grid.Column="0"
-                               BorderColor="#D6DBE3"
-                               BackgroundColor="White"
-                               CornerRadius="18"
-                               Padding="16,12"
-                               HeightRequest="84"
-                               HasShadow="False">
+                        <Border x:Name="CardKR"
+                                Grid.Row="2"
+                                Grid.Column="0"
+                                BackgroundColor="White"
+                                Padding="16,12"
+                                HeightRequest="84"
+                                Stroke="#D6DBE3"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 18">
                             <Grid ColumnDefinitions="Auto,1,*,24"
                                   ColumnSpacing="10">
                                 <Label Text="KR"
@@ -363,37 +363,37 @@
                                            LineBreakMode="TailTruncation"
                                            MaxLines="1" />
                                 </VerticalStackLayout>
-                                <Frame x:Name="TickKR"
-                                       Grid.Column="3"
-                                       WidthRequest="22"
-                                       HeightRequest="22"
-                                       CornerRadius="11"
-                                       Padding="0"
-                                       BackgroundColor="#18A94B"
-                                       HasShadow="False"
-                                       IsVisible="False"
-                                       VerticalOptions="Center">
+                                <Border x:Name="TickKR"
+                                        Grid.Column="3"
+                                        WidthRequest="22"
+                                        HeightRequest="22"
+                                        Padding="0"
+                                        BackgroundColor="#18A94B"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 11"
+                                        IsVisible="False"
+                                        VerticalOptions="Center">
                                     <Label Text="✓"
                                            TextColor="White"
                                            FontSize="12"
                                            HorizontalOptions="Center"
                                            VerticalOptions="Center" />
-                                </Frame>
+                                </Border>
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnTapKorean" />
                                 </Grid.GestureRecognizers>
                             </Grid>
-                        </Frame>
+                        </Border>
 
-                        <Frame x:Name="CardFR"
-                               Grid.Row="2"
-                               Grid.Column="1"
-                               BorderColor="#D6DBE3"
-                               BackgroundColor="White"
-                               CornerRadius="18"
-                               Padding="16,12"
-                               HeightRequest="84"
-                               HasShadow="False">
+                        <Border x:Name="CardFR"
+                                Grid.Row="2"
+                                Grid.Column="1"
+                                BackgroundColor="White"
+                                Padding="16,12"
+                                HeightRequest="84"
+                                Stroke="#D6DBE3"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 18">
                             <Grid ColumnDefinitions="Auto,1,*,24"
                                   ColumnSpacing="10">
                                 <Label Text="FR"
@@ -421,27 +421,27 @@
                                            LineBreakMode="TailTruncation"
                                            MaxLines="1" />
                                 </VerticalStackLayout>
-                                <Frame x:Name="TickFR"
-                                       Grid.Column="3"
-                                       WidthRequest="22"
-                                       HeightRequest="22"
-                                       CornerRadius="11"
-                                       Padding="0"
-                                       BackgroundColor="#18A94B"
-                                       HasShadow="False"
-                                       IsVisible="False"
-                                       VerticalOptions="Center">
+                                <Border x:Name="TickFR"
+                                        Grid.Column="3"
+                                        WidthRequest="22"
+                                        HeightRequest="22"
+                                        Padding="0"
+                                        BackgroundColor="#18A94B"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 11"
+                                        IsVisible="False"
+                                        VerticalOptions="Center">
                                     <Label Text="✓"
                                            TextColor="White"
                                            FontSize="12"
                                            HorizontalOptions="Center"
                                            VerticalOptions="Center" />
-                                </Frame>
+                                </Border>
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnTapFrench" />
                                 </Grid.GestureRecognizers>
                             </Grid>
-                        </Frame>
+                        </Border>
                     </Grid>
 
                     <Button x:Name="StartButton"
