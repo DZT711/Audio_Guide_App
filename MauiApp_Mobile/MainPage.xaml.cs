@@ -303,7 +303,7 @@ public partial class MainPage : ContentPage
 
     private async void OnPlaceTapped(object sender, TappedEventArgs e)
     {
-        if (sender is not Frame card || card.BindingContext is not PlaceItem item)
+        if (sender is not Element element || element.BindingContext is not PlaceItem item)
             return;
 
         await ShowPlaceDetailAsync(item);
@@ -476,7 +476,7 @@ public partial class MainPage : ContentPage
 
     private void OnPlayTapped(object sender, TappedEventArgs e)
     {
-        if (sender is not Frame frame || frame.BindingContext is not PlaceItem item)
+        if (sender is not Element element || element.BindingContext is not PlaceItem item)
             return;
 
         item.IsPlayed = !item.IsPlayed;

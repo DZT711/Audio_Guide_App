@@ -8,7 +8,10 @@ public partial class App : Application
     {
         InitializeComponent();
         ThemeService.Instance.Initialize();
+    }
 
-        MainPage = new AppShell();
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        return new Window(new AppShell());
     }
 }

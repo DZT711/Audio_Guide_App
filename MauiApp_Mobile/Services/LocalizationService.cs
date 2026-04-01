@@ -21,6 +21,11 @@ public class LocalizationService : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    private LocalizationService()
+    {
+        SeedExtendedTranslations();
+    }
+
     private readonly Dictionary<string, Dictionary<string, string>> _texts = new()
     {
         ["vi"] = new()
@@ -449,6 +454,119 @@ public class LocalizationService : INotifyPropertyChanged
             ["Filter.Utility"] = "Utilitaires"
         }
     };
+
+    private void SeedExtendedTranslations()
+    {
+        UpsertTexts("vi", new Dictionary<string, string>
+        {
+            ["Map.ViewDetails"] = "Xem chi tiết",
+            ["Map.NearestLabel"] = "Gần bạn nhất",
+            ["Map.CurrentLocationTitle"] = "Vị trí hiện tại",
+            ["Map.SearchResultTitle"] = "Kết quả tìm kiếm",
+            ["Map.NearestPrefix"] = "Gần nhất",
+            ["Map.AddressTapSearchHint"] = "Nhập địa chỉ rồi chạm tìm kiếm để tra cứu trực tuyến.",
+            ["Map.TypeMorePoi"] = "Nhập ít nhất 2 ký tự để tìm POI.",
+            ["Map.TypeMoreAddress"] = "Nhập ít nhất 3 ký tự để tìm địa chỉ."
+        });
+
+        UpsertTexts("en", new Dictionary<string, string>
+        {
+            ["Map.ViewDetails"] = "View details",
+            ["Map.NearestLabel"] = "Nearest to you",
+            ["Map.CurrentLocationTitle"] = "Current location",
+            ["Map.SearchResultTitle"] = "Search result",
+            ["Map.NearestPrefix"] = "Nearest",
+            ["Map.AddressTapSearchHint"] = "Enter an address, then tap search to look it up online.",
+            ["Map.TypeMorePoi"] = "Type at least 2 characters to search POIs.",
+            ["Map.TypeMoreAddress"] = "Type at least 3 characters to search addresses."
+        });
+
+        UpsertTexts("cn", new Dictionary<string, string>
+        {
+            ["Map.SearchPoi"] = "按 POI 名称搜索...",
+            ["Map.SearchAddress"] = "按地址搜索...",
+            ["Map.ModePoi"] = "POI 名称",
+            ["Map.ModeAddress"] = "地址",
+            ["Map.ResultsPoi"] = "POI 结果",
+            ["Map.ResultsAddress"] = "地址结果",
+            ["Map.ViewDetails"] = "查看详情",
+            ["Map.NearestLabel"] = "离您最近",
+            ["Map.CurrentLocationTitle"] = "当前位置",
+            ["Map.SearchResultTitle"] = "搜索结果",
+            ["Map.NearestPrefix"] = "最近",
+            ["Map.AddressTapSearchHint"] = "输入地址后点击搜索即可在线查询。",
+            ["Map.TypeMorePoi"] = "请输入至少 2 个字符来搜索 POI。",
+            ["Map.TypeMoreAddress"] = "请输入至少 3 个字符来搜索地址。"
+        });
+
+        UpsertTexts("jp", new Dictionary<string, string>
+        {
+            ["Map.SearchPoi"] = "POI 名で検索...",
+            ["Map.SearchAddress"] = "住所で検索...",
+            ["Map.ModePoi"] = "POI 名",
+            ["Map.ModeAddress"] = "住所",
+            ["Map.ResultsPoi"] = "POI 結果",
+            ["Map.ResultsAddress"] = "住所結果",
+            ["Map.ViewDetails"] = "詳細を見る",
+            ["Map.NearestLabel"] = "現在地から最寄り",
+            ["Map.CurrentLocationTitle"] = "現在地",
+            ["Map.SearchResultTitle"] = "検索結果",
+            ["Map.NearestPrefix"] = "最寄り",
+            ["Map.AddressTapSearchHint"] = "住所を入力してから検索をタップするとオンライン検索します。",
+            ["Map.TypeMorePoi"] = "POI を検索するには 2 文字以上入力してください。",
+            ["Map.TypeMoreAddress"] = "住所を検索するには 3 文字以上入力してください。"
+        });
+
+        UpsertTexts("kr", new Dictionary<string, string>
+        {
+            ["Map.SearchPoi"] = "POI 이름으로 검색...",
+            ["Map.SearchAddress"] = "주소로 검색...",
+            ["Map.ModePoi"] = "POI 이름",
+            ["Map.ModeAddress"] = "주소",
+            ["Map.ResultsPoi"] = "POI 결과",
+            ["Map.ResultsAddress"] = "주소 결과",
+            ["Map.ViewDetails"] = "상세 보기",
+            ["Map.NearestLabel"] = "가장 가까운 장소",
+            ["Map.CurrentLocationTitle"] = "현재 위치",
+            ["Map.SearchResultTitle"] = "검색 결과",
+            ["Map.NearestPrefix"] = "가장 가까운 곳",
+            ["Map.AddressTapSearchHint"] = "주소를 입력한 뒤 검색 버튼을 눌러 온라인으로 찾아보세요.",
+            ["Map.TypeMorePoi"] = "POI 검색을 위해 2자 이상 입력하세요.",
+            ["Map.TypeMoreAddress"] = "주소 검색을 위해 3자 이상 입력하세요."
+        });
+
+        UpsertTexts("fr", new Dictionary<string, string>
+        {
+            ["Map.SearchPoi"] = "Rechercher par nom de POI...",
+            ["Map.SearchAddress"] = "Rechercher par adresse...",
+            ["Map.ModePoi"] = "Nom du POI",
+            ["Map.ModeAddress"] = "Adresse",
+            ["Map.ResultsPoi"] = "Resultats POI",
+            ["Map.ResultsAddress"] = "Resultats d'adresse",
+            ["Map.ViewDetails"] = "Voir le detail",
+            ["Map.NearestLabel"] = "Le plus proche",
+            ["Map.CurrentLocationTitle"] = "Position actuelle",
+            ["Map.SearchResultTitle"] = "Resultat de recherche",
+            ["Map.NearestPrefix"] = "Plus proche",
+            ["Map.AddressTapSearchHint"] = "Saisissez une adresse puis touchez rechercher pour lancer la recherche en ligne.",
+            ["Map.TypeMorePoi"] = "Saisissez au moins 2 caracteres pour chercher un POI.",
+            ["Map.TypeMoreAddress"] = "Saisissez au moins 3 caracteres pour chercher une adresse."
+        });
+    }
+
+    private void UpsertTexts(string language, IReadOnlyDictionary<string, string> values)
+    {
+        if (!_texts.TryGetValue(language, out var target))
+        {
+            target = new Dictionary<string, string>();
+            _texts[language] = target;
+        }
+
+        foreach (var pair in values)
+        {
+            target[pair.Key] = pair.Value;
+        }
+    }
 
     public string T(string key)
     {

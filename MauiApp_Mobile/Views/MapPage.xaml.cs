@@ -17,18 +17,24 @@ namespace MauiApp_Mobile.Views;
 public partial class MapPage : ContentPage
 {
     private static readonly HttpClient SearchHttpClient = CreateSearchHttpClient();
-    private static readonly JsonSerializerOptions CamelCaseJsonOptions = new()
+    private static readonly JsonSerializerOptions JsonInteropOptions = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
     };
     private readonly SemaphoreSlim _locationSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _mapScriptSemaphore = new(1, 1);
     private readonly ObservableCollection<MapSearchSuggestion> _searchResults = new();
+    private readonly Dictionary<string, IReadOnlyList<OnlineSearchResult>> _addressSearchCache = new(StringComparer.OrdinalIgnoreCase);
     private bool _isMapLoaded;
     private bool _isMapReady;
     private bool _hasAnimatedChrome;
+    private bool _hasMapFocusSelection;
     private MapSearchMode _searchMode = MapSearchMode.Poi;
     private CancellationTokenSource? _searchDebounceCts;
+    private CancellationTokenSource? _activeSearchCts;
     private CancellationTokenSource? _mapLoadingCts;
+    private int _searchRequestVersion;
 
     public MapPage()
     {
@@ -74,6 +80,7 @@ public partial class MapPage : ContentPage
     {
         base.OnDisappearing();
         _searchDebounceCts?.Cancel();
+        _activeSearchCts?.Cancel();
         _mapLoadingCts?.Cancel();
     }
 
@@ -136,6 +143,15 @@ public partial class MapPage : ContentPage
     private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
     {
         ApplyTexts();
+        _addressSearchCache.Clear();
+
+        _ = MainThread.InvokeOnMainThreadAsync(async () =>
+        {
+            if (_isMapReady)
+            {
+                await ApplyMapStringsAsync();
+            }
+        });
     }
 
     private void OnThemeChanged(object? sender, PropertyChangedEventArgs e)
@@ -232,11 +248,13 @@ public partial class MapPage : ContentPage
 
         await SyncPlacesToMapAsync();
         await ApplyMapThemeAsync();
+        await ApplyMapStringsAsync();
         await CompleteMapLoadingStateAsync();
 
         if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
         {
-            await SearchMapAsync(SearchEntry.Text, autoFocusSingle: false, showNotFoundMessage: false);
+            var searchOperation = BeginSearchOperation();
+            await SearchMapAsync(SearchEntry.Text, SearchTrigger.AutomaticTextChange, searchOperation.RequestId, searchOperation.Token);
         }
     }
 
@@ -262,8 +280,8 @@ public partial class MapPage : ContentPage
         if (!_isMapReady)
             return;
 
-        var mapPlacesJson = JsonSerializer.Serialize(PlaceCatalogService.Instance.GetMapPoints(), CamelCaseJsonOptions);
-        await MapWebView.EvaluateJavaScriptAsync($"window.setPlaces && window.setPlaces({mapPlacesJson});");
+        var mapPlacesJson = JsonSerializer.Serialize(PlaceCatalogService.Instance.GetMapPoints(), JsonInteropOptions);
+        await EvaluateMapScriptAsync($"window.setPlaces && window.setPlaces({mapPlacesJson});");
     }
 
     private async Task ApplyMapThemeAsync()
@@ -272,19 +290,40 @@ public partial class MapPage : ContentPage
             return;
 
         var themeJson = JsonSerializer.Serialize(ThemeService.Instance.MapThemeKey);
-        await MapWebView.EvaluateJavaScriptAsync($"window.applyMapTheme && window.applyMapTheme({themeJson});");
+        await EvaluateMapScriptAsync($"window.applyMapTheme && window.applyMapTheme({themeJson});");
+    }
+
+    private async Task ApplyMapStringsAsync()
+    {
+        if (!_isMapReady)
+            return;
+
+        var stringsJson = JsonSerializer.Serialize(new MapStringPayload
+        {
+            ViewDetails = LocalizationService.Instance.T("Map.ViewDetails"),
+            NearestLabel = LocalizationService.Instance.T("Map.NearestLabel"),
+            CurrentLocationTitle = LocalizationService.Instance.T("Map.CurrentLocationTitle"),
+            SearchResultTitle = LocalizationService.Instance.T("Map.SearchResultTitle"),
+            NearestPrefix = LocalizationService.Instance.T("Map.NearestPrefix")
+        }, JsonInteropOptions);
+
+        await EvaluateMapScriptAsync($"window.setMapStrings && window.setMapStrings({stringsJson});");
     }
 
     private async void OnSearchCompleted(object? sender, EventArgs e)
     {
         _searchDebounceCts?.Cancel();
-        await SearchMapAsync(SearchEntry.Text, autoFocusSingle: true, showNotFoundMessage: true);
+        SearchEntry.Unfocus();
+        var searchOperation = BeginSearchOperation();
+        await SearchMapAsync(SearchEntry.Text, SearchTrigger.ManualSubmit, searchOperation.RequestId, searchOperation.Token);
     }
 
     private async void OnSearchIconTapped(object? sender, TappedEventArgs e)
     {
         _searchDebounceCts?.Cancel();
-        await SearchMapAsync(SearchEntry.Text, autoFocusSingle: true, showNotFoundMessage: true);
+        SearchEntry.Unfocus();
+        var searchOperation = BeginSearchOperation();
+        await SearchMapAsync(SearchEntry.Text, SearchTrigger.ManualSubmit, searchOperation.RequestId, searchOperation.Token);
     }
 
     private async void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
@@ -292,21 +331,32 @@ public partial class MapPage : ContentPage
         _searchDebounceCts?.Cancel();
         _searchDebounceCts?.Dispose();
         _searchDebounceCts = new CancellationTokenSource();
-        var token = _searchDebounceCts.Token;
+        CancelActiveSearchOperation();
+        var debounceToken = _searchDebounceCts.Token;
 
         try
         {
-            await Task.Delay(350, token);
-            await SearchMapAsync(e.NewTextValue, autoFocusSingle: false, showNotFoundMessage: false);
+            if (string.IsNullOrWhiteSpace(e.NewTextValue))
+            {
+                await ResetSearchStateAsync(resetMapView: _hasMapFocusSelection, debounceToken);
+                return;
+            }
+
+            await Task.Delay(_searchMode == MapSearchMode.Address ? 260 : 220, debounceToken);
+
+            var searchOperation = BeginSearchOperation();
+            await SearchMapAsync(e.NewTextValue, SearchTrigger.AutomaticTextChange, searchOperation.RequestId, searchOperation.Token);
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
         }
     }
 
-    private async Task SearchMapAsync(string? keyword, bool autoFocusSingle, bool showNotFoundMessage)
+    private async Task SearchMapAsync(string? keyword, SearchTrigger trigger, int requestId, CancellationToken cancellationToken)
     {
         keyword = keyword?.Trim() ?? string.Empty;
+        var showNotFoundMessage = trigger == SearchTrigger.ManualSubmit;
+        var autoFocusSingle = trigger == SearchTrigger.ManualSubmit;
 
         if (!_isMapReady)
         {
@@ -318,9 +368,7 @@ public partial class MapPage : ContentPage
 
         if (string.IsNullOrWhiteSpace(keyword))
         {
-            ClearSearchResults();
-            await MapWebView.EvaluateJavaScriptAsync("window.resetMapView && window.resetMapView();");
-            UpdateSearchStatus(string.Empty);
+            await ResetSearchStateAsync(resetMapView: _hasMapFocusSelection, cancellationToken);
             return;
         }
 
@@ -328,9 +376,19 @@ public partial class MapPage : ContentPage
         {
             if (_searchMode == MapSearchMode.Poi)
             {
+                if (keyword.Length < 2)
+                {
+                    ClearSearchResults();
+                    UpdateSearchStatus(LocalizationService.Instance.T("Map.TypeMorePoi"));
+                    return;
+                }
+
                 var poiResults = PlaceCatalogService.Instance.SearchByName(keyword)
                     .Select(CreatePoiSuggestion)
                     .ToList();
+
+                if (!IsSearchRequestCurrent(requestId) || cancellationToken.IsCancellationRequested)
+                    return;
 
                 UpdateSearchResults(poiResults);
 
@@ -344,7 +402,7 @@ public partial class MapPage : ContentPage
 
                 if (autoFocusSingle && poiResults.Count == 1)
                 {
-                    await SelectSearchResultAsync(poiResults[0]);
+                    await SelectSearchResultAsync(poiResults[0], cancellationToken);
                     return;
                 }
 
@@ -354,7 +412,31 @@ public partial class MapPage : ContentPage
                 return;
             }
 
-            var addressResults = (await SearchOnlineAsync(keyword, 6))
+            if (keyword.Length < 3)
+            {
+                ClearSearchResults();
+                UpdateSearchStatus(LocalizationService.Instance.T("Map.TypeMoreAddress"));
+                return;
+            }
+
+            if (trigger != SearchTrigger.ManualSubmit)
+            {
+                ClearSearchResults();
+                UpdateSearchStatus(LocalizationService.Instance.T("Map.AddressTapSearchHint"));
+                return;
+            }
+
+            var cacheKey = $"{GetPreferredSearchLanguageTag()}::{keyword}";
+            if (!_addressSearchCache.TryGetValue(cacheKey, out var cachedAddressResults))
+            {
+                cachedAddressResults = await SearchOnlineAsync(keyword, 6, GetPreferredSearchLanguageTag(), cancellationToken);
+                _addressSearchCache[cacheKey] = cachedAddressResults;
+            }
+
+            if (!IsSearchRequestCurrent(requestId) || cancellationToken.IsCancellationRequested)
+                return;
+
+            var addressResults = cachedAddressResults
                 .Select(CreateAddressSuggestion)
                 .ToList();
 
@@ -370,13 +452,16 @@ public partial class MapPage : ContentPage
 
             if (autoFocusSingle && addressResults.Count == 1)
             {
-                await SelectSearchResultAsync(addressResults[0]);
+                await SelectSearchResultAsync(addressResults[0], cancellationToken);
                 return;
             }
 
             UpdateSearchStatus(addressResults.Count == 1
                 ? $"Đã tìm thấy địa chỉ: {addressResults[0].Title}"
                 : $"Đã tìm thấy {addressResults.Count} địa chỉ. Hãy chọn một kết quả.");
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
@@ -438,25 +523,29 @@ public partial class MapPage : ContentPage
         if (sender is not Border border || border.BindingContext is not MapSearchSuggestion result)
             return;
 
+        SearchEntry.Unfocus();
         await SelectSearchResultAsync(result);
     }
 
-    private async Task SelectSearchResultAsync(MapSearchSuggestion result)
+    private async Task SelectSearchResultAsync(MapSearchSuggestion result, CancellationToken cancellationToken = default)
     {
         if (!_isMapReady)
             return;
 
         ClearSearchResults();
+        SearchEntry.Unfocus();
 
         if (result.Kind == MapSearchSuggestionKind.Poi)
         {
             var placeIdJson = JsonSerializer.Serialize(result.PlaceId);
-            var rawResult = await MapWebView.EvaluateJavaScriptAsync(
-                $"window.focusPlaceById && window.focusPlaceById({placeIdJson});");
+            var rawResult = await EvaluateMapScriptAsync(
+                $"window.focusPlaceById && window.focusPlaceById({placeIdJson});",
+                cancellationToken);
 
             var focusResult = ParseFocusResult(rawResult);
             if (focusResult.Found)
             {
+                _hasMapFocusSelection = true;
                 UpdateSearchStatus($"Đang mở POI: {focusResult.Title}");
             }
 
@@ -467,7 +556,8 @@ public partial class MapPage : ContentPage
         var descriptionJson = JsonSerializer.Serialize(result.Subtitle);
         var script =
             $"window.showSearchResult && window.showSearchResult({result.Latitude.ToString(CultureInfo.InvariantCulture)}, {result.Longitude.ToString(CultureInfo.InvariantCulture)}, {titleJson}, {descriptionJson});";
-        await MapWebView.EvaluateJavaScriptAsync(script);
+        await EvaluateMapScriptAsync(script, cancellationToken);
+        _hasMapFocusSelection = true;
         UpdateSearchStatus($"Đã định vị địa chỉ: {result.Title}");
     }
 
@@ -493,12 +583,13 @@ public partial class MapPage : ContentPage
 
         if (string.IsNullOrWhiteSpace(SearchEntry.Text))
         {
-            await MapWebView.EvaluateJavaScriptAsync("window.resetMapView && window.resetMapView();");
+            await ResetSearchStateAsync(resetMapView: _hasMapFocusSelection);
             UpdateSearchStatus(string.Empty);
             return;
         }
 
-        await SearchMapAsync(SearchEntry.Text, autoFocusSingle: false, showNotFoundMessage: false);
+        var searchOperation = BeginSearchOperation();
+        await SearchMapAsync(SearchEntry.Text, SearchTrigger.ModeSwitch, searchOperation.RequestId, searchOperation.Token);
     }
 
     private async void OnCurrentLocationTapped(object? sender, TappedEventArgs e)
@@ -546,11 +637,13 @@ public partial class MapPage : ContentPage
             }
 
             await ApplyMapThemeAsync();
+            await ApplyMapStringsAsync();
 
             var script =
                 $"window.showCurrentLocation && window.showCurrentLocation({location.Latitude.ToString(CultureInfo.InvariantCulture)}, {location.Longitude.ToString(CultureInfo.InvariantCulture)});";
-            var rawNearest = await MapWebView.EvaluateJavaScriptAsync(script);
+            var rawNearest = await EvaluateMapScriptAsync(script);
             var focusResult = ParseFocusResult(rawNearest);
+            _hasMapFocusSelection = true;
 
             if (focusResult.Found && !string.IsNullOrWhiteSpace(focusResult.Title) && focusResult.DistanceMeters > 0)
             {
@@ -636,8 +729,12 @@ public partial class MapPage : ContentPage
 
     private void UpdateSearchStatus(string message)
     {
+        var isVisible = !string.IsNullOrWhiteSpace(message);
+        if (SearchStatusLabel.Text == message && SearchStatusLabel.IsVisible == isVisible)
+            return;
+
         SearchStatusLabel.Text = message;
-        SearchStatusLabel.IsVisible = !string.IsNullOrWhiteSpace(message);
+        SearchStatusLabel.IsVisible = isVisible;
     }
 
     private static MapFocusResult ParseFocusResult(string? rawResult)
@@ -654,15 +751,15 @@ public partial class MapPage : ContentPage
         if (string.IsNullOrWhiteSpace(normalized))
             return new MapFocusResult();
 
-        return JsonSerializer.Deserialize<MapFocusResult>(normalized) ?? new MapFocusResult();
+        return JsonSerializer.Deserialize<MapFocusResult>(normalized, JsonInteropOptions) ?? new MapFocusResult();
     }
 
-    private static async Task<List<OnlineSearchResult>> SearchOnlineAsync(string keyword, int limit)
+    private static async Task<IReadOnlyList<OnlineSearchResult>> SearchOnlineAsync(string keyword, int limit, string acceptLanguage, CancellationToken cancellationToken)
     {
         var requestUri =
-            $"https://nominatim.openstreetmap.org/search?format=jsonv2&limit={Math.Max(1, limit)}&accept-language=vi&q={Uri.EscapeDataString(keyword)}";
+            $"https://nominatim.openstreetmap.org/search?format=jsonv2&limit={Math.Max(1, limit)}&dedupe=1&addressdetails=1&accept-language={Uri.EscapeDataString(acceptLanguage)}&q={Uri.EscapeDataString(keyword)}";
 
-        var results = await SearchHttpClient.GetFromJsonAsync<List<NominatimResult>>(requestUri) ?? [];
+        var results = await SearchHttpClient.GetFromJsonAsync<List<NominatimResult>>(requestUri, cancellationToken) ?? [];
 
         return results
             .Select(item =>
@@ -689,15 +786,103 @@ public partial class MapPage : ContentPage
 
     private static HttpClient CreateSearchHttpClient()
     {
-        var client = new HttpClient();
+        var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("SmartTourismMaui/1.0");
         return client;
+    }
+
+    private (int RequestId, CancellationToken Token) BeginSearchOperation()
+    {
+        CancelActiveSearchOperation();
+        _activeSearchCts = new CancellationTokenSource();
+        var requestId = Interlocked.Increment(ref _searchRequestVersion);
+        return (requestId, _activeSearchCts.Token);
+    }
+
+    private void CancelActiveSearchOperation()
+    {
+        _activeSearchCts?.Cancel();
+        _activeSearchCts?.Dispose();
+        _activeSearchCts = null;
+    }
+
+    private bool IsSearchRequestCurrent(int requestId)
+    {
+        return requestId == Volatile.Read(ref _searchRequestVersion);
+    }
+
+    private async Task ResetSearchStateAsync(bool resetMapView, CancellationToken cancellationToken = default)
+    {
+        ClearSearchResults();
+        UpdateSearchStatus(string.Empty);
+
+        if (!resetMapView || !_isMapReady)
+            return;
+
+        _hasMapFocusSelection = false;
+        await EvaluateMapScriptAsync("window.resetMapView && window.resetMapView();", cancellationToken);
+    }
+
+    private async Task<string?> EvaluateMapScriptAsync(string script, CancellationToken cancellationToken = default)
+    {
+        if (!_isMapReady)
+            return null;
+
+        var lockTaken = false;
+
+        try
+        {
+            await _mapScriptSemaphore.WaitAsync(cancellationToken);
+            lockTaken = true;
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return await MainThread.InvokeOnMainThreadAsync(() => MapWebView.EvaluateJavaScriptAsync(script));
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Map script error: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            if (lockTaken)
+            {
+                _mapScriptSemaphore.Release();
+            }
+        }
+    }
+
+    private static string GetPreferredSearchLanguageTag()
+    {
+        return LocalizationService.Instance.Language switch
+        {
+            "en" => "en-US",
+            "cn" => "zh-CN",
+            "jp" => "ja-JP",
+            "kr" => "ko-KR",
+            "fr" => "fr-FR",
+            _ => "vi-VN"
+        };
     }
 
     private enum MapSearchMode
     {
         Poi,
         Address
+    }
+
+    private enum SearchTrigger
+    {
+        AutomaticTextChange,
+        ModeSwitch,
+        ManualSubmit
     }
 
     private enum MapSearchSuggestionKind
@@ -733,6 +918,15 @@ public partial class MapPage : ContentPage
         public double Longitude { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
+    }
+
+    private sealed class MapStringPayload
+    {
+        public string ViewDetails { get; init; } = string.Empty;
+        public string NearestLabel { get; init; } = string.Empty;
+        public string CurrentLocationTitle { get; init; } = string.Empty;
+        public string SearchResultTitle { get; init; } = string.Empty;
+        public string NearestPrefix { get; init; } = string.Empty;
     }
 
     private sealed class NominatimResult

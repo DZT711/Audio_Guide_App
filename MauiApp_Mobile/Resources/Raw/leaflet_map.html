@@ -191,6 +191,13 @@
         var defaultCenter = [10.778762, 106.684330];
         var defaultZoom = 15;
         var currentThemeKey = "emerald";
+        var mapStrings = {
+            viewDetails: "Xem chi tiet",
+            nearestLabel: "Gan ban nhat",
+            currentLocationTitle: "Vi tri hien tai",
+            searchResultTitle: "Ket qua tim kiem",
+            nearestPrefix: "Gan nhat"
+        };
         var map = L.map("map", {
             zoomControl: false
         }).setView(defaultCenter, defaultZoom);
@@ -204,6 +211,8 @@
         var searchMarker = null;
         var currentLocationMarker = null;
         var currentLocationHalo = null;
+        var lastSearchResult = null;
+        var lastCurrentLocation = null;
         var places = [];
         var lastReferencePoint = {
             lat: defaultCenter[0],
@@ -369,13 +378,13 @@
                 ? '<div class="poi-popup-chip">' + escapeHtml(place.category) + "</div>"
                 : "";
             var nearestChip = place.isNearest
-                ? '<div class="poi-popup-chip poi-popup-chip--nearest">🧭 Gần bạn nhất</div>'
+                ? '<div class="poi-popup-chip poi-popup-chip--nearest">🧭 ' + escapeHtml(mapStrings.nearestLabel) + "</div>"
                 : "";
             var addressBlock = place.address
                 ? '<div class="poi-popup-address">' + escapeHtml(place.address) + "</div>"
                 : "";
             var detailAction = place.id
-                ? '<a class="poi-popup-action" href="smarttour://place/' + encodeURIComponent(place.id) + '">View details</a>'
+                ? '<a class="poi-popup-action" href="smarttour://place/' + encodeURIComponent(place.id) + '">' + escapeHtml(mapStrings.viewDetails) + "</a>"
                 : "";
 
             return (
@@ -386,6 +395,31 @@
                 addressBlock +
                 '<div class="poi-popup-chip-row">' + categoryChip + nearestChip + "</div>" +
                 detailAction +
+                "</div>"
+            );
+        }
+
+        function buildSearchResultPopup(title, description) {
+            return (
+                '<div class="status-popup"><strong>' +
+                escapeHtml(title || mapStrings.searchResultTitle) +
+                "</strong><br/>" +
+                escapeHtml(description || "") +
+                "</div>"
+            );
+        }
+
+        function buildCurrentLocationPopup(lat, lon, nearest) {
+            var nearestLine = nearest
+                ? "<br/>" + escapeHtml(mapStrings.nearestPrefix) + ": " + escapeHtml(nearest.place.title) + " (" + Math.round(nearest.distanceMeters) + "m)"
+                : "";
+
+            return (
+                '<div class="status-popup"><strong>' +
+                escapeHtml(mapStrings.currentLocationTitle) +
+                "</strong><br/>" +
+                lat.toFixed(6) + ", " + lon.toFixed(6) +
+                nearestLine +
                 "</div>"
             );
         }
@@ -479,6 +513,13 @@
             refreshCurrentLocationStyles();
         }
 
+        function flyToPosition(lat, lon, zoom, durationSeconds) {
+            map.stop();
+            map.flyTo([lat, lon], zoom, {
+                duration: durationSeconds || 0.75
+            });
+        }
+
         function hydratePlaces(items) {
             return (items || []).map(function(place) {
                 var imageSource = place.image || place.Image || "";
@@ -549,9 +590,7 @@
                 });
             }
 
-            map.flyTo([match.place.lat, match.place.lon], 16, {
-                duration: 1
-            });
+            flyToPosition(match.place.lat, match.place.lon, 16, 0.72);
             match.marker.openPopup();
 
             return JSON.stringify({
@@ -568,6 +607,7 @@
                 map.removeLayer(searchMarker);
                 searchMarker = null;
             }
+            lastSearchResult = null;
 
             if (currentLocationMarker) {
                 lastReferencePoint = {
@@ -575,9 +615,7 @@
                     lon: currentLocationMarker.getLatLng().lng
                 };
                 highlightNearestPoi(lastReferencePoint.lat, lastReferencePoint.lon);
-                map.flyTo([lastReferencePoint.lat, lastReferencePoint.lon], 16, {
-                    duration: 1
-                });
+                flyToPosition(lastReferencePoint.lat, lastReferencePoint.lon, 16, 0.72);
                 return true;
             }
 
@@ -586,8 +624,9 @@
                 lon: defaultCenter[1]
             };
             highlightNearestPoi(lastReferencePoint.lat, lastReferencePoint.lon);
+            map.stop();
             map.flyTo(defaultCenter, defaultZoom, {
-                duration: 1
+                duration: 0.72
             });
             return true;
         };
@@ -597,15 +636,16 @@
                 map.removeLayer(searchMarker);
             }
 
+            lastSearchResult = {
+                lat: lat,
+                lon: lon,
+                title: title,
+                description: description
+            };
             searchMarker = L.circleMarker([lat, lon], buildSearchMarkerStyle()).addTo(map);
-            searchMarker.bindPopup(
-                '<div class="status-popup"><strong>' + escapeHtml(title || "Kết quả tìm kiếm") + "</strong><br/>" +
-                escapeHtml(description || "") + "</div>"
-            );
+            searchMarker.bindPopup(buildSearchResultPopup(title, description));
 
-            map.flyTo([lat, lon], 16, {
-                duration: 1.2
-            });
+            flyToPosition(lat, lon, 16, 0.78);
             searchMarker.openPopup();
 
             return true;
@@ -622,6 +662,10 @@
 
             currentLocationHalo = L.circle([lat, lon], buildCurrentLocationHaloStyle()).addTo(map);
             currentLocationMarker = L.circleMarker([lat, lon], buildCurrentLocationStyle()).addTo(map);
+            lastCurrentLocation = {
+                lat: lat,
+                lon: lon
+            };
 
             lastReferencePoint = {
                 lat: lat,
@@ -629,18 +673,9 @@
             };
 
             var nearest = highlightNearestPoi(lat, lon);
-            var nearestLine = nearest
-                ? "<br/>Gần nhất: " + escapeHtml(nearest.place.title) + " (" + Math.round(nearest.distanceMeters) + "m)"
-                : "";
+            currentLocationMarker.bindPopup(buildCurrentLocationPopup(lat, lon, nearest));
 
-            currentLocationMarker.bindPopup(
-                '<div class="status-popup"><strong>Vị trí hiện tại</strong><br/>' +
-                lat.toFixed(6) + ", " + lon.toFixed(6) + nearestLine + "</div>"
-            );
-
-            map.flyTo([lat, lon], 16, {
-                duration: 1.2
-            });
+            flyToPosition(lat, lon, 16, 0.82);
             currentLocationMarker.openPopup();
 
             return JSON.stringify({
@@ -652,6 +687,24 @@
 
         window.applyMapTheme = function(themeKey) {
             applyTheme(themeKey);
+            return true;
+        };
+
+        window.setMapStrings = function(nextStrings) {
+            mapStrings = Object.assign({}, mapStrings, nextStrings || {});
+            refreshPoiStyles();
+
+            if (searchMarker && lastSearchResult) {
+                searchMarker.setPopupContent(
+                    buildSearchResultPopup(lastSearchResult.title, lastSearchResult.description));
+            }
+
+            if (currentLocationMarker && lastCurrentLocation) {
+                var nearest = highlightNearestPoi(lastCurrentLocation.lat, lastCurrentLocation.lon);
+                currentLocationMarker.setPopupContent(
+                    buildCurrentLocationPopup(lastCurrentLocation.lat, lastCurrentLocation.lon, nearest));
+            }
+
             return true;
         };
     </script>
