@@ -430,8 +430,16 @@
                                           HorizontalOptions="Fill"
                                           IndicatorView="PlaceDetailIndicator"
                                           ItemsSource="{Binding SelectedPlaceGallery}"
+                                          Loop="True"
                                           PeekAreaInsets="0"
+                                          PositionChanged="OnPlaceDetailCarouselPositionChanged"
                                           VerticalOptions="Fill">
+                                <CarouselView.ItemsLayout>
+                                    <LinearItemsLayout ItemSpacing="0"
+                                                       Orientation="Horizontal"
+                                                       SnapPointsAlignment="Center"
+                                                       SnapPointsType="MandatorySingle" />
+                                </CarouselView.ItemsLayout>
                                 <CarouselView.ItemTemplate>
                                     <DataTemplate x:DataType="models:PlaceGallerySlide">
                                         <Grid HorizontalOptions="Fill"

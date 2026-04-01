@@ -22,6 +22,7 @@ public partial class MainPage : ContentPage
     private double _placeDetailClosedY = PlaceDetailFallbackClosedOffset;
     private bool _hasLoadedPlaces;
     private bool _hasAnimatedPage;
+    private bool _isPlaceGalleryTransitionRunning;
     private CancellationTokenSource? _placesLoadingCts;
     private IDispatcherTimer? _placeGalleryTimer;
 
@@ -321,7 +322,7 @@ public partial class MainPage : ContentPage
         _placeGalleryTimer = null;
     }
 
-    private void OnPlaceGalleryTimerTick(object? sender, EventArgs e)
+    private async void OnPlaceGalleryTimerTick(object? sender, EventArgs e)
     {
         if (!IsPlaceDetailVisible || SelectedPlaceGallery.Count < 2)
         {
@@ -329,13 +330,34 @@ public partial class MainPage : ContentPage
             return;
         }
 
+        if (_isPlaceGalleryTransitionRunning)
+            return;
+
+        _isPlaceGalleryTransitionRunning = true;
+
         var nextPosition = PlaceDetailCarousel.Position + 1;
         if (nextPosition >= SelectedPlaceGallery.Count)
         {
             nextPosition = 0;
         }
 
-        PlaceDetailCarousel.Position = nextPosition;
+        try
+        {
+            PlaceDetailCarousel.ScrollTo(nextPosition, -1, ScrollToPosition.Center, true);
+            await Task.Delay(320);
+        }
+        finally
+        {
+            _isPlaceGalleryTransitionRunning = false;
+        }
+    }
+
+    private void OnPlaceDetailCarouselPositionChanged(object? sender, PositionChangedEventArgs e)
+    {
+        if (!IsPlaceDetailVisible || _isPlaceGalleryTransitionRunning || _placeGalleryTimer is null)
+            return;
+
+        StartPlaceGalleryAutoplay();
     }
 
     private void OnSearchChanged(object sender, TextChangedEventArgs e)
