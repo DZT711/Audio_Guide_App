@@ -6,7 +6,7 @@ using MauiApp_Mobile.Services;
 
 namespace MauiApp_Mobile.Views;
 
-public partial class OfflinePage : ContentPage, INotifyPropertyChanged
+public partial class OfflinePage : ContentPage
 {
     private readonly ObservableCollection<OfflinePackItem> _allItems = new();
     private ObservableCollection<OfflinePackItem> _filteredItems = new();
@@ -15,8 +15,9 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
     private OfflinePackItem? _pendingDeleteItem;
     private bool _isBulkDeleteConfirm;
     private int _pendingBulkDeleteCount;
-
-    public new event PropertyChangedEventHandler? PropertyChanged;
+    private bool _hasInitializedView;
+    private bool _hasAnimatedView;
+    private CancellationTokenSource? _loadingCts;
 
     public ObservableCollection<OfflinePackItem> FilteredItems
     {
@@ -35,6 +36,10 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
 
     public string DownloadedCountText => $"{_allItems.Count(x => x.IsDownloaded)}/{_allItems.Count} pack";
     public string DownloadedSizeText => $"{_allItems.Where(x => x.IsDownloaded).Sum(x => x.SizeValue):0.#} MB";
+    public double DownloadProgress => _allItems.Count == 0 ? 0 : (double)_allItems.Count(x => x.IsDownloaded) / _allItems.Count;
+    public string DownloadProgressText => $"{_allItems.Count(x => x.IsDownloaded)} trên {_allItems.Count} pack đã sẵn sàng ngoại tuyến";
+    public bool HasItems => FilteredItems.Count > 0;
+    public bool ShowEmptyState => _hasInitializedView && FilteredItems.Count == 0;
 
     public Color AllTabBg => _selectedFilter == "All"
         ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
@@ -99,7 +104,73 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
             OnPropertyChanged(nameof(AllTabTextColor));
             OnPropertyChanged(nameof(DownloadedTabTextColor));
             OnPropertyChanged(nameof(NotDownloadedTabTextColor));
+            foreach (var item in _allItems)
+            {
+                item.RefreshThemeState();
+            }
         };
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+
+        if (!_hasInitializedView)
+        {
+            _ = RunInitialLoadAsync();
+            return;
+        }
+
+        if (!_hasAnimatedView)
+        {
+            _hasAnimatedView = true;
+            _ = UiEffectsService.AnimateEntranceAsync(OfflineSummaryCard1, OfflineSummaryCard2, OfflineProgressCard, OfflineCollectionView);
+        }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _loadingCts?.Cancel();
+    }
+
+    private async Task RunInitialLoadAsync()
+    {
+        _hasInitializedView = true;
+        OnPropertyChanged(nameof(ShowEmptyState));
+
+        _loadingCts?.Cancel();
+        _loadingCts = new CancellationTokenSource();
+
+        OfflineLoadingOverlay.IsVisible = true;
+        OfflineLoadingOverlay.Opacity = 1;
+        OfflineCollectionView.Opacity = 0;
+        OfflineCollectionView.IsVisible = HasItems;
+
+        _ = UiEffectsService.RunSkeletonPulseAsync(
+            _loadingCts.Token,
+            OfflineSkeletonCard1,
+            OfflineSkeletonCard2,
+            OfflineSkeletonCard3);
+
+        await Task.Delay(380);
+
+        _loadingCts.Cancel();
+
+        OfflineCollectionView.IsVisible = HasItems;
+
+        await Task.WhenAll(
+            OfflineLoadingOverlay.FadeToAsync(0, 180, Easing.CubicOut),
+            OfflineCollectionView.FadeToAsync(1, 220, Easing.CubicOut));
+
+        OfflineLoadingOverlay.IsVisible = false;
+        OfflineLoadingOverlay.Opacity = 1;
+
+        if (!_hasAnimatedView)
+        {
+            _hasAnimatedView = true;
+            await UiEffectsService.AnimateEntranceAsync(OfflineSummaryCard1, OfflineSummaryCard2, OfflineProgressCard, OfflineCollectionView);
+        }
     }
 
     private void SeedData()
@@ -108,6 +179,7 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
 
         _allItems.Add(new OfflinePackItem
         {
+            Category = "Bảo tàng",
             Title = "Bảo tàng Chứng tích",
             AudioCount = 4,
             Duration = "12:46",
@@ -123,6 +195,8 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
             RadiusText = "70m",
             GpsText = "10.7797, 106.6924",
             RatingText = "9/10",
+            CategoryBg = Color.FromArgb("#FFE3E3"),
+            CategoryTextColor = Color.FromArgb("#E53935"),
             IsDownloaded = false,
             LocalizedTitles = BuildLocalizedTitles(
                 vi: "Bảo tàng Chứng tích Chiến tranh",
@@ -135,6 +209,7 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
 
         _allItems.Add(new OfflinePackItem
         {
+            Category = "Di sản",
             Title = "Bưu điện Sài Gòn",
             AudioCount = 3,
             Duration = "7:15",
@@ -150,6 +225,8 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
             RadiusText = "120m",
             GpsText = "10.7800, 106.6990",
             RatingText = "10/10",
+            CategoryBg = Color.FromArgb("#E6F4FF"),
+            CategoryTextColor = Color.FromArgb("#2563EB"),
             IsDownloaded = false,
             LocalizedTitles = BuildLocalizedTitles(
                 vi: "Bưu điện Trung tâm Sài Gòn",
@@ -162,6 +239,7 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
 
         _allItems.Add(new OfflinePackItem
         {
+            Category = "Chợ địa phương",
             Title = "Chợ Bến Thành",
             AudioCount = 3,
             Duration = "9:10",
@@ -177,6 +255,8 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
             RadiusText = "180m",
             GpsText = "10.7725, 106.6980",
             RatingText = "9/10",
+            CategoryBg = Color.FromArgb("#FFF7D6"),
+            CategoryTextColor = Color.FromArgb("#CA8A04"),
             LocalizedTitles = BuildLocalizedTitles(
                 vi: "Chợ Bến Thành",
                 en: "Ben Thanh Market",
@@ -188,6 +268,7 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
 
         _allItems.Add(new OfflinePackItem
         {
+            Category = "Tâm linh",
             Title = "Chùa Thiên Mụ",
             AudioCount = 3,
             Duration = "11:05",
@@ -203,6 +284,8 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
             RadiusText = "220m",
             GpsText = "16.4548, 107.5458",
             RatingText = "9/10",
+            CategoryBg = Color.FromArgb("#F8E3D4"),
+            CategoryTextColor = Color.FromArgb("#A65627"),
             LocalizedTitles = BuildLocalizedTitles(
                 vi: "Chùa Thiên Mụ",
                 en: "Thien Mu Pagoda",
@@ -243,6 +326,10 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
 
         OnPropertyChanged(nameof(DownloadedCountText));
         OnPropertyChanged(nameof(DownloadedSizeText));
+        OnPropertyChanged(nameof(DownloadProgress));
+        OnPropertyChanged(nameof(DownloadProgressText));
+        OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(ShowEmptyState));
         OnPropertyChanged(nameof(AllTabBg));
         OnPropertyChanged(nameof(DownloadedTabBg));
         OnPropertyChanged(nameof(NotDownloadedTabBg));
@@ -256,6 +343,7 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
         if (item == null) return;
 
         item.IsDownloaded = true;
+        item.DownloadedAt = DateTime.Now;
         ApplyFilter();
     }
 
@@ -276,6 +364,7 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
         if (item == null) return;
 
         item.IsDownloaded = true;
+        item.DownloadedAt = DateTime.Now;
         ApplyFilter();
     }
 
@@ -314,7 +403,10 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
     private void OnDownloadAllClicked(object sender, EventArgs e)
     {
         foreach (var item in _allItems)
+        {
             item.IsDownloaded = true;
+            item.DownloadedAt ??= DateTime.Now;
+        }
 
         ApplyFilter();
     }
@@ -341,6 +433,7 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
             foreach (var item in _allItems)
             {
                 item.IsDownloaded = false;
+                item.DownloadedAt = null;
                 item.IsExpanded = false;
             }
 
@@ -361,6 +454,7 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
         }
 
         _pendingDeleteItem.IsDownloaded = false;
+        _pendingDeleteItem.DownloadedAt = null;
         _pendingDeleteItem.IsExpanded = false;
 
         _pendingDeleteItem = null;
@@ -370,16 +464,13 @@ public partial class OfflinePage : ContentPage, INotifyPropertyChanged
         ApplyFilter();
     }
 
-    private void OnPropertyChanged([CallerMemberName] string? name = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    }
 }
 
 public class OfflinePackItem : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    public string Category { get; set; } = "";
     public string Title { get; set; } = "";
     public int AudioCount { get; set; }
     public string Duration { get; set; } = "";
@@ -395,10 +486,21 @@ public class OfflinePackItem : INotifyPropertyChanged
     public string RadiusText { get; set; } = "";
     public string GpsText { get; set; } = "";
     public string RatingText { get; set; } = "";
+    public Color CategoryBg { get; set; } = Colors.LightGray;
+    public Color CategoryTextColor { get; set; } = Colors.Black;
     public ObservableCollection<LocalizedTitleItem> LocalizedTitles { get; set; } = new();
 
     private bool _isDownloaded;
     private bool _isExpanded;
+    private DateTime? _downloadedAt;
+
+    public string AudioCountText => $"{AudioCount} audio";
+    public string DownloadedDateText => DownloadedAt is DateTime downloadedAt
+        ? $"Đã tải {downloadedAt:dd/MM/yyyy HH:mm}"
+        : "Sẵn sàng tải về";
+    public Color CardStrokeColor => IsDownloaded
+        ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+        : ThemeService.Instance.GetColor("BorderColor", "#E5E7EB");
 
     public bool IsDownloaded
     {
@@ -408,10 +510,23 @@ public class OfflinePackItem : INotifyPropertyChanged
             _isDownloaded = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsNotDownloaded));
+            OnPropertyChanged(nameof(CardStrokeColor));
+            OnPropertyChanged(nameof(DownloadedDateText));
         }
     }
 
     public bool IsNotDownloaded => !IsDownloaded;
+
+    public DateTime? DownloadedAt
+    {
+        get => _downloadedAt;
+        set
+        {
+            _downloadedAt = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(DownloadedDateText));
+        }
+    }
 
     public bool IsExpanded
     {
@@ -425,6 +540,13 @@ public class OfflinePackItem : INotifyPropertyChanged
     }
 
     public string ExpandIcon => IsExpanded ? "˄" : "˅";
+
+    public void RefreshThemeState()
+    {
+        OnPropertyChanged(nameof(CardStrokeColor));
+        OnPropertyChanged(nameof(CategoryBg));
+        OnPropertyChanged(nameof(CategoryTextColor));
+    }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)
     {

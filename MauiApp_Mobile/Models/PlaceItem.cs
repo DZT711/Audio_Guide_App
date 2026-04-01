@@ -5,6 +5,7 @@ namespace MauiApp_Mobile.Models;
 
 public class PlaceItem : INotifyPropertyChanged
 {
+    public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public string Description { get; set; } = "";
     public string AudioDescription { get; set; } = "";
@@ -18,6 +19,8 @@ public class PlaceItem : INotifyPropertyChanged
     public string EstablishedYear { get; set; } = "";
     public string RadiusText { get; set; } = "";
     public string GpsText { get; set; } = "";
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
     public Color CategoryColor { get; set; } = Colors.LightGray;
     public Color CategoryTextColor { get; set; } = Colors.Black;
 

@@ -174,14 +174,20 @@
                                             </Grid>
 
                                             <Label x:Name="ThemeEcoTitleLabel"
+                                                   Grid.Row="1"
                                                    Text="Eco Light"
                                                    FontSize="16"
                                                    FontAttributes="Bold"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1"
                                                    TextColor="{DynamicResource TitleText}" />
 
                                             <Label x:Name="ThemeEcoSubtitleLabel"
+                                                   Grid.Row="2"
                                                    Text="Tươi, sáng và gần gũi cho bản đồ khám phá ban ngày."
                                                    FontSize="13"
+                                                   LineBreakMode="WordWrap"
+                                                   MaxLines="3"
                                                    TextColor="{DynamicResource MutedText}" />
 
                                             <Border.GestureRecognizers>
@@ -234,14 +240,20 @@
                                             </Grid>
 
                                             <Label x:Name="ThemeMidnightTitleLabel"
+                                                   Grid.Row="1"
                                                    Text="Midnight"
                                                    FontSize="16"
                                                    FontAttributes="Bold"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1"
                                                    TextColor="{DynamicResource TitleText}" />
 
                                             <Label x:Name="ThemeMidnightSubtitleLabel"
+                                                   Grid.Row="2"
                                                    Text="Độ tương phản dịu mắt hơn khi đi buổi tối hoặc ngoài trời tối."
                                                    FontSize="13"
+                                                   LineBreakMode="WordWrap"
+                                                   MaxLines="3"
                                                    TextColor="{DynamicResource MutedText}" />
 
                                             <Border.GestureRecognizers>
@@ -294,14 +306,20 @@
                                             </Grid>
 
                                             <Label x:Name="ThemeHeritageTitleLabel"
+                                                   Grid.Row="1"
                                                    Text="Heritage"
                                                    FontSize="16"
                                                    FontAttributes="Bold"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1"
                                                    TextColor="{DynamicResource TitleText}" />
 
                                             <Label x:Name="ThemeHeritageSubtitleLabel"
+                                                   Grid.Row="2"
                                                    Text="Tông ấm gợi cảm giác di sản và du lịch văn hóa."
                                                    FontSize="13"
+                                                   LineBreakMode="WordWrap"
+                                                   MaxLines="3"
                                                    TextColor="{DynamicResource MutedText}" />
 
                                             <Border.GestureRecognizers>

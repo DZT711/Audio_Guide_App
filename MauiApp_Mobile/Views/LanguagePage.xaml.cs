@@ -5,11 +5,12 @@ namespace MauiApp_Mobile.Views;
 public partial class LanguagePage : ContentPage
 {
     private bool _hasAnimated;
+    private bool _isRefreshingLanguageText;
 
     public LanguagePage()
     {
         InitializeComponent();
-        ApplyLanguage("vi");
+        ApplyLanguage("vi", animateText: false);
         ThemeService.Instance.PropertyChanged += (_, _) => ApplyLanguage(LocalizationService.Instance.Language);
     }
 
@@ -24,15 +25,33 @@ public partial class LanguagePage : ContentPage
         _ = UiEffectsService.AnimateEntranceAsync(HeroStack, LanguageCardGrid, StartButton, FooterLabel);
     }
 
-    private void ApplyLanguage(string languageCode)
+    private void ApplyLanguage(string languageCode, bool animateText = true)
     {
+        if (_isRefreshingLanguageText)
+            return;
+
+        _isRefreshingLanguageText = true;
+
         LocalizationService.Instance.Language = languageCode;
 
-        TitleLabel.Text = LocalizationService.Instance.T("Lang.Title");
-        SubtitleLabel.Text = LocalizationService.Instance.T("Lang.Subtitle");
-        ChooseLanguageLabel.Text = LocalizationService.Instance.T("Lang.Choose");
-        StartButton.Text = LocalizationService.Instance.T("Lang.Start");
-        FooterLabel.Text = LocalizationService.Instance.T("Lang.Footer");
+        Action updateText = () =>
+        {
+            TitleLabel.Text = LocalizationService.Instance.T("Lang.Title");
+            SubtitleLabel.Text = LocalizationService.Instance.T("Lang.Subtitle");
+            ChooseLanguageLabel.Text = LocalizationService.Instance.T("Lang.Choose");
+            StartButton.Text = LocalizationService.Instance.T("Lang.Start");
+            FooterLabel.Text = LocalizationService.Instance.T("Lang.Footer");
+        };
+
+        if (animateText && _hasAnimated)
+        {
+            _ = AnimateLanguageTextAsync(updateText);
+        }
+        else
+        {
+            updateText();
+            _isRefreshingLanguageText = false;
+        }
 
         ResetSelectionStyle();
 
@@ -45,6 +64,19 @@ public partial class LanguagePage : ContentPage
             case "kr": SelectCard(CardKR, TickKR); break;
             case "fr": SelectCard(CardFR, TickFR); break;
         }
+    }
+
+    private async Task AnimateLanguageTextAsync(Action updateText)
+    {
+        await UiEffectsService.CrossfadeTextAsync(
+            updateText,
+            TitleLabel,
+            SubtitleLabel,
+            ChooseLanguageLabel,
+            StartButton,
+            FooterLabel);
+
+        _isRefreshingLanguageText = false;
     }
 
     private void ResetSelectionStyle()

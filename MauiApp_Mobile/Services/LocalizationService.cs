@@ -40,8 +40,14 @@ public class LocalizationService : INotifyPropertyChanged
 
             ["Map.Title"] = "Bản đồ",
             ["Map.Search"] = "Tìm kiếm địa điểm...",
+            ["Map.SearchPoi"] = "Tìm theo tên POI...",
+            ["Map.SearchAddress"] = "Tìm theo địa chỉ...",
             ["Map.Area"] = "Khu vực bản đồ",
             ["Map.LocateHint"] = "Chạm la bàn để lấy vị trí hiện tại",
+            ["Map.ModePoi"] = "Tên POI",
+            ["Map.ModeAddress"] = "Địa chỉ",
+            ["Map.ResultsPoi"] = "Kết quả POI",
+            ["Map.ResultsAddress"] = "Kết quả địa chỉ",
 
             ["History.Title"] = "Lịch sử",
             ["History.Subtitle"] = "Các địa điểm đã nghe thuyết minh",
@@ -109,8 +115,14 @@ public class LocalizationService : INotifyPropertyChanged
 
             ["Map.Title"] = "Map",
             ["Map.Search"] = "Search places...",
+            ["Map.SearchPoi"] = "Search by POI name...",
+            ["Map.SearchAddress"] = "Search by address...",
             ["Map.Area"] = "Map area",
             ["Map.LocateHint"] = "Tap the compass to jump to your current location",
+            ["Map.ModePoi"] = "POI name",
+            ["Map.ModeAddress"] = "Address",
+            ["Map.ResultsPoi"] = "POI results",
+            ["Map.ResultsAddress"] = "Address results",
 
             ["History.Title"] = "History",
             ["History.Subtitle"] = "Places you listened to",

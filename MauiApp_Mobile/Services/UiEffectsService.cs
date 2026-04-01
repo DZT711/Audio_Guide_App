@@ -78,4 +78,28 @@ public static class UiEffectsService
         popup.Opacity = 1;
         popup.Scale = 1;
     }
+
+    public static async Task CrossfadeTextAsync(Action updateText, params VisualElement[] elements)
+    {
+        var activeElements = elements.Where(element => element is not null).ToArray();
+        if (activeElements.Length == 0)
+        {
+            updateText();
+            return;
+        }
+
+        await Task.WhenAll(activeElements.Select(element => element.FadeToAsync(0, 90, Easing.CubicIn)));
+
+        updateText();
+
+        foreach (var element in activeElements)
+        {
+            element.Opacity = 0;
+            element.TranslationY = 8;
+        }
+
+        await Task.WhenAll(activeElements.Select(element => Task.WhenAll(
+            element.FadeToAsync(1, 180, Easing.CubicOut),
+            element.TranslateToAsync(0, 0, 180, Easing.CubicOut))));
+    }
 }

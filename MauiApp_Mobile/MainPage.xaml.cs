@@ -95,12 +95,16 @@ public partial class MainPage : ContentPage
 
         if (!_hasLoadedPlaces)
         {
-            _ = LoadPlacesAsync();
+            _ = LoadPlacesAndHandleNavigationAsync();
         }
         else if (!_hasAnimatedPage)
         {
             _hasAnimatedPage = true;
             _ = UiEffectsService.AnimateEntranceAsync(CountLabel, PlacesCollectionView);
+        }
+        else
+        {
+            _ = TryOpenPendingPlaceAsync();
         }
     }
 
@@ -135,7 +139,7 @@ public partial class MainPage : ContentPage
         await Task.Delay(420);
 
         _allPlaces.Clear();
-        _allPlaces.AddRange(BuildSamplePlacesNearCurrentLocation());
+        _allPlaces.AddRange(PlaceCatalogService.Instance.GetPlaces());
         ApplyFilter();
 
         _placesLoadingCts.Cancel();
@@ -153,6 +157,12 @@ public partial class MainPage : ContentPage
             _hasAnimatedPage = true;
             await UiEffectsService.AnimateEntranceAsync(CountLabel, PlacesCollectionView);
         }
+    }
+
+    private async Task LoadPlacesAndHandleNavigationAsync()
+    {
+        await LoadPlacesAsync();
+        await TryOpenPendingPlaceAsync();
     }
 
     private void ApplyTexts()
@@ -296,14 +306,7 @@ public partial class MainPage : ContentPage
         if (sender is not Frame card || card.BindingContext is not PlaceItem item)
             return;
 
-        SelectedPlace = item;
-        SelectedPlaceTracks = BuildPlaceTracks(item);
-        IsPlaceDetailVisible = true;
-
-        await Task.Yield();
-        UpdatePlaceDetailSheetLayout();
-        PlaceDetailSheet.TranslationY = _placeDetailClosedY;
-        await PlaceDetailSheet.TranslateToAsync(0, _placeDetailHalfY, 300, Easing.CubicOut);
+        await ShowPlaceDetailAsync(item);
     }
 
     private async void OnPlaceDetailPanUpdated(object? sender, PanUpdatedEventArgs e)
@@ -386,99 +389,67 @@ public partial class MainPage : ContentPage
         }
     }
 
-    private static IEnumerable<PlaceItem> BuildSamplePlacesNearCurrentLocation()
+    private async Task TryOpenPendingPlaceAsync()
     {
-        return new List<PlaceItem>
+        var pendingPlaceId = PlaceNavigationService.Instance.ConsumePendingPlaceId();
+        if (string.IsNullOrWhiteSpace(pendingPlaceId))
+            return;
+
+        var place = PlaceCatalogService.Instance.FindById(pendingPlaceId);
+        if (place is null)
+            return;
+
+        if (FilterPopup.IsVisible)
+        {
+            await UiEffectsService.TogglePopupAsync(FilterPopup, false);
+        }
+
+        await ShowPlaceDetailAsync(place);
+    }
+
+    private async Task ShowPlaceDetailAsync(PlaceItem item)
+    {
+        SelectedPlace = item;
+        SelectedPlaceTracks = BuildPlaceTracks(item);
+        IsPlaceDetailVisible = true;
+
+        await Task.Yield();
+        UpdatePlaceDetailSheetLayout();
+        PlaceDetailSheet.TranslationY = _placeDetailClosedY;
+        await PlaceDetailSheet.TranslateToAsync(0, _placeDetailHalfY, 300, Easing.CubicOut);
+    }
+
+    private static ObservableCollection<PlaceAudioTrack> BuildPlaceTracks(PlaceItem item)
+    {
+        return new ObservableCollection<PlaceAudioTrack>
         {
             new()
             {
-                Name = "Cơm Tấm Góc Sài Gòn",
-                Description = "Quán cơm tấm đông khách, vị đậm đà gần trung tâm",
-                AudioDescription = "Cơm Tấm Góc Sài Gòn nổi bật với sườn nướng thơm, bì chả đầy đặn và nước mắm pha vừa vị.",
-                Category = "Món ăn đặc trưng",
-                Rating = "9/10",
-                Image = "dotnet_bot.png",
-                Address = "58 Võ Văn Tần, Quận 3, TP.HCM",
-                Phone = "(028) 3820 1122",
-                Email = "comtamgocsaigon@example.vn",
-                Website = "comtamgocsaigon.vn",
-                EstablishedYear = "2016",
-                RadiusText = "75m",
-                GpsText = "10.779120, 106.683900",
-                CategoryColor = Color.FromArgb("#FFE3E3"),
-                CategoryTextColor = Color.FromArgb("#E53935")
+                LanguageCode = "VI",
+                Title = $"Lịch sử {item.Name}",
+                Description = "Tự động",
+                Duration = "4:27"
             },
             new()
             {
-                Name = "Phở Bò Nguyễn Đình Chiểu",
-                Description = "Tô phở nóng với nước dùng thanh và bò mềm",
-                AudioDescription = "Phở Bò Nguyễn Đình Chiểu phục vụ phở truyền thống với nước dùng trong, thơm mùi quế hồi.",
-                Category = "Món ăn đặc trưng",
-                Rating = "9/10",
-                Image = "dotnet_bot.png",
-                Address = "124 Nguyễn Đình Chiểu, Quận 3, TP.HCM",
-                Phone = "(028) 3930 2233",
-                Email = "phobondc@example.vn",
-                Website = "phobondc.vn",
-                EstablishedYear = "2018",
-                RadiusText = "90m",
-                GpsText = "10.777950, 106.685150",
-                CategoryColor = Color.FromArgb("#FFE3E3"),
-                CategoryTextColor = Color.FromArgb("#E53935")
+                LanguageCode = "EN",
+                Title = $"History of {item.Name}",
+                Description = "Recorded",
+                Duration = "4:13"
             },
             new()
             {
-                Name = "Bún Bò Huế Chị Mai",
-                Description = "Bún bò cay nhẹ, topping đầy đủ và nước dùng đậm",
-                AudioDescription = "Bún Bò Huế Chị Mai nổi tiếng với nước lèo đậm vị, chả cua thơm và thịt bò mềm.",
-                Category = "Món ăn đặc trưng",
-                Rating = "8/10",
-                Image = "dotnet_bot.png",
-                Address = "36 Trần Quốc Thảo, Quận 3, TP.HCM",
-                Phone = "(028) 3932 4455",
-                Email = "bunbochimai@example.vn",
-                Website = "bunbochimai.vn",
-                EstablishedYear = "2019",
-                RadiusText = "110m",
-                GpsText = "10.780020, 106.686050",
-                CategoryColor = Color.FromArgb("#FFE3E3"),
-                CategoryTextColor = Color.FromArgb("#E53935")
+                LanguageCode = "JA",
+                Title = $"{item.Name} の紹介",
+                Description = "Thủ công",
+                Duration = "3:09"
             },
             new()
             {
-                Name = "Quán Mộc Garden Sài Gòn",
-                Description = "Không gian sân vườn mát, phù hợp ăn uống nhóm nhỏ",
-                AudioDescription = "Quán Mộc Garden Sài Gòn có không gian xanh và thực đơn Việt hiện đại, phù hợp gặp gỡ bạn bè.",
-                Category = "Quán nổi tiếng",
-                Rating = "9/10",
-                Image = "dotnet_bot.png",
-                Address = "22 Pasteur, Quận 3, TP.HCM",
-                Phone = "(028) 3829 6677",
-                Email = "mocgarden@example.vn",
-                Website = "mocgardensaigon.vn",
-                EstablishedYear = "2017",
-                RadiusText = "120m",
-                GpsText = "10.776980, 106.683480",
-                CategoryColor = Color.FromArgb("#FFF7D6"),
-                CategoryTextColor = Color.FromArgb("#CA8A04")
-            },
-            new()
-            {
-                Name = "Cafe Sông Xanh",
-                Description = "Quán cà phê yên tĩnh, thích hợp nghỉ chân buổi chiều",
-                AudioDescription = "Cafe Sông Xanh phục vụ cà phê rang mộc và nhiều loại đồ uống nhẹ trong không gian thư giãn.",
-                Category = "Đồ uống",
-                Rating = "8/10",
-                Image = "dotnet_bot.png",
-                Address = "75 Nam Kỳ Khởi Nghĩa, Quận 3, TP.HCM",
-                Phone = "(028) 3911 7788",
-                Email = "cafesongxanh@example.vn",
-                Website = "cafesongxanh.vn",
-                EstablishedYear = "2020",
-                RadiusText = "95m",
-                GpsText = "10.779640, 106.682950",
-                CategoryColor = Color.FromArgb("#E6F4FF"),
-                CategoryTextColor = Color.FromArgb("#2563EB")
+                LanguageCode = "ZH",
+                Title = $"{item.Name} 简介",
+                Description = "TTS",
+                Duration = "4:01"
             }
         };
     }
@@ -501,17 +472,6 @@ public partial class MainPage : ContentPage
             return _placeDetailHalfY;
 
         return _placeDetailClosedY;
-    }
-
-    private static ObservableCollection<PlaceAudioTrack> BuildPlaceTracks(PlaceItem item)
-    {
-        return new ObservableCollection<PlaceAudioTrack>
-        {
-            new() { LanguageCode = "VI", Title = $"Lịch sử {item.Name}", Description = "Tự động", Duration = "4:27" },
-            new() { LanguageCode = "EN", Title = $"History of {item.Name}", Description = "Recorded", Duration = "4:13" },
-            new() { LanguageCode = "JA", Title = $"{item.Name} の紹介", Description = "Thủ công", Duration = "3:09" },
-            new() { LanguageCode = "ZH", Title = $"{item.Name} 简介", Description = "TTS", Duration = "4:01" }
-        };
     }
 
     private void OnPlayTapped(object sender, TappedEventArgs e)

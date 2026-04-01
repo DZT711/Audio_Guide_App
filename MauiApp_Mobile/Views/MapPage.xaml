@@ -36,6 +36,58 @@
                     </Grid>
                 </Frame>
 
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="10">
+                    <Border x:Name="PoiSearchModeChip"
+                            BackgroundColor="{DynamicResource InputBg}"
+                            Padding="12,9"
+                            Stroke="{DynamicResource BorderColor}"
+                            StrokeShape="RoundRectangle 16"
+                            StrokeThickness="1">
+                        <HorizontalStackLayout HorizontalOptions="Center"
+                                               Spacing="8">
+                            <Label Text="📍"
+                                   FontSize="14"
+                                   VerticalOptions="Center" />
+                            <Label x:Name="PoiSearchModeLabel"
+                                   FontAttributes="Bold"
+                                   FontSize="13"
+                                   Text="Tên POI"
+                                   TextColor="{DynamicResource BodyText}"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnPoiSearchModeTapped" />
+                        </Border.GestureRecognizers>
+                    </Border>
+
+                    <Border x:Name="AddressSearchModeChip"
+                            Grid.Column="1"
+                            BackgroundColor="{DynamicResource InputBg}"
+                            Padding="12,9"
+                            Stroke="{DynamicResource BorderColor}"
+                            StrokeShape="RoundRectangle 16"
+                            StrokeThickness="1">
+                        <HorizontalStackLayout HorizontalOptions="Center"
+                                               Spacing="8">
+                            <Label Text="🗺"
+                                   FontSize="14"
+                                   VerticalOptions="Center" />
+                            <Label x:Name="AddressSearchModeLabel"
+                                   FontAttributes="Bold"
+                                   FontSize="13"
+                                   Text="Địa chỉ"
+                                   TextColor="{DynamicResource BodyText}"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnAddressSearchModeTapped" />
+                        </Border.GestureRecognizers>
+                    </Border>
+                </Grid>
+
                 <Label x:Name="SearchStatusLabel"
                        FontSize="12"
                        IsVisible="False"
@@ -87,6 +139,84 @@
                             Style="{StaticResource SkeletonBoneStyle}" />
                 </VerticalStackLayout>
             </Grid>
+
+            <Border x:Name="SearchResultsPanel"
+                    BackgroundColor="{DynamicResource PopupBg}"
+                    HorizontalOptions="Fill"
+                    IsVisible="False"
+                    Margin="16,92,16,0"
+                    MaximumHeightRequest="252"
+                    Padding="12"
+                    Stroke="{DynamicResource BorderColor}"
+                    StrokeShape="RoundRectangle 18"
+                    StrokeThickness="1"
+                    VerticalOptions="Start"
+                    ZIndex="19">
+                <Grid RowDefinitions="Auto,*"
+                      RowSpacing="8">
+                    <Label x:Name="SearchResultsTitleLabel"
+                           FontAttributes="Bold"
+                           FontSize="14"
+                           Text="Kết quả tìm kiếm"
+                           TextColor="{DynamicResource TitleText}" />
+
+                    <CollectionView x:Name="SearchResultsView"
+                                    Grid.Row="1"
+                                    ItemsLayout="VerticalList"
+                                    SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border BackgroundColor="{DynamicResource CardBg}"
+                                        Margin="0,0,0,8"
+                                        Padding="12"
+                                        Stroke="{DynamicResource DividerColor}"
+                                        StrokeShape="RoundRectangle 14"
+                                        StrokeThickness="1">
+                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                          ColumnSpacing="10">
+                                        <Border BackgroundColor="{Binding AccentBackground}"
+                                                HeightRequest="34"
+                                                Padding="10,0"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 17"
+                                                VerticalOptions="Start">
+                                            <Label Text="{Binding BadgeText}"
+                                                   FontAttributes="Bold"
+                                                   FontSize="12"
+                                                   TextColor="{Binding AccentForeground}"
+                                                   VerticalTextAlignment="Center" />
+                                        </Border>
+
+                                        <VerticalStackLayout Grid.Column="1"
+                                                             Spacing="3">
+                                            <Label Text="{Binding Title}"
+                                                   FontAttributes="Bold"
+                                                   FontSize="14"
+                                                   LineBreakMode="TailTruncation"
+                                                   TextColor="{DynamicResource BodyText}" />
+                                            <Label Text="{Binding Subtitle}"
+                                                   FontSize="12"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="2"
+                                                   TextColor="{DynamicResource MutedText}" />
+                                        </VerticalStackLayout>
+
+                                        <Label Grid.Column="2"
+                                               FontSize="16"
+                                               Text="›"
+                                               TextColor="{DynamicResource MutedText}"
+                                               VerticalOptions="Center" />
+                                    </Grid>
+
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnSearchResultTapped" />
+                                    </Border.GestureRecognizers>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </Grid>
+            </Border>
 
             <Border x:Name="MapTipChip"
                     BackgroundColor="{DynamicResource PopupBg}"

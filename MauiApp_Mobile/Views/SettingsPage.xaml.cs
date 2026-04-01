@@ -32,7 +32,39 @@ public partial class SettingsPage : ContentPage
 
     private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
     {
-        ApplyTexts();
+        _ = UiEffectsService.CrossfadeTextAsync(
+            ApplyTexts,
+            TitleLabel,
+            AudioLabel,
+            AppearanceLabel,
+            ThemeHintLabel,
+            GpsLabel,
+            BehaviorLabel,
+            LanguageRowLabel,
+            LanguageValueLabel,
+            VoiceRowLabel,
+            VoiceValueLabel,
+            ReadingSpeedLabel,
+            VolumeLabel,
+            TestVoiceButton,
+            ThemeEcoTitleLabel,
+            ThemeEcoSubtitleLabel,
+            ThemeMidnightTitleLabel,
+            ThemeMidnightSubtitleLabel,
+            ThemeHeritageTitleLabel,
+            ThemeHeritageSubtitleLabel,
+            GpsAccuracyLabel,
+            GpsAccuracyValueLabel,
+            TriggerRadiusLabel,
+            AlertRadiusLabel,
+            WaitTimeLabel,
+            AutoPlayLabel,
+            NotifyNearLabel,
+            BackgroundTrackingLabel,
+            BatterySaverLabel,
+            OfflineModeLabel,
+            SaveButton,
+            LanguagePopupTitleLabel);
         UpdateLanguageSelectionUI();
     }
 
@@ -95,10 +127,10 @@ public partial class SettingsPage : ContentPage
         await UiEffectsService.TogglePopupAsync(LanguagePopup, !LanguagePopup.IsVisible);
     }
 
-    private void ChangeLanguage(string code)
+    private async void ChangeLanguage(string code)
     {
         LocalizationService.Instance.Language = code;
-        _ = UiEffectsService.TogglePopupAsync(LanguagePopup, false);
+        await UiEffectsService.TogglePopupAsync(LanguagePopup, false);
         UpdateLanguageSelectionUI();
     }
 
