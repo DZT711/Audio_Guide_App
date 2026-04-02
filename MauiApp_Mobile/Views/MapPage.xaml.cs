@@ -30,6 +30,7 @@ public partial class MapPage : ContentPage
     private bool _isMapLoaded;
     private bool _isMapReady;
     private bool _hasAnimatedChrome;
+    private bool _isDeveloperModeEnabled;
     private MapSearchMode _searchMode = MapSearchMode.Poi;
     private CancellationTokenSource? _activeSearchCts;
     private CancellationTokenSource? _mapLoadingCts;
@@ -48,6 +49,7 @@ public partial class MapPage : ContentPage
 
         ApplyTexts();
         UpdateSearchModeVisuals();
+        UpdateDeveloperModeVisuals();
         SetLocateButtonState(isBusy: false, isEnabled: false);
 
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
@@ -61,7 +63,7 @@ public partial class MapPage : ContentPage
         if (!_hasAnimatedChrome)
         {
             _hasAnimatedChrome = true;
-            _ = UiEffectsService.AnimateEntranceAsync(MapTipChip, CurrentLocationButton);
+            _ = UiEffectsService.AnimateEntranceAsync(MapTipChip, CurrentLocationButton, DeveloperModeButton);
         }
 
         if (!_isMapLoaded)
@@ -155,6 +157,7 @@ public partial class MapPage : ContentPage
     private void OnThemeChanged(object? sender, PropertyChangedEventArgs e)
     {
         UpdateSearchModeVisuals();
+        UpdateDeveloperModeVisuals();
 
         _ = MainThread.InvokeOnMainThreadAsync(async () =>
         {
@@ -237,6 +240,7 @@ public partial class MapPage : ContentPage
     {
         _isMapReady = e.Result == WebNavigationResult.Success;
         SetLocateButtonState(isBusy: false, isEnabled: _isMapReady);
+        UpdateDeveloperModeVisuals();
 
         if (!_isMapReady)
         {
@@ -247,6 +251,7 @@ public partial class MapPage : ContentPage
         await SyncPlacesToMapAsync();
         await ApplyMapThemeAsync();
         await ApplyMapStringsAsync();
+        await ApplyDeveloperModeAsync();
         await CompleteMapLoadingStateAsync();
 
         if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
@@ -585,6 +590,20 @@ public partial class MapPage : ContentPage
         await FocusCurrentLocationAsync();
     }
 
+    private async void OnDeveloperModeTapped(object? sender, TappedEventArgs e)
+    {
+        if (!_isMapReady)
+            return;
+
+        _isDeveloperModeEnabled = !_isDeveloperModeEnabled;
+        UpdateDeveloperModeVisuals();
+        await ApplyDeveloperModeAsync();
+
+        UpdateSearchStatus(_isDeveloperModeEnabled
+            ? "Đã bật chế độ dev. Chạm lên bản đồ để đặt vị trí thử nghiệm."
+            : "Đã tắt chế độ dev.");
+    }
+
     private async Task FocusCurrentLocationAsync()
     {
         if (!_isMapReady)
@@ -614,6 +633,10 @@ public partial class MapPage : ContentPage
             if (permissionStatus != PermissionStatus.Granted)
             {
                 UpdateSearchStatus("Chưa cấp quyền vị trí nên không thể định vị.");
+                await PromptOpenAppSettingsAsync(
+                    "Quyền vị trí",
+                    "Ứng dụng cần quyền vị trí để xác định vị trí hiện tại trên bản đồ. Mở cài đặt ứng dụng ngay?",
+                    "Mở cài đặt");
                 return;
             }
 
@@ -621,6 +644,8 @@ public partial class MapPage : ContentPage
             if (location is null)
             {
                 UpdateSearchStatus("Không lấy được vị trí hiện tại. Hãy thử ở khu vực thoáng hơn.");
+                await PromptEnableLocationServicesAsync(
+                    "Không lấy được vị trí hiện tại. Hãy kiểm tra GPS hoặc mở cài đặt vị trí để thử lại.");
                 return;
             }
 
@@ -645,6 +670,7 @@ public partial class MapPage : ContentPage
         catch (FeatureNotEnabledException)
         {
             UpdateSearchStatus("Vui lòng bật GPS để lấy vị trí hiện tại.");
+            await PromptEnableLocationServicesAsync();
         }
         catch (FeatureNotSupportedException)
         {
@@ -653,6 +679,10 @@ public partial class MapPage : ContentPage
         catch (PermissionException)
         {
             UpdateSearchStatus("Ứng dụng không có quyền truy cập vị trí.");
+            await PromptOpenAppSettingsAsync(
+                "Quyền vị trí",
+                "Ứng dụng đang bị chặn quyền truy cập vị trí. Mở cài đặt ứng dụng để cấp quyền ngay?",
+                "Mở cài đặt");
         }
         catch (Exception ex)
         {
@@ -664,6 +694,52 @@ public partial class MapPage : ContentPage
             SetLocateButtonState(isBusy: false, isEnabled: true);
             _locationSemaphore.Release();
         }
+    }
+
+    private async Task PromptEnableLocationServicesAsync(string? message = null)
+    {
+        var openSettings = await DisplayAlertAsync(
+            "Bật vị trí",
+            message ?? "GPS hoặc dịch vụ vị trí đang tắt. Mở cài đặt vị trí ngay để tiếp tục định vị?",
+            "Mở cài đặt",
+            "Để sau");
+
+        if (!openSettings)
+            return;
+
+        OpenLocationSettings();
+        UpdateSearchStatus("Đã mở cài đặt vị trí. Hãy bật GPS rồi quay lại ứng dụng.");
+    }
+
+    private async Task PromptOpenAppSettingsAsync(string title, string message, string acceptText)
+    {
+        var openSettings = await DisplayAlertAsync(
+            title,
+            message,
+            acceptText,
+            "Để sau");
+
+        if (!openSettings)
+            return;
+
+        AppInfo.ShowSettingsUI();
+        UpdateSearchStatus("Đã mở cài đặt ứng dụng. Hãy cấp quyền vị trí rồi quay lại ứng dụng.");
+    }
+
+    private static void OpenLocationSettings()
+    {
+#if ANDROID
+        var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+        if (activity is not null)
+        {
+            var intent = new Android.Content.Intent(Android.Provider.Settings.ActionLocationSourceSettings);
+            intent.AddFlags(Android.Content.ActivityFlags.NewTask);
+            activity.StartActivity(intent);
+            return;
+        }
+#endif
+
+        AppInfo.ShowSettingsUI();
     }
 
     private async Task OpenPlaceDetailAsync(string placeId)
@@ -794,6 +870,31 @@ public partial class MapPage : ContentPage
         CurrentLocationIcon.IsVisible = !isBusy;
         CurrentLocationButton.InputTransparent = !isEnabled;
         CurrentLocationButton.Opacity = isEnabled ? (isBusy ? 0.92 : 1) : 0.62;
+    }
+
+    private void UpdateDeveloperModeVisuals()
+    {
+        DeveloperModeButton.BackgroundColor = _isDeveloperModeEnabled
+            ? ThemeService.Instance.GetColor("SoftGreen", "#E8F7EE")
+            : ThemeService.Instance.GetColor("PopupBg", "#FFFFFF");
+        DeveloperModeButton.Stroke = new SolidColorBrush(
+            _isDeveloperModeEnabled
+                ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+                : ThemeService.Instance.GetColor("BorderColor", "#E5E7EB"));
+        DeveloperModeLabel.TextColor = _isDeveloperModeEnabled
+            ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+            : ThemeService.Instance.GetColor("BodyText", "#243B5A");
+        DeveloperModeButton.Opacity = _isMapReady ? 1 : 0.68;
+        DeveloperModeButton.InputTransparent = !_isMapReady;
+    }
+
+    private async Task ApplyDeveloperModeAsync()
+    {
+        if (!_isMapReady)
+            return;
+
+        var enabledLiteral = _isDeveloperModeEnabled ? "true" : "false";
+        await EvaluateMapScriptAsync($"window.setDeveloperMode && window.setDeveloperMode({enabledLiteral});");
     }
 
     private void UpdateSearchStatus(string message)
