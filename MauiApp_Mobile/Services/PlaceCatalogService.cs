@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text.Json;
 using MauiApp_Mobile.Models;
 using Project_SharedClassLibrary.Constants;
@@ -14,6 +15,7 @@ public sealed class PlaceCatalogService
     private static readonly HttpClient HttpClient = CreateHttpClient();
     private static readonly JsonSerializerOptions CacheJsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly string CacheFilePath = Path.Combine(FileSystem.Current.AppDataDirectory, "places-cache.json");
+    private static readonly string ImageCacheDirectoryPath = Path.Combine(FileSystem.Current.AppDataDirectory, "place-images");
     private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
     private readonly List<PlaceItem> _places = [];
 
@@ -124,6 +126,14 @@ public sealed class PlaceCatalogService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        if (!string.IsNullOrWhiteSpace(primaryImage))
+        {
+            galleryImages.Insert(0, primaryImage);
+            galleryImages = galleryImages
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
         if (galleryImages.Count == 0 && !string.IsNullOrWhiteSpace(primaryImage))
         {
             galleryImages.Add(primaryImage);
@@ -134,9 +144,7 @@ public sealed class PlaceCatalogService
             galleryImages.Add("location.png");
         }
 
-        primaryImage = string.IsNullOrWhiteSpace(primaryImage)
-            ? galleryImages[0]
-            : primaryImage;
+        primaryImage = galleryImages[0];
 
         return new PlaceItem
         {
@@ -176,9 +184,23 @@ public sealed class PlaceCatalogService
             return string.Empty;
         }
 
-        if (Uri.TryCreate(imageUrl, UriKind.Absolute, out _))
+        if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var absoluteUri))
         {
+            if (absoluteUri.IsFile)
+            {
+                return File.Exists(absoluteUri.LocalPath)
+                    ? absoluteUri.AbsoluteUri
+                    : string.Empty;
+            }
+
             return imageUrl;
+        }
+
+        if (Path.IsPathRooted(imageUrl) && !imageUrl.StartsWith("/", StringComparison.Ordinal))
+        {
+            return File.Exists(imageUrl)
+                ? new Uri(imageUrl).AbsoluteUri
+                : string.Empty;
         }
 
         return new Uri(new Uri(MobileApiOptions.BaseUrl), imageUrl.TrimStart('/')).ToString();
@@ -238,11 +260,21 @@ public sealed class PlaceCatalogService
 
     private static async Task<IReadOnlyList<LocationDto>> LoadLocationsWithFallbackAsync(bool forceRefresh, CancellationToken cancellationToken)
     {
+        if (!forceRefresh)
+        {
+            var cachedLocations = await LoadCacheAsync(cancellationToken);
+            if (cachedLocations.Count > 0)
+            {
+                return cachedLocations;
+            }
+        }
+
         try
         {
             var locations = await HttpClient.GetFromJsonAsync<List<LocationDto>>(ApiRoutes.PublicLocations, cancellationToken) ?? [];
-            await SaveCacheAsync(locations, cancellationToken);
-            return locations;
+            var cachedLocations = await CacheLocationImagesAsync(locations, cancellationToken);
+            await SaveCacheAsync(cachedLocations, cancellationToken);
+            return cachedLocations;
         }
         catch when (!cancellationToken.IsCancellationRequested)
         {
@@ -252,13 +284,119 @@ public sealed class PlaceCatalogService
                 return cachedLocations;
             }
 
-            if (!forceRefresh)
+            if (forceRefresh)
             {
-                return [];
+                throw;
             }
 
-            throw;
+            return [];
         }
+    }
+
+    private static async Task<List<LocationDto>> CacheLocationImagesAsync(
+        IReadOnlyList<LocationDto> locations,
+        CancellationToken cancellationToken)
+    {
+        var normalizedLocations = new List<LocationDto>(locations.Count);
+
+        foreach (var location in locations)
+        {
+            var cachedCoverImage = await CacheImageAsync(location.CoverImageUrl, cancellationToken);
+            var cachedGalleryImages = new List<string>(location.ImageUrls.Count);
+
+            foreach (var imageUrl in location.ImageUrls)
+            {
+                var cachedImage = await CacheImageAsync(imageUrl, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(cachedImage))
+                {
+                    cachedGalleryImages.Add(cachedImage);
+                }
+            }
+
+            if (cachedGalleryImages.Count == 0 && !string.IsNullOrWhiteSpace(cachedCoverImage))
+            {
+                cachedGalleryImages.Add(cachedCoverImage);
+            }
+
+            normalizedLocations.Add(new LocationDto
+            {
+                Id = location.Id,
+                CategoryId = location.CategoryId,
+                Category = location.Category,
+                OwnerId = location.OwnerId,
+                OwnerName = location.OwnerName,
+                Name = location.Name,
+                Description = location.Description,
+                Latitude = location.Latitude,
+                Longitude = location.Longitude,
+                Radius = location.Radius,
+                StandbyRadius = location.StandbyRadius,
+                Priority = location.Priority,
+                DebounceSeconds = location.DebounceSeconds,
+                IsGpsTriggerEnabled = location.IsGpsTriggerEnabled,
+                Address = location.Address,
+                CoverImageUrl = string.IsNullOrWhiteSpace(cachedCoverImage) ? location.CoverImageUrl : cachedCoverImage,
+                ImageUrls = cachedGalleryImages.Count == 0 ? location.ImageUrls : cachedGalleryImages,
+                WebURL = location.WebURL,
+                Email = location.Email,
+                Phone = location.Phone,
+                EstablishedYear = location.EstablishedYear,
+                AudioCount = location.AudioCount,
+                Status = location.Status,
+                CreatedAt = location.CreatedAt,
+                UpdatedAt = location.UpdatedAt
+            });
+        }
+
+        return normalizedLocations;
+    }
+
+    private static async Task<string> CacheImageAsync(string? imageUrl, CancellationToken cancellationToken)
+    {
+        var resolvedImageUrl = ResolveImageUrl(imageUrl);
+        if (string.IsNullOrWhiteSpace(resolvedImageUrl))
+        {
+            return string.Empty;
+        }
+
+        if (!Uri.TryCreate(resolvedImageUrl, UriKind.Absolute, out var imageUri) || imageUri.IsFile)
+        {
+            return resolvedImageUrl;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ImageCacheDirectoryPath);
+
+            var fileExtension = GetImageFileExtension(imageUri);
+            var targetFilePath = Path.Combine(ImageCacheDirectoryPath, $"{ComputeHash(resolvedImageUrl)}{fileExtension}");
+            if (File.Exists(targetFilePath))
+            {
+                return targetFilePath;
+            }
+
+            await using var remoteStream = await HttpClient.GetStreamAsync(imageUri, cancellationToken);
+            await using var localStream = File.Create(targetFilePath);
+            await remoteStream.CopyToAsync(localStream, cancellationToken);
+
+            return targetFilePath;
+        }
+        catch when (!cancellationToken.IsCancellationRequested)
+        {
+            return resolvedImageUrl;
+        }
+    }
+
+    private static string GetImageFileExtension(Uri imageUri)
+    {
+        var extension = Path.GetExtension(imageUri.AbsolutePath);
+        return string.IsNullOrWhiteSpace(extension) ? ".jpg" : extension.ToLowerInvariant();
+    }
+
+    private static string ComputeHash(string value)
+    {
+        var bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
     private static async Task SaveCacheAsync(IReadOnlyList<LocationDto> locations, CancellationToken cancellationToken)

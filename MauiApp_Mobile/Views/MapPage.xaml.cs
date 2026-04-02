@@ -72,6 +72,7 @@ public partial class MapPage : ContentPage
         else
         {
             _ = RefreshMapPlacesAsync();
+            _ = TryFocusPendingPlaceAsync();
         }
     }
 
@@ -248,6 +249,7 @@ public partial class MapPage : ContentPage
         await ApplyMapThemeAsync();
         await ApplyMapStringsAsync();
         await CompleteMapLoadingStateAsync();
+        await TryFocusPendingPlaceAsync();
 
         if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
         {
@@ -279,6 +281,38 @@ public partial class MapPage : ContentPage
 
         var mapPlacesJson = JsonSerializer.Serialize(await BuildMapInteropPointsAsync(), JsonInteropOptions);
         await EvaluateMapScriptAsync($"window.setPlaces && window.setPlaces({mapPlacesJson});");
+    }
+
+    private async Task TryFocusPendingPlaceAsync()
+    {
+        if (!_isMapReady)
+            return;
+
+        var pendingPlaceId = PlaceNavigationService.Instance.ConsumePendingMapPlaceId();
+        if (string.IsNullOrWhiteSpace(pendingPlaceId))
+            return;
+
+        try
+        {
+            var placeIdJson = JsonSerializer.Serialize(pendingPlaceId);
+            var rawResult = await EvaluateMapScriptAsync(
+                $"window.focusPlaceById && window.focusPlaceById({placeIdJson});");
+
+            var focusResult = ParseFocusResult(rawResult);
+            if (focusResult.Found)
+            {
+                UpdateSearchStatus($"Đang xem vị trí: {focusResult.Title}");
+            }
+            else
+            {
+                UpdateSearchStatus("Đã mở tab bản đồ nhưng chưa thể focus đúng POI.");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Pending map focus error: {ex.Message}");
+            UpdateSearchStatus("Đã mở tab bản đồ nhưng không thể focus POI lúc này.");
+        }
     }
 
     private async Task ApplyMapThemeAsync()
@@ -768,6 +802,7 @@ public partial class MapPage : ContentPage
             return string.Empty;
 
         if (imageSource.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
+            imageSource.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
             imageSource.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
             imageSource.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {

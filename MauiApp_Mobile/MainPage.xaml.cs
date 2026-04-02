@@ -23,6 +23,8 @@ public partial class MainPage : ContentPage
     private bool _hasAnimatedPage;
     private bool _isPlaceGalleryTransitionRunning;
     private bool _isRefreshing;
+    private bool _isSilentRefreshing;
+    private bool _isAudioListExpanded;
     private bool _isPlacesAtTop = true;
     private bool _canStartPullToRefresh;
     private double _pullRefreshDistance;
@@ -33,6 +35,7 @@ public partial class MainPage : ContentPage
 
     public ObservableCollection<PlaceItem> Places { get; set; } = new();
     public ObservableCollection<PlaceGallerySlide> SelectedPlaceGallery { get; } = new();
+    public ObservableCollection<PlaceDetailAudioTrack> SelectedPlaceAudioTracks { get; } = new();
 
     public bool IsPlaceDetailVisible
     {
@@ -53,8 +56,25 @@ public partial class MainPage : ContentPage
             OnPropertyChanged();
             OnPropertyChanged(nameof(DetailPriorityText));
             RefreshSelectedPlaceGallery(resetPosition: true);
+            RefreshSelectedPlaceAudioTracks();
         }
     }
+
+    public bool IsAudioListExpanded
+    {
+        get => _isAudioListExpanded;
+        set
+        {
+            if (_isAudioListExpanded == value)
+                return;
+
+            _isAudioListExpanded = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AudioListExpandIcon));
+        }
+    }
+
+    public string AudioListExpandIcon => IsAudioListExpanded ? "˄" : "˅";
 
     public string DetailPriorityText => SelectedPlace == null
         ? string.Empty
@@ -177,6 +197,11 @@ public partial class MainPage : ContentPage
                 _hasAnimatedPage = true;
                 await UiEffectsService.AnimateEntranceAsync(CountLabel, PlacesCollectionView);
             }
+
+            if (!forceRefresh)
+            {
+                _ = RefreshPlacesSilentlyAsync();
+            }
         }
         catch (OperationCanceledException)
         {
@@ -198,6 +223,28 @@ public partial class MainPage : ContentPage
     {
         await LoadPlacesAsync();
         await TryOpenPendingPlaceAsync();
+    }
+
+    private async Task RefreshPlacesSilentlyAsync()
+    {
+        if (_isSilentRefreshing || IsRefreshing)
+            return;
+
+        try
+        {
+            _isSilentRefreshing = true;
+            var places = await PlaceCatalogService.Instance.GetPlacesAsync(forceRefresh: true);
+            _allPlaces.Clear();
+            _allPlaces.AddRange(places);
+            ApplyFilter();
+        }
+        catch
+        {
+        }
+        finally
+        {
+            _isSilentRefreshing = false;
+        }
     }
 
     private async Task RefreshPlacesAsync()
@@ -322,6 +369,7 @@ public partial class MainPage : ContentPage
         SearchEntry.Placeholder = LocalizationService.Instance.T("Places.Search");
         EmptyTitleLabel.Text = LocalizationService.Instance.T("Places.EmptyTitle");
         EmptySubtitleLabel.Text = LocalizationService.Instance.T("Places.EmptySubtitle");
+        CountHintLabel.Text = LocalizationService.Instance.T("Places.CountHint");
 
         FilterPopupTitleLabel.Text = LocalizationService.Instance.T("Filter.Title");
         FilterAllLabel.Text = LocalizationService.Instance.T("Filter.All");
@@ -342,12 +390,23 @@ public partial class MainPage : ContentPage
         if (SelectedPlace is null)
         {
             StopPlaceGalleryAutoplay();
+            PlaceDetailIndicator.IsVisible = false;
             return;
         }
 
         foreach (var slide in BuildPlaceGallery(SelectedPlace))
         {
             SelectedPlaceGallery.Add(slide);
+        }
+
+        if (PlaceDetailIndicator is not null)
+        {
+            PlaceDetailIndicator.IsVisible = SelectedPlaceGallery.Count > 1;
+        }
+
+        if (PlaceDetailCarousel is not null)
+        {
+            PlaceDetailCarousel.Loop = SelectedPlaceGallery.Count > 1;
         }
 
         if (resetPosition && PlaceDetailCarousel is not null && SelectedPlaceGallery.Count > 0)
@@ -359,6 +418,47 @@ public partial class MainPage : ContentPage
         {
             StartPlaceGalleryAutoplay();
         }
+    }
+
+    private void RefreshSelectedPlaceAudioTracks()
+    {
+        SelectedPlaceAudioTracks.Clear();
+
+        if (SelectedPlace is null)
+        {
+            IsAudioListExpanded = false;
+            return;
+        }
+
+        foreach (var track in BuildPlaceAudioTracks(SelectedPlace))
+        {
+            SelectedPlaceAudioTracks.Add(track);
+        }
+
+        IsAudioListExpanded = false;
+    }
+
+    private static IReadOnlyList<PlaceDetailAudioTrack> BuildPlaceAudioTracks(PlaceItem place)
+    {
+        var languageTemplates = new (string LanguageCode, string LanguageName)[]
+        {
+            ("VI", "Tiếng Việt"),
+            ("EN", "English"),
+            ("FR", "Francais"),
+            ("KO", "Korean"),
+            ("JA", "Japanese"),
+            ("ZH", "Chinese")
+        };
+
+        return languageTemplates
+            .Select(item => new PlaceDetailAudioTrack
+            {
+                LanguageCode = item.LanguageCode,
+                LanguageName = item.LanguageName,
+                Title = place.Name,
+                Duration = "02:05"
+            })
+            .ToList();
     }
 
     private IReadOnlyList<PlaceGallerySlide> BuildPlaceGallery(PlaceItem place)
@@ -373,51 +473,60 @@ public partial class MainPage : ContentPage
         var galleryImages = place.GalleryImages.Count > 0
             ? place.GalleryImages
             : [place.Image];
+        var slides = new List<PlaceGallerySlide>(galleryImages.Count);
 
-        return
-        [
-            CreateGallerySlide(
-                GetGalleryImage(galleryImages, 0),
-                place.Category,
-                LocalizationService.Instance.T("Places.GalleryOverview"),
-                place.Name,
-                place.Description,
-                DetailPriorityText,
-                place.CategoryColor,
-                primaryGreenDark,
-                place.CategoryColor,
-                place.CategoryTextColor),
-            CreateGallerySlide(
-                GetGalleryImage(galleryImages, 1),
-                "GPS",
-                LocalizationService.Instance.T("Places.GalleryVisit"),
-                place.Address,
-                $"{place.RadiusText} • {place.GpsText}",
-                place.Phone,
-                infoText,
-                bodyText,
-                softPurple,
-                infoText),
-            CreateGallerySlide(
-                GetGalleryImage(galleryImages, 2),
-                LocalizationService.Instance.T("Places.GalleryAudio"),
-                LocalizationService.Instance.T("Places.GalleryAudio"),
-                place.Name,
-                place.AudioDescription,
-                place.Website,
-                warningText,
-                primaryGreen,
-                softOrange,
-                warningText)
-        ];
-    }
+        for (var index = 0; index < galleryImages.Count; index++)
+        {
+            slides.Add(index switch
+            {
+                0 => CreateGallerySlide(
+                    galleryImages[index],
+                    place.Category,
+                    LocalizationService.Instance.T("Places.GalleryOverview"),
+                    place.Name,
+                    place.Description,
+                    DetailPriorityText,
+                    place.CategoryColor,
+                    primaryGreenDark,
+                    place.CategoryColor,
+                    place.CategoryTextColor),
+                1 => CreateGallerySlide(
+                    galleryImages[index],
+                    "GPS",
+                    LocalizationService.Instance.T("Places.GalleryVisit"),
+                    place.Address,
+                    $"{place.RadiusText} • {place.GpsText}",
+                    place.Phone,
+                    infoText,
+                    bodyText,
+                    softPurple,
+                    infoText),
+                2 => CreateGallerySlide(
+                    galleryImages[index],
+                    LocalizationService.Instance.T("Places.GalleryAudio"),
+                    LocalizationService.Instance.T("Places.GalleryAudio"),
+                    place.Name,
+                    place.AudioDescription,
+                    place.Website,
+                    warningText,
+                    primaryGreen,
+                    softOrange,
+                    warningText),
+                _ => CreateGallerySlide(
+                    galleryImages[index],
+                    place.Category,
+                    LocalizationService.Instance.T("Places.GalleryOverview"),
+                    place.Name,
+                    place.Description,
+                    DetailPriorityText,
+                    place.CategoryColor,
+                    primaryGreenDark,
+                    place.CategoryColor,
+                    place.CategoryTextColor)
+            });
+        }
 
-    private static string GetGalleryImage(IReadOnlyList<string> images, int index)
-    {
-        if (images.Count == 0)
-            return string.Empty;
-
-        return images[index % images.Count];
+        return slides;
     }
 
     private static PlaceGallerySlide CreateGallerySlide(
@@ -775,4 +884,74 @@ public partial class MainPage : ContentPage
             HistoryService.Instance.AddToHistory(item);
         }
     }
+
+    private void OnToggleAudioListTapped(object sender, TappedEventArgs e)
+    {
+        if (SelectedPlace is null)
+            return;
+
+        IsAudioListExpanded = !IsAudioListExpanded;
+    }
+
+    private void OnAudioTrackPlayTapped(object sender, TappedEventArgs e)
+    {
+        if (sender is not Element element || element.BindingContext is not PlaceDetailAudioTrack track)
+            return;
+
+        foreach (var item in SelectedPlaceAudioTracks)
+        {
+            item.IsPlaying = ReferenceEquals(item, track) && !track.IsPlaying;
+        }
+    }
+
+    private async void OnViewPlaceOnMapTapped(object sender, TappedEventArgs e)
+    {
+        if (SelectedPlace is null)
+            return;
+
+        try
+        {
+            PlaceNavigationService.Instance.RequestMapFocus(SelectedPlace.Id);
+            await HidePlaceDetail();
+
+            if (Application.Current?.Windows.FirstOrDefault()?.Page is AppShell appShell)
+            {
+                await appShell.NavigateToMapTabAsync();
+                return;
+            }
+
+            await Shell.Current.GoToAsync("//mainTabs/map");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Navigate to map error: {ex.Message}");
+        }
+    }
+}
+
+public class PlaceDetailAudioTrack : BindableObject
+{
+    public string LanguageCode { get; set; } = string.Empty;
+    public string LanguageName { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Duration { get; set; } = string.Empty;
+    public string MetaText => $"{LanguageName} • {Duration}";
+
+    private bool _isPlaying;
+
+    public bool IsPlaying
+    {
+        get => _isPlaying;
+        set
+        {
+            if (_isPlaying == value)
+                return;
+
+            _isPlaying = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(PlayIcon));
+        }
+    }
+
+    public string PlayIcon => IsPlaying ? "🔊" : "▶";
 }

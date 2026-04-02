@@ -27,7 +27,7 @@ public partial class SettingsPage : ContentPage
             return;
 
         _hasAnimated = true;
-        _ = UiEffectsService.AnimateEntranceAsync(AudioCard, AppearanceCard, GpsCard, BehaviorCard, SaveButton);
+        _ = UiEffectsService.AnimateEntranceAsync(AudioCard, AppearanceCard, GpsCard, BehaviorCard);
     }
 
     private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
@@ -63,7 +63,6 @@ public partial class SettingsPage : ContentPage
             BackgroundTrackingLabel,
             BatterySaverLabel,
             OfflineModeLabel,
-            SaveButton,
             LanguagePopupTitleLabel);
         UpdateLanguageSelectionUI();
     }
@@ -82,7 +81,6 @@ public partial class SettingsPage : ContentPage
         ThemeHintLabel.Text = LocalizationService.Instance.T("Settings.ThemeHint");
         GpsLabel.Text = LocalizationService.Instance.T("Settings.Gps");
         BehaviorLabel.Text = LocalizationService.Instance.T("Settings.Behavior");
-        SaveButton.Text = LocalizationService.Instance.T("Settings.Save");
 
         LanguageRowLabel.Text = LocalizationService.Instance.T("Settings.Language");
         LanguageValueLabel.Text = LocalizationService.Instance.T("Settings.LanguageValue");
@@ -226,16 +224,6 @@ public partial class SettingsPage : ContentPage
     private void OnTriggerRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnAlertRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnWaitTimeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
-
-    private async void OnSaveTapped(object sender, EventArgs e)
-    {
-        await SaveButton.ScaleToAsync(0.98, 70, Easing.CubicIn);
-        await SaveButton.ScaleToAsync(1, 150, Easing.CubicOut);
-        await DisplayAlertAsync(
-            LocalizationService.Instance.T("Settings.Title"),
-            LocalizationService.Instance.T("Settings.SaveSuccess"),
-            "OK");
-    }
 
     private void OnLanguageViTapped(object sender, TappedEventArgs e) => ChangeLanguage("vi");
     private void OnLanguageEnTapped(object sender, TappedEventArgs e) => ChangeLanguage("en");

@@ -479,10 +479,6 @@
                         </VerticalStackLayout>
                     </Border>
 
-                    <Button x:Name="SaveButton"
-                            Clicked="OnSaveTapped"
-                            Text="💾 Lưu cài đặt"
-                            Style="{StaticResource PrimaryButtonStyle}" />
                 </VerticalStackLayout>
             </ScrollView>
 
