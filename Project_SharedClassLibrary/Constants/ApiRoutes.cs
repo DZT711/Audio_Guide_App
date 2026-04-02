@@ -5,6 +5,7 @@ public static class ApiRoutes
     public const string Categories = "Category";
     public const string Languages = "Language";
     public const string Locations = "Location";
+    public const string PublicLocations = "Location/public";
     public const string Tours = "Tour";
     public const string ToursPreview = "Tour/preview";
     public const string Audio = "Audio";

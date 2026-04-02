@@ -19,7 +19,14 @@ public class PlaceItem : INotifyPropertyChanged
     public string Website { get; set; } = "";
     public string EstablishedYear { get; set; } = "";
     public string RadiusText { get; set; } = "";
+    public string StandbyRadiusText { get; set; } = "";
     public string GpsText { get; set; } = "";
+    public string PriorityText { get; set; } = "";
+    public string DebounceText { get; set; } = "";
+    public string OwnerName { get; set; } = "";
+    public string StatusText { get; set; } = "";
+    public string GpsTriggerText { get; set; } = "";
+    public string AudioCountText { get; set; } = "";
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public Color CategoryColor { get; set; } = Colors.LightGray;

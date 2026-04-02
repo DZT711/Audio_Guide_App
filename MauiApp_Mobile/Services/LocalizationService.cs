@@ -626,4 +626,5 @@ public class LocalizationService : INotifyPropertyChanged
 
         return key;
     }
+
 }

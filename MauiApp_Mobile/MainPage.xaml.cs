@@ -12,7 +12,6 @@ public partial class MainPage : ContentPage
     private const double PlaceDetailHalfVisibleRatio = 0.58;
 
     private readonly List<PlaceItem> _allPlaces = new();
-    private ObservableCollection<PlaceAudioTrack> _selectedPlaceTracks = new();
     private string _selectedCategory = "Tất cả";
     private bool _isPlaceDetailVisible;
     private PlaceItem? _selectedPlace;
@@ -23,8 +22,14 @@ public partial class MainPage : ContentPage
     private bool _hasLoadedPlaces;
     private bool _hasAnimatedPage;
     private bool _isPlaceGalleryTransitionRunning;
+    private bool _isRefreshing;
+    private bool _isPlacesAtTop = true;
+    private bool _canStartPullToRefresh;
+    private double _pullRefreshDistance;
     private CancellationTokenSource? _placesLoadingCts;
     private IDispatcherTimer? _placeGalleryTimer;
+    private const double PullRefreshThreshold = 78;
+    private const double PullRefreshMaxDistance = 96;
 
     public ObservableCollection<PlaceItem> Places { get; set; } = new();
     public ObservableCollection<PlaceGallerySlide> SelectedPlaceGallery { get; } = new();
@@ -51,23 +56,22 @@ public partial class MainPage : ContentPage
         }
     }
 
-    public ObservableCollection<PlaceAudioTrack> SelectedPlaceTracks
-    {
-        get => _selectedPlaceTracks;
-        set
-        {
-            _selectedPlaceTracks = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(AudioTracksTitle));
-        }
-    }
-
     public string DetailPriorityText => SelectedPlace == null
         ? string.Empty
-        : string.Format(LocalizationService.Instance.T("Places.DetailPriority"), SelectedPlace.Rating);
-    public string AudioTracksTitle => string.Format(
-        LocalizationService.Instance.T("Places.AudioTracksTitle"),
-        SelectedPlaceTracks.Count);
+        : $"{LocalizationService.Instance.T("Places.DetailPriority")} {SelectedPlace.PriorityText}";
+
+    public bool IsRefreshing
+    {
+        get => _isRefreshing;
+        set
+        {
+            if (_isRefreshing == value)
+                return;
+
+            _isRefreshing = value;
+            OnPropertyChanged();
+        }
+    }
 
     public MainPage()
     {
@@ -84,7 +88,6 @@ public partial class MainPage : ContentPage
             ApplyTexts();
             UpdateCount();
             OnPropertyChanged(nameof(DetailPriorityText));
-            OnPropertyChanged(nameof(AudioTracksTitle));
             RefreshSelectedPlaceGallery(resetPosition: false);
         };
 
@@ -128,9 +131,9 @@ public partial class MainPage : ContentPage
         StopPlaceGalleryAutoplay();
     }
 
-    private async Task LoadPlacesAsync()
+    private async Task LoadPlacesAsync(bool forceRefresh = false)
     {
-        if (_hasLoadedPlaces)
+        if (_hasLoadedPlaces && !forceRefresh)
             return;
 
         _hasLoadedPlaces = true;
@@ -150,26 +153,44 @@ public partial class MainPage : ContentPage
             PlacesCardSkeleton2,
             PlacesCardSkeleton3);
 
-        await Task.Delay(420);
-
-        _allPlaces.Clear();
-        _allPlaces.AddRange(PlaceCatalogService.Instance.GetPlaces());
-        ApplyFilter();
-
-        _placesLoadingCts.Cancel();
-
-        PlacesCollectionView.IsVisible = Places.Count > 0;
-        await Task.WhenAll(
-            PlacesLoadingOverlay.FadeToAsync(0, 180, Easing.CubicOut),
-            PlacesCollectionView.FadeToAsync(1, 220, Easing.CubicOut));
-
-        PlacesLoadingOverlay.IsVisible = false;
-        PlacesLoadingOverlay.Opacity = 1;
-
-        if (!_hasAnimatedPage)
+        try
         {
-            _hasAnimatedPage = true;
-            await UiEffectsService.AnimateEntranceAsync(CountLabel, PlacesCollectionView);
+            await Task.Delay(420);
+
+            _allPlaces.Clear();
+            var places = await PlaceCatalogService.Instance.GetPlacesAsync(forceRefresh, _placesLoadingCts.Token);
+            _allPlaces.AddRange(places);
+            ApplyFilter();
+
+            _placesLoadingCts.Cancel();
+
+            PlacesCollectionView.IsVisible = Places.Count > 0;
+            await Task.WhenAll(
+                PlacesLoadingOverlay.FadeToAsync(0, 180, Easing.CubicOut),
+                PlacesCollectionView.FadeToAsync(1, 220, Easing.CubicOut));
+
+            PlacesLoadingOverlay.IsVisible = false;
+            PlacesLoadingOverlay.Opacity = 1;
+
+            if (!_hasAnimatedPage)
+            {
+                _hasAnimatedPage = true;
+                await UiEffectsService.AnimateEntranceAsync(CountLabel, PlacesCollectionView);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            _placesLoadingCts.Cancel();
+            PlacesLoadingOverlay.IsVisible = false;
+            PlacesLoadingOverlay.Opacity = 1;
+            PlacesCollectionView.IsVisible = Places.Count > 0;
+            EmptyStateLayout.IsVisible = _allPlaces.Count == 0;
+            UpdateCount();
+            UpdateFilterHeader();
         }
     }
 
@@ -177,6 +198,122 @@ public partial class MainPage : ContentPage
     {
         await LoadPlacesAsync();
         await TryOpenPendingPlaceAsync();
+    }
+
+    private async Task RefreshPlacesAsync()
+    {
+        try
+        {
+            IsRefreshing = true;
+            SetPullRefreshState(42, "Đang cập nhật...");
+            await LoadPlacesAsync(forceRefresh: true);
+            await TryOpenPendingPlaceAsync();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch
+        {
+            if (_allPlaces.Count == 0)
+            {
+                ApplyFilter();
+            }
+        }
+        finally
+        {
+            IsRefreshing = false;
+            await ResetPullRefreshHeaderAsync();
+        }
+    }
+
+    private void OnPlacesScrolled(object? sender, ItemsViewScrolledEventArgs e)
+    {
+        _isPlacesAtTop = e.VerticalOffset <= 0;
+    }
+
+    private async void OnPlacesPanUpdated(object? sender, PanUpdatedEventArgs e)
+    {
+        if (IsRefreshing)
+        {
+            return;
+        }
+
+        switch (e.StatusType)
+        {
+            case GestureStatus.Started:
+                _canStartPullToRefresh = _isPlacesAtTop;
+                break;
+
+            case GestureStatus.Running:
+                if (!_canStartPullToRefresh)
+                {
+                    return;
+                }
+
+                if (e.TotalY <= 0)
+                {
+                    SetPullRefreshState(0, "Kéo xuống để cập nhật");
+                    return;
+                }
+
+                var displayDistance = Math.Min(PullRefreshMaxDistance, e.TotalY * 0.45);
+                SetPullRefreshState(
+                    displayDistance,
+                    displayDistance >= PullRefreshThreshold ? "Thả để cập nhật" : "Kéo xuống để cập nhật");
+                break;
+
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+                if (!_canStartPullToRefresh)
+                {
+                    return;
+                }
+
+                _canStartPullToRefresh = false;
+
+                if (_pullRefreshDistance >= PullRefreshThreshold)
+                {
+                    await RefreshPlacesAsync();
+                }
+                else
+                {
+                    await ResetPullRefreshHeaderAsync();
+                }
+                break;
+        }
+    }
+
+    private void SetPullRefreshState(double height, string message)
+    {
+        _pullRefreshDistance = height;
+        PullToRefreshLabel.Text = message;
+        PullToRefreshHeader.IsVisible = height > 0;
+        PullToRefreshHeader.HeightRequest = height;
+        PullToRefreshHeader.Opacity = height <= 0 ? 0 : Math.Min(1, height / 28);
+    }
+
+    private async Task ResetPullRefreshHeaderAsync()
+    {
+        _pullRefreshDistance = 0;
+
+        if (!PullToRefreshHeader.IsVisible)
+        {
+            PullToRefreshHeader.HeightRequest = 0;
+            PullToRefreshHeader.Opacity = 0;
+            return;
+        }
+
+        await Task.WhenAll(
+            PullToRefreshHeader.FadeToAsync(0, 120, Easing.CubicOut),
+            PullToRefreshHeader.LayoutToAsync(
+                new Rect(PullToRefreshHeader.X, PullToRefreshHeader.Y, PullToRefreshHeader.Width, 0),
+                120,
+                Easing.CubicOut));
+
+        PullToRefreshHeader.HeightRequest = 0;
+        PullToRefreshHeader.IsVisible = false;
+        PullToRefreshLabel.Text = "Kéo xuống để cập nhật";
+        PullToRefreshHeader.Opacity = 1;
     }
 
     private void ApplyTexts()
@@ -552,7 +689,6 @@ public partial class MainPage : ContentPage
         await PlaceDetailSheet.TranslateToAsync(0, _placeDetailClosedY, 230, Easing.CubicIn);
         IsPlaceDetailVisible = false;
         SelectedPlace = null;
-        SelectedPlaceTracks = new ObservableCollection<PlaceAudioTrack>();
     }
 
     private void UpdatePlaceDetailSheetLayout()
@@ -598,7 +734,6 @@ public partial class MainPage : ContentPage
     private async Task ShowPlaceDetailAsync(PlaceItem item)
     {
         SelectedPlace = item;
-        SelectedPlaceTracks = BuildPlaceTracks(item);
         IsPlaceDetailVisible = true;
 
         await Task.Yield();
@@ -607,41 +742,6 @@ public partial class MainPage : ContentPage
         PlaceDetailCarousel.Position = 0;
         StartPlaceGalleryAutoplay();
         await PlaceDetailSheet.TranslateToAsync(0, _placeDetailHalfY, 300, Easing.CubicOut);
-    }
-
-    private static ObservableCollection<PlaceAudioTrack> BuildPlaceTracks(PlaceItem item)
-    {
-        return new ObservableCollection<PlaceAudioTrack>
-        {
-            new()
-            {
-                LanguageCode = "VI",
-                Title = $"Lịch sử {item.Name}",
-                Description = "Tự động",
-                Duration = "4:27"
-            },
-            new()
-            {
-                LanguageCode = "EN",
-                Title = $"History of {item.Name}",
-                Description = "Recorded",
-                Duration = "4:13"
-            },
-            new()
-            {
-                LanguageCode = "JA",
-                Title = $"{item.Name} の紹介",
-                Description = "Thủ công",
-                Duration = "3:09"
-            },
-            new()
-            {
-                LanguageCode = "ZH",
-                Title = $"{item.Name} 简介",
-                Description = "TTS",
-                Duration = "4:01"
-            }
-        };
     }
 
     private double ResolvePlaceDetailSnapTarget(double currentY, double totalDragY)
@@ -675,12 +775,4 @@ public partial class MainPage : ContentPage
             HistoryService.Instance.AddToHistory(item);
         }
     }
-}
-
-public class PlaceAudioTrack
-{
-    public string LanguageCode { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public string Duration { get; set; } = string.Empty;
 }

@@ -71,7 +71,7 @@ public partial class MapPage : ContentPage
         }
         else
         {
-            _ = ApplyMapThemeAsync();
+            _ = RefreshMapPlacesAsync();
         }
     }
 
@@ -373,6 +373,7 @@ public partial class MapPage : ContentPage
                     return;
                 }
 
+                await PlaceCatalogService.Instance.EnsureLoadedAsync(cancellationToken: cancellationToken);
                 var poiResults = PlaceCatalogService.Instance.SearchByName(keyword)
                     .Select(CreatePoiSuggestion)
                     .ToList();
@@ -668,6 +669,7 @@ public partial class MapPage : ContentPage
 
     private async Task OpenPlaceDetailAsync(string placeId)
     {
+        await PlaceCatalogService.Instance.EnsureLoadedAsync();
         var place = PlaceCatalogService.Instance.FindById(placeId);
         if (place is null)
         {
@@ -707,7 +709,7 @@ public partial class MapPage : ContentPage
 
     private async Task<IReadOnlyList<MapPlaceInteropPoint>> BuildMapInteropPointsAsync()
     {
-        var sourcePoints = PlaceCatalogService.Instance.GetMapPoints();
+        var sourcePoints = await PlaceCatalogService.Instance.GetMapPointsAsync();
         var preparedPoints = new List<MapPlaceInteropPoint>(sourcePoints.Count);
 
         foreach (var point in sourcePoints)
@@ -727,6 +729,19 @@ public partial class MapPage : ContentPage
         }
 
         return preparedPoints;
+    }
+
+    private async Task RefreshMapPlacesAsync()
+    {
+        try
+        {
+            await PlaceCatalogService.Instance.EnsureLoadedAsync(forceRefresh: true);
+            await SyncPlacesToMapAsync();
+            await ApplyMapThemeAsync();
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     private async Task<IReadOnlyList<string>> ResolveMapImageSourcesAsync(IReadOnlyList<string> imageSources)
