@@ -397,6 +397,7 @@
         };
         var popupCarouselTimerId = 0;
         var activePopupGalleryId = "";
+        var developerModeEnabled = false;
 
         function normalizeText(value) {
             return (value || "")
@@ -967,6 +968,14 @@
             stopPopupGalleryAutoplay();
         });
 
+        map.on("click", function(eventArgs) {
+            if (!developerModeEnabled || !eventArgs || !eventArgs.latlng) {
+                return;
+            }
+
+            window.showCurrentLocation(eventArgs.latlng.lat, eventArgs.latlng.lng);
+        });
+
         window.setPlaces = function(nextPlaces) {
             places = hydratePlaces(nextPlaces);
             renderPlaces();
@@ -1091,6 +1100,11 @@
                 title: nearest ? nearest.place.title : "",
                 distanceMeters: nearest ? nearest.distanceMeters : 0
             });
+        };
+
+        window.setDeveloperMode = function(enabled) {
+            developerModeEnabled = !!enabled;
+            return developerModeEnabled;
         };
 
         window.applyMapTheme = function(themeKey) {

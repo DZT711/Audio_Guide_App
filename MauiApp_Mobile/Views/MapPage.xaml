@@ -275,6 +275,33 @@
                     <TapGestureRecognizer Tapped="OnCurrentLocationTapped" />
                 </Border.GestureRecognizers>
             </Border>
+
+            <Border x:Name="DeveloperModeButton"
+                    BackgroundColor="{DynamicResource PopupBg}"
+                    HorizontalOptions="End"
+                    Margin="0,84,16,0"
+                    Padding="0"
+                    Stroke="{DynamicResource BorderColor}"
+                    StrokeShape="RoundRectangle 24"
+                    StrokeThickness="1.2"
+                    VerticalOptions="Start"
+                    WidthRequest="48"
+                    HeightRequest="48"
+                    ZIndex="21">
+                <Grid>
+                    <Label x:Name="DeveloperModeLabel"
+                           FontAttributes="Bold"
+                           FontSize="16"
+                           HorizontalOptions="Center"
+                           Text="&lt;&gt;"
+                           TextColor="{DynamicResource BodyText}"
+                           VerticalOptions="Center" />
+                </Grid>
+
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnDeveloperModeTapped" />
+                </Border.GestureRecognizers>
+            </Border>
         </Grid>
     </Grid>
 </ContentPage>
