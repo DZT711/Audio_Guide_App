@@ -15,9 +15,12 @@ public sealed class PlaceCatalogService
     private static readonly HttpClient HttpClient = CreateHttpClient();
     private static readonly JsonSerializerOptions CacheJsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly string CacheFilePath = Path.Combine(FileSystem.Current.AppDataDirectory, "places-cache.json");
+    private static readonly string CategoryCacheFilePath = Path.Combine(FileSystem.Current.AppDataDirectory, "place-categories-cache.json");
     private static readonly string ImageCacheDirectoryPath = Path.Combine(FileSystem.Current.AppDataDirectory, "place-images");
     private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _categoryLoadSemaphore = new(1, 1);
     private readonly List<PlaceItem> _places = [];
+    private readonly List<CategoryDto> _categories = [];
 
     private PlaceCatalogService()
     {
@@ -25,10 +28,18 @@ public sealed class PlaceCatalogService
 
     public IReadOnlyList<PlaceItem> GetPlaces() => _places.ToList();
 
+    public IReadOnlyList<CategoryDto> GetCategories() => _categories.ToList();
+
     public async Task<IReadOnlyList<PlaceItem>> GetPlacesAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
         await EnsureLoadedAsync(forceRefresh, cancellationToken);
         return GetPlaces();
+    }
+
+    public async Task<IReadOnlyList<CategoryDto>> GetCategoriesAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
+    {
+        await EnsureCategoriesLoadedAsync(forceRefresh, cancellationToken);
+        return GetCategories();
     }
 
     public async Task EnsureLoadedAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
@@ -59,6 +70,37 @@ public sealed class PlaceCatalogService
         finally
         {
             _loadSemaphore.Release();
+        }
+    }
+
+    public async Task EnsureCategoriesLoadedAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
+    {
+        if (!forceRefresh && _categories.Count > 0)
+        {
+            return;
+        }
+
+        await _categoryLoadSemaphore.WaitAsync(cancellationToken);
+        try
+        {
+            if (!forceRefresh && _categories.Count > 0)
+            {
+                return;
+            }
+
+            var categories = await LoadCategoriesWithFallbackAsync(forceRefresh, cancellationToken);
+
+            if (categories.Count == 0 && _categories.Count > 0)
+            {
+                return;
+            }
+
+            _categories.Clear();
+            _categories.AddRange(categories);
+        }
+        finally
+        {
+            _categoryLoadSemaphore.Release();
         }
     }
 
@@ -293,6 +335,40 @@ public sealed class PlaceCatalogService
         }
     }
 
+    private static async Task<IReadOnlyList<CategoryDto>> LoadCategoriesWithFallbackAsync(bool forceRefresh, CancellationToken cancellationToken)
+    {
+        if (!forceRefresh)
+        {
+            var cachedCategories = await LoadCategoryCacheAsync(cancellationToken);
+            if (cachedCategories.Count > 0)
+            {
+                return cachedCategories;
+            }
+        }
+
+        try
+        {
+            var categories = await HttpClient.GetFromJsonAsync<List<CategoryDto>>(ApiRoutes.PublicCategories, cancellationToken) ?? [];
+            await SaveCategoryCacheAsync(categories, cancellationToken);
+            return categories;
+        }
+        catch when (!cancellationToken.IsCancellationRequested)
+        {
+            var cachedCategories = await LoadCategoryCacheAsync(cancellationToken);
+            if (cachedCategories.Count > 0)
+            {
+                return cachedCategories;
+            }
+
+            if (forceRefresh)
+            {
+                throw;
+            }
+
+            return [];
+        }
+    }
+
     private static async Task<List<LocationDto>> CacheLocationImagesAsync(
         IReadOnlyList<LocationDto> locations,
         CancellationToken cancellationToken)
@@ -412,6 +488,19 @@ public sealed class PlaceCatalogService
         }
     }
 
+    private static async Task SaveCategoryCacheAsync(IReadOnlyList<CategoryDto> categories, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(CategoryCacheFilePath)!);
+            await using var stream = File.Create(CategoryCacheFilePath);
+            await JsonSerializer.SerializeAsync(stream, categories, CacheJsonOptions, cancellationToken);
+        }
+        catch when (!cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
     private static async Task<List<LocationDto>> LoadCacheAsync(CancellationToken cancellationToken)
     {
         try
@@ -423,6 +512,24 @@ public sealed class PlaceCatalogService
 
             await using var stream = File.OpenRead(CacheFilePath);
             return await JsonSerializer.DeserializeAsync<List<LocationDto>>(stream, CacheJsonOptions, cancellationToken) ?? [];
+        }
+        catch when (!cancellationToken.IsCancellationRequested)
+        {
+            return [];
+        }
+    }
+
+    private static async Task<List<CategoryDto>> LoadCategoryCacheAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!File.Exists(CategoryCacheFilePath))
+            {
+                return [];
+            }
+
+            await using var stream = File.OpenRead(CategoryCacheFilePath);
+            return await JsonSerializer.DeserializeAsync<List<CategoryDto>>(stream, CacheJsonOptions, cancellationToken) ?? [];
         }
         catch when (!cancellationToken.IsCancellationRequested)
         {

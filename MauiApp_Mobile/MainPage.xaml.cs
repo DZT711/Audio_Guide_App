@@ -10,9 +10,10 @@ public partial class MainPage : ContentPage
     private const double PlaceDetailOpenTopInset = 16;
     private const double PlaceDetailFallbackClosedOffset = 520;
     private const double PlaceDetailHalfVisibleRatio = 0.58;
+    private const string AllCategoryValue = "__all__";
 
     private readonly List<PlaceItem> _allPlaces = new();
-    private string _selectedCategory = "Tất cả";
+    private string _selectedCategoryValue = AllCategoryValue;
     private bool _isPlaceDetailVisible;
     private PlaceItem? _selectedPlace;
     private double _detailSheetStartY;
@@ -34,6 +35,7 @@ public partial class MainPage : ContentPage
     private const double PullRefreshMaxDistance = 96;
 
     public ObservableCollection<PlaceItem> Places { get; set; } = new();
+    public ObservableCollection<CategoryFilterOption> CategoryFilters { get; } = new();
     public ObservableCollection<PlaceGallerySlide> SelectedPlaceGallery { get; } = new();
     public ObservableCollection<PlaceDetailAudioTrack> SelectedPlaceAudioTracks { get; } = new();
 
@@ -99,7 +101,7 @@ public partial class MainPage : ContentPage
 
         BindingContext = this;
         ApplyTexts();
-        UpdateFilterSelectionUI();
+        SyncCategoryFilters([]);
         PlacesCollectionView.IsVisible = false;
         EmptyStateLayout.IsVisible = false;
 
@@ -113,7 +115,7 @@ public partial class MainPage : ContentPage
 
         ThemeService.Instance.PropertyChanged += (_, _) =>
         {
-            UpdateFilterSelectionUI();
+            UpdateCategorySelectionState();
             UpdateFilterHeader();
             RefreshSelectedPlaceGallery(resetPosition: false);
         };
@@ -140,7 +142,7 @@ public partial class MainPage : ContentPage
         }
         else
         {
-            _ = TryOpenPendingPlaceAsync();
+            _ = RefreshPlacesAndHandlePendingAsync();
         }
     }
 
@@ -180,6 +182,7 @@ public partial class MainPage : ContentPage
             _allPlaces.Clear();
             var places = await PlaceCatalogService.Instance.GetPlacesAsync(forceRefresh, _placesLoadingCts.Token);
             _allPlaces.AddRange(places);
+            await RefreshCategoryFiltersAsync(forceRefresh, _placesLoadingCts.Token);
             ApplyFilter();
 
             _placesLoadingCts.Cancel();
@@ -225,6 +228,25 @@ public partial class MainPage : ContentPage
         await TryOpenPendingPlaceAsync();
     }
 
+    private async Task RefreshPlacesAndHandlePendingAsync()
+    {
+        await RefreshPlacesSilentlyAsync();
+        await TryOpenPendingPlaceAsync();
+    }
+
+    private async Task RefreshCategoryFiltersAsync(bool forceRefresh, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var categories = await PlaceCatalogService.Instance.GetCategoriesAsync(forceRefresh, cancellationToken);
+            SyncCategoryFilters(categories);
+        }
+        catch
+        {
+            SyncCategoryFilters(PlaceCatalogService.Instance.GetCategories());
+        }
+    }
+
     private async Task RefreshPlacesSilentlyAsync()
     {
         if (_isSilentRefreshing || IsRefreshing)
@@ -236,6 +258,7 @@ public partial class MainPage : ContentPage
             var places = await PlaceCatalogService.Instance.GetPlacesAsync(forceRefresh: true);
             _allPlaces.Clear();
             _allPlaces.AddRange(places);
+            await RefreshCategoryFiltersAsync(forceRefresh: true);
             ApplyFilter();
         }
         catch
@@ -372,12 +395,7 @@ public partial class MainPage : ContentPage
         CountHintLabel.Text = LocalizationService.Instance.T("Places.CountHint");
 
         FilterPopupTitleLabel.Text = LocalizationService.Instance.T("Filter.Title");
-        FilterAllLabel.Text = LocalizationService.Instance.T("Filter.All");
-        FilterSignatureDishLabel.Text = LocalizationService.Instance.T("Filter.SignatureDish");
-        FilterFamousRestaurantLabel.Text = LocalizationService.Instance.T("Filter.FamousRestaurant");
-        FilterDrinksLabel.Text = LocalizationService.Instance.T("Filter.Drinks");
-        FilterFoodCultureLabel.Text = LocalizationService.Instance.T("Filter.FoodCulture");
-        FilterUtilityLabel.Text = LocalizationService.Instance.T("Filter.Utility");
+        SyncCategoryFilters(PlaceCatalogService.Instance.GetCategories());
 
         UpdateFilterHeader();
         UpdateCount();
@@ -628,7 +646,7 @@ public partial class MainPage : ContentPage
 
         var filtered = _allPlaces
             .Where(place =>
-                (_selectedCategory == "Tất cả" || place.Category == _selectedCategory) &&
+                (_selectedCategoryValue == AllCategoryValue || string.Equals(place.Category, _selectedCategoryValue, StringComparison.OrdinalIgnoreCase)) &&
                 (string.IsNullOrWhiteSpace(keyword) || place.Name.ToLower().Contains(keyword)))
             .ToList();
 
@@ -645,7 +663,6 @@ public partial class MainPage : ContentPage
         PlacesCollectionView.IsVisible = _allPlaces.Count > 0 && Places.Count > 0 && !PlacesLoadingOverlay.IsVisible;
 
         UpdateCount();
-        UpdateFilterSelectionUI();
         UpdateFilterHeader();
     }
 
@@ -656,14 +673,15 @@ public partial class MainPage : ContentPage
 
     private void UpdateFilterHeader()
     {
-        if (_selectedCategory == "Tất cả")
+        var selectedCategory = CategoryFilters.FirstOrDefault(item => item.IsSelected);
+        if (selectedCategory is null || selectedCategory.IsAllOption)
         {
             FilterLabel.Text = LocalizationService.Instance.T("Places.Filter");
             FilterLabel.TextColor = ThemeService.Instance.GetColor("BodyText", "#243B5A");
             return;
         }
 
-        FilterLabel.Text = $"{LocalizationService.Instance.T("Places.Filter")}: {_selectedCategory}";
+        FilterLabel.Text = $"{LocalizationService.Instance.T("Places.Filter")}: {selectedCategory.DisplayName}";
         FilterLabel.TextColor = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
     }
 
@@ -672,67 +690,92 @@ public partial class MainPage : ContentPage
         await UiEffectsService.TogglePopupAsync(FilterPopup, !FilterPopup.IsVisible);
     }
 
-    private void ApplyCategory(string category)
+    private void ApplyCategory(string categoryValue)
     {
-        _selectedCategory = _selectedCategory == category ? "Tất cả" : category;
+        _selectedCategoryValue = _selectedCategoryValue == categoryValue
+            ? AllCategoryValue
+            : categoryValue;
         _ = UiEffectsService.TogglePopupAsync(FilterPopup, false);
+        UpdateCategorySelectionState();
         ApplyFilter();
     }
 
-    private void UpdateFilterSelectionUI()
+    private void SyncCategoryFilters(IEnumerable<Project_SharedClassLibrary.Contracts.CategoryDto> categories)
     {
-        ResetFilterItem(FilterAllItem, FilterAllLabel, FilterAllIndicator);
-        ResetFilterItem(FilterSignatureDishItem, FilterSignatureDishLabel, FilterSignatureDishIndicator);
-        ResetFilterItem(FilterFamousRestaurantItem, FilterFamousRestaurantLabel, FilterFamousRestaurantIndicator);
-        ResetFilterItem(FilterDrinksItem, FilterDrinksLabel, FilterDrinksIndicator);
-        ResetFilterItem(FilterFoodCultureItem, FilterFoodCultureLabel, FilterFoodCultureIndicator);
-        ResetFilterItem(FilterUtilityItem, FilterUtilityLabel, FilterUtilityIndicator);
+        var categoryNames = categories
+            .Where(item => item.Status == 1 && !string.IsNullOrWhiteSpace(item.Name))
+            .Select(item => item.Name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(item => item, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
 
-        switch (_selectedCategory)
+        var selectedExists = _selectedCategoryValue == AllCategoryValue ||
+            categoryNames.Any(item => string.Equals(item, _selectedCategoryValue, StringComparison.OrdinalIgnoreCase));
+
+        if (!selectedExists)
         {
-            case "Tất cả":
-                SelectFilterItem(FilterAllItem, FilterAllLabel, FilterAllIndicator);
-                break;
-            case "Món ăn đặc trưng":
-                SelectFilterItem(FilterSignatureDishItem, FilterSignatureDishLabel, FilterSignatureDishIndicator);
-                break;
-            case "Quán nổi tiếng":
-                SelectFilterItem(FilterFamousRestaurantItem, FilterFamousRestaurantLabel, FilterFamousRestaurantIndicator);
-                break;
-            case "Đồ uống":
-                SelectFilterItem(FilterDrinksItem, FilterDrinksLabel, FilterDrinksIndicator);
-                break;
-            case "Văn hóa ẩm thực":
-                SelectFilterItem(FilterFoodCultureItem, FilterFoodCultureLabel, FilterFoodCultureIndicator);
-                break;
-            case "Tiện ích":
-                SelectFilterItem(FilterUtilityItem, FilterUtilityLabel, FilterUtilityIndicator);
-                break;
+            _selectedCategoryValue = AllCategoryValue;
+        }
+
+        CategoryFilters.Clear();
+        CategoryFilters.Add(new CategoryFilterOption
+        {
+            Value = AllCategoryValue,
+            DisplayName = LocalizationService.Instance.T("Filter.All"),
+            Icon = "📍",
+            IsAllOption = true
+        });
+
+        foreach (var categoryName in categoryNames)
+        {
+            CategoryFilters.Add(new CategoryFilterOption
+            {
+                Value = categoryName,
+                DisplayName = categoryName,
+                Icon = ResolveCategoryIcon(categoryName)
+            });
+        }
+
+        UpdateCategorySelectionState();
+    }
+
+    private void UpdateCategorySelectionState()
+    {
+        foreach (var option in CategoryFilters)
+        {
+            option.IsSelected = string.Equals(option.Value, _selectedCategoryValue, StringComparison.OrdinalIgnoreCase);
         }
     }
 
-    private void ResetFilterItem(Grid item, Label label, BoxView indicator)
+    private static string ResolveCategoryIcon(string category)
     {
-        item.BackgroundColor = Colors.Transparent;
-        label.TextColor = ThemeService.Instance.GetColor("BodyText", "#243B5A");
-        label.FontAttributes = FontAttributes.None;
-        indicator.IsVisible = false;
+        var normalized = category.Trim().ToLowerInvariant();
+
+        if (normalized.Contains("food") || normalized.Contains("ăn"))
+            return "🍜";
+
+        if (normalized.Contains("drink") || normalized.Contains("uống") || normalized.Contains("cafe"))
+            return "🥤";
+
+        if (normalized.Contains("bus") || normalized.Contains("stop") || normalized.Contains("transit"))
+            return "🚌";
+
+        if (normalized.Contains("history") || normalized.Contains("heritage") || normalized.Contains("historical"))
+            return "🏛";
+
+        if (normalized.Contains("landmark"))
+            return "📍";
+
+        return "🏷";
     }
 
-    private void SelectFilterItem(Grid item, Label label, BoxView indicator)
+    private void OnCategoryFilterTapped(object sender, TappedEventArgs e)
     {
-        item.BackgroundColor = ThemeService.Instance.GetColor("SoftGreen", "#E8F7EE");
-        label.TextColor = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
-        label.FontAttributes = FontAttributes.Bold;
-        indicator.IsVisible = true;
-    }
+        if (sender is not BindableObject bindable || bindable.BindingContext is not CategoryFilterOption option)
+            return;
 
-    private void OnFilterAllTapped(object sender, TappedEventArgs e) => ApplyCategory("Tất cả");
-    private void OnFilterSignatureDishTapped(object sender, TappedEventArgs e) => ApplyCategory("Món ăn đặc trưng");
-    private void OnFilterFamousRestaurantTapped(object sender, TappedEventArgs e) => ApplyCategory("Quán nổi tiếng");
-    private void OnFilterDrinksTapped(object sender, TappedEventArgs e) => ApplyCategory("Đồ uống");
-    private void OnFilterFoodCultureTapped(object sender, TappedEventArgs e) => ApplyCategory("Văn hóa ẩm thực");
-    private void OnFilterUtilityTapped(object sender, TappedEventArgs e) => ApplyCategory("Tiện ích");
+        ApplyCategory(option.Value);
+    }
 
     private async void OnPlaceTapped(object sender, TappedEventArgs e)
     {

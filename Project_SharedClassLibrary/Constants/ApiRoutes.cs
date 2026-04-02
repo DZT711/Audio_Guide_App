@@ -3,6 +3,7 @@ namespace Project_SharedClassLibrary.Constants;
 public static class ApiRoutes
 {
     public const string Categories = "Category";
+    public const string PublicCategories = "Category/public";
     public const string Languages = "Language";
     public const string Locations = "Location";
     public const string PublicLocations = "Location/public";

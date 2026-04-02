@@ -14,9 +14,11 @@ public partial class OfflinePage : ContentPage
     private const double OfflineDetailOpenTopInset = 16;
     private const double OfflineDetailFallbackClosedOffset = 520;
     private const double OfflineDetailHalfVisibleRatio = 0.58;
+    private const string AllCategoryValue = "__all__";
     private readonly ObservableCollection<OfflinePackItem> _allItems = new();
     private ObservableCollection<OfflinePackItem> _filteredItems = new();
     private string _selectedFilter = "All";
+    private string _selectedCategoryValue = AllCategoryValue;
     private string _searchKeyword = string.Empty;
     private bool _isDeleteConfirmVisible;
     private bool _isOfflineDetailVisible;
@@ -115,6 +117,7 @@ public partial class OfflinePage : ContentPage
         PlayTrackCommand = new Command<OfflineAudioTrack>(OnPlayTrack);
 
         ApplyLocalizedText();
+        SyncCategoryFilters([]);
         ApplyFilter();
         ApplyFilterSummary();
 
@@ -223,6 +226,8 @@ public partial class OfflinePage : ContentPage
         }
     }
 
+    public ObservableCollection<CategoryFilterOption> CategoryFilters { get; } = new();
+
     public bool IsOfflineDetailVisible
     {
         get => _isOfflineDetailVisible;
@@ -285,6 +290,19 @@ public partial class OfflinePage : ContentPage
         }
     }
 
+    private async Task RefreshCategoryFiltersAsync(bool forceRefresh, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var categories = await PlaceCatalogService.Instance.GetCategoriesAsync(forceRefresh, cancellationToken);
+            SyncCategoryFilters(categories);
+        }
+        catch
+        {
+            SyncCategoryFilters(PlaceCatalogService.Instance.GetCategories());
+        }
+    }
+
     private async Task LoadOfflinePacksAsync(bool forceRefresh, CancellationToken cancellationToken = default)
     {
         var existingStates = _allItems.ToDictionary(
@@ -303,6 +321,7 @@ public partial class OfflinePage : ContentPage
             _allItems.Add(item);
         }
 
+        await RefreshCategoryFiltersAsync(forceRefresh, cancellationToken);
         ApplyLocalizedText();
         ApplyFilter();
     }
@@ -384,6 +403,13 @@ public partial class OfflinePage : ContentPage
             NotDownloadedTabLabel.Text = LocalizationService.Instance.T("Offline.FilterPending");
         }
 
+        if (FilterPopupTitleLabel is not null)
+        {
+            FilterPopupTitleLabel.Text = LocalizationService.Instance.T("Filter.Title");
+        }
+
+        SyncCategoryFilters(PlaceCatalogService.Instance.GetCategories());
+
         foreach (var item in _allItems)
         {
             item.ApplyLanguage(LocalizationService.Instance.Language);
@@ -463,6 +489,11 @@ public partial class OfflinePage : ContentPage
         else if (_selectedFilter == "NotDownloaded")
             query = query.Where(x => !x.IsDownloaded);
 
+        if (_selectedCategoryValue != AllCategoryValue)
+        {
+            query = query.Where(x => string.Equals(x.Category, _selectedCategoryValue, StringComparison.OrdinalIgnoreCase));
+        }
+
         if (!string.IsNullOrWhiteSpace(_searchKeyword))
         {
             var normalizedKeyword = NormalizeSearchText(_searchKeyword);
@@ -512,16 +543,28 @@ public partial class OfflinePage : ContentPage
             return;
         }
 
-        var filterText = _selectedFilter switch
+        var statusText = _selectedFilter switch
         {
             "Downloaded" => LocalizationService.Instance.T("Offline.FilterDownloaded"),
             "NotDownloaded" => LocalizationService.Instance.T("Offline.FilterPending"),
             _ => LocalizationService.Instance.T("Offline.FilterAll")
         };
 
-        FilterLabel.Text = filterText == LocalizationService.Instance.T("Offline.FilterAll")
+        var summaryParts = new List<string>();
+        if (statusText != LocalizationService.Instance.T("Offline.FilterAll"))
+        {
+            summaryParts.Add(statusText);
+        }
+
+        var selectedCategory = CategoryFilters.FirstOrDefault(item => item.IsSelected && !item.IsAllOption);
+        if (selectedCategory is not null)
+        {
+            summaryParts.Add(selectedCategory.DisplayName);
+        }
+
+        FilterLabel.Text = summaryParts.Count == 0
             ? LocalizationService.Instance.T("Offline.FilterLabel")
-            : $"{LocalizationService.Instance.T("Offline.FilterLabel")}: {filterText}";
+            : $"{LocalizationService.Instance.T("Offline.FilterLabel")}: {string.Join(" • ", summaryParts)}";
     }
 
     private static bool ContainsSearchText(string? source, string keyword)
@@ -605,6 +648,25 @@ public partial class OfflinePage : ContentPage
         ApplyFilter();
     }
 
+    private async void OnToggleFilterPopup(object? sender, TappedEventArgs e)
+    {
+        await UiEffectsService.TogglePopupAsync(FilterPopup, !FilterPopup.IsVisible);
+    }
+
+    private void OnCategoryFilterTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is not BindableObject bindable || bindable.BindingContext is not CategoryFilterOption option)
+            return;
+
+        _selectedCategoryValue = _selectedCategoryValue == option.Value
+            ? AllCategoryValue
+            : option.Value;
+
+        UpdateCategorySelectionState();
+        _ = UiEffectsService.TogglePopupAsync(FilterPopup, false);
+        ApplyFilter();
+    }
+
     private void OnClearAllTapped(object? sender, TappedEventArgs e)
     {
         var downloadedItems = _allItems.Where(x => x.IsDownloaded).ToList();
@@ -646,6 +708,11 @@ public partial class OfflinePage : ContentPage
     {
         if (sender is BindableObject bindable && bindable.BindingContext is OfflinePackItem item)
         {
+            if (FilterPopup.IsVisible)
+            {
+                await UiEffectsService.TogglePopupAsync(FilterPopup, false);
+            }
+
             SelectedPack = item;
             IsOfflineAudioListExpanded = false;
             IsOfflineDetailVisible = true;
@@ -771,6 +838,75 @@ public partial class OfflinePage : ContentPage
         {
             OfflineDetailSheet.TranslationY = _offlineDetailClosedY;
         }
+    }
+
+    private void SyncCategoryFilters(IEnumerable<Project_SharedClassLibrary.Contracts.CategoryDto> categories)
+    {
+        var categoryNames = categories
+            .Where(item => item.Status == 1 && !string.IsNullOrWhiteSpace(item.Name))
+            .Select(item => item.Name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(item => item, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        var selectedExists = _selectedCategoryValue == AllCategoryValue ||
+            categoryNames.Any(item => string.Equals(item, _selectedCategoryValue, StringComparison.OrdinalIgnoreCase));
+
+        if (!selectedExists)
+        {
+            _selectedCategoryValue = AllCategoryValue;
+        }
+
+        CategoryFilters.Clear();
+        CategoryFilters.Add(new CategoryFilterOption
+        {
+            Value = AllCategoryValue,
+            DisplayName = LocalizationService.Instance.T("Filter.All"),
+            Icon = "📍",
+            IsAllOption = true
+        });
+
+        foreach (var categoryName in categoryNames)
+        {
+            CategoryFilters.Add(new CategoryFilterOption
+            {
+                Value = categoryName,
+                DisplayName = categoryName,
+                Icon = ResolveCategoryIcon(categoryName)
+            });
+        }
+
+        UpdateCategorySelectionState();
+    }
+
+    private void UpdateCategorySelectionState()
+    {
+        foreach (var option in CategoryFilters)
+        {
+            option.IsSelected = string.Equals(option.Value, _selectedCategoryValue, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private static string ResolveCategoryIcon(string category)
+    {
+        var normalized = category.Trim().ToLowerInvariant();
+
+        if (normalized.Contains("food") || normalized.Contains("ăn"))
+            return "🍜";
+
+        if (normalized.Contains("drink") || normalized.Contains("uống") || normalized.Contains("cafe"))
+            return "🥤";
+
+        if (normalized.Contains("bus") || normalized.Contains("stop") || normalized.Contains("transit"))
+            return "🚌";
+
+        if (normalized.Contains("history") || normalized.Contains("heritage") || normalized.Contains("historical"))
+            return "🏛";
+
+        if (normalized.Contains("landmark"))
+            return "📍";
+
+        return "🏷";
     }
 
     private double ResolveOfflineDetailSnapTarget(double currentY, double totalDragY)

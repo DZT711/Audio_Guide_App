@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:MauiApp_Mobile.Views"
+    xmlns:models="clr-namespace:MauiApp_Mobile.Models"
     x:Name="ThisPage"
     BackgroundColor="{DynamicResource LightBg}"
     Shell.NavBarIsVisible="False">
@@ -230,6 +231,10 @@
                                    TextColor="{DynamicResource BodyText}"
                                    VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnToggleFilterPopup" />
+                        </Border.GestureRecognizers>
                     </Border>
                 </Grid>
 
@@ -440,6 +445,85 @@
                         HeightRequest="118"
                         Style="{StaticResource SkeletonBoneStyle}" />
             </Grid>
+
+            <Border x:Name="FilterPopup"
+                    Grid.RowSpan="2"
+                    IsVisible="False"
+                    Stroke="{DynamicResource BorderColor}"
+                    StrokeThickness="1"
+                    BackgroundColor="{DynamicResource PopupBg}"
+                    StrokeShape="RoundRectangle 18"
+                    HorizontalOptions="End"
+                    VerticalOptions="Start"
+                    Margin="0,54,16,0"
+                    WidthRequest="270"
+                    MaximumHeightRequest="430"
+                    ZIndex="11">
+                <ScrollView>
+                    <VerticalStackLayout Spacing="0">
+                        <Label x:Name="FilterPopupTitleLabel"
+                               Text="DANH MỤC"
+                               Padding="18,16,18,12"
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource MutedText}" />
+
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding CategoryFilters}"
+                                             Spacing="0">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="models:CategoryFilterOption">
+                                    <Grid Padding="0"
+                                          ColumnDefinitions="4,Auto,*"
+                                          ColumnSpacing="12"
+                                          BackgroundColor="Transparent"
+                                          MinimumHeightRequest="56">
+                                        <Grid.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnCategoryFilterTapped" />
+                                        </Grid.GestureRecognizers>
+
+                                        <BoxView Grid.Column="0"
+                                                 Color="{DynamicResource PrimaryGreen}"
+                                                 IsVisible="{Binding IsSelected}" />
+
+                                        <Label Grid.Column="1"
+                                               Text="{Binding Icon}"
+                                               FontSize="18"
+                                               VerticalOptions="Center"
+                                               HorizontalTextAlignment="Center"
+                                               Margin="16,0,0,0" />
+
+                                        <Label Grid.Column="2"
+                                               Text="{Binding DisplayName}"
+                                               FontSize="16"
+                                               VerticalOptions="Center"
+                                               TextColor="{DynamicResource BodyText}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label"
+                                                             Binding="{Binding IsSelected}"
+                                                             Value="True">
+                                                    <Setter Property="TextColor"
+                                                            Value="{DynamicResource PrimaryGreen}" />
+                                                    <Setter Property="FontAttributes"
+                                                            Value="Bold" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+
+                                        <Grid.Triggers>
+                                            <DataTrigger TargetType="Grid"
+                                                         Binding="{Binding IsSelected}"
+                                                         Value="True">
+                                                <Setter Property="BackgroundColor"
+                                                        Value="{DynamicResource SoftGreen}" />
+                                            </DataTrigger>
+                                        </Grid.Triggers>
+                                    </Grid>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </ScrollView>
+            </Border>
             </Grid>
         </Grid>
 
