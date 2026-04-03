@@ -16,7 +16,7 @@ notification user when wrong/no input in add/edit form
 add preference img
 fix allow user upload each file in queue not replacing other file
 edit img file cant save
-seperate preference img for each poi
+seperate preference img for each poi by add new field in db and add new img upload for that field
 when click play on audio poi ,show a list of audio file if have more than 1 file and play the one user choose than separate audio file by language and file/tts
 
 ## (extend task)-MVP
