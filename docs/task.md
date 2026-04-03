@@ -16,8 +16,27 @@ notification user when wrong/no input in add/edit form
 add preference img
 fix allow user upload each file in queue not replacing other file
 edit img file cant save
-seperate preference img for each poi by add new field in db and add new img upload for that field
+seperate preference img for each poi by add new field in db and add new required img upload for that field
 when click play on audio poi ,show a list of audio file if have more than 1 file and play the one user choose than separate audio file by language and file/tts
+real static for all information in dashboard page
+decorate dashboard page with more info and make it more user friendly
+add sever info/version,..
+decorate /remove,.. blank section in admin site
+toggle admin navigation bar in or out smoothly / also add light left/right hightlight to know which page user is on
+add motion effect for pages when user scroll down/up
+add motion effect for static chart
+real static in statistics/usage page
+pagination for usage dataset
+button that open/collapse broadcast feature in inbox admin page
+align all heatmap button funcion in 1 line
+motivation effect for changing page in admin site
+motivation/skeletion effect for changing pagination dataset in admin site
+hide page bar in pop up create/edit tour form
+effect in pop up create/edit tour form
+poi avatar img in tour form modal
+pagination for poi dataset in tour form modal
+history log for for all user interacting with system (create/edit/delete) and show in admin site (admin/dev view only)
+add location filter in audio site
 
 ## (extend task)-MVP
 
@@ -35,3 +54,8 @@ pagination data set
 modernize UI/UX
 db for mobile setting/offline data
 auto play audio have most priority in overlappiing audio area
+admin forgot /remmeber password feature
+request reset password
+admin/dev can reset password for user
+allow user watch details statistics of their own data
+add more details in dashboard page for each poi
