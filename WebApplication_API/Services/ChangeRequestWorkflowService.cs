@@ -10,7 +10,8 @@ namespace WebApplication_API.Services;
 public sealed partial class ChangeRequestWorkflowService(
     DBContext context,
     SharedImageFileStorageService imageStorage,
-    SharedAudioFileStorageService audioStorage)
+    SharedAudioFileStorageService audioStorage,
+    ActivityLogService activityLogService)
 {
     private const string LocationTarget = "Location";
     private const string AudioTarget = "Audio";
@@ -42,8 +43,46 @@ public sealed partial class ChangeRequestWorkflowService(
             .Where(item => !ownerOnly || item.OwnerId == currentUser.UserId)
             .ToListAsync(cancellationToken);
 
+        var liveLocationIds = items
+            .Where(item => string.Equals(item.TargetTable, LocationTarget, StringComparison.OrdinalIgnoreCase)
+                           && item.TargetId is > 0)
+            .Select(item => item.TargetId!.Value)
+            .Distinct()
+            .ToList();
+
+        var liveAudioIds = items
+            .Where(item => string.Equals(item.TargetTable, AudioTarget, StringComparison.OrdinalIgnoreCase)
+                           && item.TargetId is > 0)
+            .Select(item => item.TargetId!.Value)
+            .Distinct()
+            .ToList();
+
+        var liveLocationsById = liveLocationIds.Count == 0
+            ? new Dictionary<int, Location>()
+            : await context.Locations
+                .AsNoTracking()
+                .Include(item => item.Category)
+                .Include(item => item.Owner)
+                .Include(item => item.Images)
+                .Include(item => item.AudioContents)
+                .Where(item => liveLocationIds.Contains(item.LocationId))
+                .ToDictionaryAsync(item => item.LocationId, cancellationToken);
+
+        var liveAudiosById = liveAudioIds.Count == 0
+            ? new Dictionary<int, Audio>()
+            : await context.AudioContents
+                .AsNoTracking()
+                .Include(item => item.Location)
+                .ThenInclude(item => item!.Owner)
+                .Where(item => liveAudioIds.Contains(item.AudioId))
+                .ToDictionaryAsync(item => item.AudioId, cancellationToken);
+
+        var languagesByCode = await context.Languages
+            .AsNoTracking()
+            .ToDictionaryAsync(item => item.LangCode, cancellationToken);
+
         var mapped = items
-            .Select(MapToDto)
+            .Select(item => MapToDto(item, liveLocationsById, liveAudiosById, languagesByCode))
             .Where(item => normalizedType is null || string.Equals(item.Type, normalizedType, StringComparison.OrdinalIgnoreCase))
             .Where(item => normalizedAction is null || string.Equals(item.ActionType, normalizedAction, StringComparison.OrdinalIgnoreCase))
             .Where(item => normalizedStatus is null || string.Equals(item.Status, normalizedStatus, StringComparison.OrdinalIgnoreCase))
@@ -77,6 +116,7 @@ public sealed partial class ChangeRequestWorkflowService(
     public async Task<ChangeRequestDto> SubmitLocationAsync(
         DashboardUser owner,
         LocationChangeRequestSubmission request,
+        IFormFile? preferenceImageFile,
         IEnumerable<IFormFile>? imageFiles,
         CancellationToken cancellationToken = default)
     {
@@ -128,11 +168,18 @@ public sealed partial class ChangeRequestWorkflowService(
                 throw new InvalidOperationException("Inactive categories cannot be assigned to POIs.");
             }
 
+            var currentPreferenceImageUrl = liveLocation is null
+                ? null
+                : ResolvePreferenceImagePath(liveLocation);
             var currentImageSet = liveLocation?.Images
                 .Select(item => NormalizeImagePath(item.ImageUrl))
                 .Where(item => !string.IsNullOrWhiteSpace(item))
                 .Cast<string>()
                 .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+
+            var retainedPreferenceImageUrl = actionType == UpdateAction
+                ? NormalizeImagePath(request.RetainedPreferenceImageUrl)
+                : null;
 
             var retainedImages = actionType == UpdateAction
                 ? request.RetainedImageUrls
@@ -142,7 +189,34 @@ public sealed partial class ChangeRequestWorkflowService(
                     .ToList()
                 : [];
 
-            var uploadedImageUrls = await SavePendingImagesAsync(imageFiles, request.Name, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(currentPreferenceImageUrl)
+                && string.IsNullOrWhiteSpace(retainedPreferenceImageUrl)
+                && retainedImages.RemoveAll(item => string.Equals(item, currentPreferenceImageUrl, StringComparison.OrdinalIgnoreCase)) > 0)
+            {
+                retainedPreferenceImageUrl = currentPreferenceImageUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(retainedPreferenceImageUrl)
+                && !string.Equals(retainedPreferenceImageUrl, currentPreferenceImageUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                retainedPreferenceImageUrl = null;
+            }
+
+            var uploadedPreferenceImageUrl = await SavePendingPreferenceImageAsync(
+                preferenceImageFile,
+                request.Name,
+                cancellationToken);
+            var preferenceImageUrl = uploadedPreferenceImageUrl ?? retainedPreferenceImageUrl;
+            if (string.IsNullOrWhiteSpace(preferenceImageUrl))
+            {
+                throw new InvalidOperationException("Upload a preference image before submitting this POI request.");
+            }
+
+            var uploadedImageUrls = await SavePendingImagesAsync(
+                imageFiles,
+                request.Name,
+                retainedImages.Count + 2,
+                cancellationToken);
 
             payload = new PendingLocationChangeData
             {
@@ -165,10 +239,8 @@ public sealed partial class ChangeRequestWorkflowService(
                 Status = request.Status,
                 OwnerId = owner.UserId,
                 OwnerName = owner.FullName ?? owner.Username,
-                ImageUrls = retainedImages
-                    .Concat(uploadedImageUrls)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList(),
+                PreferenceImageUrl = preferenceImageUrl,
+                ImageUrls = BuildDesiredImageUrls(preferenceImageUrl, retainedImages, uploadedImageUrls).ToList(),
                 AudioCount = liveLocation?.AudioContents.Count ?? 0
             };
         }
@@ -180,6 +252,14 @@ public sealed partial class ChangeRequestWorkflowService(
             actionType,
             request.Reason,
             JsonSerializer.Serialize(payload, JsonOptions),
+            cancellationToken);
+        await activityLogService.LogAsync(
+            owner,
+            ToActionLabel(actionType),
+            "POI Request",
+            changeRequest.RequestId,
+            payload.Name,
+            $"Submitted {ToActionLabel(actionType).ToLowerInvariant()} request for POI '{payload.Name}'.",
             cancellationToken);
 
         return MapToDto(changeRequest);
@@ -306,6 +386,14 @@ public sealed partial class ChangeRequestWorkflowService(
             request.Reason,
             JsonSerializer.Serialize(payload, JsonOptions),
             cancellationToken);
+        await activityLogService.LogAsync(
+            owner,
+            ToActionLabel(actionType),
+            "Audio Request",
+            changeRequest.RequestId,
+            payload.Title,
+            $"Submitted {ToActionLabel(actionType).ToLowerInvariant()} request for audio '{payload.Title}'.",
+            cancellationToken);
 
         return MapToDto(changeRequest);
     }
@@ -353,6 +441,15 @@ public sealed partial class ChangeRequestWorkflowService(
 
         await context.SaveChangesAsync(cancellationToken);
         DeleteManagedFiles(orphanedPaths);
+        var approvedRequestName = MapToDto(changeRequest).Name;
+        await activityLogService.LogAsync(
+            reviewer,
+            "Approve",
+            $"{GetFriendlyType(changeRequest.TargetTable)} Request",
+            changeRequest.RequestId,
+            approvedRequestName,
+            $"Approved {GetFriendlyType(changeRequest.TargetTable).ToLowerInvariant()} request #{changeRequest.RequestId}.",
+            cancellationToken);
         return MapToDto(changeRequest);
     }
 
@@ -394,6 +491,15 @@ public sealed partial class ChangeRequestWorkflowService(
 
         await context.SaveChangesAsync(cancellationToken);
         DeleteManagedFiles(orphanedPaths);
+        var rejectedRequestName = MapToDto(changeRequest).Name;
+        await activityLogService.LogAsync(
+            reviewer,
+            "Reject",
+            $"{GetFriendlyType(changeRequest.TargetTable)} Request",
+            changeRequest.RequestId,
+            rejectedRequestName,
+            $"Rejected {GetFriendlyType(changeRequest.TargetTable).ToLowerInvariant()} request #{changeRequest.RequestId}.",
+            cancellationToken);
         return MapToDto(changeRequest);
     }
 
@@ -597,7 +703,7 @@ public sealed partial class ChangeRequestWorkflowService(
 
             context.Locations.Add(location);
             await context.SaveChangesAsync(cancellationToken);
-            await SyncLocationImagesAsync(location, payload.ImageUrls, cancellationToken);
+            await SyncLocationImagesAsync(location, payload.PreferenceImageUrl, payload.ImageUrls, cancellationToken);
             request.TargetId = location.LocationId;
             return [];
         }
@@ -641,7 +747,7 @@ public sealed partial class ChangeRequestWorkflowService(
         liveLocation.Status = payload.Status;
         liveLocation.UpdatedAt = DateTime.UtcNow;
 
-        return await SyncLocationImagesAsync(liveLocation, payload.ImageUrls, cancellationToken);
+        return await SyncLocationImagesAsync(liveLocation, payload.PreferenceImageUrl, payload.ImageUrls, cancellationToken);
     }
 
     private async Task<List<string>> ApplyAudioApprovalAsync(ChangeRequest request, CancellationToken cancellationToken)
@@ -748,14 +854,22 @@ public sealed partial class ChangeRequestWorkflowService(
 
     private async Task<List<string>> SyncLocationImagesAsync(
         Location location,
+        string? preferenceImageUrl,
         IReadOnlyList<string> desiredImageUrls,
         CancellationToken cancellationToken)
     {
+        var normalizedPreferenceImageUrl = NormalizeImagePath(preferenceImageUrl)
+            ?? throw new InvalidOperationException("A valid preference image is required.");
+
         var normalizedDesired = desiredImageUrls
             .Select(NormalizeImagePath)
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Cast<string>()
+            .Where(item => !string.Equals(item, normalizedPreferenceImageUrl, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        normalizedDesired.Insert(0, normalizedPreferenceImageUrl);
 
         await context.Entry(location)
             .Collection(item => item.Images)
@@ -776,12 +890,14 @@ public sealed partial class ChangeRequestWorkflowService(
             context.LocationImages.Remove(removedImage);
         }
 
+        location.PreferenceImageUrl = normalizedPreferenceImageUrl;
+
         for (var index = 0; index < normalizedDesired.Count; index++)
         {
             var imageUrl = normalizedDesired[index];
             if (existingLookup.TryGetValue(imageUrl, out var existingImage))
             {
-                existingImage.SortOrder = index;
+                existingImage.SortOrder = index + 1;
                 continue;
             }
 
@@ -789,7 +905,7 @@ public sealed partial class ChangeRequestWorkflowService(
             {
                 LocationId = location.LocationId,
                 ImageUrl = imageUrl,
-                SortOrder = index,
+                SortOrder = index + 1,
                 CreatedAt = DateTime.UtcNow
             });
         }
@@ -801,14 +917,29 @@ public sealed partial class ChangeRequestWorkflowService(
             .ToList();
     }
 
-    private ChangeRequestDto MapToDto(ChangeRequest item)
+    private ChangeRequestDto MapToDto(
+        ChangeRequest item,
+        IReadOnlyDictionary<int, Location>? liveLocationsById = null,
+        IReadOnlyDictionary<int, Audio>? liveAudiosById = null,
+        IReadOnlyDictionary<string, Language>? languagesByCode = null)
     {
         var submittedAt = item.UpdatedAt ?? item.CreatedAt;
+        Location? liveLocation = null;
+        if (item.TargetId is > 0 && liveLocationsById is not null)
+        {
+            liveLocationsById.TryGetValue(item.TargetId.Value, out liveLocation);
+        }
+
+        Audio? liveAudio = null;
+        if (item.TargetId is > 0 && liveAudiosById is not null)
+        {
+            liveAudiosById.TryGetValue(item.TargetId.Value, out liveAudio);
+        }
 
         return item.TargetTable switch
         {
-            LocationTarget => MapLocationRequest(item, submittedAt),
-            AudioTarget => MapAudioRequest(item, submittedAt),
+            LocationTarget => MapLocationRequest(item, submittedAt, liveLocation),
+            AudioTarget => MapAudioRequest(item, submittedAt, liveAudio, languagesByCode),
             _ => new ChangeRequestDto
             {
                 Id = item.RequestId,
@@ -827,7 +958,7 @@ public sealed partial class ChangeRequestWorkflowService(
         };
     }
 
-    private ChangeRequestDto MapLocationRequest(ChangeRequest item, DateTime submittedAt)
+    private ChangeRequestDto MapLocationRequest(ChangeRequest item, DateTime submittedAt, Location? liveLocation)
     {
         var payload = DeserializeLocationPayload(item.NewDataJson);
         return new ChangeRequestDto
@@ -844,6 +975,7 @@ public sealed partial class ChangeRequestWorkflowService(
             AdminNote = item.AdminNote,
             SubmittedAt = submittedAt,
             UpdatedAt = item.UpdatedAt,
+            LiveLocation = liveLocation?.ToDto(),
             Location = new LocationDto
             {
                 Id = item.TargetId ?? 0,
@@ -861,7 +993,8 @@ public sealed partial class ChangeRequestWorkflowService(
                 DebounceSeconds = payload.DebounceSeconds,
                 IsGpsTriggerEnabled = payload.IsGpsTriggerEnabled,
                 Address = payload.Address,
-                CoverImageUrl = payload.ImageUrls.FirstOrDefault(),
+                PreferenceImageUrl = payload.PreferenceImageUrl,
+                CoverImageUrl = payload.PreferenceImageUrl ?? payload.ImageUrls.FirstOrDefault(),
                 ImageUrls = payload.ImageUrls,
                 WebURL = payload.WebURL,
                 Email = payload.Email,
@@ -875,9 +1008,21 @@ public sealed partial class ChangeRequestWorkflowService(
         };
     }
 
-    private ChangeRequestDto MapAudioRequest(ChangeRequest item, DateTime submittedAt)
+    private ChangeRequestDto MapAudioRequest(
+        ChangeRequest item,
+        DateTime submittedAt,
+        Audio? liveAudio,
+        IReadOnlyDictionary<string, Language>? languagesByCode)
     {
         var payload = DeserializeAudioPayload(item.NewDataJson);
+        Language? liveAudioLanguage = null;
+        if (liveAudio is not null
+            && languagesByCode is not null
+            && !string.IsNullOrWhiteSpace(liveAudio.LanguageCode))
+        {
+            languagesByCode.TryGetValue(liveAudio.LanguageCode, out liveAudioLanguage);
+        }
+
         return new ChangeRequestDto
         {
             Id = item.RequestId,
@@ -892,6 +1037,7 @@ public sealed partial class ChangeRequestWorkflowService(
             AdminNote = item.AdminNote,
             SubmittedAt = submittedAt,
             UpdatedAt = item.UpdatedAt,
+            LiveAudio = liveAudio?.ToDto(liveAudioLanguage),
             Audio = new AudioDto
             {
                 Id = item.TargetId ?? 0,
@@ -923,9 +1069,29 @@ public sealed partial class ChangeRequestWorkflowService(
         };
     }
 
+    private async Task<string?> SavePendingPreferenceImageAsync(
+        IFormFile? preferenceImageFile,
+        string locationName,
+        CancellationToken cancellationToken)
+    {
+        if (preferenceImageFile is null || preferenceImageFile.Length <= 0)
+        {
+            return null;
+        }
+
+        if (!IsSupportedImageFile(preferenceImageFile))
+        {
+            throw new InvalidOperationException($"'{preferenceImageFile.FileName}' is not a supported image file.");
+        }
+
+        var savedPath = await imageStorage.SaveImageAsync(preferenceImageFile, locationName, 1, cancellationToken);
+        return NormalizeImagePath(savedPath) ?? savedPath;
+    }
+
     private async Task<List<string>> SavePendingImagesAsync(
         IEnumerable<IFormFile>? imageFiles,
         string locationName,
+        int startSortOrder,
         CancellationToken cancellationToken)
     {
         if (imageFiles is null)
@@ -951,7 +1117,7 @@ public sealed partial class ChangeRequestWorkflowService(
         var savedPaths = new List<string>(files.Count);
         for (var index = 0; index < files.Count; index++)
         {
-            var savedPath = await imageStorage.SaveImageAsync(files[index], locationName, index, cancellationToken);
+            var savedPath = await imageStorage.SaveImageAsync(files[index], locationName, startSortOrder + index, cancellationToken);
             savedPaths.Add(NormalizeImagePath(savedPath) ?? savedPath);
         }
 
@@ -1008,6 +1174,7 @@ public sealed partial class ChangeRequestWorkflowService(
             DebounceSeconds = liveLocation.DebounceSeconds,
             IsGpsTriggerEnabled = liveLocation.IsGpsTriggerEnabled,
             Address = liveLocation.Address,
+            PreferenceImageUrl = ResolvePreferenceImagePath(liveLocation),
             WebURL = liveLocation.WebURL,
             Email = liveLocation.Email,
             Phone = liveLocation.PhoneContact,
@@ -1058,11 +1225,7 @@ public sealed partial class ChangeRequestWorkflowService(
 
         return targetTable switch
         {
-            LocationTarget => await context.LocationImages
-                .AsNoTracking()
-                .Where(item => item.LocationId == targetId.Value)
-                .Select(item => NormalizeImagePath(item.ImageUrl) ?? item.ImageUrl)
-                .ToHashSetAsync(StringComparer.OrdinalIgnoreCase, cancellationToken),
+            LocationTarget => await GetLiveLocationReferencedFilePathsAsync(targetId.Value, cancellationToken),
             AudioTarget => await context.AudioContents
                 .AsNoTracking()
                 .Where(item => item.AudioId == targetId.Value && item.FilePath != null)
@@ -1072,20 +1235,49 @@ public sealed partial class ChangeRequestWorkflowService(
         };
     }
 
-    private static HashSet<string> GetManagedFilePaths(string targetTable, string payloadJson) =>
-        targetTable switch
+    private static HashSet<string> GetManagedFilePaths(string targetTable, string payloadJson)
+    {
+        if (string.Equals(targetTable, LocationTarget, StringComparison.OrdinalIgnoreCase))
         {
-            LocationTarget => DeserializeLocationPayload(payloadJson).ImageUrls
+            var payload = DeserializeLocationPayload(payloadJson);
+            return payload.ImageUrls
+                .Append(payload.PreferenceImageUrl)
                 .Select(NormalizeImagePath)
                 .Where(item => SharedStoragePaths.TryGetManagedImageFileName(item) is not null)
                 .Cast<string>()
-                .ToHashSet(StringComparer.OrdinalIgnoreCase),
-            AudioTarget => new[] { NormalizeAudioPath(DeserializeAudioPayload(payloadJson).AudioURL) }
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        if (string.Equals(targetTable, AudioTarget, StringComparison.OrdinalIgnoreCase))
+        {
+            return new[] { NormalizeAudioPath(DeserializeAudioPayload(payloadJson).AudioURL) }
                 .Where(item => SharedStoragePaths.TryGetManagedAudioFileName(item) is not null)
                 .Cast<string>()
-                .ToHashSet(StringComparer.OrdinalIgnoreCase),
-            _ => []
-        };
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return [];
+    }
+
+    private async Task<HashSet<string>> GetLiveLocationReferencedFilePathsAsync(int targetId, CancellationToken cancellationToken)
+    {
+        var location = await context.Locations
+            .AsNoTracking()
+            .Include(item => item.Images)
+            .FirstOrDefaultAsync(item => item.LocationId == targetId, cancellationToken);
+
+        if (location is null)
+        {
+            return [];
+        }
+
+        return location.Images
+            .Select(item => NormalizeImagePath(item.ImageUrl))
+            .Append(NormalizeImagePath(location.PreferenceImageUrl))
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
 
     private static PendingLocationChangeData DeserializeLocationPayload(string json) =>
         JsonSerializer.Deserialize<PendingLocationChangeData>(json, JsonOptions)
@@ -1276,6 +1468,34 @@ public sealed partial class ChangeRequestWorkflowService(
     private static string? NormalizeImagePath(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : SharedStoragePaths.NormalizePublicImagePath(value);
 
+    private static IReadOnlyList<string> BuildDesiredImageUrls(
+        string preferenceImageUrl,
+        IEnumerable<string>? retainedGalleryImageUrls,
+        IEnumerable<string>? uploadedGalleryImageUrls)
+    {
+        var normalizedPreferenceImageUrl = NormalizeImagePath(preferenceImageUrl)
+            ?? throw new InvalidOperationException("A valid preference image is required.");
+
+        return new[] { normalizedPreferenceImageUrl }
+            .Concat(retainedGalleryImageUrls ?? [])
+            .Concat(uploadedGalleryImageUrls ?? [])
+            .Select(NormalizeImagePath)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .Where(item => !string.Equals(item, normalizedPreferenceImageUrl, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Prepend(normalizedPreferenceImageUrl)
+            .ToList();
+    }
+
+    private static string? ResolvePreferenceImagePath(Location location) =>
+        NormalizeImagePath(location.PreferenceImageUrl)
+        ?? location.Images
+            .OrderBy(item => item.SortOrder)
+            .ThenBy(item => item.ImageId)
+            .Select(item => NormalizeImagePath(item.ImageUrl))
+            .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item));
+
     private sealed class PendingLocationChangeData
     {
         public int CategoryId { get; set; }
@@ -1292,6 +1512,7 @@ public sealed partial class ChangeRequestWorkflowService(
         public int DebounceSeconds { get; set; }
         public bool IsGpsTriggerEnabled { get; set; } = true;
         public string? Address { get; set; }
+        public string? PreferenceImageUrl { get; set; }
         public string? WebURL { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }

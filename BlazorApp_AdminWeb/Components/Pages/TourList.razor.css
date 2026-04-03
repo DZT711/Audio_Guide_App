@@ -210,13 +210,38 @@
 }
 
 .tour-catalog-card {
-    grid-template-columns: minmax(0, 1fr) max-content;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
     align-items: center;
 }
 
 .tour-stop-card {
-    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
     align-items: center;
+}
+
+.tour-catalog-card__media,
+.tour-stop-card__media {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tour-catalog-card__avatar,
+.tour-stop-card__avatar {
+    width: 4rem;
+    height: 3rem;
+    object-fit: cover;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(248, 250, 252, 0.92);
+}
+
+.tour-catalog-card__avatar--placeholder,
+.tour-stop-card__avatar--placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--app-muted);
 }
 
 .tour-stop-card__index {
@@ -298,6 +323,10 @@
     }
 
     .tour-stop-card {
+        grid-template-columns: 1fr;
+    }
+
+    .tour-catalog-card {
         grid-template-columns: 1fr;
     }
 

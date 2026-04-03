@@ -50,6 +50,7 @@ builder.Services.AddScoped<TourRoutePlanningService>();
 builder.Services.AddSingleton<AdminSessionTokenService>();
 builder.Services.AddScoped<AdminRequestAuthorizationService>();
 builder.Services.AddScoped<ChangeRequestWorkflowService>();
+builder.Services.AddScoped<ActivityLogService>();
 
 builder.Services.AddCors(options =>
 {

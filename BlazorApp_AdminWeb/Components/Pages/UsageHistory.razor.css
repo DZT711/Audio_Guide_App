@@ -10,3 +10,19 @@
 .usage-table td:first-child {
     min-width: 9rem;
 }
+
+.usage-avatar {
+    width: 4rem;
+    height: 3rem;
+    object-fit: cover;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(248, 250, 252, 0.94);
+}
+
+.usage-avatar--placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--app-muted);
+}

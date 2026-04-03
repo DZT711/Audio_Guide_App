@@ -15,7 +15,8 @@ public class AudioController(
     DBContext context,
     SharedAudioFileStorageService audioStorage,
     TtsPreviewService ttsPreviewService,
-    AdminRequestAuthorizationService authService) : ControllerBase
+    AdminRequestAuthorizationService authService,
+    ActivityLogService activityLogService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAllAudio()
@@ -190,6 +191,14 @@ public class AudioController(
 
         context.AudioContents.Add(audio);
         await context.SaveChangesAsync(cancellationToken);
+        await activityLogService.LogAsync(
+            access.User!,
+            "Create",
+            "Audio",
+            audio.AudioId,
+            audio.Title,
+            $"Created audio '{audio.Title}' for '{location.Name}'.",
+            cancellationToken);
 
         var savedAudio = await BuildAudioQuery(access.User!)
             .FirstAsync(item => item.AudioId == audio.AudioId, cancellationToken);
@@ -297,6 +306,14 @@ public class AudioController(
         audio.UpdatedAt = DateTime.UtcNow;
 
         await context.SaveChangesAsync(cancellationToken);
+        await activityLogService.LogAsync(
+            access.User!,
+            "Edit",
+            "Audio",
+            audio.AudioId,
+            audio.Title,
+            $"Updated audio '{audio.Title}' for '{location.Name}'.",
+            cancellationToken);
 
         return Ok(new ApiMessageResponse { Message = "Audio updated successfully." });
     }
@@ -327,6 +344,13 @@ public class AudioController(
         audio.Status = 0;
         audio.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        await activityLogService.LogAsync(
+            access.User!,
+            "Delete",
+            "Audio",
+            audio.AudioId,
+            audio.Title,
+            $"Archived audio '{audio.Title}'.");
 
         return Ok(new ApiMessageResponse { Message = "Audio archived successfully." });
     }

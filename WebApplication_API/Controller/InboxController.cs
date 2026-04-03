@@ -11,7 +11,8 @@ namespace WebApplication_API.Controller;
 public class InboxController(
     DBContext context,
     AdminRequestAuthorizationService authService,
-    ChangeRequestWorkflowService workflowService) : ControllerBase
+    ChangeRequestWorkflowService workflowService,
+    ActivityLogService activityLogService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetInbox([FromQuery] InboxQueryDto query, CancellationToken cancellationToken)
@@ -56,6 +57,14 @@ public class InboxController(
         }
 
         await workflowService.BroadcastAnnouncementAsync(access.User!, request, cancellationToken);
+        await activityLogService.LogAsync(
+            access.User!,
+            "Create",
+            "Announcement",
+            null,
+            request.Title,
+            $"Broadcast system announcement '{request.Title}'.",
+            cancellationToken);
         return Ok(new ApiMessageResponse { Message = "System announcement sent to every inbox." });
     }
 }

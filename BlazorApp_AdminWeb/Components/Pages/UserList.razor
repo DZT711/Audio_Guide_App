@@ -178,7 +178,7 @@ else
             <span class="users-table-card__count users-editor-card__count">@GetEditorSubtitle()</span>
         </div>
 
-        <EditForm Model="_formModel" OnValidSubmit="SaveUserAsync" class="management-form users-editor-form">
+        <EditForm Model="_formModel" OnValidSubmit="SaveUserAsync" OnInvalidSubmit="HandleInvalidUserSubmit" class="management-form users-editor-form">
             <DataAnnotationsValidator />
 
             <div class="management-form__grid users-editor-form__grid">
@@ -452,6 +452,21 @@ else
         {
             _isSaving = false;
         }
+    }
+
+    private void HandleInvalidUserSubmit(EditContext editContext)
+    {
+        var message = editContext.GetValidationMessages()
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.Ordinal)
+            .Take(3)
+            .ToList();
+
+        Notifications.Warning(
+            message.Count == 0
+                ? "Fix the highlighted user fields before saving."
+                : string.Join(" ", message),
+            "User form incomplete");
     }
 
     private void PromptUserStatusChange(DashboardUserDto user)

@@ -56,7 +56,9 @@ public sealed class ChangeRequestDto
     public DateTime SubmittedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
     public LocationDto? Location { get; init; }
+    public LocationDto? LiveLocation { get; init; }
     public AudioDto? Audio { get; init; }
+    public AudioDto? LiveAudio { get; init; }
 }
 
 public sealed class ChangeRequestListDto

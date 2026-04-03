@@ -7,16 +7,16 @@ test vetnamese voice,✅
 add  img avatar location store them into proj lib, ✅
 add language category for voice ? code CRUD api for those too✅
 admin role owner acc link to owner table for only show their data/audio/location to CRUD on admin site✅
-manage geofencing auto dispay audio area in mobile
 dashboard static✅
 user manage & set role for user✅
-<!-- dropdown select for ward, district,city in VN✅ -->
-improve user request details
-notification user when wrong/no input in add/edit form
-add preference img
-fix allow user upload each file in queue not replacing other file
-edit img file cant save
-seperate preference img for each poi by add new field in db and add new required img upload for that field
+manage geofencing auto display audio area in mobile
+<!-- dropdown select for ward, district,city in VN ✅ -->
+improve user requesting admin/dev can view details what they doing
+notification user when wrong/no input in add/edit form✅
+add preference img for poi✅
+fix allow user upload each file in queue not replacing other file✅
+edit img file in  edit form while user add multiple img cant save
+seperate preference img for each poi by add new field in db and add new required img label upload for that field still create data into location image table but auto set that pic the sortOrder to 1 ✅
 when click play on audio poi ,show a list of audio file if have more than 1 file and play the one user choose than separate audio file by language and file/tts
 real static for all information in dashboard page
 decorate dashboard page with more info and make it more user friendly
@@ -31,12 +31,16 @@ button that open/collapse broadcast feature in inbox admin page
 align all heatmap button funcion in 1 line
 motivation effect for changing page in admin site
 motivation/skeletion effect for changing pagination dataset in admin site
-hide page bar in pop up create/edit tour form
+hide page bar in pop up create/edit tour form,view requesting user info in admin site,view request details in admin site
 effect in pop up create/edit tour form
 poi avatar img in tour form modal
 pagination for poi dataset in tour form modal
-history log for for all user interacting with system (create/edit/delete) and show in admin site (admin/dev view only)
+history log tab for for all user interacting with system (create/edit/delete) and show in admin site (admin/dev view only)
 add location filter in audio site
+show preference poi field img in location list
+show preference poi img in statistics/usage page
+add icon for category
+style again for reuqest detail view in admin site/ tour modal
 
 ## (extend task)-MVP
 

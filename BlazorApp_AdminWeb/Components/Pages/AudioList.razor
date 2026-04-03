@@ -3,6 +3,7 @@
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Forms
 @inject AdminSessionState SessionState
 
 <PageTitle>Audio & Voice Management</PageTitle>
@@ -185,7 +186,7 @@ else
 
             @if (CanEditContent)
             {
-            <EditForm Model="_formModel" OnValidSubmit="SaveAudioAsync" class="management-form">
+            <EditForm Model="_formModel" OnValidSubmit="SaveAudioAsync" OnInvalidSubmit="HandleInvalidAudioSubmit" class="management-form">
                 <DataAnnotationsValidator />
 
                 <div class="management-form__grid">
@@ -786,6 +787,21 @@ else
         {
             _isSaving = false;
         }
+    }
+
+    private void HandleInvalidAudioSubmit(EditContext editContext)
+    {
+        var message = editContext.GetValidationMessages()
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.Ordinal)
+            .Take(3)
+            .ToList();
+
+        Notifications.Warning(
+            message.Count == 0
+                ? "Fix the highlighted audio fields before saving."
+                : string.Join(" ", message),
+            "Audio form incomplete");
     }
 
     private void PromptArchiveAudio(AudioDto audio)

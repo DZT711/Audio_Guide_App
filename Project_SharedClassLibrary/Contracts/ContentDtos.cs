@@ -39,6 +39,7 @@ public sealed class LocationDto
     public int DebounceSeconds { get; init; }
     public bool IsGpsTriggerEnabled { get; init; }
     public string? Address { get; init; }
+    public string? PreferenceImageUrl { get; init; }
     public string? CoverImageUrl { get; init; }
     public IReadOnlyList<string> ImageUrls { get; init; } = [];
     public string? WebURL { get; init; }
@@ -88,6 +89,7 @@ public sealed class TourStopDto
     public string? OwnerName { get; init; }
     public string Category { get; init; } = "";
     public string? Address { get; init; }
+    public string? PreferenceImageUrl { get; init; }
     public double Latitude { get; init; }
     public double Longitude { get; init; }
     public int SequenceOrder { get; init; }
@@ -204,6 +206,7 @@ public sealed class UsageHistoryItemDto
     public int Id { get; init; }
     public int? LocationId { get; init; }
     public string LocationName { get; init; } = "";
+    public string? PreferenceImageUrl { get; init; }
     public int? OwnerId { get; init; }
     public string? OwnerName { get; init; }
     public int? AudioId { get; init; }

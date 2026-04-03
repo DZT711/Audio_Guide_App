@@ -18,6 +18,7 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
     public DbSet<LocationTrackingEvent> LocationTrackingEvents => Set<LocationTrackingEvent>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
+    public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -190,6 +191,21 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.HasOne(item => item.RelatedRequest)
                 .WithMany(item => item.InboxMessages)
                 .HasForeignKey(item => item.RelatedRequestId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ActivityLog>(entity =>
+        {
+            entity.ToTable("ActivityLogs");
+            entity.HasKey(item => item.ActivityLogId);
+            entity.HasIndex(item => item.CreatedAt);
+            entity.HasIndex(item => new { item.ActionType, item.CreatedAt });
+            entity.HasIndex(item => new { item.EntityType, item.CreatedAt });
+            entity.HasIndex(item => new { item.UserId, item.CreatedAt });
+
+            entity.HasOne(item => item.User)
+                .WithMany(item => item.ActivityLogs)
+                .HasForeignKey(item => item.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
     }

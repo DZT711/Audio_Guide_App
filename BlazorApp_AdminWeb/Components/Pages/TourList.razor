@@ -1,6 +1,7 @@
 @page "/tours"
 @using Project_SharedClassLibrary.Constants
 @using System.Globalization
+@using Microsoft.AspNetCore.Components.Forms
 @implements IAsyncDisposable
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
@@ -197,6 +198,18 @@ else
                         {
                             <article class="tour-stop-card">
                                 <div class="tour-stop-card__index">@stop.SequenceOrder</div>
+                                <div class="tour-stop-card__media">
+                                    @if (GetStopAvatarUrl(stop) is { } stopAvatarUrl)
+                                    {
+                                        <img class="tour-stop-card__avatar" src="@stopAvatarUrl" alt="@($"{stop.LocationName} avatar")" />
+                                    }
+                                    else
+                                    {
+                                        <span class="tour-stop-card__avatar tour-stop-card__avatar--placeholder">
+                                            <i class="bi bi-image"></i>
+                                        </span>
+                                    }
+                                </div>
                                 <div class="tour-stop-card__body">
                                     <div class="tour-stop-card__top">
                                         <strong>@stop.LocationName</strong>
@@ -230,7 +243,7 @@ else
                 <button type="button" class="btn-close" aria-label="Close planner" @onclick="CancelEditAsync"></button>
             </div>
 
-            <EditForm Model="_formModel" OnValidSubmit="SaveTourAsync" class="management-form">
+            <EditForm Model="_formModel" OnValidSubmit="SaveTourAsync" OnInvalidSubmit="HandleInvalidTourSubmit" class="management-form">
                 <DataAnnotationsValidator />
 
                 <div class="management-form__grid">
@@ -330,6 +343,18 @@ else
                                     {
                                         var isSelected = _formModel.StopLocationIds.Contains(location.Id);
                                         <article class="tour-catalog-card">
+                                            <div class="tour-catalog-card__media">
+                                                @if (GetLocationAvatarUrl(location) is { } avatarUrl)
+                                                {
+                                                    <img class="tour-catalog-card__avatar" src="@avatarUrl" alt="@($"{location.Name} avatar")" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="tour-catalog-card__avatar tour-catalog-card__avatar--placeholder">
+                                                        <i class="bi bi-image"></i>
+                                                    </span>
+                                                }
+                                            </div>
                                             <div>
                                                 <strong>@location.Name</strong>
                                                 <div class="management-muted">@(location.OwnerName ?? "No owner")</div>
@@ -362,6 +387,18 @@ else
                                             var stop = SelectedStopLocations[currentIndex];
                                             <article class="tour-stop-card" @key="stop.Id">
                                                 <div class="tour-stop-card__index">@(currentIndex + 1)</div>
+                                                <div class="tour-stop-card__media">
+                                                    @if (GetLocationAvatarUrl(stop) is { } stopAvatarUrl)
+                                                    {
+                                                        <img class="tour-stop-card__avatar" src="@stopAvatarUrl" alt="@($"{stop.Name} avatar")" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="tour-stop-card__avatar tour-stop-card__avatar--placeholder">
+                                                            <i class="bi bi-image"></i>
+                                                        </span>
+                                                    }
+                                                </div>
                                                 <div class="tour-stop-card__body">
                                                     <div class="tour-stop-card__top">
                                                         <strong>@stop.Name</strong>
@@ -419,6 +456,7 @@ else
     private bool _isEditorOpen;
     private bool _isRoutePreviewLoading;
     private bool _mapSyncPending;
+    private bool? _bodyScrollLockState;
     private int? _editingId;
     private string _searchText = "";
     private string _selectedStatus = "";
@@ -491,6 +529,11 @@ else
         {
             _mapSyncPending = false;
             await SyncMapAsync();
+        }
+
+        if (CanManage && _bodyScrollLockState != _isEditorOpen)
+        {
+            await SyncBodyScrollLockAsync(_isEditorOpen);
         }
     }
 
@@ -567,6 +610,21 @@ else
         }
     }
 
+    private async Task SyncBodyScrollLockAsync(bool isLocked)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", isLocked);
+            _bodyScrollLockState = isLocked;
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+
     private async Task RefreshAsync() => await LoadDataAsync(_selectedTour?.Id);
 
     private async Task RefitMapAsync()
@@ -638,6 +696,21 @@ else
         {
             _isSaving = false;
         }
+    }
+
+    private void HandleInvalidTourSubmit(EditContext editContext)
+    {
+        var message = editContext.GetValidationMessages()
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.Ordinal)
+            .Take(3)
+            .ToList();
+
+        Notifications.Warning(
+            message.Count == 0
+                ? "Fix the highlighted tour fields before saving."
+                : string.Join(" ", message),
+            "Tour form incomplete");
     }
 
     private void PromptArchiveTour(TourDto tour)
@@ -1077,6 +1150,16 @@ else
 
     private LocationDto? GetLocationById(int locationId) => _locations.FirstOrDefault(item => item.Id == locationId);
 
+    private string? GetLocationAvatarUrl(LocationDto? location) =>
+        location is null
+            ? null
+            : ApiClient.ResolveImageUrl(location.PreferenceImageUrl ?? location.CoverImageUrl);
+
+    private string? GetStopAvatarUrl(TourStopDto? stop) =>
+        stop is null
+            ? null
+            : ApiClient.ResolveImageUrl(stop.PreferenceImageUrl);
+
     private void QueueMapSync() => _mapSyncPending = CanManage;
 
     private string GetPendingArchiveTourMessage() =>
@@ -1264,6 +1347,11 @@ else
 
         try
         {
+            if (_bodyScrollLockState == true)
+            {
+                await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", false);
+            }
+
             if (CanManage)
             {
                 await JS.InvokeVoidAsync("smartTourAdmin.map.disposeTourPlanner", _mapElement);

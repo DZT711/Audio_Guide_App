@@ -155,6 +155,7 @@ public class StatisticsController(
                 {
                     LocationId = item.LocationId,
                     Name = item.Name,
+                    PreferenceImageUrl = item.PreferenceImageUrl,
                     OwnerName = item.Owner?.FullName ?? item.Owner?.Username,
                     Ward = wardLookup[item.LocationId],
                     Latitude = item.Latitude,
@@ -556,6 +557,7 @@ public class StatisticsController(
                 {
                     LocationId = group.Key,
                     LocationName = location?.Name ?? "Unknown location",
+                    PreferenceImageUrl = location?.PreferenceImageUrl,
                     OwnerName = location?.Owner?.FullName ?? location?.Owner?.Username,
                     Ward = wardLookup.TryGetValue(group.Key, out var ward) ? ward : "Unassigned",
                     PlayCount = group.Count(),
@@ -606,6 +608,7 @@ public class StatisticsController(
                 {
                     LocationId = group.Key,
                     LocationName = location?.Name ?? "Unknown location",
+                    PreferenceImageUrl = location?.PreferenceImageUrl,
                     OwnerName = location?.Owner?.FullName ?? location?.Owner?.Username,
                     Ward = wardLookup.TryGetValue(group.Key, out var ward) ? ward : "Unassigned",
                     PlayCount = group.Count(item => IsPlayCountEvent(item.EventType)),

@@ -107,6 +107,13 @@
                     <span class="sidebar-link__text">Moderation</span>
                 </NavLink>
             }
+            @if (SessionState.HasPermission(AdminPermissions.ActivityLogView))
+            {
+                <NavLink class="sidebar-link" href="/history" title="Activity History" aria-label="Activity History" @attributes="GetDismissAttributes()">
+                    <i class="bi bi-clock-history"></i>
+                    <span class="sidebar-link__text">Activity History</span>
+                </NavLink>
+            }
         </div>
     }
 
@@ -167,7 +174,8 @@
 
     private bool CanViewAdminSection =>
         SessionState.HasPermission(AdminPermissions.UserRead)
-        || SessionState.HasPermission(AdminPermissions.ModerationView);
+        || SessionState.HasPermission(AdminPermissions.ModerationView)
+        || SessionState.HasPermission(AdminPermissions.ActivityLogView);
 
     private void HandleSessionChanged() => _ = RefreshForSessionAsync();
 

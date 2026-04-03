@@ -17,6 +17,67 @@ namespace WebApplication_API.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.5");
 
+            modelBuilder.Entity("WebApplication_API.Model.ActivityLog", b =>
+                {
+                    b.Property<int>("ActivityLogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("EntityId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EntityName")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FullName")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ActivityLogId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("ActionType", "CreatedAt");
+
+                    b.HasIndex("EntityType", "CreatedAt");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("ActivityLogs", (string)null);
+                });
+
             modelBuilder.Entity("WebApplication_API.Model.Audio", b =>
                 {
                     b.Property<int>("AudioId")
@@ -402,6 +463,10 @@ namespace WebApplication_API.Data.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PreferenceImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Priority")
                         .HasColumnType("INTEGER");
 
@@ -638,6 +703,16 @@ namespace WebApplication_API.Data.Migrations
                     b.ToTable("TourLocations", (string)null);
                 });
 
+            modelBuilder.Entity("WebApplication_API.Model.ActivityLog", b =>
+                {
+                    b.HasOne("WebApplication_API.Model.DashboardUser", "User")
+                        .WithMany("ActivityLogs")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("WebApplication_API.Model.Audio", b =>
                 {
                     b.HasOne("WebApplication_API.Model.Location", "Location")
@@ -769,6 +844,8 @@ namespace WebApplication_API.Data.Migrations
 
             modelBuilder.Entity("WebApplication_API.Model.DashboardUser", b =>
                 {
+                    b.Navigation("ActivityLogs");
+
                     b.Navigation("ChangeRequests");
 
                     b.Navigation("InboxMessages");

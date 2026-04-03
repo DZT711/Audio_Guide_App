@@ -14,7 +14,8 @@ namespace WebApplication_API.Controller;
 public class LocationController(
     DBContext context,
     SharedImageFileStorageService imageStorage,
-    AdminRequestAuthorizationService authService) : ControllerBase
+    AdminRequestAuthorizationService authService,
+    ActivityLogService activityLogService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAllLocations()
@@ -81,6 +82,7 @@ public class LocationController(
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateLocation(
         [FromForm] LocationUpsertRequest request,
+        [FromForm(Name = "PreferenceImageFile")] IFormFile? preferenceImageFile,
         [FromForm(Name = "ImageFiles")] List<IFormFile>? imageFiles,
         CancellationToken cancellationToken)
     {
@@ -95,7 +97,7 @@ public class LocationController(
             return ValidationProblem(ModelState);
         }
 
-        var invalidImageFileName = GetInvalidImageFileName(imageFiles);
+        var invalidImageFileName = GetInvalidImageFileName(preferenceImageFile, imageFiles);
         if (!string.IsNullOrWhiteSpace(invalidImageFileName))
         {
             return BadRequest(new { message = $"'{invalidImageFileName}' is not a supported image file." });
@@ -117,6 +119,14 @@ public class LocationController(
         {
             return NotFound(new { message = "Owner account not found." });
         }
+
+        var preferenceImageUrl = await SavePreferenceImageAsync(preferenceImageFile, request.Name, cancellationToken);
+        if (string.IsNullOrWhiteSpace(preferenceImageUrl))
+        {
+            return BadRequest(new { message = "Upload a preference image before creating a POI." });
+        }
+
+        var uploadedGalleryImageUrls = await SaveImagesAsync(imageFiles, request.Name, startSortOrder: 2, cancellationToken);
 
         var location = new Location
         {
@@ -143,10 +153,23 @@ public class LocationController(
         context.Locations.Add(location);
         await context.SaveChangesAsync(cancellationToken);
 
-        await AddImagesAsync(location, imageFiles, cancellationToken);
+        await SyncLocationImagesAsync(
+            location,
+            preferenceImageUrl,
+            BuildDesiredImageUrls(preferenceImageUrl, [], uploadedGalleryImageUrls),
+            cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
 
         var savedLocation = await BuildLocationQuery(access.User!)
             .FirstAsync(item => item.LocationId == location.LocationId, cancellationToken);
+        await activityLogService.LogAsync(
+            access.User!,
+            "Create",
+            "POI",
+            location.LocationId,
+            location.Name,
+            $"Created POI '{location.Name}'.",
+            cancellationToken);
 
         return CreatedAtAction(nameof(GetLocationById), new { id = location.LocationId }, savedLocation.ToDto());
     }
@@ -156,6 +179,7 @@ public class LocationController(
     public async Task<IActionResult> UpdateLocation(
         int id,
         [FromForm] LocationUpsertRequest request,
+        [FromForm(Name = "PreferenceImageFile")] IFormFile? preferenceImageFile,
         [FromForm(Name = "ImageFiles")] List<IFormFile>? imageFiles,
         CancellationToken cancellationToken)
     {
@@ -170,13 +194,15 @@ public class LocationController(
             return ValidationProblem(ModelState);
         }
 
-        var invalidImageFileName = GetInvalidImageFileName(imageFiles);
+        var invalidImageFileName = GetInvalidImageFileName(preferenceImageFile, imageFiles);
         if (!string.IsNullOrWhiteSpace(invalidImageFileName))
         {
             return BadRequest(new { message = $"'{invalidImageFileName}' is not a supported image file." });
         }
 
-        var location = await context.Locations.FirstOrDefaultAsync(item => item.LocationId == id, cancellationToken);
+        var location = await context.Locations
+            .Include(item => item.Images)
+            .FirstOrDefaultAsync(item => item.LocationId == id, cancellationToken);
         if (location is null)
         {
             return NotFound(new { message = "Location not found." });
@@ -223,9 +249,63 @@ public class LocationController(
         location.Status = request.Status;
         location.UpdatedAt = DateTime.UtcNow;
 
+        var currentImageSet = location.Images
+            .Select(item => NormalizeImagePath(item.ImageUrl))
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var currentPreferenceImageUrl = ResolvePreferenceImageUrl(location);
+        var retainedGalleryImageUrls = request.RetainedImageUrls
+            .Select(NormalizeImagePath)
+            .Where(item => !string.IsNullOrWhiteSpace(item) && currentImageSet.Contains(item))
+            .Cast<string>()
+            .ToList();
+
+        var retainedPreferenceImageUrl = NormalizeImagePath(request.RetainedPreferenceImageUrl);
+        if (!string.IsNullOrWhiteSpace(currentPreferenceImageUrl)
+            && string.IsNullOrWhiteSpace(retainedPreferenceImageUrl)
+            && retainedGalleryImageUrls.RemoveAll(item => string.Equals(item, currentPreferenceImageUrl, StringComparison.OrdinalIgnoreCase)) > 0)
+        {
+            retainedPreferenceImageUrl = currentPreferenceImageUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(retainedPreferenceImageUrl)
+            && !string.Equals(retainedPreferenceImageUrl, currentPreferenceImageUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            retainedPreferenceImageUrl = null;
+        }
+
+        var nextPreferenceImageUrl = await SavePreferenceImageAsync(preferenceImageFile, request.Name, cancellationToken)
+            ?? retainedPreferenceImageUrl;
+
+        if (string.IsNullOrWhiteSpace(nextPreferenceImageUrl))
+        {
+            return BadRequest(new { message = "Upload a preference image before saving this POI." });
+        }
+
+        var uploadedGalleryImageUrls = await SaveImagesAsync(
+            imageFiles,
+            request.Name,
+            startSortOrder: retainedGalleryImageUrls.Count + 2,
+            cancellationToken);
+
+        var removedImageUrls = await SyncLocationImagesAsync(
+            location,
+            nextPreferenceImageUrl,
+            BuildDesiredImageUrls(nextPreferenceImageUrl, retainedGalleryImageUrls, uploadedGalleryImageUrls),
+            cancellationToken);
+
         await context.SaveChangesAsync(cancellationToken);
-        await SyncExistingImagesAsync(location, request.RetainedImageUrls, cancellationToken);
-        await AddImagesAsync(location, imageFiles, cancellationToken);
+        DeleteManagedImages(removedImageUrls);
+        await activityLogService.LogAsync(
+            access.User!,
+            "Edit",
+            "POI",
+            location.LocationId,
+            location.Name,
+            $"Updated POI '{location.Name}'.",
+            cancellationToken);
         return Ok(new ApiMessageResponse { Message = "Location updated successfully." });
     }
 
@@ -252,6 +332,13 @@ public class LocationController(
         location.Status = 0;
         location.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        await activityLogService.LogAsync(
+            access.User!,
+            "Delete",
+            "POI",
+            location.LocationId,
+            location.Name,
+            $"Archived POI '{location.Name}'.");
 
         return Ok(new ApiMessageResponse { Message = "Location archived successfully." });
     }
@@ -286,11 +373,29 @@ public class LocationController(
         return owner?.UserId;
     }
 
-    private async Task AddImagesAsync(Location location, IEnumerable<IFormFile>? imageFiles, CancellationToken cancellationToken)
+    private async Task<string?> SavePreferenceImageAsync(
+        IFormFile? preferenceImageFile,
+        string locationName,
+        CancellationToken cancellationToken)
+    {
+        if (preferenceImageFile is null || preferenceImageFile.Length <= 0)
+        {
+            return null;
+        }
+
+        var publicPath = await imageStorage.SaveImageAsync(preferenceImageFile, locationName, 1, cancellationToken);
+        return NormalizeImagePath(publicPath) ?? publicPath;
+    }
+
+    private async Task<List<string>> SaveImagesAsync(
+        IEnumerable<IFormFile>? imageFiles,
+        string locationName,
+        int startSortOrder,
+        CancellationToken cancellationToken)
     {
         if (imageFiles is null)
         {
-            return;
+            return [];
         }
 
         var files = imageFiles
@@ -299,66 +404,131 @@ public class LocationController(
 
         if (files.Count == 0)
         {
-            return;
+            return [];
         }
 
-        var currentSortOrder = await context.LocationImages
-            .Where(item => item.LocationId == location.LocationId)
-            .Select(item => (int?)item.SortOrder)
-            .MaxAsync(cancellationToken) ?? -1;
-
-        foreach (var file in files)
+        var savedPaths = new List<string>(files.Count);
+        for (var index = 0; index < files.Count; index++)
         {
-            currentSortOrder++;
-            var publicPath = await imageStorage.SaveImageAsync(file, location.Name, currentSortOrder, cancellationToken);
+            var publicPath = await imageStorage.SaveImageAsync(files[index], locationName, startSortOrder + index, cancellationToken);
+            savedPaths.Add(NormalizeImagePath(publicPath) ?? publicPath);
+        }
+
+        return savedPaths;
+    }
+
+    private async Task<List<string>> SyncLocationImagesAsync(
+        Location location,
+        string preferenceImageUrl,
+        IReadOnlyList<string> desiredImageUrls,
+        CancellationToken cancellationToken)
+    {
+        var normalizedPreferenceImageUrl = NormalizeImagePath(preferenceImageUrl)
+            ?? throw new InvalidOperationException("A valid preference image is required.");
+
+        var normalizedDesired = desiredImageUrls
+            .Select(NormalizeImagePath)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .Where(item => !string.Equals(item, normalizedPreferenceImageUrl, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        normalizedDesired.Insert(0, normalizedPreferenceImageUrl);
+
+        await context.Entry(location)
+            .Collection(item => item.Images)
+            .LoadAsync(cancellationToken);
+
+        var existingImages = location.Images.ToList();
+        var existingLookup = existingImages.ToDictionary(
+            item => NormalizeImagePath(item.ImageUrl) ?? item.ImageUrl,
+            item => item,
+            StringComparer.OrdinalIgnoreCase);
+
+        var removedImages = existingImages
+            .Where(item => !normalizedDesired.Contains(NormalizeImagePath(item.ImageUrl) ?? item.ImageUrl, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+
+        foreach (var removedImage in removedImages)
+        {
+            context.LocationImages.Remove(removedImage);
+        }
+
+        location.PreferenceImageUrl = normalizedPreferenceImageUrl;
+
+        for (var index = 0; index < normalizedDesired.Count; index++)
+        {
+            var imageUrl = normalizedDesired[index];
+            var sortOrder = index + 1;
+            if (existingLookup.TryGetValue(imageUrl, out var existingImage))
+            {
+                existingImage.SortOrder = sortOrder;
+                continue;
+            }
+
             context.LocationImages.Add(new LocationImage
             {
                 LocationId = location.LocationId,
-                ImageUrl = SharedStoragePaths.NormalizePublicImagePath(publicPath) ?? publicPath,
-                SortOrder = currentSortOrder,
+                ImageUrl = imageUrl,
+                SortOrder = sortOrder,
                 CreatedAt = DateTime.UtcNow
             });
         }
 
-        await context.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task SyncExistingImagesAsync(
-        Location location,
-        IEnumerable<string>? retainedImageUrls,
-        CancellationToken cancellationToken)
-    {
-        var retainedSet = retainedImageUrls?
-            .Select(SharedStoragePaths.NormalizePublicImagePath)
+        return removedImages
+            .Select(item => NormalizeImagePath(item.ImageUrl))
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Cast<string>()
-            .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
-
-        var existingImages = await context.LocationImages
-            .Where(item => item.LocationId == location.LocationId)
-            .ToListAsync(cancellationToken);
-
-        var removedImages = existingImages
-            .Where(item => !retainedSet.Contains(SharedStoragePaths.NormalizePublicImagePath(item.ImageUrl) ?? item.ImageUrl))
             .ToList();
-
-        if (removedImages.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var removedImage in removedImages)
-        {
-            imageStorage.DeleteIfManaged(removedImage.ImageUrl);
-        }
-
-        context.LocationImages.RemoveRange(removedImages);
-        await context.SaveChangesAsync(cancellationToken);
     }
 
-    private static string? GetInvalidImageFileName(IEnumerable<IFormFile>? imageFiles) =>
-        imageFiles?
-            .Where(item => item is not null && item.Length > 0)
+    private static IReadOnlyList<string> BuildDesiredImageUrls(
+        string preferenceImageUrl,
+        IEnumerable<string>? retainedGalleryImageUrls,
+        IEnumerable<string>? uploadedGalleryImageUrls)
+    {
+        var normalizedPreferenceImageUrl = NormalizeImagePath(preferenceImageUrl)
+            ?? throw new InvalidOperationException("A valid preference image is required.");
+
+        return new[] { normalizedPreferenceImageUrl }
+            .Concat(retainedGalleryImageUrls ?? [])
+            .Concat(uploadedGalleryImageUrls ?? [])
+            .Select(NormalizeImagePath)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .Where(item => !string.Equals(item, normalizedPreferenceImageUrl, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Prepend(normalizedPreferenceImageUrl)
+            .ToList();
+    }
+
+    private static string? ResolvePreferenceImageUrl(Location location) =>
+        NormalizeImagePath(location.PreferenceImageUrl)
+        ?? location.Images
+            .OrderBy(item => item.SortOrder)
+            .ThenBy(item => item.ImageId)
+            .Select(item => NormalizeImagePath(item.ImageUrl))
+            .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item));
+
+    private void DeleteManagedImages(IEnumerable<string> imageUrls)
+    {
+        foreach (var imageUrl in imageUrls
+                     .Where(item => !string.IsNullOrWhiteSpace(item))
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            imageStorage.DeleteIfManaged(imageUrl);
+        }
+    }
+
+    private static string? GetInvalidImageFileName(IFormFile? preferenceImageFile, IEnumerable<IFormFile>? imageFiles) =>
+        new[] { preferenceImageFile }
+            .OfType<IFormFile>()
+            .Where(item => item.Length > 0)
+            .Concat(imageFiles?
+                .OfType<IFormFile>()
+                .Where(item => item.Length > 0)
+                ?? [])
             .FirstOrDefault(item => !IsSupportedImageFile(item))
             ?.FileName;
 
@@ -385,4 +555,7 @@ public class LocationController(
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string? NormalizeImagePath(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : SharedStoragePaths.NormalizePublicImagePath(value);
 }

@@ -169,19 +169,19 @@ else
                                                             <span><i class="bi bi-bezier2"></i> Selected route</span>
                                                             <span><i class="bi bi-geo-alt-fill"></i> POIs</span>
                                                         </div>
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-outline-secondary statistics-panel__expand"
-                                                                @onclick="ToggleHeatmapExpandedAsync"
-                                                                aria-expanded="@_isHeatmapExpanded"
-                                                                aria-label="@(_isHeatmapExpanded ? "Close full heatmap view" : "Open heatmap in full view")">
-                                                            <i class="@(_isHeatmapExpanded ? "bi bi-fullscreen-exit" : "bi bi-arrows-fullscreen")"></i>
-                                                            @(_isHeatmapExpanded ? "Close full view" : "Full view")
-                                                        </button>
                                                     </div>
                                                 </div>
 
                                                 <div class="statistics-map-tools">
                                                     <div class="statistics-map-tools__actions">
+                                                        <button type="button"
+                                                                class="btn btn-outline-secondary btn-sm statistics-panel__expand"
+                                                                @onclick="ToggleHeatmapExpandedAsync"
+                                                                aria-expanded="@_isHeatmapExpanded"
+                                                                aria-label="@(_isHeatmapExpanded ? "Close full heatmap view" : "Open heatmap in full view")">
+                                                            <i class="@(_isHeatmapExpanded ? "bi bi-fullscreen-exit" : "bi bi-arrows-fullscreen") me-1"></i>
+                                                            @(_isHeatmapExpanded ? "Close full view" : "Full view")
+                                                        </button>
                                                         <button type="button"
                                                                 class="btn btn-outline-secondary btn-sm"
                                                                 @onclick="ToggleCurrentLocationTrackingAsync"
@@ -423,6 +423,7 @@ else
                                                                         <table class="table management-table">
                                                                             <thead>
                                                                                 <tr>
+                                                                                    <th>Avatar</th>
                                                                                     <th>POI</th>
                                                                                     <th>Ward</th>
                                                                                     <th>Plays</th>
@@ -434,6 +435,18 @@ else
                                                                                 @foreach (var row in _overview.TopPoisByPlayCount)
                                                                                 {
                                                                                     <tr>
+                                                                                        <td>
+                                                                                            @if (GetPoiImageUrl(row.PreferenceImageUrl) is { } imageUrl)
+                                                                                            {
+                                                                                                <img class="statistics-poi-avatar" src="@imageUrl" alt="@($"{row.LocationName} avatar")" />
+                                                                                            }
+                                                                                            else
+                                                                                            {
+                                                                                                <span class="statistics-poi-avatar statistics-poi-avatar--placeholder">
+                                                                                                    <i class="bi bi-image"></i>
+                                                                                                </span>
+                                                                                            }
+                                                                                        </td>
                                                                                         <td>
                                                                                             <div>@row.LocationName</div>
                                                                                             <small class="management-muted">@(row.OwnerName ?? "No owner")</small>
@@ -467,6 +480,7 @@ else
                                                                         <table class="table management-table">
                                                                             <thead>
                                                                                 <tr>
+                                                                                    <th>Avatar</th>
                                                                                     <th>POI</th>
                                                                                     <th>Ward</th>
                                                                                     <th>Avg Listening</th>
@@ -478,6 +492,18 @@ else
                                                                                 @foreach (var row in _overview.AverageListeningByPoi)
                                                                                 {
                                                                                     <tr>
+                                                                                        <td>
+                                                                                            @if (GetPoiImageUrl(row.PreferenceImageUrl) is { } imageUrl)
+                                                                                            {
+                                                                                                <img class="statistics-poi-avatar" src="@imageUrl" alt="@($"{row.LocationName} avatar")" />
+                                                                                            }
+                                                                                            else
+                                                                                            {
+                                                                                                <span class="statistics-poi-avatar statistics-poi-avatar--placeholder">
+                                                                                                    <i class="bi bi-image"></i>
+                                                                                                </span>
+                                                                                            }
+                                                                                        </td>
                                                                                         <td>
                                                                                             <div>@row.LocationName</div>
                                                                                             <small class="management-muted">@JoinItems(row.TourNames)</small>
@@ -802,6 +828,7 @@ StringComparison.OrdinalIgnoreCase))
     private static string JoinItems(IReadOnlyList<string> items) => items.Count == 0 ? "No linked content" : string.Join(", ", items);
     private static string GetRouteLabel(StatisticsRouteHistoryDto route) => route.SessionId ?? route.DeviceId ??
 route.SessionKey;
+    private string? GetPoiImageUrl(string? imagePath) => ApiClient.ResolveImageUrl(imagePath);
     private static string FormatDistance(double value) => $"{value.ToString("0.00", CultureInfo.InvariantCulture)} km";
     private static string FormatSeconds(double value)
     {

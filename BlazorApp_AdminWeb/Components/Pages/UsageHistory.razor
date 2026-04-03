@@ -68,16 +68,16 @@ else
             <div class="management-toolbar">
                 <label class="management-search">
                     <i class="bi bi-search"></i>
-                    <input class="form-control" type="search" placeholder="Search usage..." @bind="_searchText" @bind:event="oninput" />
+                    <input class="form-control" type="search" placeholder="Search usage..." @bind="_searchText" @bind:event="oninput" @bind:after="ResetUsagePage" />
                 </label>
-                <select class="form-select management-filter" @bind="_selectedLocation">
+                <select class="form-select management-filter" @bind="_selectedLocation" @bind:after="ResetUsagePage">
                     <option value="">All locations</option>
                     @foreach (var locationName in LocationOptions)
                     {
                         <option value="@locationName">@locationName</option>
                     }
                 </select>
-                <select class="form-select management-filter" @bind="_selectedEventType">
+                <select class="form-select management-filter" @bind="_selectedEventType" @bind:after="ResetUsagePage">
                     <option value="">All events</option>
                     @foreach (var eventType in EventTypeOptions)
                     {
@@ -119,6 +119,7 @@ else
                     <thead>
                         <tr>
                             <th>Time</th>
+                            <th>Avatar</th>
                             <th>Location</th>
                             <th>Audio</th>
                             <th>Trigger</th>
@@ -128,12 +129,24 @@ else
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var item in FilteredItems)
+                        @foreach (var item in PagedItems)
                         {
                             <tr>
                                 <td>
                                     <div>@item.EventAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</div>
                                     <small class="management-muted">@item.TimeAgo</small>
+                                </td>
+                                <td>
+                                    @if (GetUsageImageUrl(item) is { } imageUrl)
+                                    {
+                                        <img class="usage-avatar" src="@imageUrl" alt="@($"{item.LocationName} avatar")" />
+                                    }
+                                    else
+                                    {
+                                        <span class="usage-avatar usage-avatar--placeholder">
+                                            <i class="bi bi-image"></i>
+                                        </span>
+                                    }
                                 </td>
                                 <td>
                                     <div>@item.LocationName</div>
@@ -155,6 +168,21 @@ else
                     </tbody>
                 </table>
             </div>
+
+            @if (TotalPages > 1)
+            {
+                <div class="management-pagination">
+                    <span class="management-pagination__info">Page @_currentPage of @TotalPages (@FilteredItems.Count() matching events)</span>
+                    <div class="management-pagination__actions">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousPage" disabled="@(_currentPage <= 1)">
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPage" disabled="@(_currentPage >= TotalPages)">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            }
         }
     </section>
 </div>
@@ -163,10 +191,12 @@ else
 @code {
     private UsageHistoryOverviewDto _overview = new();
     private bool _isLoading = true;
+    private int _currentPage = 1;
     private string _searchText = "";
     private string _selectedLocation = "";
     private string _selectedEventType = "";
     private string? _loadError;
+    private const int PageSize = 12;
 
     private bool CanView => SessionState.HasPermission(AdminPermissions.UsageHistoryView);
     private IEnumerable<UsageHistoryItemDto> FilteredItems => _overview.Items
@@ -184,6 +214,10 @@ else
         .Where(item =>
             string.IsNullOrWhiteSpace(_selectedEventType)
             || string.Equals(item.EventType, _selectedEventType, StringComparison.OrdinalIgnoreCase));
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredItems.Count() / (double)PageSize));
+    private IEnumerable<UsageHistoryItemDto> PagedItems => FilteredItems
+        .Skip((_currentPage - 1) * PageSize)
+        .Take(PageSize);
 
     private IEnumerable<string> LocationOptions => _overview.Items
         .Select(item => item.LocationName)
@@ -219,8 +253,34 @@ else
         finally
         {
             _isLoading = false;
+            _currentPage = Math.Min(_currentPage, TotalPages);
         }
     }
+
+    private void NextPage()
+    {
+        if (_currentPage < TotalPages)
+        {
+            _currentPage++;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (_currentPage > 1)
+        {
+            _currentPage--;
+        }
+    }
+
+    private Task ResetUsagePage()
+    {
+        _currentPage = 1;
+        return Task.CompletedTask;
+    }
+
+    private string? GetUsageImageUrl(UsageHistoryItemDto item) =>
+        ApiClient.ResolveImageUrl(item.PreferenceImageUrl);
 
     private static string FormatListening(int? seconds) =>
         seconds is null or <= 0

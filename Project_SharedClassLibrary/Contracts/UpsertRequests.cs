@@ -87,6 +87,9 @@ public class LocationUpsertRequest
     [StringLength(30)]
     public string? Phone { get; set; }
 
+    [StringLength(500)]
+    public string? RetainedPreferenceImageUrl { get; set; }
+
     public List<string> RetainedImageUrls { get; set; } = [];
 
     [YearRange]

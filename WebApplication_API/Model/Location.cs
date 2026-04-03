@@ -36,6 +36,9 @@ public class Location
     public string? Address { get; set; }
 
     [MaxLength(500)]
+    public string? PreferenceImageUrl { get; set; }
+
+    [MaxLength(500)]
     public string? WebURL { get; set; }
 
     [EmailAddress]

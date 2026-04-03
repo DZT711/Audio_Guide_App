@@ -21,4 +21,5 @@ public static class ApiRoutes
     public const string ChangeRequests = "ChangeRequest";
     public const string Inbox = "Inbox";
     public const string Statistics = "Statistics";
+    public const string ActivityLogs = "ActivityLog";
 }

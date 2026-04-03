@@ -158,7 +158,7 @@ else
 
             @if (CanManage)
             {
-            <EditForm Model="_formModel" OnValidSubmit="SaveCategoryAsync" class="management-form">
+            <EditForm Model="_formModel" OnValidSubmit="SaveCategoryAsync" OnInvalidSubmit="HandleInvalidCategorySubmit" class="management-form">
                 <DataAnnotationsValidator />
 
                 <div class="management-field management-field--full">
@@ -365,6 +365,21 @@ else
         {
             _isSaving = false;
         }
+    }
+
+    private void HandleInvalidCategorySubmit(EditContext editContext)
+    {
+        var message = editContext.GetValidationMessages()
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.Ordinal)
+            .Take(3)
+            .ToList();
+
+        Notifications.Warning(
+            message.Count == 0
+                ? "Fix the highlighted category fields before saving."
+                : string.Join(" ", message),
+            "Category form incomplete");
     }
 
     private void PromptArchiveCategory(CategoryDto category)

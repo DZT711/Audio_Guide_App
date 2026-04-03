@@ -145,13 +145,16 @@ public static class DataExtension
                 {
                     LocationId = location.LocationId,
                     ImageUrl = imagePath,
-                    SortOrder = 0,
+                    SortOrder = 1,
                     CreatedAt = DateTime.UtcNow
                 });
+                location.PreferenceImageUrl = imagePath;
             }
 
             await context.SaveChangesAsync();
         }
+
+        await EnsureLocationPreferenceImagesAsync(context);
 
         if (!await context.AudioContents.AnyAsync())
         {
@@ -536,6 +539,61 @@ public static class DataExtension
             benThanh.Address = "Le Loi Street, Ben Thanh Ward, District 1, Ho Chi Minh City";
             benThanh.UpdatedAt = DateTime.UtcNow;
             hasChanges = true;
+        }
+
+        if (hasChanges)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+
+    private static async Task EnsureLocationPreferenceImagesAsync(DBContext context)
+    {
+        var locations = await context.Locations
+            .Include(item => item.Images)
+            .Where(item => item.Images.Any())
+            .ToListAsync();
+
+        var hasChanges = false;
+        foreach (var location in locations)
+        {
+            var orderedImages = location.Images
+                .OrderBy(item => item.SortOrder)
+                .ThenBy(item => item.ImageId)
+                .ToList();
+
+            if (orderedImages.Count == 0)
+            {
+                continue;
+            }
+
+            var preferenceImageUrl = location.PreferenceImageUrl;
+            if (string.IsNullOrWhiteSpace(preferenceImageUrl)
+                || orderedImages.All(item => !string.Equals(item.ImageUrl, preferenceImageUrl, StringComparison.OrdinalIgnoreCase)))
+            {
+                preferenceImageUrl = orderedImages[0].ImageUrl;
+                location.PreferenceImageUrl = preferenceImageUrl;
+                hasChanges = true;
+            }
+
+            var preferenceImage = orderedImages.FirstOrDefault(item =>
+                string.Equals(item.ImageUrl, preferenceImageUrl, StringComparison.OrdinalIgnoreCase));
+
+            if (preferenceImage is not null)
+            {
+                orderedImages.Remove(preferenceImage);
+                orderedImages.Insert(0, preferenceImage);
+            }
+
+            for (var index = 0; index < orderedImages.Count; index++)
+            {
+                var desiredSortOrder = index + 1;
+                if (orderedImages[index].SortOrder != desiredSortOrder)
+                {
+                    orderedImages[index].SortOrder = desiredSortOrder;
+                    hasChanges = true;
+                }
+            }
         }
 
         if (hasChanges)

@@ -37,6 +37,20 @@
         }
     };
 
+    admin.shell = {
+        setBodyScrollLock: (isLocked) => {
+            const content = document.querySelector(".admin-shell__content");
+
+            document.documentElement.style.overflow = isLocked ? "hidden" : "";
+            document.body.style.overflow = isLocked ? "hidden" : "";
+            document.body.style.touchAction = isLocked ? "none" : "";
+
+            if (content instanceof HTMLElement) {
+                content.style.overflow = isLocked ? "hidden" : "";
+            }
+        }
+    };
+
     admin.mail = {
         composeInvite: async (email, subject, body) => {
             const normalizedEmail = (email ?? "").trim();

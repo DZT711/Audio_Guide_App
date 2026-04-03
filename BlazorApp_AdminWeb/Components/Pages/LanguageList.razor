@@ -169,7 +169,7 @@ else
 
             @if (CanManage)
             {
-            <EditForm Model="_formModel" OnValidSubmit="SaveLanguageAsync" class="management-form">
+            <EditForm Model="_formModel" OnValidSubmit="SaveLanguageAsync" OnInvalidSubmit="HandleInvalidLanguageSubmit" class="management-form">
                 <DataAnnotationsValidator />
 
                 <div class="management-field">
@@ -411,6 +411,21 @@ else
         {
             _isSaving = false;
         }
+    }
+
+    private void HandleInvalidLanguageSubmit(EditContext editContext)
+    {
+        var message = editContext.GetValidationMessages()
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.Ordinal)
+            .Take(3)
+            .ToList();
+
+        Notifications.Warning(
+            message.Count == 0
+                ? "Fix the highlighted language fields before saving."
+                : string.Join(" ", message),
+            "Language form incomplete");
     }
 
     private void PromptArchiveLanguage(LanguageDto language)

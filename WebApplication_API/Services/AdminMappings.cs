@@ -59,8 +59,34 @@ public static class AdminMappings
             Permissions = AdminRolePolicies.GetPermissions(user.Role)
         };
 
-    public static LocationDto ToDto(this Location location) =>
+    public static ActivityLogEntryDto ToDto(this ActivityLog item) =>
         new()
+        {
+            Id = item.ActivityLogId,
+            UserId = item.UserId,
+            UserName = item.UserName,
+            FullName = item.FullName,
+            Role = item.Role,
+            ActionType = item.ActionType,
+            EntityType = item.EntityType,
+            EntityId = item.EntityId,
+            EntityName = item.EntityName,
+            Summary = item.Summary,
+            CreatedAt = item.CreatedAt
+        };
+
+    public static LocationDto ToDto(this Location location)
+    {
+        var orderedImageUrls = location.Images
+            .OrderBy(item => item.SortOrder)
+            .ThenBy(item => item.ImageId)
+            .Select(item => item.ImageUrl)
+            .ToList();
+
+        var preferenceImageUrl = location.PreferenceImageUrl
+            ?? orderedImageUrls.FirstOrDefault();
+
+        return new LocationDto
         {
             Id = location.LocationId,
             CategoryId = location.CategoryId ?? 0,
@@ -77,16 +103,9 @@ public static class AdminMappings
             DebounceSeconds = location.DebounceSeconds,
             IsGpsTriggerEnabled = location.IsGpsTriggerEnabled,
             Address = location.Address,
-            CoverImageUrl = location.Images
-                .OrderBy(item => item.SortOrder)
-                .ThenBy(item => item.ImageId)
-                .Select(item => item.ImageUrl)
-                .FirstOrDefault(),
-            ImageUrls = location.Images
-                .OrderBy(item => item.SortOrder)
-                .ThenBy(item => item.ImageId)
-                .Select(item => item.ImageUrl)
-                .ToList(),
+            PreferenceImageUrl = preferenceImageUrl,
+            CoverImageUrl = preferenceImageUrl,
+            ImageUrls = orderedImageUrls,
             WebURL = location.WebURL,
             Email = location.Email,
             Phone = location.PhoneContact,
@@ -96,6 +115,7 @@ public static class AdminMappings
             CreatedAt = location.CreatedAt,
             UpdatedAt = location.UpdatedAt
         };
+    }
 
     public static AudioDto ToDto(this Audio audio, Language? language = null) =>
         new()
@@ -151,6 +171,12 @@ public static class AdminMappings
                 OwnerName = location.Owner?.FullName ?? location.Owner?.Username,
                 Category = location.Category?.Name ?? "Unassigned",
                 Address = location.Address,
+                PreferenceImageUrl = location.PreferenceImageUrl
+                    ?? location.Images
+                        .OrderBy(item => item.SortOrder)
+                        .ThenBy(item => item.ImageId)
+                        .Select(item => item.ImageUrl)
+                        .FirstOrDefault(),
                 Latitude = location.Latitude,
                 Longitude = location.Longitude,
                 SequenceOrder = stop.SequenceOrder,
@@ -189,6 +215,7 @@ public static class AdminMappings
             Id = playbackEvent.PlaybackEventId,
             LocationId = playbackEvent.LocationId,
             LocationName = playbackEvent.Location?.Name ?? "Unknown location",
+            PreferenceImageUrl = playbackEvent.Location?.PreferenceImageUrl,
             OwnerId = playbackEvent.Location?.OwnerId,
             OwnerName = playbackEvent.Location?.Owner?.FullName ?? playbackEvent.Location?.Owner?.Username,
             AudioId = playbackEvent.AudioId,

@@ -76,27 +76,36 @@ else
                         <h2>System Announcement</h2>
                         <p class="management-muted mb-0">Send one highlighted inbox message to every account, including Admin and Developer users.</p>
                     </div>
-                    <span class="inbox-card__eyebrow">SYSTEM ANNOUNCEMENT</span>
-                </div>
-
-                <div class="management-form__grid inbox-broadcast__grid">
-                    <div class="management-field">
-                        <label for="announcement-title">Highlighted Title</label>
-                        <InputText id="announcement-title" class="form-control" @bind-Value="_announcementTitle" />
-                        <span class="management-field__hint">This title is emphasized in every recipient inbox.</span>
-                    </div>
-
-                    <div class="management-field management-field--full">
-                        <label for="announcement-body">Message</label>
-                        <InputTextArea id="announcement-body" class="form-control" rows="5" @bind-Value="_announcementBody" />
+                    <div class="inbox-broadcast__actions">
+                        <span class="inbox-card__eyebrow">SYSTEM ANNOUNCEMENT</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ToggleBroadcastComposer">
+                            <i class="bi @(_broadcastComposerOpen ? "bi-chevron-up" : "bi-chevron-down") me-1"></i>
+                            @(_broadcastComposerOpen ? "Collapse" : "Open composer")
+                        </button>
                     </div>
                 </div>
 
-                <div class="management-actions">
-                    <button type="button" class="btn btn-primary" disabled="@_isSendingAnnouncement" @onclick="SendAnnouncementAsync">
-                        @(_isSendingAnnouncement ? "Sending..." : "Send Announcement")
-                    </button>
-                </div>
+                @if (_broadcastComposerOpen)
+                {
+                    <div class="management-form__grid inbox-broadcast__grid">
+                        <div class="management-field">
+                            <label for="announcement-title">Highlighted Title</label>
+                            <InputText id="announcement-title" class="form-control" @bind-Value="_announcementTitle" />
+                            <span class="management-field__hint">This title is emphasized in every recipient inbox.</span>
+                        </div>
+
+                        <div class="management-field management-field--full">
+                            <label for="announcement-body">Message</label>
+                            <InputTextArea id="announcement-body" class="form-control" rows="5" @bind-Value="_announcementBody" />
+                        </div>
+                    </div>
+
+                    <div class="management-actions">
+                        <button type="button" class="btn btn-primary" disabled="@_isSendingAnnouncement" @onclick="SendAnnouncementAsync">
+                            @(_isSendingAnnouncement ? "Sending..." : "Send Announcement")
+                        </button>
+                    </div>
+                }
             </div>
         }
 
@@ -206,6 +215,7 @@ else
     private InboxOverviewDto _result = new();
     private bool _isLoading = true;
     private bool _isSendingAnnouncement;
+    private bool _broadcastComposerOpen;
     private bool _unreadOnly;
     private int _currentPage = 1;
     private string _announcementTitle = "";
@@ -221,6 +231,8 @@ else
     }
 
     private async Task RefreshAsync() => await LoadAsync();
+
+    private void ToggleBroadcastComposer() => _broadcastComposerOpen = !_broadcastComposerOpen;
 
     private async Task SetUnreadFilterAsync(bool unreadOnly)
     {

@@ -14,7 +14,8 @@ namespace WebApplication_API.Controller;
 public class TourController(
     DBContext context,
     AdminRequestAuthorizationService authService,
-    TourRoutePlanningService routePlanningService) : ControllerBase
+    TourRoutePlanningService routePlanningService,
+    ActivityLogService activityLogService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetTours()
@@ -152,6 +153,14 @@ public class TourController(
 
         context.Tours.Add(tour);
         await context.SaveChangesAsync(cancellationToken);
+        await activityLogService.LogAsync(
+            access.User!,
+            "Create",
+            "Tour",
+            tour.TourId,
+            tour.Name,
+            $"Created tour '{tour.Name}' with {tour.Stops.Count} stop(s).",
+            cancellationToken);
 
         var savedTour = await BuildTourQuery(access.User!)
             .FirstAsync(item => item.TourId == tour.TourId, cancellationToken);
@@ -264,6 +273,14 @@ public class TourController(
         }
 
         await context.SaveChangesAsync(cancellationToken);
+        await activityLogService.LogAsync(
+            access.User!,
+            "Edit",
+            "Tour",
+            tour.TourId,
+            tour.Name,
+            $"Updated tour '{tour.Name}' with {tour.Stops.Count} stop(s).",
+            cancellationToken);
         return Ok(new ApiMessageResponse { Message = "Tour updated successfully." });
     }
 
@@ -285,6 +302,13 @@ public class TourController(
         tour.Status = 0;
         tour.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        await activityLogService.LogAsync(
+            access.User!,
+            "Delete",
+            "Tour",
+            tour.TourId,
+            tour.Name,
+            $"Archived tour '{tour.Name}'.");
 
         return Ok(new ApiMessageResponse { Message = "Tour archived successfully." });
     }
