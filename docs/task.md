@@ -26,19 +26,19 @@ toggle admin navigation bar in or out smoothly / also add light left/right hight
 add motion effect for pages when user scroll down/up
 add motion effect for static chart
 real static in statistics/usage page
-pagination for usage dataset
-button that open/collapse broadcast feature in inbox admin page
-align all heatmap button funcion in 1 line
+pagination for usage datasetpage✅
+button that open/collapse broadcast feature in inbox admin pagepage✅
+align all heatmap button funcion in 1 line✅
 motivation effect for changing page in admin site
 motivation/skeletion effect for changing pagination dataset in admin site
-hide page bar in pop up create/edit tour form,view requesting user info in admin site,view request details in admin site
+hide slide bar in pop up create/edit tour form,view requesting user info in admin site,view request details in admin site
 effect in pop up create/edit tour form
-poi avatar img in tour form modal
+poi avatar img in tour form modal✅
 pagination for poi dataset in tour form modal
-history log tab for for all user interacting with system (create/edit/delete) and show in admin site (admin/dev view only)
+history log tab for for all user interacting with system (create/edit/delete) and show in admin site (admin/dev view only)✅
 add location filter in audio site
-show preference poi field img in location list
-show preference poi img in statistics/usage page
+show preference poi field img in location list✅
+show preference poi img in statistics/usage page✅
 add icon for category
 style again for reuqest detail view in admin site/ tour modal
 
