@@ -70,6 +70,7 @@ CREATE TABLE Locations (
     Email TEXT,
     PhoneContact TEXT,
     EstablishedYear INTEGER,
+    PreferenceImageUrl TEXT,
     Status INTEGER NOT NULL DEFAULT 1 CHECK (Status IN (0, 1)),
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME,
