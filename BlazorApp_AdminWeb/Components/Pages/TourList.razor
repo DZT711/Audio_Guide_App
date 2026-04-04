@@ -334,37 +334,70 @@ else
                                     </div>
                                     <label class="management-search tour-stop-search">
                                         <i class="bi bi-search"></i>
-                                        <input class="form-control" type="search" placeholder="Search POIs..." @bind="_locationSearchText" @bind:event="oninput" />
+                                        <input class="form-control" type="search" placeholder="Search POIs..." value="@_locationSearchText" @oninput="HandlePlannerSearchInput" />
                                     </label>
                                 </div>
 
-                                <div class="tour-stop-catalog__list">
-                                    @foreach (var location in FilteredPlannerLocations)
-                                    {
-                                        var isSelected = _formModel.StopLocationIds.Contains(location.Id);
-                                        <article class="tour-catalog-card">
-                                            <div class="tour-catalog-card__media">
-                                                @if (GetLocationAvatarUrl(location) is { } avatarUrl)
-                                                {
-                                                    <img class="tour-catalog-card__avatar" src="@avatarUrl" alt="@($"{location.Name} avatar")" />
-                                                }
-                                                else
-                                                {
-                                                    <span class="tour-catalog-card__avatar tour-catalog-card__avatar--placeholder">
-                                                        <i class="bi bi-image"></i>
-                                                    </span>
-                                                }
-                                            </div>
-                                            <div>
-                                                <strong>@location.Name</strong>
-                                                <div class="management-muted">@(location.OwnerName ?? "No owner")</div>
-                                            </div>
-                                            <button type="button" class="btn btn-sm @(isSelected ? "btn-outline-secondary" : "btn-outline-primary")" disabled="@(!isSelected && location.Status != 1)" @onclick="() => ToggleStopAsync(location.Id)">
-                                                @(isSelected ? "Remove" : "Add")
+                                @if (PagedPlannerLocations.Count == 0)
+                                {
+                                    <div class="app-empty-state">No POIs match the current catalog search.</div>
+                                }
+                                else
+                                {
+                                    <div class="tour-stop-catalog__list management-page-swap" @key="CurrentPlannerPage">
+                                        @foreach (var location in PagedPlannerLocations)
+                                        {
+                                            var isSelected = _formModel.StopLocationIds.Contains(location.Id);
+                                            <article class="tour-catalog-card">
+                                                <div class="tour-catalog-card__media">
+                                                    @if (GetLocationAvatarUrl(location) is { } avatarUrl)
+                                                    {
+                                                        <img class="tour-catalog-card__avatar" src="@avatarUrl" alt="@($"{location.Name} avatar")" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="tour-catalog-card__avatar tour-catalog-card__avatar--placeholder">
+                                                            <i class="bi bi-image"></i>
+                                                        </span>
+                                                    }
+                                                </div>
+                                                <div>
+                                                    <strong>@location.Name</strong>
+                                                    <div class="management-muted">@(location.OwnerName ?? "No owner")</div>
+                                                </div>
+                                                <button type="button" class="btn btn-sm @(isSelected ? "btn-outline-secondary" : "btn-outline-primary")" disabled="@(!isSelected && location.Status != 1)" @onclick="() => ToggleStopAsync(location.Id)">
+                                                    @(isSelected ? "Remove" : "Add")
+                                                </button>
+                                            </article>
+                                        }
+                                    </div>
+                                }
+
+                                @if (TotalPlannerPages > 1)
+                                {
+                                    <div class="management-pagination tour-stop-catalog__pagination">
+                                        <span class="management-pagination__info">Page @CurrentPlannerPage of @TotalPlannerPages (@FilteredPlannerLocations.Count total POIs)</span>
+                                        <div class="management-pagination__actions">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousPlannerPage" disabled="@(CurrentPlannerPage <= 1)">
+                                                <i class="bi bi-chevron-left"></i> Previous
                                             </button>
-                                        </article>
-                                    }
-                                </div>
+                                            <div class="management-pagination__pages">
+                                                @foreach (var pageNumber in GetVisiblePlannerPages())
+                                                {
+                                                    <button type="button"
+                                                            class="@GetPaginationButtonClass(pageNumber == CurrentPlannerPage)"
+                                                            @onclick="() => GoToPlannerPage(pageNumber)"
+                                                            disabled="@(pageNumber == CurrentPlannerPage)">
+                                                        @pageNumber
+                                                    </button>
+                                                }
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPlannerPage" disabled="@(CurrentPlannerPage >= TotalPlannerPages)">
+                                                Next <i class="bi bi-chevron-right"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
                             </div>
 
                             <div class="tour-stop-sequence">
@@ -461,6 +494,7 @@ else
     private string _searchText = "";
     private string _selectedStatus = "";
     private string _locationSearchText = "";
+    private int _currentPlannerPage = 1;
     private string _startTimeInput = TourDefaults.DefaultStartTime;
     private string? _loadError;
     private string? _routePreviewMessage;
@@ -480,11 +514,23 @@ else
         .OrderBy(item => item.Name)
         .ToList();
 
-    private IEnumerable<LocationDto> FilteredPlannerLocations =>
+    private const int PlannerLocationsPerPage = 6;
+
+    private IReadOnlyList<LocationDto> FilteredPlannerLocations =>
         PlannerLocations.Where(item =>
             string.IsNullOrWhiteSpace(_locationSearchText)
             || item.Name.Contains(_locationSearchText, StringComparison.OrdinalIgnoreCase)
-            || (item.OwnerName?.Contains(_locationSearchText, StringComparison.OrdinalIgnoreCase) ?? false));
+            || (item.OwnerName?.Contains(_locationSearchText, StringComparison.OrdinalIgnoreCase) ?? false))
+            .ToList();
+
+    private int TotalPlannerPages => Math.Max(1, (int)Math.Ceiling((double)FilteredPlannerLocations.Count / PlannerLocationsPerPage));
+
+    private int CurrentPlannerPage => Math.Min(Math.Max(_currentPlannerPage, 1), TotalPlannerPages);
+
+    private IReadOnlyList<LocationDto> PagedPlannerLocations => FilteredPlannerLocations
+        .Skip((CurrentPlannerPage - 1) * PlannerLocationsPerPage)
+        .Take(PlannerLocationsPerPage)
+        .ToList();
 
     private IEnumerable<TourDto> FilteredTours =>
         _tours
@@ -637,7 +683,7 @@ else
     {
         _editingId = null;
         _isEditorOpen = true;
-        _locationSearchText = "";
+        ResetPlannerCatalog();
         ResetForm();
         await RefreshRoutePreviewAsync();
         QueueMapSync();
@@ -651,7 +697,7 @@ else
         {
             _editingId = tour.Id;
             _isEditorOpen = true;
-            _locationSearchText = "";
+            ResetPlannerCatalog();
             ApplyForm(TourFormModel.FromDto(tour));
             RemoveInactiveStopsFromForm(notifyWhenRemoved: true);
             await RefreshRoutePreviewAsync();
@@ -818,10 +864,42 @@ else
     {
         _isEditorOpen = false;
         _editingId = null;
-        _locationSearchText = "";
+        ResetPlannerCatalog();
         ResetForm();
         await RefreshRoutePreviewAsync();
         await InvokeAsync(StateHasChanged);
+    }
+
+    private void HandlePlannerSearchInput(ChangeEventArgs args)
+    {
+        _locationSearchText = args.Value?.ToString() ?? string.Empty;
+        _currentPlannerPage = 1;
+    }
+
+    private void NextPlannerPage()
+    {
+        if (CurrentPlannerPage < TotalPlannerPages)
+        {
+            _currentPlannerPage = CurrentPlannerPage + 1;
+        }
+    }
+
+    private void PreviousPlannerPage()
+    {
+        if (CurrentPlannerPage > 1)
+        {
+            _currentPlannerPage = CurrentPlannerPage - 1;
+        }
+    }
+
+    private void GoToPlannerPage(int pageNumber)
+    {
+        if (pageNumber < 1 || pageNumber > TotalPlannerPages)
+        {
+            return;
+        }
+
+        _currentPlannerPage = pageNumber;
     }
 
     private async Task HandleStartTimeChangedAsync(ChangeEventArgs args)
@@ -853,6 +931,12 @@ else
         _formModel.StopLocationIds.Clear();
     }
 
+    private void ResetPlannerCatalog()
+    {
+        _locationSearchText = "";
+        _currentPlannerPage = 1;
+    }
+
     private void ApplyForm(TourFormModel model)
     {
         _formModel.Name = model.Name;
@@ -882,6 +966,20 @@ else
             Notifications.Warning("Inactive POIs were removed from this tour editor. Only active POIs can be edited in a route.", "Inactive POIs hidden");
         }
     }
+
+    private IReadOnlyList<int> GetVisiblePlannerPages()
+    {
+        const int maxButtons = 5;
+        var start = Math.Max(1, CurrentPlannerPage - 2);
+        var end = Math.Min(TotalPlannerPages, start + maxButtons - 1);
+        start = Math.Max(1, end - maxButtons + 1);
+        return Enumerable.Range(start, end - start + 1).ToList();
+    }
+
+    private static string GetPaginationButtonClass(bool isActive) =>
+        isActive
+            ? "management-pagination__page management-pagination__page--active"
+            : "management-pagination__page";
 
     private IReadOnlyList<TourRoutePreviewStopRequest> BuildRoutePreviewStops() => SelectedStopLocations
         .Select((location, index) => new TourRoutePreviewStopRequest

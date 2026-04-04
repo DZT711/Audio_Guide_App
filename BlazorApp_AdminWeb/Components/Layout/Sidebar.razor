@@ -1,6 +1,7 @@
 @implements IAsyncDisposable
 @inject AdminSessionState SessionState
 @inject InboxState InboxState
+@inject ModerationState ModerationState
 @using Project_SharedClassLibrary.Security
 
 <nav class="@GetSidebarClass()">
@@ -105,6 +106,10 @@
                 <NavLink class="sidebar-link" href="/moderation" title="Moderation" aria-label="Moderation" @attributes="GetDismissAttributes()">
                     <i class="bi bi-shield-check"></i>
                     <span class="sidebar-link__text">Moderation</span>
+                    @if (ModerationState.PendingCount > 0)
+                    {
+                        <span class="sidebar-link__badge">@GetModerationBadgeLabel()</span>
+                    }
                 </NavLink>
             }
             @if (SessionState.HasPermission(AdminPermissions.ActivityLogView))
@@ -127,8 +132,8 @@
 </nav>
 
 @code {
-    private CancellationTokenSource? _inboxPollingCancellationSource;
-    private Task? _inboxPollingTask;
+    private CancellationTokenSource? _sidebarPollingCancellationSource;
+    private Task? _sidebarPollingTask;
 
     [Parameter]
     public bool DismissOnNavigate { get; set; }
@@ -140,11 +145,13 @@
     {
         SessionState.Changed += HandleSessionChanged;
         InboxState.Changed += HandleInboxStateChanged;
+        ModerationState.Changed += HandleModerationStateChanged;
 
-        if (SessionState.HasPermission(AdminPermissions.InboxView))
+        if (SessionState.HasPermission(AdminPermissions.InboxView)
+            || SessionState.HasPermission(AdminPermissions.ModerationView))
         {
-            await InboxState.RefreshAsync();
-            StartInboxPolling();
+            await RefreshSidebarCountsAsync();
+            StartSidebarPolling();
         }
     }
 
@@ -172,6 +179,10 @@
         ? "99+"
         : InboxState.UnreadCount.ToString();
 
+    private string GetModerationBadgeLabel() => ModerationState.PendingCount > 99
+        ? "99+"
+        : ModerationState.PendingCount.ToString();
+
     private bool CanViewAdminSection =>
         SessionState.HasPermission(AdminPermissions.UserRead)
         || SessionState.HasPermission(AdminPermissions.ModerationView)
@@ -180,41 +191,67 @@
     private void HandleSessionChanged() => _ = RefreshForSessionAsync();
 
     private void HandleInboxStateChanged() => _ = InvokeAsync(StateHasChanged);
+    private void HandleModerationStateChanged() => _ = InvokeAsync(StateHasChanged);
 
     private async Task RefreshForSessionAsync()
     {
-        if (!SessionState.HasPermission(AdminPermissions.InboxView))
+        var canViewInbox = SessionState.HasPermission(AdminPermissions.InboxView);
+        var canViewModeration = SessionState.HasPermission(AdminPermissions.ModerationView);
+
+        if (!canViewInbox && !canViewModeration)
         {
-            await StopInboxPollingAsync();
+            await StopSidebarPollingAsync();
             InboxState.Reset();
+            ModerationState.Reset();
             await InvokeAsync(StateHasChanged);
             return;
         }
 
-        await InboxState.RefreshAsync();
-        StartInboxPolling();
+        await RefreshSidebarCountsAsync();
+        StartSidebarPolling();
         await InvokeAsync(StateHasChanged);
     }
 
-    private void StartInboxPolling()
+    private async Task RefreshSidebarCountsAsync(CancellationToken cancellationToken = default)
     {
-        if (_inboxPollingTask is { IsCompleted: false })
+        if (SessionState.HasPermission(AdminPermissions.InboxView))
+        {
+            await InboxState.RefreshAsync(cancellationToken);
+        }
+        else
+        {
+            InboxState.Reset();
+        }
+
+        if (SessionState.HasPermission(AdminPermissions.ModerationView))
+        {
+            await ModerationState.RefreshAsync(cancellationToken);
+        }
+        else
+        {
+            ModerationState.Reset();
+        }
+    }
+
+    private void StartSidebarPolling()
+    {
+        if (_sidebarPollingTask is { IsCompleted: false })
         {
             return;
         }
 
-        _inboxPollingCancellationSource = new CancellationTokenSource();
-        _inboxPollingTask = RunInboxPollingAsync(_inboxPollingCancellationSource.Token);
+        _sidebarPollingCancellationSource = new CancellationTokenSource();
+        _sidebarPollingTask = RunSidebarPollingAsync(_sidebarPollingCancellationSource.Token);
     }
 
-    private async Task RunInboxPollingAsync(CancellationToken cancellationToken)
+    private async Task RunSidebarPollingAsync(CancellationToken cancellationToken)
     {
         try
         {
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(45));
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                await InboxState.RefreshAsync(cancellationToken);
+                await RefreshSidebarCountsAsync(cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -222,35 +259,36 @@
         }
     }
 
-    private async Task StopInboxPollingAsync()
+    private async Task StopSidebarPollingAsync()
     {
-        if (_inboxPollingCancellationSource is null)
+        if (_sidebarPollingCancellationSource is null)
         {
             return;
         }
 
-        await _inboxPollingCancellationSource.CancelAsync();
+        await _sidebarPollingCancellationSource.CancelAsync();
 
-        if (_inboxPollingTask is not null)
+        if (_sidebarPollingTask is not null)
         {
             try
             {
-                await _inboxPollingTask;
+                await _sidebarPollingTask;
             }
             catch (OperationCanceledException)
             {
             }
         }
 
-        _inboxPollingCancellationSource.Dispose();
-        _inboxPollingCancellationSource = null;
-        _inboxPollingTask = null;
+        _sidebarPollingCancellationSource.Dispose();
+        _sidebarPollingCancellationSource = null;
+        _sidebarPollingTask = null;
     }
 
     public async ValueTask DisposeAsync()
     {
         SessionState.Changed -= HandleSessionChanged;
         InboxState.Changed -= HandleInboxStateChanged;
-        await StopInboxPollingAsync();
+        ModerationState.Changed -= HandleModerationStateChanged;
+        await StopSidebarPollingAsync();
     }
 }

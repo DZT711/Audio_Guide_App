@@ -11,7 +11,7 @@
 
 @if (!CanView)
 {
-    <div class="management-page statistics-page">
+    <div class="@GetStatisticsPageClass()">
         <div class="management-error">
             <strong>Access denied.</strong>
             <div>Your current role cannot view statistics.</div>
@@ -20,7 +20,7 @@
 }
 else
 {
-    <div class="management-page statistics-page">
+    <div class="@GetStatisticsPageClass()">
         <section class="management-hero statistics-hero" data-reveal>
             <div>
                 <span class="management-hero__eyebrow">Overview</span>
@@ -149,7 +149,8 @@ else
                                     else
                                     {
                                         <div class="statistics-layout">
-                                            <section class="@GetHeatmapPanelClass()" data-reveal>
+                                            <div class="@GetHeatmapSlotClass()" @ref="_heatmapSlotElement">
+                                            <section class="@GetHeatmapPanelClass()" @ref="_heatmapPanelElement" aria-modal="@_isHeatmapExpanded" role="@(_isHeatmapExpanded ? "dialog" : "region")">
                                                 <div class="management-panel__header statistics-panel__header">
                                                     <div>
                                                         <span class="management-panel__eyebrow">Heatmap</span>
@@ -256,6 +257,7 @@ else
                                                     </div>
                                                 }
                                             </section>
+                                            </div>
 
                                             <section class="management-panel statistics-panel" data-reveal>
                                                 <div class="management-panel__header">
@@ -271,29 +273,31 @@ else
                                                 }
                                                 else
                                                 {
-                                                    <div class="statistics-route-list">
-                                                        @foreach (var route in PaginatedRoutes)
-                                                        {
-                                                            <button type="button" class="@GetRouteCardClass(route)"
-                                                                    @onclick="@(() => SelectRoute(route.SessionKey))">
-                                                                <div class="statistics-route-card__top">
-                                                                    <strong>@GetRouteLabel(route)</strong>
-                                                                    <span>@route.PrimaryWard</span>
-                                                                </div>
-                                                                <div class="statistics-route-card__meta">@route.StartedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm") to @route.EndedAt.ToLocalTime().ToString("HH:mm")</div>
-                                                                <div class="statistics-route-card__chips">
-                                                                    <span>@FormatDistance(route.RouteDistanceKm)</span>
-                                                                    <span>@route.PlaybackCount plays</span>
-                                                                    <span>@route.TrackingPointCount points</span>
-                                                                </div>
-                                                                <div class="statistics-route-card__copy">
-                                                                    <strong>POIs:</strong> @JoinItems(route.LocationNames)
-                                                                </div>
-                                                                <div class="statistics-route-card__copy">
-                                                                    <strong>Audio:</strong> @JoinItems(route.AudioTitles)
-                                                                </div>
-                                                            </button>
-                                                        }
+                                                    <div class="management-page-swap" @key="CurrentRoutePage">
+                                                        <div class="statistics-route-list">
+                                                            @foreach (var route in PaginatedRoutes)
+                                                            {
+                                                                <button type="button" class="@GetRouteCardClass(route)"
+                                                                        @onclick="@(() => SelectRoute(route.SessionKey))">
+                                                                    <div class="statistics-route-card__top">
+                                                                        <strong>@GetRouteLabel(route)</strong>
+                                                                        <span>@route.PrimaryWard</span>
+                                                                    </div>
+                                                                    <div class="statistics-route-card__meta">@route.StartedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm") to @route.EndedAt.ToLocalTime().ToString("HH:mm")</div>
+                                                                    <div class="statistics-route-card__chips">
+                                                                        <span>@FormatDistance(route.RouteDistanceKm)</span>
+                                                                        <span>@route.PlaybackCount plays</span>
+                                                                        <span>@route.TrackingPointCount points</span>
+                                                                    </div>
+                                                                    <div class="statistics-route-card__copy">
+                                                                        <strong>POIs:</strong> @JoinItems(route.LocationNames)
+                                                                    </div>
+                                                                    <div class="statistics-route-card__copy">
+                                                                        <strong>Audio:</strong> @JoinItems(route.AudioTitles)
+                                                                    </div>
+                                                                </button>
+                                                            }
+                                                        </div>
                                                     </div>
                                                     @if (TotalRoutePages > 1)
                                                     {
@@ -331,7 +335,7 @@ else
                                                     }
                                                     else
                                                     {
-                                                        <div class="statistics-chart">
+                                                        <div class="statistics-chart" tabindex="0">
                                                             @foreach (var point in _overview.PlaybackTimeline)
                                                             {
                                                                 <div class="statistics-chart__bar" title="@point.Hint">
@@ -360,7 +364,7 @@ else
                                                         }
                                                         else
                                                         {
-                                                            <div class="statistics-chart statistics-chart--compact">
+                                                            <div class="statistics-chart statistics-chart--compact" tabindex="0">
                                                                 @foreach (var point in _overview.PlaysByWard)
                                                                 {
                                                                     <div class="statistics-chart__bar" title="@point.Hint">
@@ -389,7 +393,7 @@ else
                                                             }
                                                             else
                                                             {
-                                                                <div class="statistics-chart statistics-chart--compact">
+                                                                <div class="statistics-chart statistics-chart--compact" tabindex="0">
                                                                     @foreach (var point in _overview.PlaysByTour)
                                                                     {
                                                                         <div class="statistics-chart__bar" title="@point.Hint">
@@ -541,11 +545,15 @@ else
     private string? _loadError;
     private string? _mapSearchError;
     private ElementReference _statisticsMapElement;
+    private ElementReference _heatmapPanelElement;
+    private ElementReference _heatmapSlotElement;
     private bool _statisticsMapInitialized;
     private bool _statisticsMapSyncPending;
     private bool _statisticsMapLayoutRefreshPending;
     private bool _statisticsMapTrackingRefreshPending;
     private bool _isHeatmapExpanded;
+    private bool? _bodyScrollLockState;
+    private bool _clearPinnedHeatmapSlotHeightPending;
 
     private int _currentRoutePage = 1;
     private const int RoutesPerPage = 4;
@@ -597,6 +605,17 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
         {
             _statisticsMapTrackingRefreshPending = false;
             await RestoreCurrentLocationTrackingAsync();
+        }
+
+        if (_bodyScrollLockState != _isHeatmapExpanded)
+        {
+            await SyncBodyScrollLockAsync(_isHeatmapExpanded);
+        }
+
+        if (_clearPinnedHeatmapSlotHeightPending && !_isHeatmapExpanded)
+        {
+            _clearPinnedHeatmapSlotHeightPending = false;
+            await ClearPinnedHeatmapSlotHeightAsync();
         }
     }
 
@@ -657,11 +676,71 @@ StringComparison.OrdinalIgnoreCase))
         _statisticsMapSyncPending = true;
     }
 
-    private Task ToggleHeatmapExpandedAsync()
+    private async Task ToggleHeatmapExpandedAsync()
     {
-        _isHeatmapExpanded = !_isHeatmapExpanded;
+        if (_isHeatmapExpanded)
+        {
+            _isHeatmapExpanded = false;
+            _clearPinnedHeatmapSlotHeightPending = true;
+            _statisticsMapLayoutRefreshPending = true;
+            _statisticsMapSyncPending = true;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        await PinHeatmapSlotHeightAsync();
+        _isHeatmapExpanded = true;
         _statisticsMapLayoutRefreshPending = true;
-        return Task.CompletedTask;
+        _statisticsMapSyncPending = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SyncBodyScrollLockAsync(bool isLocked)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", isLocked);
+            _bodyScrollLockState = isLocked;
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task PinHeatmapSlotHeightAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "smartTourAdmin.effects.pinElementHeight",
+                _heatmapSlotElement,
+                _heatmapPanelElement);
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task ClearPinnedHeatmapSlotHeightAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "smartTourAdmin.effects.clearPinnedElementHeight",
+                _heatmapSlotElement);
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
     }
 
     private async Task SearchMapAsync()
@@ -810,6 +889,12 @@ StringComparison.OrdinalIgnoreCase))
     private string GetHeatmapPanelClass() => _isHeatmapExpanded
         ? "management-panel app-modal-panel statistics-panel statistics-panel--heatmap statistics-panel--heatmap-expanded"
         : "management-panel statistics-panel statistics-panel--heatmap";
+    private string GetHeatmapSlotClass() => _isHeatmapExpanded
+        ? "statistics-heatmap-slot statistics-heatmap-slot--expanded"
+        : "statistics-heatmap-slot";
+    private string GetStatisticsPageClass() => _isHeatmapExpanded
+        ? "management-page statistics-page statistics-page--heatmap-expanded"
+        : "management-page statistics-page";
     private static string GetMapSearchResultTitle(MapSearchResult result)
     {
         if (!string.IsNullOrWhiteSpace(result.Name))
@@ -1013,6 +1098,20 @@ route.SessionKey;
     public async ValueTask DisposeAsync()
     {
         await DisposeStatisticsMapAsync();
+
+        try
+        {
+            if (_bodyScrollLockState == true)
+            {
+                await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", false);
+            }
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
     }
 
     private sealed class MapSearchResult

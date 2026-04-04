@@ -149,46 +149,48 @@ else
         }
         else
         {
-            <div class="inbox-list">
-                @foreach (var message in _messages)
-                {
-                    <article class="@GetMessageCardClass(message)">
-                        <div class="inbox-card__header">
-                            <div>
-                                @if (IsAnnouncement(message))
-                                {
-                                    <div class="inbox-card__eyebrow">SYSTEM ANNOUNCEMENT</div>
-                                }
-                                <div class="inbox-card__title">@message.Title</div>
-                                <small>@message.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
+            <div class="management-page-swap" @key="_result.Page">
+                <div class="inbox-list">
+                    @foreach (var message in _messages)
+                    {
+                        <article class="@GetMessageCardClass(message)">
+                            <div class="inbox-card__header">
+                                <div>
+                                    @if (IsAnnouncement(message))
+                                    {
+                                        <div class="inbox-card__eyebrow">SYSTEM ANNOUNCEMENT</div>
+                                    }
+                                    <div class="inbox-card__title">@message.Title</div>
+                                    <small>@message.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
+                                </div>
+
+                                <div class="inbox-card__meta">
+                                    <span class="@GetMessageTagClass(message.MessageType)">@message.MessageType</span>
+                                    @if (!message.IsRead)
+                                    {
+                                        <span class="management-status management-status--pending">Unread</span>
+                                    }
+                                </div>
                             </div>
 
-                            <div class="inbox-card__meta">
-                                <span class="@GetMessageTagClass(message.MessageType)">@message.MessageType</span>
-                                @if (!message.IsRead)
-                                {
-                                    <span class="management-status management-status--pending">Unread</span>
-                                }
-                            </div>
-                        </div>
+                            <p class="audio-card__description">@message.Body</p>
 
-                        <p class="audio-card__description">@message.Body</p>
-
-                        <div class="inbox-card__footer">
-                            <small class="management-muted">@GetMessageContext(message)</small>
-                            <div class="management-inline-actions">
-                                @if (!message.IsRead)
-                                {
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => MarkReadAsync(message)">Mark Read</button>
-                                }
-                                else
-                                {
-                                    <span class="management-muted">Read @message.ReadAt?.ToLocalTime().ToString("dd MMM HH:mm")</span>
-                                }
+                            <div class="inbox-card__footer">
+                                <small class="management-muted">@GetMessageContext(message)</small>
+                                <div class="management-inline-actions">
+                                    @if (!message.IsRead)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => MarkReadAsync(message)">Mark Read</button>
+                                    }
+                                    else
+                                    {
+                                        <span class="management-muted">Read @message.ReadAt?.ToLocalTime().ToString("dd MMM HH:mm")</span>
+                                    }
+                                </div>
                             </div>
-                        </div>
-                    </article>
-                }
+                        </article>
+                    }
+                </div>
             </div>
 
             @if (_result.TotalPages > 1)
@@ -199,6 +201,17 @@ else
                         <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousPageAsync" disabled="@(_result.Page <= 1)">
                             <i class="bi bi-chevron-left"></i> Previous
                         </button>
+                        <div class="management-pagination__pages">
+                            @foreach (var pageNumber in GetVisiblePages())
+                            {
+                                <button type="button"
+                                        class="@GetPaginationButtonClass(pageNumber == _result.Page)"
+                                        @onclick="() => GoToPageAsync(pageNumber)"
+                                        disabled="@(pageNumber == _result.Page)">
+                                    @pageNumber
+                                </button>
+                            }
+                        </div>
                         <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPageAsync" disabled="@(_result.Page >= _result.TotalPages)">
                             Next <i class="bi bi-chevron-right"></i>
                         </button>
@@ -260,6 +273,17 @@ else
         }
 
         _currentPage = _result.Page - 1;
+        await LoadAsync();
+    }
+
+    private async Task GoToPageAsync(int pageNumber)
+    {
+        if (pageNumber < 1 || pageNumber > _result.TotalPages || pageNumber == _result.Page)
+        {
+            return;
+        }
+
+        _currentPage = pageNumber;
         await LoadAsync();
     }
 
@@ -379,4 +403,18 @@ else
             : message.RelatedRequestId is null
                 ? "General announcement"
                 : $"Request #{message.RelatedRequestId}";
+
+    private IReadOnlyList<int> GetVisiblePages()
+    {
+        const int maxButtons = 5;
+        var start = Math.Max(1, _result.Page - 2);
+        var end = Math.Min(_result.TotalPages, start + maxButtons - 1);
+        start = Math.Max(1, end - maxButtons + 1);
+        return Enumerable.Range(start, end - start + 1).ToList();
+    }
+
+    private static string GetPaginationButtonClass(bool isActive) =>
+        isActive
+            ? "management-pagination__page management-pagination__page--active"
+            : "management-pagination__page";
 }

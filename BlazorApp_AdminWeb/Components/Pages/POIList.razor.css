@@ -14,6 +14,21 @@
     font-weight: 800;
 }
 
+.poi-category-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-weight: 700;
+}
+
+.poi-category-pill .category-icon {
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 15px;
+    box-shadow: none;
+    font-size: 0.9rem;
+}
+
 .poi-list-avatar {
     display: inline-flex;
     align-items: center;

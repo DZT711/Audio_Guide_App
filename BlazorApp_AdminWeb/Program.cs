@@ -23,6 +23,7 @@ builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<AdminSessionState>();
 builder.Services.AddScoped<AdminShellState>();
 builder.Services.AddScoped<InboxState>();
+builder.Services.AddScoped<ModerationState>();
 builder.Services.AddScoped<AdminAuthService>();
 builder.Services.AddHttpClient<AdminApiClient>((serviceProvider, client) =>
 {

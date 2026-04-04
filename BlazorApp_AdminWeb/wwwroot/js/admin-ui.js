@@ -1,6 +1,7 @@
 (() => {
     const root = document.documentElement;
     root.classList.add("js-ready");
+    root.dataset.scrollDirection = "down";
     window.smartTourAdmin = window.smartTourAdmin ?? {};
     const admin = window.smartTourAdmin;
     const defaultMapCenter = {
@@ -70,6 +71,30 @@
 
             const mailtoUrl = `mailto:${encodeURIComponent(normalizedEmail)}?subject=${encodeURIComponent(subjectValue)}&body=${encodeURIComponent(bodyValue)}`;
             window.location.href = mailtoUrl;
+            return true;
+        }
+    };
+
+    admin.effects = {
+        pinElementHeight: (targetElement, sourceElement) => {
+            if (!(targetElement instanceof HTMLElement) || !(sourceElement instanceof HTMLElement)) {
+                return false;
+            }
+
+            const sourceRect = sourceElement.getBoundingClientRect();
+            if (sourceRect.height <= 0) {
+                return false;
+            }
+
+            targetElement.style.setProperty("--statistics-slot-height", `${sourceRect.height}px`);
+            return true;
+        },
+        clearPinnedElementHeight: (targetElement) => {
+            if (!(targetElement instanceof HTMLElement)) {
+                return false;
+            }
+
+            targetElement.style.removeProperty("--statistics-slot-height");
             return true;
         }
     };
@@ -1677,7 +1702,9 @@
     };
 
     const seen = new WeakSet();
+    const trackedScrollContainers = new WeakSet();
     let observer = null;
+    let scrollDirection = "down";
 
     const getElements = (scope, selector) => {
         const elements = [];
@@ -1691,6 +1718,43 @@
         }
 
         return elements;
+    };
+
+    const setScrollDirection = (nextDirection) => {
+        if (nextDirection !== "up" && nextDirection !== "down") {
+            return;
+        }
+
+        scrollDirection = nextDirection;
+        root.dataset.scrollDirection = nextDirection;
+    };
+
+    const bindScrollTracking = (target, isWindow = false) => {
+        if (!target || trackedScrollContainers.has(target)) {
+            return;
+        }
+
+        trackedScrollContainers.add(target);
+
+        let lastPosition = isWindow
+            ? window.scrollY
+            : Number(target.scrollTop ?? 0);
+
+        const handleScroll = () => {
+            const currentPosition = isWindow
+                ? window.scrollY
+                : Number(target.scrollTop ?? 0);
+
+            if (Math.abs(currentPosition - lastPosition) < 6) {
+                return;
+            }
+
+            setScrollDirection(currentPosition > lastPosition ? "down" : "up");
+            lastPosition = currentPosition;
+        };
+
+        const eventTarget = isWindow ? window : target;
+        eventTarget.addEventListener("scroll", handleScroll, { passive: true });
     };
 
     const applyGroupDelay = (scope) => {
@@ -1754,6 +1818,13 @@
             mutations.forEach((mutation) => {
                 mutation.addedNodes.forEach((node) => {
                     if (node instanceof Element) {
+                        const scrollContainer = node.matches(".admin-shell__content")
+                            ? node
+                            : node.querySelector?.(".admin-shell__content");
+                        if (scrollContainer instanceof HTMLElement) {
+                            bindScrollTracking(scrollContainer);
+                        }
+
                         activate(node);
                     }
                 });
@@ -1767,6 +1838,13 @@
     };
 
     const start = () => {
+        bindScrollTracking(window, true);
+
+        const content = document.querySelector(".admin-shell__content");
+        if (content instanceof HTMLElement) {
+            bindScrollTracking(content);
+        }
+
         activate(document);
         observeMutations();
     };

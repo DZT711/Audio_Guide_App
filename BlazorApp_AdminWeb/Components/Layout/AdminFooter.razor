@@ -1,0 +1,168 @@
+@implements IAsyncDisposable
+@inject AdminApiClient ApiClient
+
+<footer class="admin-footer" data-reveal>
+    <div class="admin-footer__primary">
+        <div class="admin-footer__brand">
+            <span class="admin-footer__eyebrow">Server Status</span>
+            <div class="admin-footer__headline">
+                <span class="@GetStatusDotClass()" aria-hidden="true"></span>
+                <strong>@GetStatusLabel()</strong>
+            </div>
+            <p>@GetStatusCopy()</p>
+        </div>
+
+        <div class="admin-footer__facts">
+            <article class="admin-footer__fact">
+                <span>API Version</span>
+                <strong>@(_serverInfo?.ApiVersion ?? "Unknown")</strong>
+                <small>@(_serverInfo?.EnvironmentName ?? "Environment unavailable")</small>
+            </article>
+            <article class="admin-footer__fact">
+                <span>Active Users</span>
+                <strong>@(_serverInfo?.ActiveAdminUserCount ?? 0)</strong>
+                <small>Live admin sessions connected now</small>
+            </article>
+            <article class="admin-footer__fact">
+                <span>Server Time</span>
+                <strong>@GetServerTimeLabel()</strong>
+                <small>@(_serverInfo?.TimeZoneDisplayName ?? "Time zone unavailable")</small>
+            </article>
+            <article class="admin-footer__fact">
+                <span>Uptime</span>
+                <strong>@GetUptimeLabel()</strong>
+                <small>@GetStartedAtLabel()</small>
+            </article>
+            <article class="admin-footer__fact">
+                <span>Runtime</span>
+                <strong>@(_serverInfo?.FrameworkDescription ?? "Unavailable")</strong>
+                <small>@GetLastCheckedLabel()</small>
+            </article>
+        </div>
+    </div>
+</footer>
+
+@code {
+    private ServerInfoDto? _serverInfo;
+    private bool _isServerReachable;
+    private DateTimeOffset? _lastCheckedAt;
+    private CancellationTokenSource? _refreshCancellationSource;
+    private Task? _refreshTask;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadServerInfoAsync();
+
+        _refreshCancellationSource = new CancellationTokenSource();
+        _refreshTask = RefreshLoopAsync(_refreshCancellationSource.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await LoadServerInfoAsync(cancellationToken);
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task LoadServerInfoAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _serverInfo = await ApiClient.GetServerInfoAsync(cancellationToken);
+            _isServerReachable = true;
+            _lastCheckedAt = DateTimeOffset.Now;
+        }
+        catch
+        {
+            _serverInfo = null;
+            _isServerReachable = false;
+            _lastCheckedAt = DateTimeOffset.Now;
+        }
+    }
+
+    private string GetStatusDotClass() => _isServerReachable
+        ? "admin-footer__status-dot admin-footer__status-dot--online"
+        : "admin-footer__status-dot admin-footer__status-dot--offline";
+
+    private string GetStatusLabel() => _isServerReachable
+        ? (_serverInfo?.Status ?? "Online")
+        : "Unavailable";
+
+    private string GetStatusCopy() => _isServerReachable
+        ? "The admin console is connected to the API and receiving live server metadata."
+        : "The admin console could not reach the API status endpoint on the last refresh.";
+
+    private string GetServerTimeLabel() =>
+        _serverInfo is null
+            ? "Unavailable"
+            : _serverInfo.ServerTimeLocal.ToString("dd MMM yyyy HH:mm:ss");
+
+    private string GetUptimeLabel() =>
+        _serverInfo is null
+            ? "Unavailable"
+            : FormatDuration(_serverInfo.UptimeSeconds);
+
+    private string GetStartedAtLabel() =>
+        _serverInfo is null
+            ? "Start time unavailable"
+            : $"Started {_serverInfo.StartedAtUtc.ToLocalTime():dd MMM yyyy HH:mm}";
+
+    private string GetLastCheckedLabel() =>
+        _lastCheckedAt is null
+            ? "Not checked yet"
+            : $"Checked {_lastCheckedAt.Value:HH:mm:ss}";
+
+    private static string FormatDuration(long totalSeconds)
+    {
+        var duration = TimeSpan.FromSeconds(Math.Max(0, totalSeconds));
+
+        if (duration.TotalDays >= 1)
+        {
+            return $"{(int)duration.TotalDays}d {duration.Hours}h {duration.Minutes}m";
+        }
+
+        if (duration.TotalHours >= 1)
+        {
+            return $"{(int)duration.TotalHours}h {duration.Minutes}m";
+        }
+
+        if (duration.TotalMinutes >= 1)
+        {
+            return $"{(int)duration.TotalMinutes}m {duration.Seconds}s";
+        }
+
+        return $"{duration.Seconds}s";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_refreshCancellationSource is null)
+        {
+            return;
+        }
+
+        await _refreshCancellationSource.CancelAsync();
+
+        if (_refreshTask is not null)
+        {
+            try
+            {
+                await _refreshTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        _refreshCancellationSource.Dispose();
+    }
+}

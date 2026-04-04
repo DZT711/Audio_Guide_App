@@ -133,6 +133,15 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         return await ReadJsonAsync<DashboardSnapshotDto>(response, "Unable to export the dashboard snapshot.");
     }
 
+    public async Task<ServerInfoDto> GetServerInfoAsync(CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.GetAsync(ApiRoutes.ServerInfo, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load server info.");
+        return await ReadJsonAsync<ServerInfoDto>(response, "Unable to load server info.");
+    }
+
     public async Task CreateCategoryAsync(CategoryFormModel model)
     {
         ApplyAuthHeader();

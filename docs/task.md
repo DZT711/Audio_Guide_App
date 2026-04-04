@@ -37,15 +37,15 @@ real static for all information in dashboard page
 
 decorate dashboard page with more info and make it more user friendly
 
-add sever info/version,.. footer in admin site
+add sever info/version,.. footer in admin site✅
 
 decorate /remove,.. blank section in admin site
 
 toggle admin navigation bar in or out smoothly ✅/ also add light left/right hightlight to know which page user is on
 
-add motion effect for pages when user scroll down/up
+add motion effect for pages when user scroll down/up✅
 
-add motion effect for static chart
+add motion effect for static chart✅
 
 real static in statistics/usage page
 
@@ -55,29 +55,33 @@ button that open/collapse broadcast feature in inbox admin pagepage✅
 
 align all heatmap button funcion in 1 line✅
 
-motivation effect for changing page in admin site✅
+motivation effect for changing page in admin site ✅
 
-motivation/skeletion effect for changing pagination dataset in admin site
+motivation/skeleton effect for changing pagination dataset in admin site✅
 
 hide slide bar in pop up create/edit tour form,view requesting user info in admin site,view request details in admin site✅
 
-effect in pop up create/edit tour form
+effect in pop up create/edit tour form✅
 
 poi avatar img in tour form modal✅
 
-pagination for poi dataset in tour form modal
+pagination for poi dataset in tour form modal✅
 
 history log tab for for all user interacting with system (create/edit/delete) and show in admin site (admin/dev view only)✅
 
-add location filter in audio site
+add location filter in audio site✅
 
 show preference poi field img in location list✅
 
 show preference poi img in statistics/usage page✅
 
-add icon for category
+add icon for category✅
 
 style again for reuqest detail view in admin site/ tour modal✅
+
+add vietnamese language for admin site
+
+<!-- add multiple lang for admin site and dashboard page -->
 
 ## (extend task)-MVP
 

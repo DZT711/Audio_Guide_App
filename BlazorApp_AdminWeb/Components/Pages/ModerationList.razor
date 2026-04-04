@@ -130,53 +130,55 @@ else
             }
             else
             {
-                <div class="moderation-list">
-                    @foreach (var item in _items)
-                    {
-                        <article class="@GetModerationCardClass(item)">
-                            <div class="moderation-card__header">
-                                <div>
-                                    <div class="moderation-card__title">@item.Name</div>
-                                    <small>@item.OwnerName</small>
+                <div class="management-page-swap" @key="_result.Page">
+                    <div class="moderation-list">
+                        @foreach (var item in _items)
+                        {
+                            <article class="@GetModerationCardClass(item)">
+                                <div class="moderation-card__header">
+                                    <div>
+                                        <div class="moderation-card__title">@item.Name</div>
+                                        <small>@item.OwnerName</small>
+                                    </div>
+                                    <span class="@GetActionClass(item.ActionType)">@item.ActionType</span>
                                 </div>
-                                <span class="@GetActionClass(item.ActionType)">@item.ActionType</span>
-                            </div>
 
-                            <div class="moderation-card__meta">
-                                <span class="audio-card__tag">@item.Type</span>
-                                <span class="audio-card__tag">@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</span>
-                                <span class="@GetStatusPillClass(item.Status)">
-                                    <i class="@GetStatusIconClass(item.Status)"></i>
-                                    @item.Status
-                                </span>
-                            </div>
+                                <div class="moderation-card__meta">
+                                    <span class="audio-card__tag">@item.Type</span>
+                                    <span class="audio-card__tag">@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                                    <span class="@GetStatusPillClass(item.Status)">
+                                        <i class="@GetStatusIconClass(item.Status)"></i>
+                                        @item.Status
+                                    </span>
+                                </div>
 
-                            <p class="audio-card__description">@GetSummary(item)</p>
+                                <p class="audio-card__description">@GetSummary(item)</p>
 
-                            <div class="management-inline-actions">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OpenDetailModal(item)">View Detail</button>
-                                @if (string.Equals(item.Status, "Approved", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    <button type="button" class="btn btn-sm moderation-card__status-button moderation-card__status-button--approved" disabled>
-                                        <i class="bi bi-check-lg"></i>
-                                        Approved
-                                    </button>
-                                }
-                                else if (string.Equals(item.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    <button type="button" class="btn btn-sm moderation-card__status-button moderation-card__status-button--rejected" disabled>
-                                        <i class="bi bi-x-lg"></i>
-                                        Rejected
-                                    </button>
-                                }
-                                else
-                                {
-                                    <button type="button" class="btn btn-sm btn-outline-success" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => ApproveAsync(item)">Approve</button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => RejectAsync(item)">Reject</button>
-                                }
-                            </div>
-                        </article>
-                    }
+                                <div class="management-inline-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OpenDetailModal(item)">View Detail</button>
+                                    @if (string.Equals(item.Status, "Approved", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <button type="button" class="btn btn-sm moderation-card__status-button moderation-card__status-button--approved" disabled>
+                                            <i class="bi bi-check-lg"></i>
+                                            Approved
+                                        </button>
+                                    }
+                                    else if (string.Equals(item.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <button type="button" class="btn btn-sm moderation-card__status-button moderation-card__status-button--rejected" disabled>
+                                            <i class="bi bi-x-lg"></i>
+                                            Rejected
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-success" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => ApproveAsync(item)">Approve</button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => RejectAsync(item)">Reject</button>
+                                    }
+                                </div>
+                            </article>
+                        }
+                    </div>
                 </div>
 
                 @if (_result.TotalPages > 1)

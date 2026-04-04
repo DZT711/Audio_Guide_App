@@ -139,7 +139,7 @@ else
             }
             else
             {
-                <div class="table-responsive">
+                <div class="table-responsive management-page-swap" @key="CurrentLocationPage">
                     <table class="table management-table">
                         <thead>
                             <tr>
@@ -174,7 +174,14 @@ else
                                         <div class="poi-name">@location.Name</div>
                                         <small class="management-muted">@(string.IsNullOrWhiteSpace(location.OwnerName) ? "No owner assigned" : location.OwnerName)</small>
                                     </td>
-                                    <td>@location.Category</td>
+                                    <td>
+                                        <span class="poi-category-pill">
+                                            <span class="category-icon @CategoryVisuals.GetToneClass(location.Category)">
+                                                <i class="@CategoryVisuals.GetIconClass(location.Category)"></i>
+                                            </span>
+                                            <span>@location.Category</span>
+                                        </span>
+                                    </td>
                                     <td>@(string.IsNullOrWhiteSpace(location.Address) ? "No address" : location.Address)</td>
                                     <td>@($"{location.Latitude:F4}, {location.Longitude:F4}")</td>
                                     <td>

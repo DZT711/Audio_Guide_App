@@ -37,7 +37,10 @@ else if (_isAuthenticated)
             <AdminHeader SidebarCollapsed="@ShellState.IsSidebarCollapsed" OnToggleSidebar="ToggleSidebarAsync" />
 
             <section class="admin-shell__content">
-                @Body
+                <div class="admin-shell__page" @key="Navigation.ToBaseRelativePath(Navigation.Uri)">
+                    @Body
+                </div>
+                <AdminFooter />
             </section>
         </main>
     </div>

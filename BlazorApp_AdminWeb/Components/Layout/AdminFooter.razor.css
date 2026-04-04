@@ -1,0 +1,118 @@
+.admin-footer {
+    margin-top: auto;
+    padding: 1.25rem 1.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 28%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.96) 100%);
+    box-shadow: 0 22px 54px rgba(15, 23, 42, 0.08);
+}
+
+.admin-footer__primary {
+    display: grid;
+    grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.1fr);
+    gap: 1.2rem;
+    align-items: start;
+}
+
+.admin-footer__brand,
+.admin-footer__facts {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.admin-footer__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 0.42rem 0.78rem;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.1);
+    color: #0f766e;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.admin-footer__headline {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.admin-footer__headline strong {
+    font-size: 1.15rem;
+}
+
+.admin-footer__brand p {
+    margin: 0;
+    color: var(--app-muted);
+    line-height: 1.65;
+}
+
+.admin-footer__status-dot {
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 999px;
+    box-shadow: 0 0 0 0.35rem rgba(148, 163, 184, 0.12);
+}
+
+.admin-footer__status-dot--online {
+    background: #16a34a;
+    box-shadow:
+        0 0 0 0.35rem rgba(22, 163, 74, 0.12),
+        0 0 1rem rgba(22, 163, 74, 0.24);
+}
+
+.admin-footer__status-dot--offline {
+    background: #ef4444;
+    box-shadow:
+        0 0 0 0.35rem rgba(239, 68, 68, 0.12),
+        0 0 1rem rgba(239, 68, 68, 0.18);
+}
+
+.admin-footer__facts {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.admin-footer__fact {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.95rem 1rem;
+    border-radius: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.admin-footer__fact span {
+    color: var(--app-muted);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.admin-footer__fact strong {
+    line-height: 1.4;
+}
+
+.admin-footer__fact small {
+    color: var(--app-muted);
+    line-height: 1.5;
+}
+
+@media (max-width: 1199.98px) {
+    .admin-footer__primary,
+    .admin-footer__facts {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .admin-footer__primary,
+    .admin-footer__facts {
+        grid-template-columns: 1fr;
+    }
+}
