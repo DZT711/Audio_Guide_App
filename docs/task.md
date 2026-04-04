@@ -27,7 +27,7 @@ add preference img for poi✅
 
 fix allow user upload each file in queue not replacing other file✅
 
-edit img file in  edit form while user add multiple img cant save
+edit img file in  edit form while user add multiple img cant save✅
 
 seperate preference img for each poi by add new field in db and add new required img label upload for that field still create data into location image table but auto set that pic the sortOrder to 1 ✅
 
@@ -37,7 +37,7 @@ real static for all information in dashboard page
 
 decorate dashboard page with more info and make it more user friendly
 
-add sever info/version,..
+add sever info/version,.. footer in admin site
 
 decorate /remove,.. blank section in admin site
 
@@ -55,11 +55,11 @@ button that open/collapse broadcast feature in inbox admin pagepage✅
 
 align all heatmap button funcion in 1 line✅
 
-motivation effect for changing page in admin site
+motivation effect for changing page in admin site✅
 
 motivation/skeletion effect for changing pagination dataset in admin site
 
-hide slide bar in pop up create/edit tour form,view requesting user info in admin site,view request details in admin site
+hide slide bar in pop up create/edit tour form,view requesting user info in admin site,view request details in admin site✅
 
 effect in pop up create/edit tour form
 
@@ -77,7 +77,7 @@ show preference poi img in statistics/usage page✅
 
 add icon for category
 
-style again for reuqest detail view in admin site/ tour modal
+style again for reuqest detail view in admin site/ tour modal✅
 
 ## (extend task)-MVP
 
