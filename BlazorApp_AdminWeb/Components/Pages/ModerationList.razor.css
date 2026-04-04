@@ -153,13 +153,11 @@
 }
 
 .moderation-detail__header {
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    position: static;
     padding-bottom: 1rem;
     margin-bottom: 0.35rem;
     border-bottom: 1px solid rgba(226, 232, 240, 0.88);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.94) 100%);
+    background: transparent;
 }
 
 .moderation-detail__title {

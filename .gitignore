@@ -33,8 +33,9 @@ Thumbs.db
 # Codex & Build tools
 .codex-build/
 .verify/
-.dotnet/
 .dotnet-cli/
+.dotnet/
+.dotnet-home/
 .codex-temp/
 
 # Log files
@@ -62,3 +63,4 @@ obj/
 # NuGet Packages
 *.nupkg
 project.nuget.cache
+.build-temp/

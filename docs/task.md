@@ -19,7 +19,7 @@ manage geofencing auto display audio area in mobile
 
 <!-- dropdown select for ward, district,city in VN ✅ -->
 
-improve user requesting admin/dev can view details what they doing
+improve user requesting admin/dev can view details what they doing✅
 
 notification user when wrong/no input in add/edit form✅
 
@@ -41,7 +41,7 @@ add sever info/version,..
 
 decorate /remove,.. blank section in admin site
 
-toggle admin navigation bar in or out smoothly / also add light left/right hightlight to know which page user is on
+toggle admin navigation bar in or out smoothly ✅/ also add light left/right hightlight to know which page user is on
 
 add motion effect for pages when user scroll down/up
 
