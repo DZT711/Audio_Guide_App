@@ -353,6 +353,14 @@ else
                                 <div>
                                     <span class="management-field__label">Generated TTS Preview</span>
                                     <div class="management-field__hint">This preview uses the current script and language selection.</div>
+                                    @if (!string.IsNullOrWhiteSpace(_ttsPreviewProviderLabel))
+                                    {
+                                        <div class="management-field__hint">Provider: @_ttsPreviewProviderLabel</div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(_ttsPreviewVoiceLabel))
+                                    {
+                                        <div class="management-field__hint">Voice: @_ttsPreviewVoiceLabel</div>
+                                    }
                                 </div>
                                 <audio @key="_ttsPreviewUrl" @ref="_ttsPreviewElement" class="audio-file-preview__player" controls autoplay preload="auto" src="@_ttsPreviewUrl"></audio>
                             </div>
@@ -628,6 +636,8 @@ else
     private bool _isCheckingAudioPreview;
     private string? _ttsPreviewUrl;
     private string? _ttsPreviewWarning;
+    private string? _ttsPreviewProviderLabel;
+    private string? _ttsPreviewVoiceLabel;
     private bool _ttsPreviewIsObjectUrl;
     private bool _isGeneratingTtsPreview;
     private readonly List<BrowserVoiceDiagnosticItem> _browserVoiceDiagnostics = new();
@@ -920,11 +930,20 @@ else
             {
                 if (await TryBrowserVoicePreviewAsync())
                 {
+                    _ttsPreviewProviderLabel = "Browser speechSynthesis";
+                    _ttsPreviewVoiceLabel = _formModel.VoiceGender;
                     _ttsPreviewWarning = $"Using the browser-installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} for {GetSelectedPreviewLanguageLabel()} so the preview stays aligned with the selected language.";
                     return;
                 }
 
+                _ttsPreviewProviderLabel = previewResult.Provider;
+                _ttsPreviewVoiceLabel = string.IsNullOrWhiteSpace(previewResult.VoiceName) ? null : previewResult.VoiceName;
                 _ttsPreviewWarning = $"No installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} matched {GetSelectedPreviewLanguageLabel()} on this device. Using generated audio for the selected language instead.";
+            }
+            else
+            {
+                _ttsPreviewProviderLabel = previewResult.Provider;
+                _ttsPreviewVoiceLabel = string.IsNullOrWhiteSpace(previewResult.VoiceName) ? null : previewResult.VoiceName;
             }
 
             await using var previewStream = previewResult.Stream;
@@ -941,6 +960,8 @@ else
         {
             if (await TryBrowserVoicePreviewAsync())
             {
+                _ttsPreviewProviderLabel = "Browser speechSynthesis";
+                _ttsPreviewVoiceLabel = _formModel.VoiceGender;
                 _ttsPreviewWarning = $"The API preview is unavailable, so the browser-installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} for {GetSelectedPreviewLanguageLabel()} is being used instead.";
                 return;
             }
@@ -1439,6 +1460,8 @@ else
 
         _ttsPreviewUrl = null;
         _ttsPreviewWarning = null;
+        _ttsPreviewProviderLabel = null;
+        _ttsPreviewVoiceLabel = null;
         _ttsPreviewIsObjectUrl = false;
     }
 

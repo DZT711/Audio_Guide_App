@@ -78,3 +78,21 @@ public sealed class AudioTtsPreviewRequest
 
     public bool PreferNativeVoice { get; set; } = true;
 }
+
+public sealed class PublicAudioTranslateTtsRequest
+{
+    [Required]
+    [StringLength(8000)]
+    public string Text { get; set; } = "";
+
+    [Required]
+    [StringLength(20)]
+    public string SourceLanguage { get; set; } = "vi-VN";
+
+    [Required]
+    [StringLength(20)]
+    public string TargetLanguage { get; set; } = "en-US";
+
+    [StringLength(20)]
+    public string? VoiceGender { get; set; }
+}

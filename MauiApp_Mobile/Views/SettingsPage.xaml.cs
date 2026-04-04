@@ -225,6 +225,23 @@ public partial class SettingsPage : ContentPage
     private void OnAlertRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnWaitTimeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
 
+    private async void OnTestVoiceClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            TestVoiceButton.IsEnabled = false;
+            await AudioPlaybackService.Instance.TestCurrentVoiceAsync();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Audio", ex.Message, "OK");
+        }
+        finally
+        {
+            TestVoiceButton.IsEnabled = true;
+        }
+    }
+
     private void OnLanguageViTapped(object sender, TappedEventArgs e) => ChangeLanguage("vi");
     private void OnLanguageEnTapped(object sender, TappedEventArgs e) => ChangeLanguage("en");
     private void OnLanguageCnTapped(object sender, TappedEventArgs e) => ChangeLanguage("cn");

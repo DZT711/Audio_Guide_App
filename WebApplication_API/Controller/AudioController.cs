@@ -15,6 +15,7 @@ public class AudioController(
     DBContext context,
     SharedAudioFileStorageService audioStorage,
     TtsPreviewService ttsPreviewService,
+    GeminiSpeechService geminiSpeechService,
     AdminRequestAuthorizationService authService) : ControllerBase
 {
     [HttpGet("public/location/{locationId:int}")]
@@ -164,6 +165,23 @@ public class AudioController(
 
         try
         {
+            if (geminiSpeechService.IsEnabled)
+            {
+                var geminiResult = await geminiSpeechService.TranslateAndGenerateSpeechAsync(
+                    new PublicAudioTranslateTtsRequest
+                    {
+                        Text = request.Text,
+                        SourceLanguage = request.Language,
+                        TargetLanguage = request.Language,
+                        VoiceGender = request.VoiceGender
+                    },
+                    cancellationToken);
+
+                Response.Headers["X-SmartTour-Tts-Provider"] = "Gemini";
+                Response.Headers["X-SmartTour-Tts-Voice"] = geminiResult.VoiceName;
+                return File(geminiResult.AudioContent, geminiResult.ContentType);
+            }
+
             var preview = await ttsPreviewService.GeneratePreviewAsync(request, cancellationToken);
             Response.Headers["X-SmartTour-Tts-Provider"] = preview.Provider;
             Response.Headers["X-SmartTour-Tts-Voice"] = preview.VoiceName;
@@ -176,6 +194,34 @@ public class AudioController(
         catch (HttpRequestException)
         {
             return StatusCode(502, new { message = "The TTS preview provider could not be reached." });
+        }
+    }
+
+    [HttpPost("public/translate-tts")]
+    public async Task<IActionResult> TranslateTts(
+        [FromBody] PublicAudioTranslateTtsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        try
+        {
+            var result = await geminiSpeechService.TranslateAndGenerateSpeechAsync(request, cancellationToken);
+            Response.Headers["X-SmartTour-Translated-Language"] = result.TargetLanguage;
+            Response.Headers["X-SmartTour-Translated-Voice"] = result.VoiceName;
+            Response.Headers["X-SmartTour-Translated-Text"] = Uri.EscapeDataString(result.TranslatedText);
+            return File(result.AudioContent, result.ContentType);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (HttpRequestException)
+        {
+            return StatusCode(502, new { message = "The cloud speech provider could not be reached." });
         }
     }
 

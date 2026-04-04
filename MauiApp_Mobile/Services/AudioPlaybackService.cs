@@ -1,6 +1,8 @@
 using Microsoft.Maui.Media;
 using Microsoft.Maui.ApplicationModel;
 using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Constants;
+using System.Net.Http.Json;
 
 #if ANDROID
 using Android.Media;
@@ -17,6 +19,12 @@ namespace MauiApp_Mobile.Services;
 public sealed class AudioPlaybackService
 {
     public static AudioPlaybackService Instance { get; } = new();
+    private const bool UseCloudTts = false;
+    private static readonly HttpClient SpeechHttpClient = new()
+    {
+        BaseAddress = new Uri(MobileApiOptions.BaseUrl),
+        Timeout = TimeSpan.FromSeconds(45)
+    };
 
     private CancellationTokenSource? _ttsCancellationTokenSource;
 
@@ -48,6 +56,19 @@ public sealed class AudioPlaybackService
 
         try
         {
+            if (UseCloudTts && ShouldUseTranslatedCloudTts(track))
+            {
+                try
+                {
+                    await PlayTranslatedCloudTtsAsync(track, cancellationToken);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    // Fall back to the device voice or stored audio if cloud TTS is unavailable.
+                }
+            }
+
             if (ShouldUseTts(track))
             {
                 await PlayTtsAsync(track, cancellationToken);
@@ -69,6 +90,22 @@ public sealed class AudioPlaybackService
             RaisePlaybackStateChanged();
             throw;
         }
+    }
+
+    public async Task TestCurrentVoiceAsync(CancellationToken cancellationToken = default)
+    {
+        var preferredLanguage = GetPreferredPlaybackLanguageCode();
+        var sampleTrack = new PublicAudioTrackDto
+        {
+            Id = -1,
+            Title = "Voice test",
+            SourceType = "TTS",
+            Language = preferredLanguage,
+            Script = GetVoiceTestScript(preferredLanguage),
+            VoiceGender = "Female"
+        };
+
+        await PlayAsync(sampleTrack, cancellationToken);
     }
 
     public async Task StopAsync()
@@ -103,9 +140,82 @@ public sealed class AudioPlaybackService
         await OnPlaybackCompletedAsync();
     }
 
+    private async Task PlayTranslatedCloudTtsAsync(PublicAudioTrackDto track, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(track.Script))
+        {
+            throw new InvalidOperationException("The selected TTS track has no script.");
+        }
+
+        var request = new PublicAudioTranslateTtsRequest
+        {
+            Text = track.Script,
+            SourceLanguage = NormalizeLanguageCode(track.Language),
+            TargetLanguage = GetPreferredPlaybackLanguageCode(),
+            VoiceGender = string.IsNullOrWhiteSpace(track.VoiceGender) ? "Female" : track.VoiceGender
+        };
+
+        using var response = await SpeechHttpClient.PostAsJsonAsync(ApiRoutes.PublicTranslateTts, request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var message = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(message)
+                ? "Cloud translation TTS is unavailable."
+                : message);
+        }
+
+        var audioBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        if (audioBytes.Length == 0)
+        {
+            throw new InvalidOperationException("Cloud translation TTS returned an empty audio file.");
+        }
+
+        var tempFilePath = Path.Combine(FileSystem.Current.CacheDirectory, $"smarttour-tts-{Guid.NewGuid():N}.wav");
+        await File.WriteAllBytesAsync(tempFilePath, audioBytes, cancellationToken);
+
+        try
+        {
+            await PlatformPlayAudioAsync(tempFilePath, cancellationToken);
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(tempFilePath))
+                {
+                    File.Delete(tempFilePath);
+                }
+            }
+            catch
+            {
+            }
+        }
+    }
+
     private static bool ShouldUseTts(PublicAudioTrackDto track) =>
         string.Equals(track.SourceType, "TTS", StringComparison.OrdinalIgnoreCase)
         || (string.IsNullOrWhiteSpace(track.AudioURL) && !string.IsNullOrWhiteSpace(track.Script));
+
+    private static bool ShouldUseTranslatedCloudTts(PublicAudioTrackDto track)
+    {
+        if (string.IsNullOrWhiteSpace(track.Script))
+        {
+            return false;
+        }
+
+        var targetLanguage = GetPreferredPlaybackLanguageCode();
+        if (string.IsNullOrWhiteSpace(targetLanguage))
+        {
+            return false;
+        }
+
+        if (!LanguagePrefixesMatch(track.Language, targetLanguage))
+        {
+            return true;
+        }
+
+        return string.Equals(GetLanguagePrefix(targetLanguage), "vi", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static async Task<Locale?> ResolveLocaleAsync(string? languageCode)
     {
@@ -132,6 +242,95 @@ public sealed class AudioPlaybackService
 
         return new Uri(new Uri(MobileApiOptions.BaseUrl), audioUrl.TrimStart('/')).ToString();
     }
+
+    private static string GetPreferredPlaybackLanguageCode() =>
+        LocalizationService.Instance.Language switch
+        {
+            "vi" => "vi-VN",
+            "en" => "en-US",
+            "cn" => "zh-CN",
+            "jp" => "ja-JP",
+            "kr" => "ko-KR",
+            "fr" => "fr-FR",
+            _ => "vi-VN"
+        };
+
+    private static string NormalizeLanguageCode(string? languageCode)
+    {
+        if (string.IsNullOrWhiteSpace(languageCode))
+        {
+            return "";
+        }
+
+        var trimmed = languageCode.Trim().Replace('_', '-');
+        var parts = trimmed.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+        {
+            return "";
+        }
+
+        var prefix = parts[0].ToLowerInvariant() switch
+        {
+            "vn" => "vi",
+            "cn" => "zh",
+            "jp" => "ja",
+            "kr" => "ko",
+            _ => parts[0].ToLowerInvariant()
+        };
+
+        if (parts.Length == 1)
+        {
+            return prefix switch
+            {
+                "vi" => "vi-VN",
+                "en" => "en-US",
+                "zh" => "zh-CN",
+                "ja" => "ja-JP",
+                "ko" => "ko-KR",
+                "fr" => "fr-FR",
+                _ => prefix
+            };
+        }
+
+        return $"{prefix}-{parts[1].ToUpperInvariant()}";
+    }
+
+    private static bool LanguagePrefixesMatch(string? left, string? right)
+    {
+        var normalizedLeft = NormalizeLanguageCode(left);
+        var normalizedRight = NormalizeLanguageCode(right);
+        if (string.IsNullOrWhiteSpace(normalizedLeft) || string.IsNullOrWhiteSpace(normalizedRight))
+        {
+            return false;
+        }
+
+        var leftPrefix = normalizedLeft.Split('-')[0];
+        var rightPrefix = normalizedRight.Split('-')[0];
+        return string.Equals(leftPrefix, rightPrefix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetLanguagePrefix(string? languageCode)
+    {
+        var normalized = NormalizeLanguageCode(languageCode);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return "";
+        }
+
+        return normalized.Split('-')[0];
+    }
+
+    private static string GetVoiceTestScript(string preferredLanguage) =>
+        NormalizeLanguageCode(preferredLanguage) switch
+        {
+            "vi-VN" => "Xin chao, day la ban thu giong doc tieng Viet.",
+            "en-US" => "Hello, this is your English voice test.",
+            "fr-FR" => "Bonjour, ceci est votre test vocal en francais.",
+            "ja-JP" => "Konnichiwa, kore wa nihongo no boisu tesuto desu.",
+            "ko-KR" => "Annyeonghaseyo, ileoseo hangugeo moksori teseuteu-imnida.",
+            "zh-CN" => "Ni hao, zhe shi zhongwen yuyin ceshi.",
+            _ => "Xin chao, day la ban thu giong doc."
+        };
 
     private async Task PlatformPlayAudioAsync(string source, CancellationToken cancellationToken)
     {
