@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Microsoft.Maui.Dispatching;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
+using Project_SharedClassLibrary.Contracts;
 
 namespace MauiApp_Mobile;
 
@@ -58,7 +59,6 @@ public partial class MainPage : ContentPage
             OnPropertyChanged();
             OnPropertyChanged(nameof(DetailPriorityText));
             RefreshSelectedPlaceGallery(resetPosition: true);
-            RefreshSelectedPlaceAudioTracks();
         }
     }
 
@@ -77,6 +77,10 @@ public partial class MainPage : ContentPage
     }
 
     public string AudioListExpandIcon => IsAudioListExpanded ? "˄" : "˅";
+
+    public string AudioTrackSummaryText => SelectedPlaceAudioTracks.Count == 0
+        ? "Chưa có audio"
+        : $"{SelectedPlaceAudioTracks.Count} audio khả dụng";
 
     public string DetailPriorityText => SelectedPlace == null
         ? string.Empty
@@ -110,6 +114,7 @@ public partial class MainPage : ContentPage
             ApplyTexts();
             UpdateCount();
             OnPropertyChanged(nameof(DetailPriorityText));
+            OnPropertyChanged(nameof(AudioTrackSummaryText));
             RefreshSelectedPlaceGallery(resetPosition: false);
         };
 
@@ -118,6 +123,14 @@ public partial class MainPage : ContentPage
             UpdateCategorySelectionState();
             UpdateFilterHeader();
             RefreshSelectedPlaceGallery(resetPosition: false);
+        };
+
+        AudioPlaybackService.Instance.PlaybackStateChanged += (_, currentTrack) =>
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                MarkPlayingTrack(currentTrack?.Id);
+            });
         };
     }
 
@@ -454,30 +467,49 @@ public partial class MainPage : ContentPage
         }
 
         IsAudioListExpanded = false;
+        OnPropertyChanged(nameof(AudioTrackSummaryText));
     }
 
-    private static IReadOnlyList<PlaceDetailAudioTrack> BuildPlaceAudioTracks(PlaceItem place)
-    {
-        var languageTemplates = new (string LanguageCode, string LanguageName)[]
-        {
-            ("VI", "Tiếng Việt"),
-            ("EN", "English"),
-            ("FR", "Francais"),
-            ("KO", "Korean"),
-            ("JA", "Japanese"),
-            ("ZH", "Chinese")
-        };
-
-        return languageTemplates
+    private static IReadOnlyList<PlaceDetailAudioTrack> BuildPlaceAudioTracks(PlaceItem place) =>
+        place.AudioTracks
+            .OrderByDescending(item => item.Priority)
+            .ThenBy(item => ResolveSourceTypeOrder(item.SourceType))
+            .ThenBy(item => item.Id)
             .Select(item => new PlaceDetailAudioTrack
             {
-                LanguageCode = item.LanguageCode,
-                LanguageName = item.LanguageName,
-                Title = place.Name,
-                Duration = "02:05"
+                Id = item.Id,
+                LanguageCode = item.Language,
+                LanguageName = item.LanguageName ?? item.Language,
+                Title = item.Title,
+                Duration = FormatDuration(item.Duration),
+                SourceType = item.SourceType,
+                Priority = item.Priority,
+                AudioUrl = item.AudioURL,
+                Script = item.Script,
+                IsDefault = item.IsDefault
             })
             .ToList();
+
+    private static string FormatDuration(int durationSeconds)
+    {
+        if (durationSeconds <= 0)
+        {
+            return "00:00";
+        }
+
+        var duration = TimeSpan.FromSeconds(durationSeconds);
+        return duration.TotalHours >= 1
+            ? duration.ToString(@"hh\:mm\:ss")
+            : duration.ToString(@"mm\:ss");
     }
+
+    private static int ResolveSourceTypeOrder(string? sourceType) =>
+        sourceType?.Trim().ToUpperInvariant() switch
+        {
+            "RECORDED" => 0,
+            "HYBRID" => 1,
+            _ => 2
+        };
 
     private IReadOnlyList<PlaceGallerySlide> BuildPlaceGallery(PlaceItem place)
     {
@@ -886,6 +918,7 @@ public partial class MainPage : ContentPage
     private async Task ShowPlaceDetailAsync(PlaceItem item)
     {
         SelectedPlace = item;
+        await LoadSelectedPlaceAudioTracksAsync(item);
         IsPlaceDetailVisible = true;
 
         await Task.Yield();
@@ -894,6 +927,14 @@ public partial class MainPage : ContentPage
         PlaceDetailCarousel.Position = 0;
         StartPlaceGalleryAutoplay();
         await PlaceDetailSheet.TranslateToAsync(0, _placeDetailHalfY, 300, Easing.CubicOut);
+    }
+
+    private async Task LoadSelectedPlaceAudioTracksAsync(PlaceItem place, bool forceRefresh = false)
+    {
+        var audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(place.Id, forceRefresh);
+        place.AudioTracks = audioTracks;
+        place.AudioCountText = $"{audioTracks.Count} audio";
+        RefreshSelectedPlaceAudioTracks();
     }
 
     private double ResolvePlaceDetailSnapTarget(double currentY, double totalDragY)
@@ -916,16 +957,12 @@ public partial class MainPage : ContentPage
         return _placeDetailClosedY;
     }
 
-    private void OnPlayTapped(object sender, TappedEventArgs e)
+    private async void OnPlayTapped(object sender, TappedEventArgs e)
     {
         if (sender is not Element element || element.BindingContext is not PlaceItem item)
             return;
 
-        item.IsPlayed = !item.IsPlayed;
-        if (item.IsPlayed)
-        {
-            HistoryService.Instance.AddToHistory(item);
-        }
+        await PlayDefaultAudioAsync(item);
     }
 
     private void OnToggleAudioListTapped(object sender, TappedEventArgs e)
@@ -936,15 +973,12 @@ public partial class MainPage : ContentPage
         IsAudioListExpanded = !IsAudioListExpanded;
     }
 
-    private void OnAudioTrackPlayTapped(object sender, TappedEventArgs e)
+    private async void OnAudioTrackPlayTapped(object sender, TappedEventArgs e)
     {
         if (sender is not Element element || element.BindingContext is not PlaceDetailAudioTrack track)
             return;
 
-        foreach (var item in SelectedPlaceAudioTracks)
-        {
-            item.IsPlaying = ReferenceEquals(item, track) && !track.IsPlaying;
-        }
+        await PlaySelectedTrackAsync(track);
     }
 
     private async void OnViewPlaceOnMapTapped(object sender, TappedEventArgs e)
@@ -970,15 +1004,97 @@ public partial class MainPage : ContentPage
             System.Diagnostics.Debug.WriteLine($"Navigate to map error: {ex.Message}");
         }
     }
+
+    private async Task PlayDefaultAudioAsync(PlaceItem place)
+    {
+        try
+        {
+            var defaultTrack = await PlaceCatalogService.Instance.GetDefaultAudioTrackAsync(place.Id, forceRefresh: true);
+            if (defaultTrack is null)
+            {
+                await DisplayAlert("Audio", "POI này chưa có audio khả dụng.", "OK");
+                return;
+            }
+
+            await AudioPlaybackService.Instance.PlayAsync(defaultTrack);
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                place.IsPlayed = true;
+                HistoryService.Instance.AddToHistory(place);
+            });
+
+            MarkPlayingTrack(defaultTrack.Id);
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Audio", ex.Message, "OK");
+        }
+    }
+
+    private async Task PlaySelectedTrackAsync(PlaceDetailAudioTrack track)
+    {
+        try
+        {
+            if (SelectedPlace is null)
+            {
+                return;
+            }
+
+            if (track.IsPlaying)
+            {
+                await AudioPlaybackService.Instance.StopAsync();
+                MarkPlayingTrack(null);
+                return;
+            }
+
+            var selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
+            if (selectedTrack is null)
+            {
+                await LoadSelectedPlaceAudioTracksAsync(SelectedPlace, forceRefresh: true);
+                selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
+            }
+
+            if (selectedTrack is null)
+            {
+                await DisplayAlert("Audio", "Không tìm thấy audio đã chọn.", "OK");
+                return;
+            }
+
+            await AudioPlaybackService.Instance.PlayAsync(selectedTrack);
+            SelectedPlace.IsPlayed = true;
+            HistoryService.Instance.AddToHistory(SelectedPlace);
+            MarkPlayingTrack(selectedTrack.Id);
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Audio", ex.Message, "OK");
+        }
+    }
+
+    private void MarkPlayingTrack(int? trackId)
+    {
+        foreach (var item in SelectedPlaceAudioTracks)
+        {
+            item.IsPlaying = trackId.HasValue && item.Id == trackId.Value;
+        }
+    }
 }
 
 public class PlaceDetailAudioTrack : BindableObject
 {
+    public int Id { get; set; }
     public string LanguageCode { get; set; } = string.Empty;
     public string LanguageName { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Duration { get; set; } = string.Empty;
-    public string MetaText => $"{LanguageName} • {Duration}";
+    public string SourceType { get; set; } = string.Empty;
+    public int Priority { get; set; }
+    public bool IsDefault { get; set; }
+    public string? AudioUrl { get; set; }
+    public string? Script { get; set; }
+    public string MetaText => IsDefault
+        ? $"{LanguageName} • {SourceType} • P{Priority} • mặc định"
+        : $"{LanguageName} • {SourceType} • P{Priority} • {Duration}";
 
     private bool _isPlaying;
 

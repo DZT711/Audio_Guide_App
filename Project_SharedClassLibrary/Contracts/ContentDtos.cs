@@ -80,6 +80,25 @@ public sealed class AudioDto
     public DateTime? UpdatedAt { get; init; }
 }
 
+public sealed class PublicAudioTrackDto
+{
+    public int Id { get; init; }
+    public int LocationId { get; init; }
+    public string LocationName { get; init; } = "";
+    public string Language { get; init; } = "vi-VN";
+    public string? LanguageName { get; init; }
+    public string Title { get; init; } = "";
+    public string? Description { get; init; }
+    public string SourceType { get; init; } = "TTS";
+    public string? Script { get; init; }
+    public string? AudioURL { get; init; }
+    public int Duration { get; init; }
+    public string? VoiceName { get; init; }
+    public string? VoiceGender { get; init; }
+    public int Priority { get; init; }
+    public bool IsDefault { get; init; }
+}
+
 public sealed class TourStopDto
 {
     public int LocationId { get; init; }

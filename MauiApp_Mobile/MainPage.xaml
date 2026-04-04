@@ -615,7 +615,7 @@
                                                    FontSize="19"
                                                    FontAttributes="Bold"
                                                    TextColor="#0F172A" />
-                                            <Label Text="6 ngôn ngữ khả dụng"
+                                            <Label Text="{Binding AudioTrackSummaryText}"
                                                    FontSize="13"
                                                    TextColor="{DynamicResource MutedText}" />
                                         </VerticalStackLayout>

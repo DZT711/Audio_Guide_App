@@ -21,6 +21,7 @@ public sealed class PlaceCatalogService
     private readonly SemaphoreSlim _categoryLoadSemaphore = new(1, 1);
     private readonly List<PlaceItem> _places = [];
     private readonly List<CategoryDto> _categories = [];
+    private readonly Dictionary<string, List<PublicAudioTrackDto>> _audioTracksByPlaceId = new(StringComparer.OrdinalIgnoreCase);
 
     private PlaceCatalogService()
     {
@@ -113,6 +114,66 @@ public sealed class PlaceCatalogService
 
         return _places.FirstOrDefault(item =>
             string.Equals(item.Id, id.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    public async Task<IReadOnlyList<PublicAudioTrackDto>> GetAudioTracksAsync(
+        string? placeId,
+        bool forceRefresh = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(placeId))
+        {
+            return [];
+        }
+
+        await EnsureLoadedAsync(false, cancellationToken);
+
+        var normalizedPlaceId = placeId.Trim();
+        if (!forceRefresh && _audioTracksByPlaceId.TryGetValue(normalizedPlaceId, out var cachedTracks))
+        {
+            return cachedTracks.ToList();
+        }
+
+        if (!int.TryParse(normalizedPlaceId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var locationId))
+        {
+            return [];
+        }
+
+        try
+        {
+            var route = string.Format(CultureInfo.InvariantCulture, ApiRoutes.PublicLocationAudioTemplate, locationId);
+            var audioTracks = await HttpClient.GetFromJsonAsync<List<PublicAudioTrackDto>>(route, cancellationToken) ?? [];
+            _audioTracksByPlaceId[normalizedPlaceId] = audioTracks;
+
+            var place = _places.FirstOrDefault(item => string.Equals(item.Id, normalizedPlaceId, StringComparison.OrdinalIgnoreCase));
+            if (place is not null)
+            {
+                place.AudioTracks = audioTracks;
+                place.AudioCountText = $"{audioTracks.Count} audio";
+            }
+
+            return audioTracks.ToList();
+        }
+        catch when (!cancellationToken.IsCancellationRequested)
+        {
+            return _audioTracksByPlaceId.TryGetValue(normalizedPlaceId, out var fallbackTracks)
+                ? fallbackTracks.ToList()
+                : [];
+        }
+    }
+
+    public async Task<PublicAudioTrackDto?> GetDefaultAudioTrackAsync(
+        string? placeId,
+        bool forceRefresh = false,
+        CancellationToken cancellationToken = default)
+    {
+        var tracks = await GetAudioTracksAsync(placeId, forceRefresh, cancellationToken);
+        return tracks.FirstOrDefault(item => item.IsDefault)
+            ?? tracks
+                .OrderByDescending(item => item.Priority)
+                .ThenBy(item => ResolveSourceTypeOrder(item.SourceType))
+                .ThenBy(item => item.Id)
+                .FirstOrDefault();
     }
 
     public IReadOnlyList<PlaceItem> SearchByName(string keyword, int maxResults = 6)
@@ -212,6 +273,7 @@ public sealed class PlaceCatalogService
             StatusText = location.Status == 1 ? "Đang hoạt động" : "Ngừng hoạt động",
             GpsTriggerText = location.IsGpsTriggerEnabled ? "Bật GPS trigger" : "Tắt GPS trigger",
             AudioCountText = $"{location.AudioCount} audio",
+            AudioTracks = Array.Empty<PublicAudioTrackDto>(),
             Latitude = location.Latitude,
             Longitude = location.Longitude,
             CategoryColor = categoryColors.Background,
@@ -536,6 +598,14 @@ public sealed class PlaceCatalogService
             return [];
         }
     }
+
+    private static int ResolveSourceTypeOrder(string? sourceType) =>
+        sourceType?.Trim().ToUpperInvariant() switch
+        {
+            "RECORDED" => 0,
+            "HYBRID" => 1,
+            _ => 2
+        };
 
     public sealed class MapPlacePoint
     {

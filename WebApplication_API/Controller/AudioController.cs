@@ -17,6 +17,79 @@ public class AudioController(
     TtsPreviewService ttsPreviewService,
     AdminRequestAuthorizationService authService) : ControllerBase
 {
+    [HttpGet("public/location/{locationId:int}")]
+    public async Task<IActionResult> GetPublicAudioByLocation(int locationId, CancellationToken cancellationToken)
+    {
+        var location = await context.Locations
+            .Where(item => item.LocationId == locationId && item.Status == 1)
+            .Select(item => new
+            {
+                item.LocationId,
+                item.Name
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (location is null)
+        {
+            return NotFound(new { message = "Location not found." });
+        }
+
+        var audioItems = (await context.AudioContents
+            .Where(item => item.LocationId == locationId && item.Status == 1)
+            .ToListAsync(cancellationToken))
+            .OrderByDescending(item => item.Priority)
+            .ThenBy(item => GetSourceTypeOrder(item.SourceType))
+            .ThenBy(item => item.AudioId)
+            .ToList();
+
+        var languageLookup = await LoadLanguageLookupAsync(audioItems.Select(item => item.LanguageCode));
+        var defaultAudioId = audioItems.FirstOrDefault()?.AudioId;
+
+        return Ok(audioItems.Select(item => ToPublicAudioTrackDto(
+            item,
+            location.Name,
+            GetLanguage(languageLookup, item.LanguageCode),
+            item.AudioId == defaultAudioId)).ToList());
+    }
+
+    [HttpGet("public/location/{locationId:int}/default")]
+    public async Task<IActionResult> GetPublicDefaultAudioByLocation(int locationId, CancellationToken cancellationToken)
+    {
+        var location = await context.Locations
+            .Where(item => item.LocationId == locationId && item.Status == 1)
+            .Select(item => new
+            {
+                item.LocationId,
+                item.Name
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (location is null)
+        {
+            return NotFound(new { message = "Location not found." });
+        }
+
+        var audio = (await context.AudioContents
+            .Where(item => item.LocationId == locationId && item.Status == 1)
+            .ToListAsync(cancellationToken))
+            .OrderByDescending(item => item.Priority)
+            .ThenBy(item => GetSourceTypeOrder(item.SourceType))
+            .ThenBy(item => item.AudioId)
+            .FirstOrDefault();
+
+        if (audio is null)
+        {
+            return NotFound(new { message = "No active audio found for this location." });
+        }
+
+        var languageLookup = await LoadLanguageLookupAsync([audio.LanguageCode]);
+        return Ok(ToPublicAudioTrackDto(
+            audio,
+            location.Name,
+            GetLanguage(languageLookup, audio.LanguageCode),
+            true));
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAllAudio()
     {
@@ -363,6 +436,38 @@ public class AudioController(
 
     private static string? NormalizeAudioPath(string? path) =>
         string.IsNullOrWhiteSpace(path) ? null : SharedStoragePaths.NormalizePublicAudioPath(path);
+
+    private static PublicAudioTrackDto ToPublicAudioTrackDto(
+        Audio audio,
+        string locationName,
+        Language? language,
+        bool isDefault) =>
+        new()
+        {
+            Id = audio.AudioId,
+            LocationId = audio.LocationId,
+            LocationName = locationName,
+            Language = audio.LanguageCode,
+            LanguageName = language?.LangName,
+            Title = audio.Title,
+            Description = audio.Description,
+            SourceType = audio.SourceType,
+            Script = audio.Script,
+            AudioURL = audio.FilePath,
+            Duration = audio.DurationSeconds ?? 0,
+            VoiceName = audio.VoiceName,
+            VoiceGender = audio.VoiceGender,
+            Priority = audio.Priority,
+            IsDefault = isDefault
+        };
+
+    private static int GetSourceTypeOrder(string? sourceType) =>
+        sourceType?.Trim().ToUpperInvariant() switch
+        {
+            "RECORDED" => 0,
+            "HYBRID" => 1,
+            _ => 2
+        };
 
     private async Task<Dictionary<string, Language>> LoadLanguageLookupAsync(IEnumerable<string> languageCodes)
     {

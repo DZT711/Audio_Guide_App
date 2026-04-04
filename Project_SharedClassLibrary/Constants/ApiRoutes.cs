@@ -10,6 +10,8 @@ public static class ApiRoutes
     public const string Tours = "Tour";
     public const string ToursPreview = "Tour/preview";
     public const string Audio = "Audio";
+    public const string PublicLocationAudioTemplate = "Audio/public/location/{0}";
+    public const string PublicLocationDefaultAudioTemplate = "Audio/public/location/{0}/default";
     public const string AudioTtsPreview = "Audio/preview-tts";
     public const string UsageHistory = "Usage";
     public const string AuthLogin = "Auth/login";

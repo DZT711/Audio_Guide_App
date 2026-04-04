@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
+using Project_SharedClassLibrary.Contracts;
+
 namespace MauiApp_Mobile.Models;
 
 public class PlaceItem : INotifyPropertyChanged
@@ -27,6 +29,7 @@ public class PlaceItem : INotifyPropertyChanged
     public string StatusText { get; set; } = "";
     public string GpsTriggerText { get; set; } = "";
     public string AudioCountText { get; set; } = "";
+    public IReadOnlyList<PublicAudioTrackDto> AudioTracks { get; set; } = Array.Empty<PublicAudioTrackDto>();
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public Color CategoryColor { get; set; } = Colors.LightGray;
