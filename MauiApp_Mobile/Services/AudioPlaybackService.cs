@@ -3,9 +3,15 @@ using Microsoft.Maui.ApplicationModel;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Constants;
 using System.Net.Http.Json;
+using MauiTextToSpeech = Microsoft.Maui.Media.TextToSpeech;
 
 #if ANDROID
 using Android.Media;
+using Android.OS;
+using Android.Speech.Tts;
+using Java.Util;
+using AndroidTts = Android.Speech.Tts.TextToSpeech;
+using AndroidLocale = Java.Util.Locale;
 #endif
 
 #if WINDOWS
@@ -20,6 +26,10 @@ public sealed class AudioPlaybackService
 {
     public static AudioPlaybackService Instance { get; } = new();
     private const bool UseCloudTts = false;
+#if ANDROID
+    private const string GoogleTtsEnginePackage = "com.google.android.tts";
+    private const string SamsungTtsEnginePackage = "com.samsung.SMT";
+#endif
     private static readonly HttpClient SpeechHttpClient = new()
     {
         BaseAddress = new Uri(MobileApiOptions.BaseUrl),
@@ -30,6 +40,7 @@ public sealed class AudioPlaybackService
 
 #if ANDROID
     private MediaPlayer? _androidPlayer;
+    private AndroidTts? _androidTts;
 #endif
 
 #if WINDOWS
@@ -128,6 +139,9 @@ public sealed class AudioPlaybackService
             throw new InvalidOperationException("The selected TTS track has no script.");
         }
 
+#if ANDROID
+        await PlatformSpeakTtsAsync(track.Script, track.Language, cancellationToken);
+#else
         _ttsCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var options = new SpeechOptions();
         var locale = await ResolveLocaleAsync(track.Language);
@@ -136,7 +150,8 @@ public sealed class AudioPlaybackService
             options.Locale = locale;
         }
 
-        await TextToSpeech.Default.SpeakAsync(track.Script, options, _ttsCancellationTokenSource.Token);
+        await MauiTextToSpeech.Default.SpeakAsync(track.Script, options, _ttsCancellationTokenSource.Token);
+#endif
         await OnPlaybackCompletedAsync();
     }
 
@@ -217,14 +232,14 @@ public sealed class AudioPlaybackService
         return string.Equals(GetLanguagePrefix(targetLanguage), "vi", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static async Task<Locale?> ResolveLocaleAsync(string? languageCode)
+    private static async Task<Microsoft.Maui.Media.Locale?> ResolveLocaleAsync(string? languageCode)
     {
         if (string.IsNullOrWhiteSpace(languageCode))
         {
             return null;
         }
 
-        var locales = await TextToSpeech.Default.GetLocalesAsync();
+        var locales = await MauiTextToSpeech.Default.GetLocalesAsync();
         return locales.FirstOrDefault(item =>
                    string.Equals(item.Language, languageCode, StringComparison.OrdinalIgnoreCase))
                ?? locales.FirstOrDefault(item =>
@@ -403,6 +418,11 @@ public sealed class AudioPlaybackService
     private Task PlatformStopAudioAsync()
     {
 #if ANDROID
+        _androidTts?.Stop();
+        _androidTts?.Shutdown();
+        _androidTts?.Dispose();
+        _androidTts = null;
+
         if (_androidPlayer is not null)
         {
             if (_androidPlayer.IsPlaying)
@@ -436,4 +456,150 @@ public sealed class AudioPlaybackService
 
     private void RaisePlaybackStateChanged() =>
         PlaybackStateChanged?.Invoke(this, CurrentTrack);
+
+#if ANDROID
+    private async Task PlatformSpeakTtsAsync(string script, string? languageCode, CancellationToken cancellationToken)
+    {
+        var locale = ResolveAndroidLocale(languageCode);
+        var engineCandidates = new[]
+        {
+            GoogleTtsEnginePackage,
+            SamsungTtsEnginePackage,
+            string.Empty
+        };
+
+        Exception? lastException = null;
+
+        foreach (var enginePackage in engineCandidates)
+        {
+            try
+            {
+                var spoke = await TrySpeakWithAndroidEngineAsync(script, locale, enginePackage, cancellationToken);
+                if (spoke)
+                {
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+            }
+        }
+
+        _ttsCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var options = new SpeechOptions();
+        var mauiLocale = await ResolveLocaleAsync(languageCode);
+        if (mauiLocale is not null)
+        {
+            options.Locale = mauiLocale;
+        }
+
+        await MauiTextToSpeech.Default.SpeakAsync(script, options, _ttsCancellationTokenSource.Token);
+
+        if (lastException is not null)
+        {
+            System.Diagnostics.Debug.WriteLine($"Android TTS engine fallback ended on MAUI default: {lastException.Message}");
+        }
+    }
+
+    private async Task<bool> TrySpeakWithAndroidEngineAsync(
+        string script,
+        AndroidLocale locale,
+        string? enginePackage,
+        CancellationToken cancellationToken)
+    {
+        _androidTts?.Stop();
+        _androidTts?.Shutdown();
+        _androidTts?.Dispose();
+        _androidTts = null;
+
+        var initCompletion = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var initListener = new AndroidTtsInitListener(status => initCompletion.TrySetResult((int)status));
+
+        _androidTts = string.IsNullOrWhiteSpace(enginePackage)
+            ? new AndroidTts(Android.App.Application.Context, initListener)
+            : new AndroidTts(Android.App.Application.Context, initListener, enginePackage);
+
+        using var registration = cancellationToken.Register(() => initCompletion.TrySetCanceled(cancellationToken));
+        var initStatus = await initCompletion.Task;
+        if (initStatus != (int)OperationResult.Success || _androidTts is null)
+        {
+            return false;
+        }
+
+        var languageResult = _androidTts.SetLanguage(locale);
+        if (languageResult == LanguageAvailableResult.MissingData || languageResult == LanguageAvailableResult.NotSupported)
+        {
+            return false;
+        }
+
+        var speakCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var utteranceId = Guid.NewGuid().ToString("N");
+        _androidTts.SetOnUtteranceProgressListener(new AndroidTtsProgressListener(
+            utteranceId,
+            () => speakCompletion.TrySetResult(),
+            message => speakCompletion.TrySetException(new InvalidOperationException(message))));
+
+        var parameters = new Bundle();
+        var speakStatus = _androidTts.Speak(script, QueueMode.Flush, parameters, utteranceId);
+        if (speakStatus != OperationResult.Success)
+        {
+            return false;
+        }
+
+        using var speakRegistration = cancellationToken.Register(() =>
+        {
+            _androidTts?.Stop();
+            speakCompletion.TrySetCanceled(cancellationToken);
+        });
+
+        await speakCompletion.Task;
+        return true;
+    }
+
+    private static AndroidLocale ResolveAndroidLocale(string? languageCode)
+    {
+        var normalized = NormalizeLanguageCode(languageCode);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return AndroidLocale.Default;
+        }
+
+        var parts = normalized.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length >= 2
+            ? new AndroidLocale(parts[0], parts[1])
+            : new AndroidLocale(parts[0]);
+    }
+
+    private sealed class AndroidTtsInitListener(Action<OperationResult> onInitialized) : Java.Lang.Object, AndroidTts.IOnInitListener
+    {
+        public void OnInit(OperationResult status) => onInitialized(status);
+    }
+
+    private sealed class AndroidTtsProgressListener(
+        string utteranceId,
+        Action onDone,
+        Action<string> onError) : UtteranceProgressListener
+    {
+        public override void OnStart(string? utteranceIdValue)
+        {
+        }
+
+        public override void OnDone(string? utteranceIdValue)
+        {
+            if (string.Equals(utteranceIdValue, utteranceId, StringComparison.Ordinal))
+            {
+                onDone();
+            }
+        }
+
+        public override void OnError(string? utteranceIdValue)
+        {
+            if (string.Equals(utteranceIdValue, utteranceId, StringComparison.Ordinal))
+            {
+                onError("Android TTS engine failed while speaking.");
+            }
+        }
+    }
+#endif
 }
