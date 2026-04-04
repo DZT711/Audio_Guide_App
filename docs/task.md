@@ -119,7 +119,7 @@ request reset password
 
 admin/dev can reset password for user
 
-allow user watch details statistics of their own data
+allow user watch details statistics of their own data✅
 
 add more details in dashboard page for each poi
 
