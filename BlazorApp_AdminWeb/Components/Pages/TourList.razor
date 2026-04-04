@@ -233,7 +233,7 @@ else
 @if (CanManage)
 {
     <div class="@GetEditorModalClass()" @onclick="CancelEditAsync" aria-hidden="@(!_isEditorOpen)">
-        <section class="management-panel tour-editor tour-editor--modal" role="dialog" aria-modal="true" aria-labelledby="tour-editor-title" @onclick:stopPropagation="true">
+        <section class="management-panel app-modal-panel tour-editor tour-editor--modal" role="dialog" aria-modal="true" aria-labelledby="tour-editor-title" @onclick:stopPropagation="true">
             <div class="tour-editor__topbar">
                 <div>
                     <span class="management-panel__eyebrow">Planner</span>

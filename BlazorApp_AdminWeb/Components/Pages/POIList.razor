@@ -34,6 +34,12 @@ else
         </div>
 
         <div class="management-hero__actions">
+            @if (CanEditContent)
+            {
+                <button type="button" class="btn btn-primary btn-lg" @onclick="StartCreateAsync">
+                    @(CanManage ? "New POI" : "Request New POI")
+                </button>
+            }
             <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
                 <i class="bi bi-arrow-clockwise me-2"></i>
                 Refresh
@@ -72,7 +78,7 @@ else
         </article>
     </div>
 
-    <div class="management-layout">
+    <div class="management-layout @(CanEditContent ? "poi-layout--editor-modal" : string.Empty)">
         <section class="management-panel" data-reveal>
             <div class="management-panel__header">
                 <div>
@@ -205,12 +211,21 @@ else
             }
         </section>
 
-        <section class="management-panel poi-editor" data-reveal>
-            <div class="management-panel__header">
+        <div class="@GetEditorShellClass()" @onclick="HandleEditorBackdropClick" aria-hidden="@(CanEditContent && !_isEditorOpen)">
+        <section class="@GetEditorPanelClass()" data-reveal role="@(CanEditContent ? "dialog" : null)" aria-modal="@(CanEditContent ? "true" : null)" aria-labelledby="poi-editor-title" @onclick:stopPropagation="true">
+            <div class="management-panel__header poi-editor__header">
                 <div>
                     <span class="management-panel__eyebrow">@(CanEditContent ? (CanManage ? "Editor" : "Submission") : "Read Only")</span>
-                    <h2>@(CanEditContent ? (_editingId is null ? "Create Location" : "Edit Location") : "Location Details")</h2>
+                    <h2 id="poi-editor-title">@(CanEditContent ? (_editingId is null ? "Create Location" : "Edit Location") : "Location Details")</h2>
+                    @if (CanEditContent)
+                    {
+                        <p class="poi-editor__subtitle">Open the POI editor in a focused modal while keeping the location dataset visible behind it.</p>
+                    }
                 </div>
+                @if (CanEditContent)
+                {
+                    <button type="button" class="btn-close" aria-label="Close POI editor" @onclick="CancelEditAsync"></button>
+                }
             </div>
 
             @if (CanEditContent)
@@ -218,7 +233,47 @@ else
             <EditForm Model="_formModel" OnValidSubmit="SaveLocationAsync" OnInvalidSubmit="HandleInvalidLocationSubmit" class="management-form">
                 <DataAnnotationsValidator />
 
-                <div class="management-form__grid">
+                <div class="poi-editor__summary">
+                    <div class="poi-editor__summary-copy">
+                        <span class="poi-editor__summary-kicker">@(_editingId is null ? "New Location Draft" : "Editing Existing POI")</span>
+                        <strong>@(string.IsNullOrWhiteSpace(_formModel.Name) ? "Untitled POI" : _formModel.Name)</strong>
+                        <small>@GetEditorCategorySummary()</small>
+                    </div>
+                    <div class="poi-editor__summary-badges">
+                        <span class="poi-editor__badge">@(CanManage ? "Direct Save" : "Approval Request")</span>
+                        <span class="poi-editor__badge">@(_editingId is null ? "Create" : "Edit")</span>
+                        <span class="poi-editor__badge">@GetStatusLabel(_formModel.Status)</span>
+                    </div>
+                </div>
+
+                <div class="poi-editor-tabs" role="tablist" aria-label="POI editor sections">
+                    <button type="button" class='@GetEditorTabClass("basic")' @onclick='() => SetEditorTab("basic")'>
+                        <i class="bi bi-info-circle"></i>
+                        <span>Basic Info</span>
+                    </button>
+                    <button type="button" class='@GetEditorTabClass("details")' @onclick='() => SetEditorTab("details")'>
+                        <i class="bi bi-layers"></i>
+                        <span>Details</span>
+                    </button>
+                    <button type="button" class='@GetEditorTabClass("media")' @onclick='() => SetEditorTab("media")'>
+                        <i class="bi bi-image"></i>
+                        <span>Media</span>
+                    </button>
+                    <button type="button" class='@GetEditorTabClass("settings")' @onclick='() => SetEditorTab("settings")'>
+                        <i class="bi bi-sliders"></i>
+                        <span>Settings</span>
+                    </button>
+                </div>
+
+                <div class="poi-editor-sections">
+                    @if (IsEditorTabActive("basic"))
+                    {
+                    <section class="poi-editor-section">
+                        <div class="poi-editor-section__header">
+                            <h3>Basic Info</h3>
+                            <p>The main identity, address, and summary shown in POI lists and detail screens.</p>
+                        </div>
+                        <div class="management-form__grid">
                     <div class="management-field">
                         <label for="location-name">Name</label>
                         <InputText id="location-name" class="form-control" @bind-Value="_formModel.Name" />
@@ -313,6 +368,19 @@ else
                         <ValidationMessage For="() => _formModel.Description" />
                     </div>
 
+                        </div>
+                    </section>
+                    }
+
+                    @if (IsEditorTabActive("details"))
+                    {
+                    <section class="poi-editor-section">
+                        <div class="poi-editor-section__header">
+                            <h3>Details</h3>
+                            <p>Coordinates, ownership, contact, and trigger settings for the selected POI.</p>
+                        </div>
+                        <div class="management-form__grid">
+
                     <div class="management-field">
                         <label for="location-year">Established Year</label>
                         <InputNumber id="location-year" class="form-control" @bind-Value="_formModel.EstablishedYear" />
@@ -390,6 +458,19 @@ else
                         <InputText id="location-email" class="form-control" @bind-Value="_formModel.Email" />
                         <ValidationMessage For="() => _formModel.Email" />
                     </div>
+
+                        </div>
+                    </section>
+                    }
+
+                    @if (IsEditorTabActive("media"))
+                    {
+                    <section class="poi-editor-section">
+                        <div class="poi-editor-section__header">
+                            <h3>Media</h3>
+                            <p>Upload the preference image and gallery photos that will appear across the app.</p>
+                        </div>
+                        <div class="management-form__grid">
 
                     <div class="management-field management-field--full">
                         <label for="location-preference-image">Preference Image</label>
@@ -500,6 +581,19 @@ else
                         </div>
                     </div>
 
+                        </div>
+                    </section>
+                    }
+
+                    @if (IsEditorTabActive("settings"))
+                    {
+                    <section class="poi-editor-section">
+                        <div class="poi-editor-section__header">
+                            <h3>Publishing</h3>
+                            <p>Finish trigger behavior and live status before saving or submitting the request.</p>
+                        </div>
+                        <div class="management-form__grid">
+
                     <div class="management-field management-field--full">
                         <span class="management-field__label">GPS Trigger</span>
                         <div class="management-chip-group">
@@ -524,13 +618,16 @@ else
                             <span class="management-field__hint">Optional note for Admin or Developer review.</span>
                         </div>
                     }
+                        </div>
+                    </section>
+                    }
                 </div>
 
                 <div class="management-actions">
                     <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveCategories || !CanEditContent)">
                         @GetSaveButtonLabel()
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Close" : "Cancel")</button>
                 </div>
             </EditForm>
             }
@@ -607,6 +704,7 @@ else
                 </div>
             }
         </section>
+        </div>
     </div>
 </div>
 
@@ -649,13 +747,17 @@ else
     private LocationDto? _pendingArchivedLocation;
     private bool _isLoading = true;
     private bool _isSaving;
+    private bool _isEditorOpen;
     private bool _isPreparingImagePreview;
     private bool _isMapSearching;
     private bool _deviceLocationPending = true;
+    private bool _mapInitializationPending = true;
     private bool _mapSyncPending;
+    private bool? _bodyScrollLockState;
     private int _imageInputVersion;
     private int _preferenceImageInputVersion;
     private int? _editingId;
+    private string _editorTab = "basic";
     private string _searchText = "";
     private string _mapSearchText = "";
     private string _selectedCategoryName = "";
@@ -716,10 +818,16 @@ else
         if (firstRender && CanEditContent)
         {
             _mapReference = DotNetObjectReference.Create(this);
-            await InitializeMapAsync();
         }
 
-        if (CanEditContent && _mapSyncPending)
+        if (CanEditContent && _isEditorOpen && IsEditorTabActive("basic") && _mapInitializationPending)
+        {
+            _mapInitializationPending = false;
+            await InitializeMapAsync();
+            _mapSyncPending = true;
+        }
+
+        if (CanEditContent && _isEditorOpen && IsEditorTabActive("basic") && _mapSyncPending)
         {
             _mapSyncPending = false;
             await SyncMapAsync();
@@ -729,6 +837,11 @@ else
         {
             _deviceLocationPending = false;
             await TryUseDeviceLocationAsync(showFallbackNotice: false);
+        }
+
+        if (CanEditContent && _bodyScrollLockState != _isEditorOpen)
+        {
+            await SyncBodyScrollLockAsync(_isEditorOpen);
         }
     }
 
@@ -838,6 +951,21 @@ else
         }
     }
 
+    private async Task SyncBodyScrollLockAsync(bool isLocked)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", isLocked);
+            _bodyScrollLockState = isLocked;
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+
     private async Task CenterMapOnCoordinatesAsync() => await SyncMapAsync();
 
     private async Task SearchMapAsync()
@@ -902,10 +1030,14 @@ else
 
     private async Task StartCreateAsync()
     {
+        _isEditorOpen = CanEditContent;
+        _editorTab = "basic";
+        _mapInitializationPending = true;
         _editingId = null;
         _selectedLocation = null;
         ResetForm();
         await RefreshLocationImagePreviewsAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task StartEditAsync(LocationDto location)
@@ -918,12 +1050,16 @@ else
             return;
         }
 
+        _isEditorOpen = true;
+        _editorTab = "basic";
+        _mapInitializationPending = true;
         _editingId = location.Id;
         _deviceLocationPending = false;
         var snapshot = LocationFormModel.FromDto(location, _categories);
         ApplyForm(snapshot);
         ResetMapSearchState(snapshot.Address ?? snapshot.Name);
         await RefreshLocationImagePreviewsAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task SaveLocationAsync()
@@ -963,7 +1099,7 @@ else
             }
 
             await LoadDataAsync();
-            await StartCreateAsync();
+            await CloseEditorAsync(clearSelectedLocation: false);
         }
         catch (Exception ex)
         {
@@ -1029,7 +1165,7 @@ else
 
             if (_editingId == _pendingArchivedLocation.Id)
             {
-                await StartCreateAsync();
+                await CloseEditorAsync(clearSelectedLocation: true);
             }
         }
         catch (Exception ex)
@@ -1044,6 +1180,8 @@ else
 
     private void ResetForm()
     {
+        _editorTab = "basic";
+        _mapInitializationPending = true;
         ApplyForm(new LocationFormModel
         {
             EstablishedYear = DateTime.UtcNow.Year,
@@ -1063,7 +1201,34 @@ else
 
     private async Task CancelEditAsync()
     {
-        await StartCreateAsync();
+        await CloseEditorAsync(clearSelectedLocation: true);
+    }
+
+    private async Task CloseEditorAsync(bool clearSelectedLocation)
+    {
+        _isEditorOpen = false;
+        _editorTab = "basic";
+        _mapInitializationPending = true;
+        _editingId = null;
+
+        if (clearSelectedLocation)
+        {
+            _selectedLocation = null;
+        }
+
+        ResetForm();
+        await RefreshLocationImagePreviewsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleEditorBackdropClick()
+    {
+        if (!CanEditContent || !_isEditorOpen)
+        {
+            return;
+        }
+
+        await CancelEditAsync();
     }
 
     private void ApplyForm(LocationFormModel model)
@@ -1521,6 +1686,48 @@ else
         ? "management-chip management-chip--selected"
         : "management-chip";
 
+    private string GetEditorShellClass() =>
+        CanEditContent
+            ? _isEditorOpen
+                ? "poi-editor-shell poi-editor-shell--modal poi-editor-shell--open"
+                : "poi-editor-shell poi-editor-shell--modal"
+            : "poi-editor-shell";
+
+    private string GetEditorPanelClass() =>
+        CanEditContent
+            ? "management-panel app-modal-panel poi-editor poi-editor--modal"
+            : "management-panel poi-editor";
+
+    private void SetEditorTab(string tabId)
+    {
+        _editorTab = tabId;
+
+        if (string.Equals(tabId, "basic", StringComparison.OrdinalIgnoreCase))
+        {
+            _mapInitializationPending = true;
+            _mapSyncPending = true;
+        }
+    }
+
+    private bool IsEditorTabActive(string tabId) =>
+        string.Equals(_editorTab, tabId, StringComparison.OrdinalIgnoreCase);
+
+    private string GetEditorTabClass(string tabId) =>
+        IsEditorTabActive(tabId)
+            ? "poi-editor-tab poi-editor-tab--active"
+            : "poi-editor-tab";
+
+    private string GetEditorCategorySummary()
+    {
+        if (_formModel.CategoryId <= 0)
+        {
+            return "Choose a category and complete each section before saving.";
+        }
+
+        return _categories.FirstOrDefault(item => item.Id == _formModel.CategoryId)?.Name
+            ?? "Category selected";
+    }
+
     private string GetSaveButtonLabel()
     {
         if (_isSaving)
@@ -1570,6 +1777,11 @@ else
     {
         try
         {
+            if (_bodyScrollLockState == true)
+            {
+                await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", false);
+            }
+
             if (CanEditContent)
             {
                 await JS.InvokeVoidAsync("smartTourAdmin.map.disposeLocationPicker", _mapElement);

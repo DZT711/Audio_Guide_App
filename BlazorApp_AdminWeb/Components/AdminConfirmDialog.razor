@@ -1,7 +1,7 @@
 @if (Visible)
 {
     <div class="admin-confirm__backdrop" @onclick="HandleCancel">
-        <section class="admin-confirm__panel" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+        <section class="admin-confirm__panel app-modal-panel" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
             <div class="admin-confirm__copy">
                 @if (!string.IsNullOrWhiteSpace(Eyebrow))
                 {

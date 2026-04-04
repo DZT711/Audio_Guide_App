@@ -323,6 +323,7 @@ public class TourController(
             .Include(item => item.Stops)
             .ThenInclude(item => item.Location)
             .ThenInclude(item => item!.Category)
+            .AsSplitQuery()
             .AsQueryable();
 
         return IsOwnerScoped(currentUser)

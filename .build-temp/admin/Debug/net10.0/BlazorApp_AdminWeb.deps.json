@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "BlazorApp_AdminWeb/1.0.0": {
+        "dependencies": {
+          "Shared_ClassLibrary": "1.0.0"
+        },
+        "runtime": {
+          "BlazorApp_AdminWeb.dll": {}
+        }
+      },
+      "Shared_ClassLibrary/1.0.0": {
+        "runtime": {
+          "Shared_ClassLibrary.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "BlazorApp_AdminWeb/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Shared_ClassLibrary/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

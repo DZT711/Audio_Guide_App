@@ -1,6 +1,8 @@
 @page "/moderation"
+@implements IAsyncDisposable
 @inject AdminApiClient ApiClient
 @inject InboxState InboxState
+@inject IJSRuntime JS
 @inject NotificationService Notifications
 @inject AdminSessionState SessionState
 
@@ -175,7 +177,7 @@ else
         </section>
 
         <div class="@GetDetailModalClass()" @onclick="CloseDetailModal" aria-hidden="@(!_isDetailModalOpen)">
-        <section class="management-panel moderation-detail moderation-detail--modal" role="dialog" aria-modal="true" aria-labelledby="moderation-detail-title" @onclick:stopPropagation="true">
+        <section class="management-panel app-modal-panel moderation-detail moderation-detail--modal" role="dialog" aria-modal="true" aria-labelledby="moderation-detail-title" @onclick:stopPropagation="true">
             <div class="management-panel__header moderation-detail__header">
                 <div>
                     <span class="management-panel__eyebrow">Details</span>
@@ -193,23 +195,47 @@ else
             else
             {
                 var item = SelectedItem;
+                var changedFields = GetChangedFields(item);
 
                 <div class="audio-readonly moderation-detail__content">
                     <div class="audio-readonly__notice">
                         Approve to apply the pending change. Reject to keep live data unchanged and notify the owner with your reason.
                     </div>
 
-                    @if (GetChangedFields(item).Count > 0)
-                    {
-                        <div class="moderation-change-list">
-                            @foreach (var changedField in GetChangedFields(item))
-                            {
-                                <span class="moderation-change-chip">@changedField</span>
-                            }
+                    <section class="moderation-request-overview moderation-section-card">
+                        <div class="moderation-request-overview__copy">
+                            <div class="moderation-request-overview__chips">
+                                <span class="audio-card__tag">@item.Type</span>
+                                <span class="audio-card__tag">@item.ActionType</span>
+                                <span class="audio-card__tag">@item.Status</span>
+                            </div>
+                            <h3>@item.Name</h3>
+                            <p>@GetSummary(item)</p>
                         </div>
+                        <div class="moderation-request-overview__meta">
+                            <span>Submitted By</span>
+                            <strong>@item.OwnerName</strong>
+                            <small>@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                            <small>@(item.TargetId > 0 ? $"Live target #{item.TargetId}" : "New item request")</small>
+                        </div>
+                    </section>
+
+                    @if (changedFields.Count > 0)
+                    {
+                        <section class="moderation-change-section moderation-section-card">
+                            <div class="moderation-change-section__header">
+                                <h4>Modified Fields</h4>
+                            </div>
+                            <div class="moderation-change-list">
+                                @foreach (var changedField in changedFields)
+                                {
+                                    <span class="moderation-change-chip">@changedField</span>
+                                }
+                            </div>
+                        </section>
                     }
 
-                    <div class="audio-detail-grid">
+                    <div class="audio-detail-grid moderation-detail-grid">
                         <article class="audio-detail-card">
                             <span>Item</span>
                             <strong>@item.Name</strong>
@@ -225,75 +251,99 @@ else
                             <strong>@item.OwnerName</strong>
                             <small>@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</small>
                         </article>
-                        <article class="audio-detail-card">
+                        <article class="audio-detail-card audio-detail-card--wide">
                             <span>Owner Note</span>
                             <strong>@(string.IsNullOrWhiteSpace(item.Reason) ? "No submission note" : item.Reason)</strong>
                             <small>@(item.TargetId > 0 ? $"Live target #{item.TargetId}" : "New item request")</small>
                         </article>
                     </div>
 
-                    @if (item.Location is not null)
+                    @if (item.Location is not null || item.LiveLocation is not null)
                     {
                         <div class="moderation-compare-grid">
-                            <section class="moderation-compare-panel">
-                                <div class="moderation-compare-panel__header">
-                                    <span class="management-panel__eyebrow">Pending</span>
-                                    <h3>Submitted POI Data</h3>
-                                </div>
-                                <div class="audio-detail-grid">
-                                    <article class="audio-detail-card">
-                                        <span>Category</span>
-                                        <strong>@item.Location.Category</strong>
-                                        <small>@(string.IsNullOrWhiteSpace(item.Location.Address) ? "No address" : item.Location.Address)</small>
-                                    </article>
-                                    <article class="audio-detail-card">
-                                        <span>Coordinates</span>
-                                        <strong>@($"{item.Location.Latitude:F6}, {item.Location.Longitude:F6}")</strong>
-                                        <small>@($"{item.Location.Radius:F0}m trigger / {item.Location.StandbyRadius:F0}m standby")</small>
-                                    </article>
-                                    <article class="audio-detail-card">
-                                        <span>Preference Image</span>
-                                        <strong>@(string.IsNullOrWhiteSpace(item.Location.PreferenceImageUrl) ? "Missing" : System.IO.Path.GetFileName(item.Location.PreferenceImageUrl))</strong>
-                                        <small>@($"{item.Location.ImageUrls.Count} total image(s)")</small>
-                                    </article>
-                                    <article class="audio-detail-card">
-                                        <span>Contact</span>
-                                        <strong>@(string.IsNullOrWhiteSpace(item.Location.Phone) ? "No phone" : item.Location.Phone)</strong>
-                                        <small>@(string.IsNullOrWhiteSpace(item.Location.Email) ? "No email" : item.Location.Email)</small>
-                                    </article>
-                                    <article class="audio-detail-card">
-                                        <span>Status</span>
-                                        <strong>@(item.Location.Status == 1 ? "Active" : "Inactive")</strong>
-                                        <small>@($"{item.Location.AudioCount} linked audio item(s)")</small>
-                                    </article>
-                                    <article class="audio-detail-card">
-                                        <span>Website</span>
-                                        <strong>@(string.IsNullOrWhiteSpace(item.Location.WebURL) ? "No website" : item.Location.WebURL)</strong>
-                                        <small>@(item.Location.IsGpsTriggerEnabled ? "GPS trigger enabled" : "GPS trigger disabled")</small>
-                                    </article>
-                                    <article class="audio-detail-card audio-detail-card--wide">
-                                        <span>Description</span>
-                                        <strong>@(string.IsNullOrWhiteSpace(item.Location.Description) ? "No description provided." : item.Location.Description)</strong>
-                                    </article>
-                                </div>
+                            @if (item.Location is not null)
+                            {
+                                var pendingPreferenceImageUrl = GetPreferenceImageUrl(item.Location);
+                                var pendingGalleryImageUrls = GetResolvedImageUrls(item.Location);
 
-                                @if (GetResolvedImageUrls(item.Location).Count > 0)
-                                {
-                                    <div class="moderation-image-grid">
-                                        @foreach (var imageUrl in GetResolvedImageUrls(item.Location))
-                                        {
-                                            <img class="moderation-image-thumb" src="@imageUrl" alt="@item.Location.Name" />
-                                        }
+                                <section class="moderation-compare-panel moderation-compare-panel--full moderation-section-card">
+                                    <div class="moderation-compare-panel__header">
+                                        <span class="management-panel__eyebrow">Pending Changes</span>
+                                        <h3>Submitted POI Data</h3>
                                     </div>
-                                }
-                            </section>
+                                    <div class="audio-detail-grid">
+                                        <article class="audio-detail-card">
+                                            <span>Category</span>
+                                            <strong>@item.Location.Category</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.Location.Address) ? "No address" : item.Location.Address)</small>
+                                        </article>
+                                        <article class="audio-detail-card">
+                                            <span>Coordinates</span>
+                                            <strong>@($"{item.Location.Latitude:F6}, {item.Location.Longitude:F6}")</strong>
+                                            <small>@($"{item.Location.Radius:F0}m trigger / {item.Location.StandbyRadius:F0}m standby")</small>
+                                        </article>
+                                        <article class="audio-detail-card">
+                                            <span>Preference Image</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Location.PreferenceImageUrl) ? "Missing" : System.IO.Path.GetFileName(item.Location.PreferenceImageUrl))</strong>
+                                            <small>@($"{item.Location.ImageUrls.Count} total image(s)")</small>
+                                        </article>
+                                        <article class="audio-detail-card">
+                                            <span>Contact</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Location.Phone) ? "No phone" : item.Location.Phone)</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.Location.Email) ? "No email" : item.Location.Email)</small>
+                                        </article>
+                                        <article class="audio-detail-card">
+                                            <span>Status</span>
+                                            <strong>@(item.Location.Status == 1 ? "Active" : "Inactive")</strong>
+                                            <small>@($"{item.Location.AudioCount} linked audio item(s)")</small>
+                                        </article>
+                                        <article class="audio-detail-card">
+                                            <span>Website</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Location.WebURL) ? "No website" : item.Location.WebURL)</strong>
+                                            <small>@(item.Location.IsGpsTriggerEnabled ? "GPS trigger enabled" : "GPS trigger disabled")</small>
+                                        </article>
+                                        <article class="audio-detail-card audio-detail-card--wide">
+                                            <span>Description</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Location.Description) ? "No description provided." : item.Location.Description)</strong>
+                                        </article>
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(pendingPreferenceImageUrl))
+                                    {
+                                        <div class="moderation-media-highlight">
+                                            <img class="moderation-media-highlight__image" src="@pendingPreferenceImageUrl" alt="@($"{item.Location.Name} preference image")" />
+                                            <div class="moderation-media-highlight__copy">
+                                                <span>Preference Image</span>
+                                                <strong>Primary POI avatar</strong>
+                                                <small>@(string.IsNullOrWhiteSpace(item.Location.PreferenceImageUrl) ? "No saved filename" : System.IO.Path.GetFileName(item.Location.PreferenceImageUrl))</small>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    @if (pendingGalleryImageUrls.Count > 0)
+                                    {
+                                        <div class="moderation-media-section moderation-media-section__gallery">
+                                            <div class="moderation-media-section__title">Gallery Images (@pendingGalleryImageUrls.Count)</div>
+                                            <div class="moderation-image-grid">
+                                                @foreach (var imageUrl in pendingGalleryImageUrls)
+                                                {
+                                                    <img class="moderation-image-thumb" src="@imageUrl" alt="@item.Location.Name" />
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </section>
+                            }
 
                             @if (item.LiveLocation is not null)
                             {
-                                <section class="moderation-compare-panel moderation-compare-panel--live">
+                                var livePreferenceImageUrl = GetPreferenceImageUrl(item.LiveLocation);
+                                var liveGalleryImageUrls = GetResolvedImageUrls(item.LiveLocation);
+
+                                <section class="moderation-compare-panel moderation-compare-panel--full moderation-compare-panel--live moderation-section-card">
                                     <div class="moderation-compare-panel__header">
-                                        <span class="management-panel__eyebrow">Live</span>
-                                        <h3>Current POI Data</h3>
+                                        <span class="management-panel__eyebrow">Current</span>
+                                        <h3>Live POI Data</h3>
                                     </div>
                                     <div class="audio-detail-grid">
                                         <article class="audio-detail-card">
@@ -332,75 +382,94 @@ else
                                         </article>
                                     </div>
 
-                                    @if (GetResolvedImageUrls(item.LiveLocation).Count > 0)
+                                    @if (!string.IsNullOrWhiteSpace(livePreferenceImageUrl))
                                     {
-                                        <div class="moderation-image-grid">
-                                            @foreach (var imageUrl in GetResolvedImageUrls(item.LiveLocation))
-                                            {
-                                                <img class="moderation-image-thumb" src="@imageUrl" alt="@item.LiveLocation.Name" />
-                                            }
+                                        <div class="moderation-media-highlight">
+                                            <img class="moderation-media-highlight__image" src="@livePreferenceImageUrl" alt="@($"{item.LiveLocation.Name} preference image")" />
+                                            <div class="moderation-media-highlight__copy">
+                                                <span>Preference Image</span>
+                                                <strong>Current POI avatar</strong>
+                                                <small>@(string.IsNullOrWhiteSpace(item.LiveLocation.PreferenceImageUrl) ? "No saved filename" : System.IO.Path.GetFileName(item.LiveLocation.PreferenceImageUrl))</small>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    @if (liveGalleryImageUrls.Count > 0)
+                                    {
+                                        <div class="moderation-media-section moderation-media-section__gallery">
+                                            <div class="moderation-media-section__title">Gallery Images (@liveGalleryImageUrls.Count)</div>
+                                            <div class="moderation-image-grid">
+                                                @foreach (var imageUrl in liveGalleryImageUrls)
+                                                {
+                                                    <img class="moderation-image-thumb" src="@imageUrl" alt="@item.LiveLocation.Name" />
+                                                }
+                                            </div>
                                         </div>
                                     }
                                 </section>
                             }
                         </div>
                     }
-                    else if (item.Audio is not null)
+
+                    @if (item.Audio is not null || item.LiveAudio is not null)
                     {
                         <div class="moderation-compare-grid">
-                            <section class="moderation-compare-panel">
-                                <div class="moderation-compare-panel__header">
-                                    <span class="management-panel__eyebrow">Pending</span>
-                                    <h3>Submitted Audio Data</h3>
-                                </div>
-                                <div class="audio-detail-grid">
-                                    <article class="audio-detail-card">
-                                        <span>Location</span>
-                                        <strong>@item.Audio.LocationName</strong>
-                                        <small>@(string.IsNullOrWhiteSpace(item.Audio.OwnerName) ? "No owner" : item.Audio.OwnerName)</small>
-                                    </article>
-                                    <article class="audio-detail-card">
-                                        <span>Language</span>
-                                        <strong>@GetAudioLanguageLabel(item.Audio)</strong>
-                                        <small>@GetVoiceLabel(item.Audio.VoiceGender)</small>
-                                    </article>
-                                    <article class="audio-detail-card">
-                                        <span>Source</span>
-                                        <strong>@item.Audio.SourceType</strong>
-                                        <small>@($"{item.Audio.Duration} sec")</small>
-                                    </article>
-                                    <article class="audio-detail-card">
-                                        <span>Stored Audio</span>
-                                        <strong>@(string.IsNullOrWhiteSpace(item.Audio.AudioURL) ? "No stored file" : System.IO.Path.GetFileName(item.Audio.AudioURL))</strong>
-                                        <small>@(string.IsNullOrWhiteSpace(item.Audio.VoiceName) ? "No named voice" : item.Audio.VoiceName)</small>
-                                    </article>
-                                    <article class="audio-detail-card">
-                                        <span>Status</span>
-                                        <strong>@(item.Audio.Status == 1 ? "Active" : "Inactive")</strong>
-                                        <small>@(item.Audio.IsDownloadable ? "Downloadable" : "Streaming only")</small>
-                                    </article>
-                                    <article class="audio-detail-card">
-                                        <span>Playback</span>
-                                        <strong>@item.Audio.PlaybackMode</strong>
-                                        <small>@item.Audio.InterruptPolicy</small>
-                                    </article>
-                                    <article class="audio-detail-card audio-detail-card--wide">
-                                        <span>Description</span>
-                                        <strong>@(string.IsNullOrWhiteSpace(item.Audio.Description) ? "No description provided." : item.Audio.Description)</strong>
-                                    </article>
-                                    <article class="audio-detail-card audio-detail-card--wide">
-                                        <span>Script</span>
-                                        <strong>@(string.IsNullOrWhiteSpace(item.Audio.Script) ? "No script provided." : item.Audio.Script)</strong>
-                                    </article>
-                                </div>
-                            </section>
+                            @if (item.Audio is not null)
+                            {
+                                <section class="moderation-compare-panel moderation-compare-panel--full moderation-section-card">
+                                    <div class="moderation-compare-panel__header">
+                                        <span class="management-panel__eyebrow">Pending Changes</span>
+                                        <h3>Submitted Audio Data</h3>
+                                    </div>
+                                    <div class="audio-detail-grid">
+                                        <article class="audio-detail-card">
+                                            <span>Location</span>
+                                            <strong>@item.Audio.LocationName</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.Audio.OwnerName) ? "No owner" : item.Audio.OwnerName)</small>
+                                        </article>
+                                        <article class="audio-detail-card">
+                                            <span>Language</span>
+                                            <strong>@GetAudioLanguageLabel(item.Audio)</strong>
+                                            <small>@GetVoiceLabel(item.Audio.VoiceGender)</small>
+                                        </article>
+                                        <article class="audio-detail-card">
+                                            <span>Source</span>
+                                            <strong>@item.Audio.SourceType</strong>
+                                            <small>@($"{item.Audio.Duration} sec")</small>
+                                        </article>
+                                        <article class="audio-detail-card">
+                                            <span>Stored Audio</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Audio.AudioURL) ? "No stored file" : System.IO.Path.GetFileName(item.Audio.AudioURL))</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.Audio.VoiceName) ? "No named voice" : item.Audio.VoiceName)</small>
+                                        </article>
+                                        <article class="audio-detail-card">
+                                            <span>Status</span>
+                                            <strong>@(item.Audio.Status == 1 ? "Active" : "Inactive")</strong>
+                                            <small>@(item.Audio.IsDownloadable ? "Downloadable" : "Streaming only")</small>
+                                        </article>
+                                        <article class="audio-detail-card">
+                                            <span>Playback</span>
+                                            <strong>@item.Audio.PlaybackMode</strong>
+                                            <small>@item.Audio.InterruptPolicy</small>
+                                        </article>
+                                        <article class="audio-detail-card audio-detail-card--wide">
+                                            <span>Description</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Audio.Description) ? "No description provided." : item.Audio.Description)</strong>
+                                        </article>
+                                        <article class="audio-detail-card audio-detail-card--wide">
+                                            <span>Script</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Audio.Script) ? "No script provided." : item.Audio.Script)</strong>
+                                        </article>
+                                    </div>
+                                </section>
+                            }
 
                             @if (item.LiveAudio is not null)
                             {
-                                <section class="moderation-compare-panel moderation-compare-panel--live">
+                                <section class="moderation-compare-panel moderation-compare-panel--full moderation-compare-panel--live moderation-section-card">
                                     <div class="moderation-compare-panel__header">
-                                        <span class="management-panel__eyebrow">Live</span>
-                                        <h3>Current Audio Data</h3>
+                                        <span class="management-panel__eyebrow">Current</span>
+                                        <h3>Live Audio Data</h3>
                                     </div>
                                     <div class="audio-detail-grid">
                                         <article class="audio-detail-card">
@@ -447,25 +516,29 @@ else
                         </div>
                     }
 
-                    <div class="management-field">
-                        <label for="moderation-admin-note">Reviewer Note</label>
-                        <InputTextArea id="moderation-admin-note" class="form-control" rows="4" @bind-Value="_reviewNote" />
-                        <span class="management-field__hint">Required when rejecting. This note is delivered to the owner inbox.</span>
-                    </div>
+                    <section class="moderation-review-panel moderation-review-panel--full moderation-section-card">
+                        <div class="management-field moderation-review-panel__note">
+                            <label for="moderation-admin-note">Reviewer Note</label>
+                            <InputTextArea id="moderation-admin-note" class="form-control" rows="4" @bind-Value="_reviewNote" />
+                            <span class="management-field__hint">Required when rejecting. This note is delivered to the owner inbox.</span>
+                        </div>
 
-                    @if (!string.IsNullOrWhiteSpace(item.AdminNote))
-                    {
-                        <div class="management-muted">Latest reviewer note: @item.AdminNote</div>
-                    }
+                        <div class="moderation-review-panel__aside">
+                            @if (!string.IsNullOrWhiteSpace(item.AdminNote))
+                            {
+                                <div class="management-muted moderation-review-panel__history">Latest reviewer note: @item.AdminNote</div>
+                            }
 
-                    <div class="management-actions">
-                        <button type="button" class="btn btn-success" disabled="@(!CanManage || _isReviewing || item.Status != "Pending")" @onclick="() => ApproveAsync(item)">
-                            @(_isReviewing ? "Working..." : "Approve")
-                        </button>
-                        <button type="button" class="btn btn-outline-danger" disabled="@(!CanManage || _isReviewing || item.Status != "Pending")" @onclick="() => RejectAsync(item)">
-                            @(_isReviewing ? "Working..." : "Reject")
-                        </button>
-                    </div>
+                            <div class="management-actions moderation-review-panel__actions">
+                                <button type="button" class="btn btn-success" disabled="@(!CanManage || _isReviewing || item.Status != "Pending")" @onclick="() => ApproveAsync(item)">
+                                    @(_isReviewing ? "Working..." : "Approve")
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" disabled="@(!CanManage || _isReviewing || item.Status != "Pending")" @onclick="() => RejectAsync(item)">
+                                    @(_isReviewing ? "Working..." : "Reject")
+                                </button>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             }
         </section>
@@ -480,6 +553,7 @@ else
     private ChangeRequestDto? _selectedItem;
     private bool _isLoading = true;
     private bool _isDetailModalOpen;
+    private bool _bodyScrollLockState;
     private bool _isReviewing;
     private int _currentPage = 1;
     private string _searchText = "";
@@ -496,6 +570,14 @@ else
     protected override async Task OnInitializedAsync()
     {
         await LoadItemsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_bodyScrollLockState != _isDetailModalOpen)
+        {
+            await SyncBodyScrollLockAsync(_isDetailModalOpen);
+        }
     }
 
     private async Task RefreshAsync() => await LoadItemsAsync();
@@ -574,6 +656,21 @@ else
     }
 
     private void CloseDetailModal() => _isDetailModalOpen = false;
+
+    private async Task SyncBodyScrollLockAsync(bool isLocked)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", isLocked);
+            _bodyScrollLockState = isLocked;
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
 
     private async Task ApproveAsync(ChangeRequestDto item)
     {
@@ -852,11 +949,6 @@ else
                 changes.Add("Playback");
             }
 
-            if (item.Audio.IsDownloadable != item.LiveAudio.IsDownloadable)
-            {
-                changes.Add("Download setting");
-            }
-
             if (item.Audio.Status != item.LiveAudio.Status)
             {
                 changes.Add("Status");
@@ -866,16 +958,47 @@ else
         return changes;
     }
 
-    private List<string> GetResolvedImageUrls(LocationDto? location) =>
-        location?.ImageUrls
-            .Select(ApiClient.ResolveImageUrl)
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Cast<string>()
-            .ToList() ?? [];
+    private static bool HaveMatchingImageSets(IEnumerable<string> list1, IEnumerable<string> list2)
+    {
+        if (list1.Count() != list2.Count())
+        {
+            return false;
+        }
 
-    private static bool HaveMatchingImageSets(IReadOnlyList<string> left, IReadOnlyList<string> right) =>
-        left.Count == right.Count
-        && left.Zip(right, (leftItem, rightItem) =>
-                string.Equals(leftItem, rightItem, StringComparison.OrdinalIgnoreCase))
-            .All(item => item);
+        return list1.OrderBy(x => x).SequenceEqual(list2.OrderBy(x => x));
+    }
+
+    private string? GetPreferenceImageUrl(LocationDto location)
+    {
+        return ApiClient.ResolveImageUrl(location.PreferenceImageUrl ?? location.ImageUrls.FirstOrDefault());
+    }
+
+    private List<string> GetResolvedImageUrls(LocationDto location)
+    {
+        return location.ImageUrls
+            .Where(url => !string.Equals(url, location.PreferenceImageUrl, StringComparison.OrdinalIgnoreCase))
+            .Select(ApiClient.ResolveImageUrl)
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Cast<string>()
+            .ToList();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!_bodyScrollLockState)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", false);
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
 }

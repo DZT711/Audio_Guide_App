@@ -350,6 +350,7 @@ public class LocationController(
             .Include(item => item.Owner)
             .Include(item => item.Images)
             .Include(item => item.AudioContents)
+            .AsSplitQuery()
             .AsQueryable();
 
         return IsOwnerScoped(currentUser)

@@ -261,6 +261,35 @@ html.js-ready [data-reveal].is-visible {
     font-weight: 800;
 }
 
+.app-modal-panel {
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(15, 118, 110, 0.42) rgba(148, 163, 184, 0.12);
+}
+
+.app-modal-panel::-webkit-scrollbar {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+.app-modal-panel::-webkit-scrollbar-track {
+    background: rgba(148, 163, 184, 0.1);
+    border-radius: 999px;
+}
+
+.app-modal-panel::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background:
+        linear-gradient(180deg, rgba(15, 118, 110, 0.82) 0%, rgba(14, 165, 233, 0.72) 100%)
+        padding-box;
+}
+
+.app-modal-panel::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
 .management-toolbar {
     display: flex;
     flex-wrap: wrap;

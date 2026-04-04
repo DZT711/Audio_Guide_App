@@ -65,6 +65,7 @@ public sealed partial class ChangeRequestWorkflowService(
                 .Include(item => item.Owner)
                 .Include(item => item.Images)
                 .Include(item => item.AudioContents)
+                .AsSplitQuery()
                 .Where(item => liveLocationIds.Contains(item.LocationId))
                 .ToDictionaryAsync(item => item.LocationId, cancellationToken);
 
@@ -136,6 +137,7 @@ public sealed partial class ChangeRequestWorkflowService(
                 .Include(item => item.Owner)
                 .Include(item => item.Images)
                 .Include(item => item.AudioContents)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(item => item.LocationId == targetId.Value, cancellationToken);
 
             if (liveLocation is null)
