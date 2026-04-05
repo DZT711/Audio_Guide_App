@@ -336,6 +336,10 @@ else
                                     <i class="bi bi-stop-circle me-1"></i>
                                     Stop
                                 </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="LoadBrowserVoiceDebugAsync" disabled="@_isLoadingBrowserVoiceDebug">
+                                    <i class="bi bi-list-check me-1"></i>
+                                    @_browserVoiceDebugButtonLabel
+                                </button>
                             </div>
                         </div>
 
@@ -349,6 +353,14 @@ else
                                 <div>
                                     <span class="management-field__label">Generated TTS Preview</span>
                                     <div class="management-field__hint">This preview uses the current script and language selection.</div>
+                                    @if (!string.IsNullOrWhiteSpace(_ttsPreviewProviderLabel))
+                                    {
+                                        <div class="management-field__hint">Provider: @_ttsPreviewProviderLabel</div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(_ttsPreviewVoiceLabel))
+                                    {
+                                        <div class="management-field__hint">Voice: @_ttsPreviewVoiceLabel</div>
+                                    }
                                 </div>
                                 <audio @key="_ttsPreviewUrl" @ref="_ttsPreviewElement" class="audio-file-preview__player" controls autoplay preload="auto" src="@_ttsPreviewUrl"></audio>
                             </div>
@@ -357,6 +369,50 @@ else
                         @if (!string.IsNullOrWhiteSpace(_ttsPreviewWarning))
                         {
                             <span class="management-field__hint audio-file-preview__warning">@_ttsPreviewWarning</span>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(_browserVoiceDebugError))
+                        {
+                            <div class="management-field__hint audio-file-preview__warning mt-2">@_browserVoiceDebugError</div>
+                        }
+
+                        @if (_browserVoiceDiagnostics.Count > 0)
+                        {
+                            <div class="audio-voice-debug mt-3">
+                                <div>
+                                    <span class="management-field__label">Browser Voice Diagnostics</span>
+                                    <div class="management-field__hint">
+                                        Showing @_browserVoiceDiagnostics.Count voice@(_browserVoiceDiagnostics.Count == 1 ? "" : "s") for @GetSelectedPreviewLanguageLabel() with @_formModel.VoiceGender voice preference.
+                                    </div>
+                                </div>
+
+                                <div class="audio-voice-debug__list">
+                                    @foreach (var voice in _browserVoiceDiagnostics)
+                                    {
+                                        <div class="audio-voice-debug__item @(voice.IsSelected ? "audio-voice-debug__item--selected" : "")">
+                                            <div class="audio-voice-debug__header">
+                                                <strong>@(string.IsNullOrWhiteSpace(voice.Name) ? "Unnamed voice" : voice.Name)</strong>
+                                                @if (voice.IsSelected)
+                                                {
+                                                    <span class="audio-card__tag">Selected</span>
+                                                }
+                                            </div>
+                                            <div class="management-field__hint">@voice.NormalizedLang</div>
+                                            <div class="audio-voice-debug__meta">
+                                                <span>Score @voice.Score</span>
+                                                <span>@(voice.MatchesGender ? "Gender match" : "No gender match")</span>
+                                                <span>@(voice.MatchesRequestedLanguage ? "Exact locale" : voice.MatchesRequestedPrefix ? "Same language family" : "Different language")</span>
+                                                <span>@(voice.IsLocalService ? "Local service" : "Remote service")</span>
+                                                <span>@(voice.IsDefault ? "Browser default" : "Non-default")</span>
+                                            </div>
+                                            @if (!string.IsNullOrWhiteSpace(voice.VoiceUri))
+                                            {
+                                                <div class="management-field__hint">@voice.VoiceUri</div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
                         }
                     </div>
 
@@ -580,8 +636,13 @@ else
     private bool _isCheckingAudioPreview;
     private string? _ttsPreviewUrl;
     private string? _ttsPreviewWarning;
+    private string? _ttsPreviewProviderLabel;
+    private string? _ttsPreviewVoiceLabel;
     private bool _ttsPreviewIsObjectUrl;
     private bool _isGeneratingTtsPreview;
+    private readonly List<BrowserVoiceDiagnosticItem> _browserVoiceDiagnostics = new();
+    private bool _isLoadingBrowserVoiceDebug;
+    private string? _browserVoiceDebugError;
     private ElementReference _ttsPreviewElement;
     private string? _loadError;
     private string _submissionReason = "";
@@ -869,11 +930,20 @@ else
             {
                 if (await TryBrowserVoicePreviewAsync())
                 {
+                    _ttsPreviewProviderLabel = "Browser speechSynthesis";
+                    _ttsPreviewVoiceLabel = _formModel.VoiceGender;
                     _ttsPreviewWarning = $"Using the browser-installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} for {GetSelectedPreviewLanguageLabel()} so the preview stays aligned with the selected language.";
                     return;
                 }
 
+                _ttsPreviewProviderLabel = previewResult.Provider;
+                _ttsPreviewVoiceLabel = string.IsNullOrWhiteSpace(previewResult.VoiceName) ? null : previewResult.VoiceName;
                 _ttsPreviewWarning = $"No installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} matched {GetSelectedPreviewLanguageLabel()} on this device. Using generated audio for the selected language instead.";
+            }
+            else
+            {
+                _ttsPreviewProviderLabel = previewResult.Provider;
+                _ttsPreviewVoiceLabel = string.IsNullOrWhiteSpace(previewResult.VoiceName) ? null : previewResult.VoiceName;
             }
 
             await using var previewStream = previewResult.Stream;
@@ -890,6 +960,8 @@ else
         {
             if (await TryBrowserVoicePreviewAsync())
             {
+                _ttsPreviewProviderLabel = "Browser speechSynthesis";
+                _ttsPreviewVoiceLabel = _formModel.VoiceGender;
                 _ttsPreviewWarning = $"The API preview is unavailable, so the browser-installed {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} for {GetSelectedPreviewLanguageLabel()} is being used instead.";
                 return;
             }
@@ -1150,6 +1222,10 @@ else
     private bool ShouldUseBrowserVoicePreview(string? provider) =>
         string.Equals(provider, "FreeTranslate", StringComparison.OrdinalIgnoreCase);
 
+    private string _browserVoiceDebugButtonLabel => _isLoadingBrowserVoiceDebug
+        ? "Loading Voices..."
+        : _browserVoiceDiagnostics.Count > 0 ? "Refresh Voices" : "Check Voices";
+
     private async Task<bool> TryBrowserVoicePreviewAsync()
     {
         var isSupported = await JS.InvokeAsync<bool>(
@@ -1160,6 +1236,38 @@ else
             GetPreferNativeVoiceForPreview());
 
         return isSupported;
+    }
+
+    private async Task LoadBrowserVoiceDebugAsync()
+    {
+        try
+        {
+            _isLoadingBrowserVoiceDebug = true;
+            _browserVoiceDebugError = null;
+            _browserVoiceDiagnostics.Clear();
+
+            var diagnostics = await JS.InvokeAsync<List<BrowserVoiceDiagnosticItem>>(
+                "smartTourAdmin.tts.inspectVoices",
+                _formModel.Language,
+                _formModel.VoiceGender,
+                GetPreferNativeVoiceForPreview());
+
+            if (diagnostics is null || diagnostics.Count == 0)
+            {
+                _browserVoiceDebugError = "This browser did not expose any speech synthesis voices.";
+                return;
+            }
+
+            _browserVoiceDiagnostics.AddRange(diagnostics);
+        }
+        catch (JSException ex)
+        {
+            _browserVoiceDebugError = ex.Message;
+        }
+        finally
+        {
+            _isLoadingBrowserVoiceDebug = false;
+        }
     }
 
     private string GetDefaultLanguageCode() =>
@@ -1352,7 +1460,24 @@ else
 
         _ttsPreviewUrl = null;
         _ttsPreviewWarning = null;
+        _ttsPreviewProviderLabel = null;
+        _ttsPreviewVoiceLabel = null;
         _ttsPreviewIsObjectUrl = false;
+    }
+
+    private sealed class BrowserVoiceDiagnosticItem
+    {
+        public string Name { get; set; } = "";
+        public string VoiceUri { get; set; } = "";
+        public string Lang { get; set; } = "";
+        public string NormalizedLang { get; set; } = "";
+        public bool IsDefault { get; set; }
+        public bool IsLocalService { get; set; }
+        public bool MatchesRequestedLanguage { get; set; }
+        public bool MatchesRequestedPrefix { get; set; }
+        public bool MatchesGender { get; set; }
+        public int Score { get; set; }
+        public bool IsSelected { get; set; }
     }
 
     private string GetPendingArchiveAudioMessage() =>

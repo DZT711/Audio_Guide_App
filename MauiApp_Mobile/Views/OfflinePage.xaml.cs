@@ -1,22 +1,39 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Windows.Input;
+using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
 
 namespace MauiApp_Mobile.Views;
 
 public partial class OfflinePage : ContentPage
 {
+    private const double OfflineDetailOpenTopInset = 16;
+    private const double OfflineDetailFallbackClosedOffset = 520;
+    private const double OfflineDetailHalfVisibleRatio = 0.58;
+    private const string AllCategoryValue = "__all__";
     private readonly ObservableCollection<OfflinePackItem> _allItems = new();
     private ObservableCollection<OfflinePackItem> _filteredItems = new();
     private string _selectedFilter = "All";
+    private string _selectedCategoryValue = AllCategoryValue;
+    private string _searchKeyword = string.Empty;
     private bool _isDeleteConfirmVisible;
+    private bool _isOfflineDetailVisible;
+    private bool _isOfflineAudioListExpanded;
     private OfflinePackItem? _pendingDeleteItem;
+    private OfflinePackItem? _selectedPack;
     private bool _isBulkDeleteConfirm;
     private int _pendingBulkDeleteCount;
     private bool _hasInitializedView;
     private bool _hasAnimatedView;
+    private bool _isRefreshingOfflinePacks;
+    private double _offlineDetailSheetStartY;
+    private double _offlineDetailExpandedY = OfflineDetailOpenTopInset;
+    private double _offlineDetailHalfY = 180;
+    private double _offlineDetailClosedY = OfflineDetailFallbackClosedOffset;
     private CancellationTokenSource? _loadingCts;
 
     public ObservableCollection<OfflinePackItem> FilteredItems
@@ -32,12 +49,18 @@ public partial class OfflinePage : ContentPage
     public ICommand DownloadCommand { get; }
     public ICommand DeleteCommand { get; }
     public ICommand RedownloadCommand { get; }
-    public ICommand ToggleExpandCommand { get; }
+    public ICommand PlayTrackCommand { get; }
 
-    public string DownloadedCountText => $"{_allItems.Count(x => x.IsDownloaded)}/{_allItems.Count} pack";
+    public string DownloadedCountText => string.Format(
+        LocalizationService.Instance.T("Offline.ReadyCountFormat"),
+        _allItems.Count(x => x.IsDownloaded),
+        _allItems.Count);
     public string DownloadedSizeText => $"{_allItems.Where(x => x.IsDownloaded).Sum(x => x.SizeValue):0.#} MB";
     public double DownloadProgress => _allItems.Count == 0 ? 0 : (double)_allItems.Count(x => x.IsDownloaded) / _allItems.Count;
-    public string DownloadProgressText => $"{_allItems.Count(x => x.IsDownloaded)} trên {_allItems.Count} pack đã sẵn sàng ngoại tuyến";
+    public string DownloadProgressText => string.Format(
+        LocalizationService.Instance.T("Offline.ProgressTextFormat"),
+        _allItems.Count(x => x.IsDownloaded),
+        _allItems.Count);
     public bool HasItems => FilteredItems.Count > 0;
     public bool ShowEmptyState => _hasInitializedView && FilteredItems.Count == 0;
 
@@ -91,10 +114,20 @@ public partial class OfflinePage : ContentPage
         DownloadCommand = new Command<OfflinePackItem>(OnDownload);
         DeleteCommand = new Command<OfflinePackItem>(OnDelete);
         RedownloadCommand = new Command<OfflinePackItem>(OnRedownload);
-        ToggleExpandCommand = new Command<OfflinePackItem>(OnToggleExpand);
+        PlayTrackCommand = new Command<OfflineAudioTrack>(OnPlayTrack);
 
-        SeedData();
+        ApplyLocalizedText();
+        SyncCategoryFilters([]);
         ApplyFilter();
+        ApplyFilterSummary();
+
+        LocalizationService.Instance.PropertyChanged += (_, _) =>
+        {
+            ApplyLocalizedText();
+            ApplyFilter();
+            OnPropertyChanged(nameof(DownloadedCountText));
+            OnPropertyChanged(nameof(DownloadProgressText));
+        };
 
         ThemeService.Instance.PropertyChanged += (_, _) =>
         {
@@ -126,6 +159,14 @@ public partial class OfflinePage : ContentPage
             _hasAnimatedView = true;
             _ = UiEffectsService.AnimateEntranceAsync(OfflineSummaryCard1, OfflineSummaryCard2, OfflineProgressCard, OfflineCollectionView);
         }
+
+        _ = RefreshOfflinePacksSilentlyAsync();
+    }
+
+    protected override void OnSizeAllocated(double width, double height)
+    {
+        base.OnSizeAllocated(width, height);
+        UpdateOfflineDetailSheetLayout();
     }
 
     protected override void OnDisappearing()
@@ -153,6 +194,18 @@ public partial class OfflinePage : ContentPage
             OfflineSkeletonCard2,
             OfflineSkeletonCard3);
 
+        try
+        {
+            await LoadOfflinePacksAsync(forceRefresh: false, _loadingCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch
+        {
+        }
+
         await Task.Delay(380);
 
         _loadingCts.Cancel();
@@ -173,156 +226,284 @@ public partial class OfflinePage : ContentPage
         }
     }
 
-    private void SeedData()
+    public ObservableCollection<CategoryFilterOption> CategoryFilters { get; } = new();
+
+    public bool IsOfflineDetailVisible
     {
-        _allItems.Clear();
-
-        _allItems.Add(new OfflinePackItem
+        get => _isOfflineDetailVisible;
+        set
         {
-            Category = "Bảo tàng",
-            Title = "Bảo tàng Chứng tích",
-            AudioCount = 4,
-            Duration = "12:46",
-            Size = "11.7 MB",
-            SizeValue = 11.7,
-            Image = "dotnet_bot.png",
-            Description = "Bảo tàng Chứng tích Chiến tranh là một trong những bảo tàng hàng đầu về lịch sử Việt Nam hiện đại.",
-            Address = "28 Vo Van Tan, Phuong Vo Thi Sau, Quan 3, TP. Ho Chi Minh",
-            Phone = "(028) 3930 6325",
-            Email = "warremnants@hcm.gov.vn",
-            Website = "baotangchungtich.vn",
-            EstablishedYear = "1975",
-            RadiusText = "70m",
-            GpsText = "10.7797, 106.6924",
-            RatingText = "9/10",
-            CategoryBg = Color.FromArgb("#FFE3E3"),
-            CategoryTextColor = Color.FromArgb("#E53935"),
-            IsDownloaded = false,
-            LocalizedTitles = BuildLocalizedTitles(
-                vi: "Bảo tàng Chứng tích Chiến tranh",
-                en: "War Remnants Museum",
-                fr: "Musee des vestiges de guerre",
-                ko: "전쟁증적박물관",
-                ja: "戦争証跡博物館",
-                zh: "战争遗迹博物馆")
-        });
-
-        _allItems.Add(new OfflinePackItem
-        {
-            Category = "Di sản",
-            Title = "Bưu điện Sài Gòn",
-            AudioCount = 3,
-            Duration = "7:15",
-            Size = "6.6 MB",
-            SizeValue = 6.6,
-            Image = "dotnet_bot.png",
-            Description = "Bưu điện Trung tâm Sài Gòn là công trình kiến trúc Pháp cổ nổi bật tại trung tâm thành phố.",
-            Address = "2 Cong xa Paris, Ben Nghe, Quan 1, TP. Ho Chi Minh",
-            Phone = "(028) 3822 1677",
-            Email = "saigonpost@vnpost.vn",
-            Website = "vnpost.vn",
-            EstablishedYear = "1886",
-            RadiusText = "120m",
-            GpsText = "10.7800, 106.6990",
-            RatingText = "10/10",
-            CategoryBg = Color.FromArgb("#E6F4FF"),
-            CategoryTextColor = Color.FromArgb("#2563EB"),
-            IsDownloaded = false,
-            LocalizedTitles = BuildLocalizedTitles(
-                vi: "Bưu điện Trung tâm Sài Gòn",
-                en: "Saigon Central Post Office",
-                fr: "Bureau de poste central de Saigon",
-                ko: "사이공 중앙우체국",
-                ja: "サイゴン中央郵便局",
-                zh: "西贡中央邮局")
-        });
-
-        _allItems.Add(new OfflinePackItem
-        {
-            Category = "Chợ địa phương",
-            Title = "Chợ Bến Thành",
-            AudioCount = 3,
-            Duration = "9:10",
-            Size = "8.4 MB",
-            SizeValue = 8.4,
-            Image = "dotnet_bot.png",
-            Description = "Chợ Bến Thành là biểu tượng văn hóa lâu đời, nổi tiếng với ẩm thực và đặc sản địa phương.",
-            Address = "Le Loi, Ben Thanh, Quan 1, TP. Ho Chi Minh",
-            Phone = "(028) 3829 4421",
-            Email = "benthanhmarket@hcm.gov.vn",
-            Website = "chobenthanh.vn",
-            EstablishedYear = "1914",
-            RadiusText = "180m",
-            GpsText = "10.7725, 106.6980",
-            RatingText = "9/10",
-            CategoryBg = Color.FromArgb("#FFF7D6"),
-            CategoryTextColor = Color.FromArgb("#CA8A04"),
-            LocalizedTitles = BuildLocalizedTitles(
-                vi: "Chợ Bến Thành",
-                en: "Ben Thanh Market",
-                fr: "Marche Ben Thanh",
-                ko: "벤탄 시장",
-                ja: "ベンタイン市場",
-                zh: "滨城市场")
-        });
-
-        _allItems.Add(new OfflinePackItem
-        {
-            Category = "Tâm linh",
-            Title = "Chùa Thiên Mụ",
-            AudioCount = 3,
-            Duration = "11:05",
-            Size = "10.1 MB",
-            SizeValue = 10.1,
-            Image = "dotnet_bot.png",
-            Description = "Chùa Thiên Mụ là ngôi chùa cổ nổi tiếng của cố đô Huế, gắn liền với nhiều truyền thuyết.",
-            Address = "Huong Long, TP. Hue, Thua Thien Hue",
-            Phone = "(0234) 352 1234",
-            Email = "thienmu@hue.gov.vn",
-            Website = "thienmupagoda.vn",
-            EstablishedYear = "1601",
-            RadiusText = "220m",
-            GpsText = "16.4548, 107.5458",
-            RatingText = "9/10",
-            CategoryBg = Color.FromArgb("#F8E3D4"),
-            CategoryTextColor = Color.FromArgb("#A65627"),
-            LocalizedTitles = BuildLocalizedTitles(
-                vi: "Chùa Thiên Mụ",
-                en: "Thien Mu Pagoda",
-                fr: "Pagode de la Dame Celeste",
-                ko: "티엔무 사원",
-                ja: "ティエンムー寺",
-                zh: "天姥寺")
-        });
+            _isOfflineDetailVisible = value;
+            OnPropertyChanged();
+        }
     }
 
-    private static ObservableCollection<LocalizedTitleItem> BuildLocalizedTitles(
-        string vi,
-        string en,
-        string fr,
-        string ko,
-        string ja,
-        string zh)
+    public OfflinePackItem? SelectedPack
+    {
+        get => _selectedPack;
+        set
+        {
+            _selectedPack = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SelectedPackLanguagesText));
+        }
+    }
+
+    public string SelectedPackLanguagesText => SelectedPack == null
+        ? string.Empty
+        : string.Join(" • ", SelectedPack.AudioTracks.Select(track => track.LanguageCode));
+
+    public bool IsOfflineAudioListExpanded
+    {
+        get => _isOfflineAudioListExpanded;
+        set
+        {
+            if (_isOfflineAudioListExpanded == value)
+                return;
+
+            _isOfflineAudioListExpanded = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(OfflineAudioListExpandIcon));
+        }
+    }
+
+    public string OfflineAudioListExpandIcon => IsOfflineAudioListExpanded ? "˄" : "˅";
+
+    private async Task RefreshOfflinePacksSilentlyAsync()
+    {
+        if (_isRefreshingOfflinePacks)
+        {
+            return;
+        }
+
+        try
+        {
+            _isRefreshingOfflinePacks = true;
+            await LoadOfflinePacksAsync(forceRefresh: true);
+        }
+        catch
+        {
+        }
+        finally
+        {
+            _isRefreshingOfflinePacks = false;
+        }
+    }
+
+    private async Task RefreshCategoryFiltersAsync(bool forceRefresh, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var categories = await PlaceCatalogService.Instance.GetCategoriesAsync(forceRefresh, cancellationToken);
+            SyncCategoryFilters(categories);
+        }
+        catch
+        {
+            SyncCategoryFilters(PlaceCatalogService.Instance.GetCategories());
+        }
+    }
+
+    private async Task LoadOfflinePacksAsync(bool forceRefresh, CancellationToken cancellationToken = default)
+    {
+        var existingStates = _allItems.ToDictionary(
+            item => item.Id,
+            item => new OfflinePackState(item.IsDownloaded, item.DownloadedAt),
+            StringComparer.OrdinalIgnoreCase);
+
+        var places = await PlaceCatalogService.Instance.GetPlacesAsync(forceRefresh, cancellationToken);
+        var mappedItems = places
+            .Select(place => CreateOfflinePackItem(place, existingStates))
+            .ToList();
+
+        _allItems.Clear();
+        foreach (var item in mappedItems)
+        {
+            _allItems.Add(item);
+        }
+
+        await RefreshCategoryFiltersAsync(forceRefresh, cancellationToken);
+        ApplyLocalizedText();
+        ApplyFilter();
+    }
+
+    private static OfflinePackItem CreateOfflinePackItem(
+        PlaceItem place,
+        IReadOnlyDictionary<string, OfflinePackState> existingStates)
+    {
+        var audioCount = ExtractAudioCount(place.AudioCountText);
+        var estimatedDurationSeconds = Math.Max(audioCount, 1) * 125;
+        var sizeValue = Math.Round(Math.Max(audioCount, 1) * 2.4, 1, MidpointRounding.AwayFromZero);
+        var state = existingStates.TryGetValue(place.Id, out var existingState)
+            ? existingState
+            : default;
+
+        return new OfflinePackItem
+        {
+            Id = place.Id,
+            Category = place.Category,
+            DefaultTitle = place.Name,
+            Title = place.Name,
+            AudioCount = audioCount,
+            Duration = FormatDuration(estimatedDurationSeconds),
+            Size = $"{sizeValue:0.#} MB",
+            SizeValue = sizeValue,
+            Image = place.Image,
+            Description = place.Description,
+            Address = place.Address,
+            Phone = place.Phone,
+            Email = place.Email,
+            Website = place.Website,
+            EstablishedYear = place.EstablishedYear,
+            RadiusText = place.RadiusText,
+            GpsText = place.GpsText,
+            RatingText = place.PriorityText,
+            CategoryBg = place.CategoryColor,
+            CategoryTextColor = place.CategoryTextColor,
+            IsDownloaded = state.IsDownloaded,
+            DownloadedAt = state.DownloadedAt,
+            AudioTracks = BuildAudioTracksForPlace(place.Name, audioCount),
+            LocalizedTitles = BuildMirroredLocalizedTitles(place.Name)
+        };
+    }
+
+    private void ApplyLocalizedText()
+    {
+        if (HeaderTitleLabel is not null)
+        {
+            HeaderTitleLabel.Text = LocalizationService.Instance.T("Offline.Title");
+        }
+
+        if (HeaderSubtitleLabel is not null)
+        {
+            HeaderSubtitleLabel.Text = LocalizationService.Instance.T("Offline.Subtitle");
+        }
+
+        if (DownloadAllButton is not null)
+        {
+            DownloadAllButton.Text = LocalizationService.Instance.T("Offline.DownloadAll");
+        }
+
+        if (SearchEntry is not null)
+        {
+            SearchEntry.Placeholder = LocalizationService.Instance.T("Offline.Search");
+        }
+
+        if (AllTabLabel is not null)
+        {
+            AllTabLabel.Text = LocalizationService.Instance.T("Offline.FilterAll");
+        }
+
+        if (DownloadedTabLabel is not null)
+        {
+            DownloadedTabLabel.Text = LocalizationService.Instance.T("Offline.FilterDownloaded");
+        }
+
+        if (NotDownloadedTabLabel is not null)
+        {
+            NotDownloadedTabLabel.Text = LocalizationService.Instance.T("Offline.FilterPending");
+        }
+
+        if (FilterPopupTitleLabel is not null)
+        {
+            FilterPopupTitleLabel.Text = LocalizationService.Instance.T("Filter.Title");
+        }
+
+        SyncCategoryFilters(PlaceCatalogService.Instance.GetCategories());
+
+        foreach (var item in _allItems)
+        {
+            item.ApplyLanguage(LocalizationService.Instance.Language);
+        }
+
+        OnPropertyChanged(nameof(DownloadedCountText));
+        OnPropertyChanged(nameof(DownloadProgressText));
+    }
+
+    private static ObservableCollection<LocalizedTitleItem> BuildMirroredLocalizedTitles(string title)
     {
         return new ObservableCollection<LocalizedTitleItem>
         {
-            new() { LanguageCode = "VI", LanguageName = "Tiếng Việt", LocalizedName = vi },
-            new() { LanguageCode = "EN", LanguageName = "English", LocalizedName = en },
-            new() { LanguageCode = "FR", LanguageName = "Francais", LocalizedName = fr },
-            new() { LanguageCode = "KO", LanguageName = "Korean", LocalizedName = ko },
-            new() { LanguageCode = "JA", LanguageName = "Japanese", LocalizedName = ja },
-            new() { LanguageCode = "ZH", LanguageName = "Chinese", LocalizedName = zh }
+            new() { LanguageCode = "VI", LanguageName = "Tiếng Việt", LocalizedName = title },
+            new() { LanguageCode = "EN", LanguageName = "English", LocalizedName = title },
+            new() { LanguageCode = "FR", LanguageName = "Francais", LocalizedName = title },
+            new() { LanguageCode = "KO", LanguageName = "Korean", LocalizedName = title },
+            new() { LanguageCode = "JA", LanguageName = "Japanese", LocalizedName = title },
+            new() { LanguageCode = "ZH", LanguageName = "Chinese", LocalizedName = title }
         };
+    }
+
+    private static ObservableCollection<OfflineAudioTrack> BuildAudioTracksForPlace(string placeName, int audioCount)
+    {
+        var languageTemplates = new (string LanguageCode, string LanguageName)[]
+        {
+            ("VI", "Tiếng Việt"),
+            ("EN", "English"),
+            ("FR", "Francais"),
+            ("KO", "Korean"),
+            ("JA", "Japanese"),
+            ("ZH", "Chinese")
+        };
+
+        var trackCount = Math.Clamp(audioCount, 1, languageTemplates.Length);
+        var estimatedTrackSeconds = Math.Max(60, 125);
+
+        return new ObservableCollection<OfflineAudioTrack>(
+            languageTemplates
+                .Take(trackCount)
+                .Select(item => new OfflineAudioTrack
+            {
+                LanguageCode = item.LanguageCode,
+                LanguageName = item.LanguageName,
+                Title = placeName,
+                Duration = FormatDuration(estimatedTrackSeconds)
+            }));
+    }
+
+    private static int ExtractAudioCount(string? audioCountText)
+    {
+        if (string.IsNullOrWhiteSpace(audioCountText))
+        {
+            return 1;
+        }
+
+        var digits = new string(audioCountText.Where(char.IsDigit).ToArray());
+        return int.TryParse(digits, out var value) && value > 0
+            ? value
+            : 1;
+    }
+
+    private static string FormatDuration(int totalSeconds)
+    {
+        var duration = TimeSpan.FromSeconds(Math.Max(1, totalSeconds));
+        return duration.TotalHours >= 1
+            ? duration.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
+            : duration.ToString(@"mm\:ss", CultureInfo.InvariantCulture);
     }
 
     private void ApplyFilter()
     {
+        var query = _allItems.AsEnumerable();
+
         if (_selectedFilter == "Downloaded")
-            FilteredItems = new ObservableCollection<OfflinePackItem>(_allItems.Where(x => x.IsDownloaded));
+            query = query.Where(x => x.IsDownloaded);
         else if (_selectedFilter == "NotDownloaded")
-            FilteredItems = new ObservableCollection<OfflinePackItem>(_allItems.Where(x => !x.IsDownloaded));
-        else
-            FilteredItems = new ObservableCollection<OfflinePackItem>(_allItems);
+            query = query.Where(x => !x.IsDownloaded);
+
+        if (_selectedCategoryValue != AllCategoryValue)
+        {
+            query = query.Where(x => string.Equals(x.Category, _selectedCategoryValue, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            var normalizedKeyword = NormalizeSearchText(_searchKeyword);
+            query = query.Where(x =>
+                ContainsSearchText(x.Title, normalizedKeyword) ||
+                ContainsSearchText(x.DefaultTitle, normalizedKeyword) ||
+                x.LocalizedTitles.Any(title => ContainsSearchText(title.LocalizedName, normalizedKeyword)));
+        }
+
+        FilteredItems = new ObservableCollection<OfflinePackItem>(query);
 
         OnPropertyChanged(nameof(DownloadedCountText));
         OnPropertyChanged(nameof(DownloadedSizeText));
@@ -336,6 +517,87 @@ public partial class OfflinePage : ContentPage
         OnPropertyChanged(nameof(AllTabTextColor));
         OnPropertyChanged(nameof(DownloadedTabTextColor));
         OnPropertyChanged(nameof(NotDownloadedTabTextColor));
+        ApplyFilterSummary();
+    }
+
+    private void OnSearchChanged(object? sender, TextChangedEventArgs e)
+    {
+        _searchKeyword = e.NewTextValue?.Trim() ?? string.Empty;
+        ApplyFilter();
+    }
+
+    private void ApplyFilterSummary()
+    {
+        if (CountLabel is not null)
+        {
+            CountLabel.Text = $"{FilteredItems.Count} {LocalizationService.Instance.T("Offline.CountSuffix")}";
+        }
+
+        if (CountHintLabel is not null)
+        {
+            CountHintLabel.Text = LocalizationService.Instance.T("Offline.CountHint");
+        }
+
+        if (FilterLabel is null)
+        {
+            return;
+        }
+
+        var statusText = _selectedFilter switch
+        {
+            "Downloaded" => LocalizationService.Instance.T("Offline.FilterDownloaded"),
+            "NotDownloaded" => LocalizationService.Instance.T("Offline.FilterPending"),
+            _ => LocalizationService.Instance.T("Offline.FilterAll")
+        };
+
+        var summaryParts = new List<string>();
+        if (statusText != LocalizationService.Instance.T("Offline.FilterAll"))
+        {
+            summaryParts.Add(statusText);
+        }
+
+        var selectedCategory = CategoryFilters.FirstOrDefault(item => item.IsSelected && !item.IsAllOption);
+        if (selectedCategory is not null)
+        {
+            summaryParts.Add(selectedCategory.DisplayName);
+        }
+
+        FilterLabel.Text = summaryParts.Count == 0
+            ? LocalizationService.Instance.T("Offline.FilterLabel")
+            : $"{LocalizationService.Instance.T("Offline.FilterLabel")}: {string.Join(" • ", summaryParts)}";
+    }
+
+    private static bool ContainsSearchText(string? source, string keyword)
+    {
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(keyword))
+        {
+            return false;
+        }
+
+        return NormalizeSearchText(source).Contains(keyword, StringComparison.Ordinal);
+    }
+
+    private static string NormalizeSearchText(string value)
+    {
+        var normalized = value.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+
+        foreach (var character in normalized)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(character);
+            if (category == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            builder.Append(character switch
+            {
+                'đ' => 'd',
+                _ => character
+            });
+        }
+
+        return builder.ToString().Normalize(NormalizationForm.FormC);
     }
 
     private void OnDownload(OfflinePackItem? item)
@@ -386,6 +648,25 @@ public partial class OfflinePage : ContentPage
         ApplyFilter();
     }
 
+    private async void OnToggleFilterPopup(object? sender, TappedEventArgs e)
+    {
+        await UiEffectsService.TogglePopupAsync(FilterPopup, !FilterPopup.IsVisible);
+    }
+
+    private void OnCategoryFilterTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is not BindableObject bindable || bindable.BindingContext is not CategoryFilterOption option)
+            return;
+
+        _selectedCategoryValue = _selectedCategoryValue == option.Value
+            ? AllCategoryValue
+            : option.Value;
+
+        UpdateCategorySelectionState();
+        _ = UiEffectsService.TogglePopupAsync(FilterPopup, false);
+        ApplyFilter();
+    }
+
     private void OnClearAllTapped(object? sender, TappedEventArgs e)
     {
         var downloadedItems = _allItems.Where(x => x.IsDownloaded).ToList();
@@ -411,11 +692,249 @@ public partial class OfflinePage : ContentPage
         ApplyFilter();
     }
 
-    private void OnToggleExpand(OfflinePackItem? item)
+    private void OnPlayTrack(OfflineAudioTrack? track)
     {
-        if (item == null) return;
+        if (track == null)
+            return;
 
-        item.IsExpanded = !item.IsExpanded;
+        var nextState = !track.IsPlayed;
+        foreach (var item in SelectedPack?.AudioTracks ?? [])
+        {
+            item.IsPlayed = ReferenceEquals(item, track) && nextState;
+        }
+    }
+
+    private async void OnPackTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is BindableObject bindable && bindable.BindingContext is OfflinePackItem item)
+        {
+            if (FilterPopup.IsVisible)
+            {
+                await UiEffectsService.TogglePopupAsync(FilterPopup, false);
+            }
+
+            SelectedPack = item;
+            IsOfflineAudioListExpanded = false;
+            IsOfflineDetailVisible = true;
+            await ShowOfflineDetailAsync();
+        }
+    }
+
+    private async void OnOfflineDetailBackdropTapped(object? sender, TappedEventArgs e)
+    {
+        await CloseOfflineDetailAsync();
+    }
+
+    private async void OnCloseOfflineDetailClicked(object? sender, EventArgs e)
+    {
+        await CloseOfflineDetailAsync();
+    }
+
+    private async void OnOfflineDetailPanUpdated(object? sender, PanUpdatedEventArgs e)
+    {
+        if (!IsOfflineDetailVisible)
+        {
+            return;
+        }
+
+        switch (e.StatusType)
+        {
+            case GestureStatus.Started:
+                _offlineDetailSheetStartY = OfflineDetailSheet.TranslationY;
+                break;
+
+            case GestureStatus.Running:
+                var nextY = Math.Clamp(_offlineDetailSheetStartY + e.TotalY, _offlineDetailExpandedY, _offlineDetailClosedY);
+                OfflineDetailSheet.TranslationY = nextY;
+                break;
+
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+                var targetY = ResolveOfflineDetailSnapTarget(OfflineDetailSheet.TranslationY, e.TotalY);
+                if (targetY >= _offlineDetailClosedY - 1)
+                {
+                    await CloseOfflineDetailAsync();
+                }
+                else
+                {
+                    await OfflineDetailSheet.TranslateToAsync(0, targetY, 170, Easing.CubicOut);
+                }
+                break;
+        }
+    }
+
+    private async Task ShowOfflineDetailAsync()
+    {
+        await Task.Yield();
+        UpdateOfflineDetailSheetLayout();
+        OfflineDetailSheet.TranslationY = _offlineDetailClosedY;
+        await OfflineDetailSheet.TranslateToAsync(0, _offlineDetailHalfY, 300, Easing.CubicOut);
+    }
+
+    private async Task CloseOfflineDetailAsync()
+    {
+        if (OfflineDetailSheet is not null)
+        {
+            UpdateOfflineDetailSheetLayout();
+            await OfflineDetailSheet.TranslateToAsync(0, _offlineDetailClosedY, 230, Easing.CubicIn);
+        }
+
+        IsOfflineDetailVisible = false;
+        IsOfflineAudioListExpanded = false;
+        SelectedPack = null;
+    }
+
+    private void OnToggleOfflineAudioListTapped(object? sender, TappedEventArgs e)
+    {
+        if (SelectedPack is null)
+            return;
+
+        IsOfflineAudioListExpanded = !IsOfflineAudioListExpanded;
+    }
+
+    private async void OnViewOfflinePlaceOnMapTapped(object? sender, TappedEventArgs e)
+    {
+        if (SelectedPack is null)
+            return;
+
+        try
+        {
+            PlaceNavigationService.Instance.RequestMapFocus(SelectedPack.Id);
+            await CloseOfflineDetailAsync();
+
+            if (Application.Current?.Windows.FirstOrDefault()?.Page is AppShell appShell)
+            {
+                await appShell.NavigateToMapTabAsync();
+                return;
+            }
+
+            await Shell.Current.GoToAsync("//mainTabs/map");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Navigate offline pack to map error: {ex.Message}");
+        }
+    }
+
+    private void UpdateOfflineDetailSheetLayout()
+    {
+        if (Height <= 0 || OfflineDetailSheet is null)
+        {
+            return;
+        }
+
+        var maxSheetHeight = Math.Max(360, Height * 0.88);
+        OfflineDetailSheet.MaximumHeightRequest = maxSheetHeight;
+
+        _offlineDetailExpandedY = OfflineDetailOpenTopInset;
+        var halfVisibleHeight = Math.Max(320, Height * OfflineDetailHalfVisibleRatio);
+        _offlineDetailHalfY = Math.Clamp(
+            maxSheetHeight - halfVisibleHeight,
+            _offlineDetailExpandedY + 72,
+            _offlineDetailExpandedY + 300);
+        _offlineDetailClosedY = Math.Max(OfflineDetailFallbackClosedOffset, maxSheetHeight + 48);
+
+        if (!IsOfflineDetailVisible)
+        {
+            OfflineDetailSheet.TranslationY = _offlineDetailClosedY;
+        }
+    }
+
+    private void SyncCategoryFilters(IEnumerable<Project_SharedClassLibrary.Contracts.CategoryDto> categories)
+    {
+        var categoryNames = categories
+            .Where(item => item.Status == 1 && !string.IsNullOrWhiteSpace(item.Name))
+            .Select(item => item.Name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(item => item, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        var selectedExists = _selectedCategoryValue == AllCategoryValue ||
+            categoryNames.Any(item => string.Equals(item, _selectedCategoryValue, StringComparison.OrdinalIgnoreCase));
+
+        if (!selectedExists)
+        {
+            _selectedCategoryValue = AllCategoryValue;
+        }
+
+        CategoryFilters.Clear();
+        CategoryFilters.Add(new CategoryFilterOption
+        {
+            Value = AllCategoryValue,
+            DisplayName = LocalizationService.Instance.T("Filter.All"),
+            Icon = "📍",
+            IsAllOption = true
+        });
+
+        foreach (var categoryName in categoryNames)
+        {
+            CategoryFilters.Add(new CategoryFilterOption
+            {
+                Value = categoryName,
+                DisplayName = categoryName,
+                Icon = ResolveCategoryIcon(categoryName)
+            });
+        }
+
+        UpdateCategorySelectionState();
+    }
+
+    private void UpdateCategorySelectionState()
+    {
+        foreach (var option in CategoryFilters)
+        {
+            option.IsSelected = string.Equals(option.Value, _selectedCategoryValue, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private static string ResolveCategoryIcon(string category)
+    {
+        var normalized = category.Trim().ToLowerInvariant();
+
+        if (normalized.Contains("food") || normalized.Contains("ăn"))
+            return "🍜";
+
+        if (normalized.Contains("drink") || normalized.Contains("uống") || normalized.Contains("cafe"))
+            return "🥤";
+
+        if (normalized.Contains("bus") || normalized.Contains("stop") || normalized.Contains("transit"))
+            return "🚌";
+
+        if (normalized.Contains("history") || normalized.Contains("heritage") || normalized.Contains("historical"))
+            return "🏛";
+
+        if (normalized.Contains("landmark"))
+            return "📍";
+
+        return "🏷";
+    }
+
+    private double ResolveOfflineDetailSnapTarget(double currentY, double totalDragY)
+    {
+        var expandedHalfMid = (_offlineDetailExpandedY + _offlineDetailHalfY) / 2;
+        var halfClosedMid = (_offlineDetailHalfY + _offlineDetailClosedY) / 2;
+
+        if (totalDragY < -80)
+        {
+            return _offlineDetailExpandedY;
+        }
+
+        if (totalDragY > 160 && currentY > _offlineDetailHalfY + 24)
+        {
+            return _offlineDetailClosedY;
+        }
+
+        if (currentY <= expandedHalfMid)
+        {
+            return _offlineDetailExpandedY;
+        }
+
+        if (currentY <= halfClosedMid)
+        {
+            return _offlineDetailHalfY;
+        }
+
+        return _offlineDetailClosedY;
     }
 
     private void OnCancelDeleteClicked(object sender, EventArgs e)
@@ -434,7 +953,6 @@ public partial class OfflinePage : ContentPage
             {
                 item.IsDownloaded = false;
                 item.DownloadedAt = null;
-                item.IsExpanded = false;
             }
 
             _pendingDeleteItem = null;
@@ -455,7 +973,6 @@ public partial class OfflinePage : ContentPage
 
         _pendingDeleteItem.IsDownloaded = false;
         _pendingDeleteItem.DownloadedAt = null;
-        _pendingDeleteItem.IsExpanded = false;
 
         _pendingDeleteItem = null;
         _isBulkDeleteConfirm = false;
@@ -470,7 +987,9 @@ public class OfflinePackItem : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    public string Id { get; set; } = "";
     public string Category { get; set; } = "";
+    public string DefaultTitle { get; set; } = "";
     public string Title { get; set; } = "";
     public int AudioCount { get; set; }
     public string Duration { get; set; } = "";
@@ -489,12 +1008,13 @@ public class OfflinePackItem : INotifyPropertyChanged
     public Color CategoryBg { get; set; } = Colors.LightGray;
     public Color CategoryTextColor { get; set; } = Colors.Black;
     public ObservableCollection<LocalizedTitleItem> LocalizedTitles { get; set; } = new();
+    public ObservableCollection<OfflineAudioTrack> AudioTracks { get; set; } = new();
 
     private bool _isDownloaded;
-    private bool _isExpanded;
     private DateTime? _downloadedAt;
 
     public string AudioCountText => $"{AudioCount} audio";
+    public string LanguagesText => string.Join(" • ", AudioTracks.Select(track => track.LanguageCode));
     public string DownloadedDateText => DownloadedAt is DateTime downloadedAt
         ? $"Đã tải {downloadedAt:dd/MM/yyyy HH:mm}"
         : "Sẵn sàng tải về";
@@ -528,24 +1048,34 @@ public class OfflinePackItem : INotifyPropertyChanged
         }
     }
 
-    public bool IsExpanded
-    {
-        get => _isExpanded;
-        set
-        {
-            _isExpanded = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(ExpandIcon));
-        }
-    }
-
-    public string ExpandIcon => IsExpanded ? "˄" : "˅";
-
     public void RefreshThemeState()
     {
         OnPropertyChanged(nameof(CardStrokeColor));
         OnPropertyChanged(nameof(CategoryBg));
         OnPropertyChanged(nameof(CategoryTextColor));
+    }
+
+    public void ApplyLanguage(string language)
+    {
+        var languageCode = language switch
+        {
+            "en" => "EN",
+            "fr" => "FR",
+            "kr" => "KO",
+            "jp" => "JA",
+            "cn" => "ZH",
+            _ => "VI"
+        };
+
+        var localizedTitle = LocalizedTitles
+            .FirstOrDefault(item => string.Equals(item.LanguageCode, languageCode, StringComparison.OrdinalIgnoreCase))
+            ?.LocalizedName;
+
+        Title = string.IsNullOrWhiteSpace(localizedTitle)
+            ? DefaultTitle
+            : localizedTitle;
+
+        OnPropertyChanged(nameof(Title));
     }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)
@@ -563,8 +1093,36 @@ public class LocalizedTitleItem
 
 public class OfflineAudioTrack
 {
+    public event PropertyChangedEventHandler? PropertyChanged;
+
     public string LanguageCode { get; set; } = "";
+    public string LanguageName { get; set; } = "";
     public string Title { get; set; } = "";
-    public string Subtitle { get; set; } = "";
     public string Duration { get; set; } = "";
+    public string MetaText => $"{LanguageName} • {Duration}";
+
+    private bool _isPlayed;
+
+    public bool IsPlayed
+    {
+        get => _isPlayed;
+        set
+        {
+            if (_isPlayed == value)
+                return;
+
+            _isPlayed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(PlayIcon));
+        }
+    }
+
+    public string PlayIcon => IsPlayed ? "🔊" : "▶";
+
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
 }
+
+public readonly record struct OfflinePackState(bool IsDownloaded, DateTime? DownloadedAt);

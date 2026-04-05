@@ -109,7 +109,8 @@
 
                             <Button x:Name="TestVoiceButton"
                                     Text="🎙 Test giọng đọc"
-                                    Style="{StaticResource PrimaryButtonStyle}" />
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Clicked="OnTestVoiceClicked" />
                         </VerticalStackLayout>
                     </Border>
 
@@ -470,19 +471,19 @@
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
-                                <Label x:Name="OfflineModeLabel"
-                                       Text="Chế độ Offline"
+                                <Label x:Name="ApiModeLabel"
+                                       Text="Kết nối API"
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
-                                <Switch Grid.Column="1" IsToggled="False" OnColor="{DynamicResource PrimaryGreen}" />
+                                <Switch x:Name="ApiModeSwitch"
+                                        Grid.Column="1"
+                                        IsToggled="True"
+                                        OnColor="{DynamicResource PrimaryGreen}"
+                                        Toggled="OnApiModeToggled" />
                             </Grid>
                         </VerticalStackLayout>
                     </Border>
 
-                    <Button x:Name="SaveButton"
-                            Clicked="OnSaveTapped"
-                            Text="💾 Lưu cài đặt"
-                            Style="{StaticResource PrimaryButtonStyle}" />
                 </VerticalStackLayout>
             </ScrollView>
 

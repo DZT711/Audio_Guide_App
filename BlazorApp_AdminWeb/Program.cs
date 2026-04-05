@@ -31,7 +31,7 @@ builder.Services.AddHttpClient<AdminApiClient>((serviceProvider, client) =>
         .Value;
 
     client.BaseAddress = new Uri(options.BaseUrl);
-    client.Timeout = TimeSpan.FromSeconds(10);
+    client.Timeout = TimeSpan.FromSeconds(60);
 });
 
 var app = builder.Build();

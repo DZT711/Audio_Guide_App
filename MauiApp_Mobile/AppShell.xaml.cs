@@ -24,4 +24,9 @@ public partial class AppShell : Shell
     {
         return GoToAsync("//mainTabs/places");
     }
+
+    public Task NavigateToMapTabAsync()
+    {
+        return GoToAsync("//mainTabs/map");
+    }
 }

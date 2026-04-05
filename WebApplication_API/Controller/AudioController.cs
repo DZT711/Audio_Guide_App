@@ -15,8 +15,82 @@ public class AudioController(
     DBContext context,
     SharedAudioFileStorageService audioStorage,
     TtsPreviewService ttsPreviewService,
+    GeminiSpeechService geminiSpeechService,
     AdminRequestAuthorizationService authService) : ControllerBase
 {
+    [HttpGet("public/location/{locationId:int}")]
+    public async Task<IActionResult> GetPublicAudioByLocation(int locationId, CancellationToken cancellationToken)
+    {
+        var location = await context.Locations
+            .Where(item => item.LocationId == locationId && item.Status == 1)
+            .Select(item => new
+            {
+                item.LocationId,
+                item.Name
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (location is null)
+        {
+            return NotFound(new { message = "Location not found." });
+        }
+
+        var audioItems = (await context.AudioContents
+            .Where(item => item.LocationId == locationId && item.Status == 1)
+            .ToListAsync(cancellationToken))
+            .OrderByDescending(item => item.Priority)
+            .ThenBy(item => GetSourceTypeOrder(item.SourceType))
+            .ThenBy(item => item.AudioId)
+            .ToList();
+
+        var languageLookup = await LoadLanguageLookupAsync(audioItems.Select(item => item.LanguageCode));
+        var defaultAudioId = audioItems.FirstOrDefault()?.AudioId;
+
+        return Ok(audioItems.Select(item => ToPublicAudioTrackDto(
+            item,
+            location.Name,
+            GetLanguage(languageLookup, item.LanguageCode),
+            item.AudioId == defaultAudioId)).ToList());
+    }
+
+    [HttpGet("public/location/{locationId:int}/default")]
+    public async Task<IActionResult> GetPublicDefaultAudioByLocation(int locationId, CancellationToken cancellationToken)
+    {
+        var location = await context.Locations
+            .Where(item => item.LocationId == locationId && item.Status == 1)
+            .Select(item => new
+            {
+                item.LocationId,
+                item.Name
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (location is null)
+        {
+            return NotFound(new { message = "Location not found." });
+        }
+
+        var audio = (await context.AudioContents
+            .Where(item => item.LocationId == locationId && item.Status == 1)
+            .ToListAsync(cancellationToken))
+            .OrderByDescending(item => item.Priority)
+            .ThenBy(item => GetSourceTypeOrder(item.SourceType))
+            .ThenBy(item => item.AudioId)
+            .FirstOrDefault();
+
+        if (audio is null)
+        {
+            return NotFound(new { message = "No active audio found for this location." });
+        }
+
+        var languageLookup = await LoadLanguageLookupAsync([audio.LanguageCode]);
+        return Ok(ToPublicAudioTrackDto(
+            audio,
+            location.Name,
+            GetLanguage(languageLookup, audio.LanguageCode),
+            true));
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAllAudio()
     {
@@ -91,6 +165,23 @@ public class AudioController(
 
         try
         {
+            if (geminiSpeechService.IsEnabled)
+            {
+                var geminiResult = await geminiSpeechService.TranslateAndGenerateSpeechAsync(
+                    new PublicAudioTranslateTtsRequest
+                    {
+                        Text = request.Text,
+                        SourceLanguage = request.Language,
+                        TargetLanguage = request.Language,
+                        VoiceGender = request.VoiceGender
+                    },
+                    cancellationToken);
+
+                Response.Headers["X-SmartTour-Tts-Provider"] = "Gemini";
+                Response.Headers["X-SmartTour-Tts-Voice"] = geminiResult.VoiceName;
+                return File(geminiResult.AudioContent, geminiResult.ContentType);
+            }
+
             var preview = await ttsPreviewService.GeneratePreviewAsync(request, cancellationToken);
             Response.Headers["X-SmartTour-Tts-Provider"] = preview.Provider;
             Response.Headers["X-SmartTour-Tts-Voice"] = preview.VoiceName;
@@ -103,6 +194,34 @@ public class AudioController(
         catch (HttpRequestException)
         {
             return StatusCode(502, new { message = "The TTS preview provider could not be reached." });
+        }
+    }
+
+    [HttpPost("public/translate-tts")]
+    public async Task<IActionResult> TranslateTts(
+        [FromBody] PublicAudioTranslateTtsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        try
+        {
+            var result = await geminiSpeechService.TranslateAndGenerateSpeechAsync(request, cancellationToken);
+            Response.Headers["X-SmartTour-Translated-Language"] = result.TargetLanguage;
+            Response.Headers["X-SmartTour-Translated-Voice"] = result.VoiceName;
+            Response.Headers["X-SmartTour-Translated-Text"] = Uri.EscapeDataString(result.TranslatedText);
+            return File(result.AudioContent, result.ContentType);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (HttpRequestException)
+        {
+            return StatusCode(502, new { message = "The cloud speech provider could not be reached." });
         }
     }
 
@@ -363,6 +482,38 @@ public class AudioController(
 
     private static string? NormalizeAudioPath(string? path) =>
         string.IsNullOrWhiteSpace(path) ? null : SharedStoragePaths.NormalizePublicAudioPath(path);
+
+    private static PublicAudioTrackDto ToPublicAudioTrackDto(
+        Audio audio,
+        string locationName,
+        Language? language,
+        bool isDefault) =>
+        new()
+        {
+            Id = audio.AudioId,
+            LocationId = audio.LocationId,
+            LocationName = locationName,
+            Language = audio.LanguageCode,
+            LanguageName = language?.LangName,
+            Title = audio.Title,
+            Description = audio.Description,
+            SourceType = audio.SourceType,
+            Script = audio.Script,
+            AudioURL = audio.FilePath,
+            Duration = audio.DurationSeconds ?? 0,
+            VoiceName = audio.VoiceName,
+            VoiceGender = audio.VoiceGender,
+            Priority = audio.Priority,
+            IsDefault = isDefault
+        };
+
+    private static int GetSourceTypeOrder(string? sourceType) =>
+        sourceType?.Trim().ToUpperInvariant() switch
+        {
+            "RECORDED" => 0,
+            "HYBRID" => 1,
+            _ => 2
+        };
 
     private async Task<Dictionary<string, Language>> LoadLanguageLookupAsync(IEnumerable<string> languageCodes)
     {

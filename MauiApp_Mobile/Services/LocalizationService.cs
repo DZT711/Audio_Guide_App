@@ -39,6 +39,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Places.Title"] = "Địa điểm",
             ["Places.Search"] = "Tìm kiếm điểm...",
             ["Places.CountSuffix"] = "địa điểm",
+            ["Places.CountHint"] = "Danh sách đang hiển thị",
             ["Places.Filter"] = "Lọc",
             ["Places.EmptyTitle"] = "Không tìm thấy địa điểm",
             ["Places.EmptySubtitle"] = "Thử nhập từ khóa khác",
@@ -82,6 +83,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Settings.BackgroundTracking"] = "Theo dõi ở nền",
             ["Settings.BatterySaver"] = "Chế độ tiết kiệm pin",
             ["Settings.Offline"] = "Chế độ Offline",
+            ["Settings.ApiMode"] = "Kết nối API",
             ["Settings.Save"] = "💾 Lưu cài đặt",
             ["Settings.SaveSuccess"] = "Theme và các thiết lập demo đã được áp dụng.",
             ["Settings.ChooseLanguage"] = "CHỌN NGÔN NGỮ",
@@ -95,7 +97,10 @@ public class LocalizationService : INotifyPropertyChanged
             ["Settings.ThemeHeritageSubtitle"] = "Tông ấm gợi cảm giác di sản và du lịch văn hóa.",
 
             ["Filter.Title"] = "DANH MỤC",
+            ["Filter.VoiceTitle"] = "GIỌNG ĐỌC",
             ["Filter.All"] = "Tất cả",
+            ["Filter.VoiceMale"] = "Nam",
+            ["Filter.VoiceFemale"] = "Nữ",
             ["Filter.SignatureDish"] = "Món ăn đặc trưng",
             ["Filter.FamousRestaurant"] = "Quán nổi tiếng",
             ["Filter.Drinks"] = "Đồ uống",
@@ -114,6 +119,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Places.Title"] = "Places",
             ["Places.Search"] = "Search places...",
             ["Places.CountSuffix"] = "places",
+            ["Places.CountHint"] = "Visible results",
             ["Places.Filter"] = "Filter",
             ["Places.EmptyTitle"] = "No places found",
             ["Places.EmptySubtitle"] = "Try another keyword",
@@ -157,6 +163,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Settings.BackgroundTracking"] = "Background tracking",
             ["Settings.BatterySaver"] = "Battery saver mode",
             ["Settings.Offline"] = "Offline mode",
+            ["Settings.ApiMode"] = "API connection",
             ["Settings.Save"] = "💾 Save settings",
             ["Settings.SaveSuccess"] = "Your theme and demo settings have been applied.",
             ["Settings.ChooseLanguage"] = "CHOOSE LANGUAGE",
@@ -170,7 +177,10 @@ public class LocalizationService : INotifyPropertyChanged
             ["Settings.ThemeHeritageSubtitle"] = "A warm palette inspired by culture trips and historic spaces.",
 
             ["Filter.Title"] = "CATEGORY",
+            ["Filter.VoiceTitle"] = "VOICE",
             ["Filter.All"] = "All",
+            ["Filter.VoiceMale"] = "Male",
+            ["Filter.VoiceFemale"] = "Female",
             ["Filter.SignatureDish"] = "Signature dishes",
             ["Filter.FamousRestaurant"] = "Famous restaurants",
             ["Filter.Drinks"] = "Drinks",
@@ -189,6 +199,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Places.Title"] = "地点",
             ["Places.Search"] = "搜索地点...",
             ["Places.CountSuffix"] = "个地点",
+            ["Places.CountHint"] = "当前显示结果",
             ["Places.Filter"] = "筛选",
             ["Places.EmptyTitle"] = "未找到地点",
             ["Places.EmptySubtitle"] = "请尝试其他关键词",
@@ -258,6 +269,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Places.Title"] = "場所",
             ["Places.Search"] = "場所を検索...",
             ["Places.CountSuffix"] = "件の場所",
+            ["Places.CountHint"] = "表示中の結果",
             ["Places.Filter"] = "絞り込み",
             ["Places.EmptyTitle"] = "場所が見つかりません",
             ["Places.EmptySubtitle"] = "別のキーワードを試してください",
@@ -327,6 +339,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Places.Title"] = "장소",
             ["Places.Search"] = "장소 검색...",
             ["Places.CountSuffix"] = "개의 장소",
+            ["Places.CountHint"] = "현재 표시 결과",
             ["Places.Filter"] = "필터",
             ["Places.EmptyTitle"] = "장소를 찾을 수 없습니다",
             ["Places.EmptySubtitle"] = "다른 키워드를 입력해보세요",
@@ -396,6 +409,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Places.Title"] = "Lieux",
             ["Places.Search"] = "Rechercher un lieu...",
             ["Places.CountSuffix"] = "lieux",
+            ["Places.CountHint"] = "Resultats affiches",
             ["Places.Filter"] = "Filtrer",
             ["Places.EmptyTitle"] = "Aucun lieu trouvé",
             ["Places.EmptySubtitle"] = "Essayez un autre mot-clé",
@@ -459,6 +473,18 @@ public class LocalizationService : INotifyPropertyChanged
     {
         UpsertTexts("vi", new Dictionary<string, string>
         {
+            ["Offline.Title"] = "Offline",
+            ["Offline.Subtitle"] = "Quản lý audio pack nghe offline",
+            ["Offline.DownloadAll"] = "↓ Tải tất cả",
+            ["Offline.Search"] = "Tìm kiếm pack offline...",
+            ["Offline.CountSuffix"] = "gói",
+            ["Offline.ReadyCountFormat"] = "{0}/{1} gói",
+            ["Offline.ProgressTextFormat"] = "{0} trên {1} gói đã sẵn sàng ngoại tuyến",
+            ["Offline.CountHint"] = "Đang hiển thị theo tìm kiếm và bộ lọc",
+            ["Offline.FilterLabel"] = "Lọc",
+            ["Offline.FilterAll"] = "Tất cả",
+            ["Offline.FilterDownloaded"] = "Đã tải",
+            ["Offline.FilterPending"] = "Chưa tải",
             ["Places.DetailPriority"] = "Độ ưu tiên {0}",
             ["Places.AudioTracksTitle"] = "🔊 Danh sách Audio ({0})",
             ["Places.GalleryOverview"] = "Khám phá",
@@ -479,6 +505,18 @@ public class LocalizationService : INotifyPropertyChanged
 
         UpsertTexts("en", new Dictionary<string, string>
         {
+            ["Offline.Title"] = "Offline",
+            ["Offline.Subtitle"] = "Manage offline audio packs",
+            ["Offline.DownloadAll"] = "↓ Download all",
+            ["Offline.Search"] = "Search offline packs...",
+            ["Offline.CountSuffix"] = "packs",
+            ["Offline.ReadyCountFormat"] = "{0}/{1} packs",
+            ["Offline.ProgressTextFormat"] = "{0} of {1} packs ready offline",
+            ["Offline.CountHint"] = "Showing results by search and filter",
+            ["Offline.FilterLabel"] = "Filter",
+            ["Offline.FilterAll"] = "All",
+            ["Offline.FilterDownloaded"] = "Downloaded",
+            ["Offline.FilterPending"] = "Not downloaded",
             ["Places.DetailPriority"] = "Priority {0}",
             ["Places.AudioTracksTitle"] = "🔊 Audio tracks ({0})",
             ["Places.GalleryOverview"] = "Overview",
@@ -499,6 +537,18 @@ public class LocalizationService : INotifyPropertyChanged
 
         UpsertTexts("cn", new Dictionary<string, string>
         {
+            ["Offline.Title"] = "离线",
+            ["Offline.Subtitle"] = "管理离线音频包",
+            ["Offline.DownloadAll"] = "↓ 全部下载",
+            ["Offline.Search"] = "搜索离线音频包...",
+            ["Offline.CountSuffix"] = "个包",
+            ["Offline.ReadyCountFormat"] = "{0}/{1} 个包",
+            ["Offline.ProgressTextFormat"] = "{0}/{1} 个包已可离线使用",
+            ["Offline.CountHint"] = "按搜索和筛选显示结果",
+            ["Offline.FilterLabel"] = "筛选",
+            ["Offline.FilterAll"] = "全部",
+            ["Offline.FilterDownloaded"] = "已下载",
+            ["Offline.FilterPending"] = "未下载",
             ["Places.DetailPriority"] = "优先级 {0}",
             ["Places.AudioTracksTitle"] = "🔊 音频列表 ({0})",
             ["Places.GalleryOverview"] = "概览",
@@ -525,6 +575,18 @@ public class LocalizationService : INotifyPropertyChanged
 
         UpsertTexts("jp", new Dictionary<string, string>
         {
+            ["Offline.Title"] = "オフライン",
+            ["Offline.Subtitle"] = "オフライン音声パックを管理",
+            ["Offline.DownloadAll"] = "↓ すべてダウンロード",
+            ["Offline.Search"] = "オフラインパックを検索...",
+            ["Offline.CountSuffix"] = "件",
+            ["Offline.ReadyCountFormat"] = "{0}/{1} 件",
+            ["Offline.ProgressTextFormat"] = "{1} 件中 {0} 件がオフライン利用可能",
+            ["Offline.CountHint"] = "検索とフィルターに基づく表示",
+            ["Offline.FilterLabel"] = "絞り込み",
+            ["Offline.FilterAll"] = "すべて",
+            ["Offline.FilterDownloaded"] = "ダウンロード済み",
+            ["Offline.FilterPending"] = "未ダウンロード",
             ["Places.DetailPriority"] = "優先度 {0}",
             ["Places.AudioTracksTitle"] = "🔊 オーディオ一覧 ({0})",
             ["Places.GalleryOverview"] = "概要",
@@ -551,6 +613,18 @@ public class LocalizationService : INotifyPropertyChanged
 
         UpsertTexts("kr", new Dictionary<string, string>
         {
+            ["Offline.Title"] = "오프라인",
+            ["Offline.Subtitle"] = "오프라인 오디오 팩 관리",
+            ["Offline.DownloadAll"] = "↓ 모두 다운로드",
+            ["Offline.Search"] = "오프라인 팩 검색...",
+            ["Offline.CountSuffix"] = "개 팩",
+            ["Offline.ReadyCountFormat"] = "{0}/{1}개 팩",
+            ["Offline.ProgressTextFormat"] = "{1}개 중 {0}개 팩이 오프라인 준비됨",
+            ["Offline.CountHint"] = "검색 및 필터 기준으로 표시 중",
+            ["Offline.FilterLabel"] = "필터",
+            ["Offline.FilterAll"] = "전체",
+            ["Offline.FilterDownloaded"] = "다운로드됨",
+            ["Offline.FilterPending"] = "미다운로드",
             ["Places.DetailPriority"] = "우선순위 {0}",
             ["Places.AudioTracksTitle"] = "🔊 오디오 목록 ({0})",
             ["Places.GalleryOverview"] = "개요",
@@ -577,6 +651,18 @@ public class LocalizationService : INotifyPropertyChanged
 
         UpsertTexts("fr", new Dictionary<string, string>
         {
+            ["Offline.Title"] = "Hors ligne",
+            ["Offline.Subtitle"] = "Gerer les packs audio hors ligne",
+            ["Offline.DownloadAll"] = "↓ Tout telecharger",
+            ["Offline.Search"] = "Rechercher des packs hors ligne...",
+            ["Offline.CountSuffix"] = "packs",
+            ["Offline.ReadyCountFormat"] = "{0}/{1} packs",
+            ["Offline.ProgressTextFormat"] = "{0} packs sur {1} prets hors ligne",
+            ["Offline.CountHint"] = "Affichage selon la recherche et le filtre",
+            ["Offline.FilterLabel"] = "Filtrer",
+            ["Offline.FilterAll"] = "Tous",
+            ["Offline.FilterDownloaded"] = "Telecharges",
+            ["Offline.FilterPending"] = "Non telecharges",
             ["Places.DetailPriority"] = "Priorite {0}",
             ["Places.AudioTracksTitle"] = "🔊 Pistes audio ({0})",
             ["Places.GalleryOverview"] = "Apercu",
@@ -626,4 +712,5 @@ public class LocalizationService : INotifyPropertyChanged
 
         return key;
     }
+
 }

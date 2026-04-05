@@ -73,7 +73,8 @@ public partial class MapPage : ContentPage
         }
         else
         {
-            _ = ApplyMapThemeAsync();
+            _ = RefreshMapPlacesAsync();
+            _ = TryFocusPendingPlaceAsync();
         }
     }
 
@@ -253,6 +254,7 @@ public partial class MapPage : ContentPage
         await ApplyMapStringsAsync();
         await ApplyDeveloperModeAsync();
         await CompleteMapLoadingStateAsync();
+        await TryFocusPendingPlaceAsync();
 
         if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
         {
@@ -284,6 +286,38 @@ public partial class MapPage : ContentPage
 
         var mapPlacesJson = JsonSerializer.Serialize(await BuildMapInteropPointsAsync(), JsonInteropOptions);
         await EvaluateMapScriptAsync($"window.setPlaces && window.setPlaces({mapPlacesJson});");
+    }
+
+    private async Task TryFocusPendingPlaceAsync()
+    {
+        if (!_isMapReady)
+            return;
+
+        var pendingPlaceId = PlaceNavigationService.Instance.ConsumePendingMapPlaceId();
+        if (string.IsNullOrWhiteSpace(pendingPlaceId))
+            return;
+
+        try
+        {
+            var placeIdJson = JsonSerializer.Serialize(pendingPlaceId);
+            var rawResult = await EvaluateMapScriptAsync(
+                $"window.focusPlaceById && window.focusPlaceById({placeIdJson});");
+
+            var focusResult = ParseFocusResult(rawResult);
+            if (focusResult.Found)
+            {
+                UpdateSearchStatus($"Đang xem vị trí: {focusResult.Title}");
+            }
+            else
+            {
+                UpdateSearchStatus("Đã mở tab bản đồ nhưng chưa thể focus đúng POI.");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Pending map focus error: {ex.Message}");
+            UpdateSearchStatus("Đã mở tab bản đồ nhưng không thể focus POI lúc này.");
+        }
     }
 
     private async Task ApplyMapThemeAsync()
@@ -378,6 +412,7 @@ public partial class MapPage : ContentPage
                     return;
                 }
 
+                await PlaceCatalogService.Instance.EnsureLoadedAsync(cancellationToken: cancellationToken);
                 var poiResults = PlaceCatalogService.Instance.SearchByName(keyword)
                     .Select(CreatePoiSuggestion)
                     .ToList();
@@ -744,6 +779,7 @@ public partial class MapPage : ContentPage
 
     private async Task OpenPlaceDetailAsync(string placeId)
     {
+        await PlaceCatalogService.Instance.EnsureLoadedAsync();
         var place = PlaceCatalogService.Instance.FindById(placeId);
         if (place is null)
         {
@@ -783,7 +819,7 @@ public partial class MapPage : ContentPage
 
     private async Task<IReadOnlyList<MapPlaceInteropPoint>> BuildMapInteropPointsAsync()
     {
-        var sourcePoints = PlaceCatalogService.Instance.GetMapPoints();
+        var sourcePoints = await PlaceCatalogService.Instance.GetMapPointsAsync();
         var preparedPoints = new List<MapPlaceInteropPoint>(sourcePoints.Count);
 
         foreach (var point in sourcePoints)
@@ -803,6 +839,19 @@ public partial class MapPage : ContentPage
         }
 
         return preparedPoints;
+    }
+
+    private async Task RefreshMapPlacesAsync()
+    {
+        try
+        {
+            await PlaceCatalogService.Instance.EnsureLoadedAsync(forceRefresh: true);
+            await SyncPlacesToMapAsync();
+            await ApplyMapThemeAsync();
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     private async Task<IReadOnlyList<string>> ResolveMapImageSourcesAsync(IReadOnlyList<string> imageSources)
@@ -829,6 +878,7 @@ public partial class MapPage : ContentPage
             return string.Empty;
 
         if (imageSource.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
+            imageSource.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
             imageSource.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
             imageSource.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {

@@ -46,6 +46,7 @@ public sealed class LocationDto
     public string? Phone { get; init; }
     public int EstablishedYear { get; init; }
     public int AudioCount { get; init; }
+    public IReadOnlyList<string> AvailableVoiceGenders { get; init; } = [];
     public int Status { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
@@ -78,6 +79,25 @@ public sealed class AudioDto
     public int Status { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
+}
+
+public sealed class PublicAudioTrackDto
+{
+    public int Id { get; init; }
+    public int LocationId { get; init; }
+    public string LocationName { get; init; } = "";
+    public string Language { get; init; } = "vi-VN";
+    public string? LanguageName { get; init; }
+    public string Title { get; init; } = "";
+    public string? Description { get; init; }
+    public string SourceType { get; init; } = "TTS";
+    public string? Script { get; init; }
+    public string? AudioURL { get; init; }
+    public int Duration { get; init; }
+    public string? VoiceName { get; init; }
+    public string? VoiceGender { get; init; }
+    public int Priority { get; init; }
+    public bool IsDefault { get; init; }
 }
 
 public sealed class TourStopDto
