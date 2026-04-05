@@ -5,6 +5,7 @@ public sealed class PlaceNavigationService
     public static PlaceNavigationService Instance { get; } = new();
 
     private string? _pendingPlaceId;
+    private string? _pendingMapPlaceId;
 
     private PlaceNavigationService()
     {
@@ -19,6 +20,18 @@ public sealed class PlaceNavigationService
     {
         var pendingPlaceId = _pendingPlaceId;
         _pendingPlaceId = null;
+        return pendingPlaceId;
+    }
+
+    public void RequestMapFocus(string placeId)
+    {
+        _pendingMapPlaceId = string.IsNullOrWhiteSpace(placeId) ? null : placeId.Trim();
+    }
+
+    public string? ConsumePendingMapPlaceId()
+    {
+        var pendingPlaceId = _pendingMapPlaceId;
+        _pendingMapPlaceId = null;
         return pendingPlaceId;
     }
 }

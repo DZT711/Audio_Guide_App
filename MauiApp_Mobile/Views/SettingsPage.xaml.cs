@@ -14,9 +14,11 @@ public partial class SettingsPage : ContentPage
         UpdateSliderLabels();
         UpdateLanguageSelectionUI();
         UpdateThemeSelectionUI();
+        UpdateApiModeUI();
 
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
         ThemeService.Instance.PropertyChanged += OnThemeChanged;
+        AppDataModeService.Instance.PropertyChanged += OnAppDataModeChanged;
     }
 
     protected override void OnAppearing()
@@ -27,7 +29,7 @@ public partial class SettingsPage : ContentPage
             return;
 
         _hasAnimated = true;
-        _ = UiEffectsService.AnimateEntranceAsync(AudioCard, AppearanceCard, GpsCard, BehaviorCard, SaveButton);
+        _ = UiEffectsService.AnimateEntranceAsync(AudioCard, AppearanceCard, GpsCard, BehaviorCard);
     }
 
     private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
@@ -62,16 +64,26 @@ public partial class SettingsPage : ContentPage
             NotifyNearLabel,
             BackgroundTrackingLabel,
             BatterySaverLabel,
-            OfflineModeLabel,
-            SaveButton,
+            ApiModeLabel,
             LanguagePopupTitleLabel);
         UpdateLanguageSelectionUI();
+        UpdateApiModeUI();
     }
 
     private void OnThemeChanged(object? sender, PropertyChangedEventArgs e)
     {
         UpdateLanguageSelectionUI();
         UpdateThemeSelectionUI();
+    }
+
+    private void OnAppDataModeChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(AppDataModeService.IsApiEnabled), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(UpdateApiModeUI);
     }
 
     private void ApplyTexts()
@@ -82,7 +94,6 @@ public partial class SettingsPage : ContentPage
         ThemeHintLabel.Text = LocalizationService.Instance.T("Settings.ThemeHint");
         GpsLabel.Text = LocalizationService.Instance.T("Settings.Gps");
         BehaviorLabel.Text = LocalizationService.Instance.T("Settings.Behavior");
-        SaveButton.Text = LocalizationService.Instance.T("Settings.Save");
 
         LanguageRowLabel.Text = LocalizationService.Instance.T("Settings.Language");
         LanguageValueLabel.Text = LocalizationService.Instance.T("Settings.LanguageValue");
@@ -110,7 +121,7 @@ public partial class SettingsPage : ContentPage
         NotifyNearLabel.Text = LocalizationService.Instance.T("Settings.NotifyNear");
         BackgroundTrackingLabel.Text = LocalizationService.Instance.T("Settings.BackgroundTracking");
         BatterySaverLabel.Text = LocalizationService.Instance.T("Settings.BatterySaver");
-        OfflineModeLabel.Text = LocalizationService.Instance.T("Settings.Offline");
+        ApiModeLabel.Text = LocalizationService.Instance.T("Settings.ApiMode");
 
         LanguagePopupTitleLabel.Text = LocalizationService.Instance.T("Settings.ChooseLanguage");
 
@@ -221,20 +232,35 @@ public partial class SettingsPage : ContentPage
         WaitTimeValueLabel.Text = $"{Math.Round(WaitTimeSlider.Value):0}s";
     }
 
+    private void UpdateApiModeUI()
+    {
+        if (ApiModeSwitch.IsToggled != AppDataModeService.Instance.IsApiEnabled)
+        {
+            ApiModeSwitch.IsToggled = AppDataModeService.Instance.IsApiEnabled;
+        }
+    }
+
     private void OnReadingSpeedChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnVolumeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnTriggerRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnAlertRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnWaitTimeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
 
-    private async void OnSaveTapped(object sender, EventArgs e)
+    private async void OnTestVoiceClicked(object sender, EventArgs e)
     {
-        await SaveButton.ScaleToAsync(0.98, 70, Easing.CubicIn);
-        await SaveButton.ScaleToAsync(1, 150, Easing.CubicOut);
-        await DisplayAlertAsync(
-            LocalizationService.Instance.T("Settings.Title"),
-            LocalizationService.Instance.T("Settings.SaveSuccess"),
-            "OK");
+        try
+        {
+            TestVoiceButton.IsEnabled = false;
+            await AudioPlaybackService.Instance.TestCurrentVoiceAsync();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Audio", ex.Message, "OK");
+        }
+        finally
+        {
+            TestVoiceButton.IsEnabled = true;
+        }
     }
 
     private void OnLanguageViTapped(object sender, TappedEventArgs e) => ChangeLanguage("vi");
@@ -243,4 +269,9 @@ public partial class SettingsPage : ContentPage
     private void OnLanguageJpTapped(object sender, TappedEventArgs e) => ChangeLanguage("jp");
     private void OnLanguageKrTapped(object sender, TappedEventArgs e) => ChangeLanguage("kr");
     private void OnLanguageFrTapped(object sender, TappedEventArgs e) => ChangeLanguage("fr");
+
+    private void OnApiModeToggled(object sender, ToggledEventArgs e)
+    {
+        AppDataModeService.Instance.IsApiEnabled = e.Value;
+    }
 }

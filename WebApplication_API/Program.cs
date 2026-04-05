@@ -22,9 +22,19 @@ builder.AddDataToDatabase();
 builder.Services.AddSingleton<SharedAudioFileStorageService>();
 builder.Services.AddSingleton<SharedImageFileStorageService>();
 builder.Services.Configure<RoutePlanningOptions>(builder.Configuration.GetSection(RoutePlanningOptions.SectionName));
+builder.Services.Configure<GeminiSpeechOptions>(builder.Configuration.GetSection(GeminiSpeechOptions.SectionName));
 builder.Services.AddHttpClient<TtsPreviewService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(20);
+});
+builder.Services.AddHttpClient<GeminiSpeechService>((serviceProvider, client) =>
+{
+    var options = serviceProvider
+        .GetRequiredService<Microsoft.Extensions.Options.IOptions<GeminiSpeechOptions>>()
+        .Value;
+
+    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+    client.Timeout = TimeSpan.FromSeconds(Math.Max(10, options.TimeoutSeconds));
 });
 builder.Services.AddHttpClient<WalkingRouteService>((serviceProvider, client) =>
 {

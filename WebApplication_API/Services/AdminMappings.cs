@@ -110,7 +110,13 @@ public static class AdminMappings
             Email = location.Email,
             Phone = location.PhoneContact,
             EstablishedYear = location.EstablishedYear ?? DateTime.UtcNow.Year,
-            AudioCount = location.AudioContents.Count,
+            AudioCount = location.AudioContents.Count(item => item.Status == 1),
+            AvailableVoiceGenders = location.AudioContents
+                .Where(item => item.Status == 1 && !string.IsNullOrWhiteSpace(item.VoiceGender))
+                .Select(item => item.VoiceGender!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
             Status = location.Status,
             CreatedAt = location.CreatedAt,
             UpdatedAt = location.UpdatedAt

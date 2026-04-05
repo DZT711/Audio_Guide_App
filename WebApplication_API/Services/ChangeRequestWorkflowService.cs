@@ -243,7 +243,12 @@ public sealed partial class ChangeRequestWorkflowService(
                 OwnerName = owner.FullName ?? owner.Username,
                 PreferenceImageUrl = preferenceImageUrl,
                 ImageUrls = BuildDesiredImageUrls(preferenceImageUrl, retainedImages, uploadedImageUrls).ToList(),
-                AudioCount = liveLocation?.AudioContents.Count ?? 0
+                AudioCount = liveLocation?.AudioContents.Count(item => item.Status == 1) ?? 0,
+                AvailableVoiceGenders = liveLocation?.AudioContents
+                    .Where(item => item.Status == 1 && !string.IsNullOrWhiteSpace(item.VoiceGender))
+                    .Select(item => item.VoiceGender!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList() ?? []
             };
         }
 
@@ -1003,6 +1008,7 @@ public sealed partial class ChangeRequestWorkflowService(
                 Phone = payload.Phone,
                 EstablishedYear = payload.EstablishedYear,
                 AudioCount = payload.AudioCount,
+                AvailableVoiceGenders = payload.AvailableVoiceGenders,
                 Status = payload.Status,
                 CreatedAt = item.CreatedAt,
                 UpdatedAt = item.UpdatedAt
@@ -1187,7 +1193,12 @@ public sealed partial class ChangeRequestWorkflowService(
                 .ThenBy(item => item.ImageId)
                 .Select(item => NormalizeImagePath(item.ImageUrl) ?? item.ImageUrl)
                 .ToList(),
-            AudioCount = liveLocation.AudioContents.Count
+            AudioCount = liveLocation.AudioContents.Count(item => item.Status == 1),
+            AvailableVoiceGenders = liveLocation.AudioContents
+                .Where(item => item.Status == 1 && !string.IsNullOrWhiteSpace(item.VoiceGender))
+                .Select(item => item.VoiceGender!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
         };
 
     private async Task<List<string>> GetReplacementOrphanedPathsAsync(
@@ -1522,6 +1533,7 @@ public sealed partial class ChangeRequestWorkflowService(
         public int Status { get; set; } = 1;
         public List<string> ImageUrls { get; set; } = [];
         public int AudioCount { get; set; }
+        public List<string> AvailableVoiceGenders { get; set; } = [];
     }
 
     private sealed class PendingAudioChangeData

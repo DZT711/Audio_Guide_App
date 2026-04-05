@@ -17,6 +17,20 @@ public class LocationController(
     AdminRequestAuthorizationService authService,
     ActivityLogService activityLogService) : ControllerBase
 {
+    [HttpGet("public")]
+    public async Task<IActionResult> GetPublicLocations(CancellationToken cancellationToken)
+    {
+        var locations = await context.Locations
+            .Include(item => item.Category)
+            .Include(item => item.Images)
+            .Include(item => item.AudioContents)
+            .Where(item => item.Status == 1)
+            .OrderBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        return Ok(locations.Select(item => item.ToDto()).ToList());
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAllLocations()
     {

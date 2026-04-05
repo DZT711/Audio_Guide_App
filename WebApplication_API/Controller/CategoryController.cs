@@ -14,6 +14,17 @@ public class CategoryController(
     AdminRequestAuthorizationService authService,
     ActivityLogService activityLogService) : ControllerBase
 {
+    [HttpGet("public")]
+    public async Task<IActionResult> GetPublicCategories(CancellationToken cancellationToken)
+    {
+        var categories = await context.Categories
+            .Where(item => item.Status == 1)
+            .OrderBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        return Ok(categories.Select(item => item.ToDto()).ToList());
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAllCategories()
     {

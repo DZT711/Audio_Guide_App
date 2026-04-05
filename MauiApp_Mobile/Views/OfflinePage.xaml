@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:MauiApp_Mobile.Views"
+    xmlns:models="clr-namespace:MauiApp_Mobile.Models"
     x:Name="ThisPage"
     BackgroundColor="{DynamicResource LightBg}"
     Shell.NavBarIsVisible="False">
@@ -14,22 +15,41 @@
         <Grid Grid.Row="0"
               Style="{StaticResource TopHeaderGridStyle}">
 
-            <Grid ColumnDefinitions="*,Auto"
-                  VerticalOptions="Center">
+            <VerticalStackLayout Spacing="10" VerticalOptions="Center">
+                <Grid ColumnDefinitions="*,Auto"
+                      VerticalOptions="Center">
+                    <VerticalStackLayout Spacing="3" VerticalOptions="Center">
+                        <Label x:Name="HeaderTitleLabel"
+                               Text="Offline"
+                               Style="{StaticResource TopHeaderTitleStyle}" />
 
-                <VerticalStackLayout Spacing="3" VerticalOptions="Center">
-                    <Label Text="Offline"
-                           Style="{StaticResource TopHeaderTitleStyle}" />
+                        <Label x:Name="HeaderSubtitleLabel"
+                               Text="Quản lý audio pack nghe offline"
+                               Style="{StaticResource TopHeaderSubtitleStyle}" />
+                    </VerticalStackLayout>
 
-                    <Label Text="Quản lý audio pack nghe offline"
-                           Style="{StaticResource TopHeaderSubtitleStyle}" />
-                </VerticalStackLayout>
+                    <Button x:Name="DownloadAllButton"
+                            Grid.Column="1"
+                            Text="↓ Tải tất cả"
+                            Clicked="OnDownloadAllClicked"
+                            Style="{StaticResource TopHeaderActionButtonStyle}" />
+                </Grid>
 
-                <Button Grid.Column="1"
-                        Text="↓ Tải tất cả"
-                        Clicked="OnDownloadAllClicked"
-                        Style="{StaticResource TopHeaderActionButtonStyle}" />
-            </Grid>
+                <Frame Style="{StaticResource TopHeaderSearchFrameStyle}">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Label Text="🔍"
+                               Style="{StaticResource TopHeaderSearchIconStyle}" />
+                        <Entry x:Name="SearchEntry"
+                               Grid.Column="1"
+                               Placeholder="Tìm kiếm pack offline..."
+                               PlaceholderColor="{DynamicResource MutedText}"
+                               BackgroundColor="Transparent"
+                               TextColor="{DynamicResource BodyText}"
+                               ClearButtonVisibility="WhileEditing"
+                               TextChanged="OnSearchChanged" />
+                    </Grid>
+                </Frame>
+            </VerticalStackLayout>
         </Grid>
 
         <!-- Stats -->
@@ -132,7 +152,8 @@
                 <Border.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnAllTapped" />
                 </Border.GestureRecognizers>
-                <Label Text="Tất cả"
+                <Label x:Name="AllTabLabel"
+                       Text="Tất cả"
                        TextColor="{Binding AllTabTextColor}"
                        FontAttributes="Bold"
                        FontSize="14" />
@@ -145,7 +166,8 @@
                 <Border.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnDownloadedTapped" />
                 </Border.GestureRecognizers>
-                <Label Text="Đã tải"
+                <Label x:Name="DownloadedTabLabel"
+                       Text="Đã tải"
                        TextColor="{Binding DownloadedTabTextColor}"
                        FontAttributes="Bold"
                        FontSize="14" />
@@ -158,7 +180,8 @@
                 <Border.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnNotDownloadedTapped" />
                 </Border.GestureRecognizers>
-                <Label Text="Chưa tải"
+                <Label x:Name="NotDownloadedTabLabel"
+                       Text="Chưa tải"
                        TextColor="{Binding NotDownloadedTabTextColor}"
                        FontAttributes="Bold"
                        FontSize="14" />
@@ -167,7 +190,56 @@
 
         <!-- List -->
         <Grid Grid.Row="3">
+            <Grid RowDefinitions="Auto,*">
+                <Grid Grid.Row="0"
+                      ColumnDefinitions="*,Auto"
+                      Margin="16,4,16,10">
+                    <Border BackgroundColor="{DynamicResource CardBg}"
+                            Padding="14,10"
+                            Stroke="{DynamicResource BorderColor}"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 16">
+                        <VerticalStackLayout Spacing="2">
+                            <Label x:Name="CountLabel"
+                                   Text="0 pack"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource BodyText}" />
+                            <Label x:Name="CountHintLabel"
+                                   Text="Đang hiển thị theo tìm kiếm và bộ lọc"
+                                   FontSize="12"
+                                   TextColor="{DynamicResource MutedText}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Column="1"
+                            BackgroundColor="{DynamicResource CardBg}"
+                            Padding="14,10"
+                            Stroke="{DynamicResource BorderColor}"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 16"
+                            HorizontalOptions="End">
+                        <HorizontalStackLayout Spacing="6">
+                            <Label Text="⚙"
+                                   FontSize="16"
+                                   TextColor="{DynamicResource MutedText}"
+                                   VerticalTextAlignment="Center" />
+                            <Label x:Name="FilterLabel"
+                                   Text="Lọc"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource BodyText}"
+                                   VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnToggleFilterPopup" />
+                        </Border.GestureRecognizers>
+                    </Border>
+                </Grid>
+
             <CollectionView x:Name="OfflineCollectionView"
+                            Grid.Row="1"
                             IsVisible="{Binding HasItems}"
                             ItemsSource="{Binding FilteredItems}"
                             Margin="0,0,0,0"
@@ -186,8 +258,11 @@
                             Stroke="{Binding CardStrokeColor}"
                             StrokeThickness="1"
                             StrokeShape="RoundRectangle 18">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnPackTapped" />
+                        </Border.GestureRecognizers>
 
-                        <Grid RowDefinitions="Auto,Auto"
+                        <Grid RowDefinitions="Auto"
                               RowSpacing="10">
 
                             <Grid Grid.Row="0"
@@ -313,56 +388,19 @@
                                                VerticalTextAlignment="Center" />
                                     </Border>
 
-                                    <!-- Expand/Collapse -->
                                     <Border BackgroundColor="{DynamicResource SurfaceAlt}"
                                             StrokeThickness="0"
                                             StrokeShape="RoundRectangle 18"
-                                            WidthRequest="36"
-                                            HeightRequest="36">
-                                        <Border.GestureRecognizers>
-                                            <TapGestureRecognizer
-                                                Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.ToggleExpandCommand}"
-                                                CommandParameter="{Binding .}" />
-                                        </Border.GestureRecognizers>
-                                        <Label Text="{Binding ExpandIcon}"
+                                            WidthRequest="40"
+                                            HeightRequest="40">
+                                        <Label Text="›"
+                                               FontSize="18"
                                                TextColor="{DynamicResource MutedText}"
-                                               FontSize="14"
                                                HorizontalTextAlignment="Center"
                                                VerticalTextAlignment="Center" />
                                     </Border>
                                 </VerticalStackLayout>
                             </Grid>
-
-                            <!-- Expanded language list -->
-                            <Border Grid.Row="1"
-                                    IsVisible="{Binding IsExpanded}"
-                                    BackgroundColor="{DynamicResource SurfaceAlt}"
-                                    Stroke="{DynamicResource BorderColor}"
-                                    StrokeThickness="1"
-                                    StrokeShape="RoundRectangle 14"
-                                    Padding="10">
-                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding LocalizedTitles}"
-                                                     Spacing="8">
-                                    <BindableLayout.ItemTemplate>
-                                        <DataTemplate x:DataType="local:LocalizedTitleItem">
-                                            <Grid ColumnDefinitions="Auto,*"
-                                                  ColumnSpacing="8">
-                                                <Label Text="{Binding LanguageCode}"
-                                                       FontSize="11"
-                                                       TextColor="{DynamicResource BodyText}"
-                                                       BackgroundColor="{DynamicResource CardBg}"
-                                                       Padding="6,2"
-                                                       VerticalTextAlignment="Center" />
-                                                <Label Grid.Column="1"
-                                                       Text="{Binding LocalizedName}"
-                                                       FontSize="13"
-                                                       TextColor="{DynamicResource BodyText}"
-                                                       LineBreakMode="TailTruncation" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </BindableLayout.ItemTemplate>
-                                </VerticalStackLayout>
-                            </Border>
                         </Grid>
                     </Border>
                 </DataTemplate>
@@ -370,6 +408,7 @@
             </CollectionView>
 
             <VerticalStackLayout IsVisible="{Binding ShowEmptyState}"
+                                 Grid.Row="1"
                                  Padding="24,36,24,0"
                                  Spacing="8">
                 <Label Text="📦"
@@ -387,6 +426,7 @@
             </VerticalStackLayout>
 
             <Grid x:Name="OfflineLoadingOverlay"
+                  Grid.RowSpan="2"
                   BackgroundColor="{DynamicResource LightBg}"
                   IsVisible="True"
                   Padding="10,0,10,0"
@@ -405,9 +445,375 @@
                         HeightRequest="118"
                         Style="{StaticResource SkeletonBoneStyle}" />
             </Grid>
+
+            <Border x:Name="FilterPopup"
+                    Grid.RowSpan="2"
+                    IsVisible="False"
+                    Stroke="{DynamicResource BorderColor}"
+                    StrokeThickness="1"
+                    BackgroundColor="{DynamicResource PopupBg}"
+                    StrokeShape="RoundRectangle 18"
+                    HorizontalOptions="End"
+                    VerticalOptions="Start"
+                    Margin="0,54,16,0"
+                    WidthRequest="270"
+                    MaximumHeightRequest="430"
+                    ZIndex="11">
+                <ScrollView>
+                    <VerticalStackLayout Spacing="0">
+                        <Label x:Name="FilterPopupTitleLabel"
+                               Text="DANH MỤC"
+                               Padding="18,16,18,12"
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource MutedText}" />
+
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding CategoryFilters}"
+                                             Spacing="0">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="models:CategoryFilterOption">
+                                    <Grid Padding="0"
+                                          ColumnDefinitions="4,Auto,*"
+                                          ColumnSpacing="12"
+                                          BackgroundColor="Transparent"
+                                          MinimumHeightRequest="56">
+                                        <Grid.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnCategoryFilterTapped" />
+                                        </Grid.GestureRecognizers>
+
+                                        <BoxView Grid.Column="0"
+                                                 Color="{DynamicResource PrimaryGreen}"
+                                                 IsVisible="{Binding IsSelected}" />
+
+                                        <Label Grid.Column="1"
+                                               Text="{Binding Icon}"
+                                               FontSize="18"
+                                               VerticalOptions="Center"
+                                               HorizontalTextAlignment="Center"
+                                               Margin="16,0,0,0" />
+
+                                        <Label Grid.Column="2"
+                                               Text="{Binding DisplayName}"
+                                               FontSize="16"
+                                               VerticalOptions="Center"
+                                               TextColor="{DynamicResource BodyText}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label"
+                                                             Binding="{Binding IsSelected}"
+                                                             Value="True">
+                                                    <Setter Property="TextColor"
+                                                            Value="{DynamicResource PrimaryGreen}" />
+                                                    <Setter Property="FontAttributes"
+                                                            Value="Bold" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+
+                                        <Grid.Triggers>
+                                            <DataTrigger TargetType="Grid"
+                                                         Binding="{Binding IsSelected}"
+                                                         Value="True">
+                                                <Setter Property="BackgroundColor"
+                                                        Value="{DynamicResource SoftGreen}" />
+                                            </DataTrigger>
+                                        </Grid.Triggers>
+                                    </Grid>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </ScrollView>
+            </Border>
+            </Grid>
         </Grid>
 
         <!-- Delete Confirm Modal -->
+        <Grid Grid.RowSpan="4"
+              IsVisible="{Binding IsOfflineDetailVisible}"
+              BackgroundColor="{DynamicResource OverlayColor}"
+              Padding="16"
+              ZIndex="98">
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnOfflineDetailBackdropTapped" />
+            </Grid.GestureRecognizers>
+
+            <Border x:Name="OfflineDetailSheet"
+                    VerticalOptions="End"
+                    BackgroundColor="{DynamicResource BottomSheetBg}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 26"
+                    Padding="0"
+                    TranslationY="520">
+                <Grid RowDefinitions="Auto,220,Auto,*">
+                    <Grid Padding="0,10,0,8">
+                        <Grid.GestureRecognizers>
+                            <PanGestureRecognizer PanUpdated="OnOfflineDetailPanUpdated" />
+                        </Grid.GestureRecognizers>
+                        <Border WidthRequest="52"
+                                HeightRequest="6"
+                                BackgroundColor="{DynamicResource SheetHandleColor}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 3"
+                                HorizontalOptions="Center" />
+                    </Grid>
+
+                    <Grid Grid.Row="1"
+                          Padding="14,0,14,0">
+                        <Border BackgroundColor="#10243C"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 24">
+                            <Image Source="{Binding SelectedPack.Image}"
+                                   Aspect="{OnPlatform Default=AspectFill, WinUI=AspectFit}" />
+                        </Border>
+
+                        <Button Text="✕"
+                                Clicked="OnCloseOfflineDetailClicked"
+                                WidthRequest="38"
+                                HeightRequest="38"
+                                CornerRadius="19"
+                                BackgroundColor="#88000000"
+                                TextColor="White"
+                                HorizontalOptions="End"
+                                Margin="0,14,14,0"
+                                VerticalOptions="Start" />
+                    </Grid>
+
+                    <VerticalStackLayout Grid.Row="2"
+                                         Padding="16,14,16,0"
+                                         Spacing="10">
+                        <Border BackgroundColor="{Binding SelectedPack.CategoryBg}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="10,4"
+                                HorizontalOptions="Start">
+                            <Label Text="{Binding SelectedPack.Category}"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="{Binding SelectedPack.CategoryTextColor}" />
+                        </Border>
+
+                        <Label Text="{Binding SelectedPack.Title}"
+                               FontSize="28"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TitleText}" />
+
+                        <Label Text="{Binding SelectedPack.Description}"
+                               FontSize="14"
+                               TextColor="{DynamicResource MutedText}"
+                               MaxLines="3"
+                               LineBreakMode="TailTruncation" />
+                    </VerticalStackLayout>
+
+                    <ScrollView Grid.Row="3">
+                        <VerticalStackLayout Padding="16,14,16,18"
+                                             Spacing="12">
+                            <Grid ColumnDefinitions="*,*"
+                                  ColumnSpacing="12">
+                                <Border BackgroundColor="#ECFDF3"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 14"
+                                        Padding="12">
+                                    <VerticalStackLayout Spacing="3">
+                                        <Label Text="Audio offline"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource MutedText}" />
+                                        <Label Text="{Binding SelectedPack.AudioCountText}"
+                                               FontSize="20"
+                                               FontAttributes="Bold"
+                                               TextColor="{DynamicResource TitleText}" />
+                                        <Label Text="{Binding SelectedPack.LanguagesText}"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource SuccessText}" />
+                                    </VerticalStackLayout>
+                                </Border>
+
+                                <Border Grid.Column="1"
+                                        BackgroundColor="#EFF6FF"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 14"
+                                        Padding="12">
+                                    <VerticalStackLayout Spacing="3">
+                                        <Label Text="Dung lượng ước tính"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource MutedText}" />
+                                        <Label Text="{Binding SelectedPack.Size}"
+                                               FontSize="20"
+                                               FontAttributes="Bold"
+                                               TextColor="{DynamicResource TitleText}" />
+                                        <Label Text="{Binding SelectedPack.Duration}"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource InfoText}" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </Grid>
+
+                            <Border BackgroundColor="{DynamicResource SurfaceAlt}"
+                                    Stroke="{DynamicResource BorderColor}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 16"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="8">
+                                    <Label Text="Thông tin POI"
+                                           FontSize="18"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource BodyText}" />
+                                    <Label Text="{Binding SelectedPack.Address, StringFormat='📍 {0}'}"
+                                           FontSize="14"
+                                           TextColor="{DynamicResource BodyText}" />
+                                    <Label Text="{Binding SelectedPack.GpsText, StringFormat='🛰 {0}'}"
+                                           FontSize="14"
+                                           TextColor="{DynamicResource BodyText}" />
+                                    <Label Text="{Binding SelectedPack.RadiusText, StringFormat='📡 Bán kính kích hoạt: {0}'}"
+                                           FontSize="14"
+                                           TextColor="{DynamicResource BodyText}" />
+                                    <Label Text="{Binding SelectedPack.DownloadedDateText}"
+                                           FontSize="14"
+                                           TextColor="{DynamicResource SuccessText}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <Border BackgroundColor="{DynamicResource CardBg}"
+                                    Stroke="{DynamicResource BorderColor}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 16"
+                                    Padding="14">
+                                <Grid ColumnDefinitions="Auto,*,Auto"
+                                      ColumnSpacing="12">
+                                    <Border WidthRequest="44"
+                                            HeightRequest="44"
+                                            BackgroundColor="#E8F7EE"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 22"
+                                            VerticalOptions="Center">
+                                        <Label Text="🗺"
+                                               FontSize="18"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalTextAlignment="Center" />
+                                    </Border>
+
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="2"
+                                                         VerticalOptions="Center">
+                                        <Label Text="Xem trên bản đồ"
+                                               FontSize="16"
+                                               FontAttributes="Bold"
+                                               TextColor="{DynamicResource BodyText}" />
+                                        <Label Text="Mở vị trí POI này trên bản đồ để xem nhanh đường đi"
+                                               FontSize="13"
+                                               TextColor="{DynamicResource MutedText}" />
+                                    </VerticalStackLayout>
+
+                                    <Label Grid.Column="2"
+                                           Text="›"
+                                           FontSize="22"
+                                           TextColor="{DynamicResource MutedText}"
+                                           VerticalOptions="Center" />
+                                </Grid>
+
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnViewOfflinePlaceOnMapTapped" />
+                                </Border.GestureRecognizers>
+                            </Border>
+
+                            <Border BackgroundColor="{DynamicResource CardBg}"
+                                    Stroke="{DynamicResource BorderColor}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 16"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="8">
+                                    <Grid ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="10">
+                                        <VerticalStackLayout Spacing="2">
+                                            <Label Text="Danh sách audio"
+                                                   FontSize="18"
+                                                   FontAttributes="Bold"
+                                                   TextColor="{DynamicResource BodyText}" />
+                                            <Label Text="{Binding SelectedPackLanguagesText}"
+                                                   FontSize="14"
+                                                   TextColor="{DynamicResource MutedText}" />
+                                        </VerticalStackLayout>
+
+                                        <Border Grid.Column="1"
+                                                BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 18"
+                                                WidthRequest="36"
+                                                HeightRequest="36"
+                                                VerticalOptions="Center">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnToggleOfflineAudioListTapped" />
+                                            </Border.GestureRecognizers>
+                                            <Label Text="{Binding OfflineAudioListExpandIcon}"
+                                                   FontSize="14"
+                                                   TextColor="{DynamicResource BodyText}"
+                                                   HorizontalTextAlignment="Center"
+                                                   VerticalTextAlignment="Center" />
+                                        </Border>
+                                    </Grid>
+
+                                    <VerticalStackLayout IsVisible="{Binding IsOfflineAudioListExpanded}"
+                                                         BindableLayout.ItemsSource="{Binding SelectedPack.AudioTracks}"
+                                                         Spacing="10">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="local:OfflineAudioTrack">
+                                                <Grid ColumnDefinitions="Auto,*,Auto"
+                                                      ColumnSpacing="10">
+                                                    <Border BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                            Stroke="{DynamicResource BorderColor}"
+                                                            StrokeThickness="1"
+                                                            StrokeShape="RoundRectangle 10"
+                                                            Padding="8,4"
+                                                            VerticalOptions="Center">
+                                                        <Label Text="{Binding LanguageCode}"
+                                                               FontSize="11"
+                                                               FontAttributes="Bold"
+                                                               TextColor="{DynamicResource BodyText}"
+                                                               VerticalTextAlignment="Center" />
+                                                    </Border>
+
+                                                    <VerticalStackLayout Grid.Column="1"
+                                                                         Spacing="2"
+                                                                         VerticalOptions="Center">
+                                                        <Label Text="{Binding Title}"
+                                                               FontSize="13"
+                                                               FontAttributes="Bold"
+                                                               TextColor="{DynamicResource BodyText}"
+                                                               LineBreakMode="TailTruncation" />
+                                                        <Label Text="{Binding MetaText}"
+                                                               FontSize="12"
+                                                               TextColor="{DynamicResource MutedText}" />
+                                                    </VerticalStackLayout>
+
+                                                    <Border Grid.Column="2"
+                                                            BackgroundColor="{DynamicResource PrimaryGreen}"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 18"
+                                                            WidthRequest="36"
+                                                            HeightRequest="36"
+                                                            VerticalOptions="Center">
+                                                        <Border.GestureRecognizers>
+                                                            <TapGestureRecognizer
+                                                                Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.PlayTrackCommand}"
+                                                                CommandParameter="{Binding .}" />
+                                                        </Border.GestureRecognizers>
+                                                        <Label Text="{Binding PlayIcon}"
+                                                               TextColor="White"
+                                                               FontSize="14"
+                                                               HorizontalTextAlignment="Center"
+                                                               VerticalTextAlignment="Center" />
+                                                    </Border>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </VerticalStackLayout>
+                                </VerticalStackLayout>
+                            </Border>
+                        </VerticalStackLayout>
+                    </ScrollView>
+                </Grid>
+            </Border>
+        </Grid>
+
         <Grid Grid.RowSpan="4"
               IsVisible="{Binding IsDeleteConfirmVisible}"
               BackgroundColor="{DynamicResource OverlayColor}"
