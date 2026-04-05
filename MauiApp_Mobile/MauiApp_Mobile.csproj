@@ -1,7 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net10.0-android;net10.0-windows10.0.19041.0</TargetFrameworks>
+		<_ResolvedAndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' != ''">$(AndroidSdkDirectory)</_ResolvedAndroidSdkDirectory>
+		<_ResolvedAndroidSdkDirectory Condition="'$(_ResolvedAndroidSdkDirectory)' == '' and '$(ANDROID_SDK_ROOT)' != ''">$(ANDROID_SDK_ROOT)</_ResolvedAndroidSdkDirectory>
+		<_ResolvedAndroidSdkDirectory Condition="'$(_ResolvedAndroidSdkDirectory)' == '' and '$(ANDROID_HOME)' != ''">$(ANDROID_HOME)</_ResolvedAndroidSdkDirectory>
+		<_ResolvedAndroidSdkDirectory Condition="'$(_ResolvedAndroidSdkDirectory)' == '' and Exists('$(LocalAppData)\\Android\\Sdk')">$(LocalAppData)\Android\Sdk</_ResolvedAndroidSdkDirectory>
+		<_ResolvedAndroidSdkDirectory Condition="'$(_ResolvedAndroidSdkDirectory)' == '' and Exists('C:\\Android\\sdk')">C:\Android\sdk</_ResolvedAndroidSdkDirectory>
+		<AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' and '$(_ResolvedAndroidSdkDirectory)' != ''">$(_ResolvedAndroidSdkDirectory)</AndroidSdkDirectory>
+		<TargetFrameworks Condition="'$(AndroidSdkDirectory)' != ''">net10.0-android;net10.0-windows10.0.19041.0</TargetFrameworks>
+		<TargetFrameworks Condition="'$(AndroidSdkDirectory)' == ''">net10.0-windows10.0.19041.0</TargetFrameworks>
 
 		<OutputType>Exe</OutputType>
 		<RootNamespace>MauiApp_Mobile</RootNamespace>

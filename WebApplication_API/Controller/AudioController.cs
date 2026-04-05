@@ -15,10 +15,9 @@ public class AudioController(
     DBContext context,
     SharedAudioFileStorageService audioStorage,
     TtsPreviewService ttsPreviewService,
+    GeminiSpeechService geminiSpeechService,
     AdminRequestAuthorizationService authService,
     ActivityLogService activityLogService) : ControllerBase
-    GeminiSpeechService geminiSpeechService,
-    AdminRequestAuthorizationService authService) : ControllerBase
 {
     [HttpGet("public/location/{locationId:int}")]
     public async Task<IActionResult> GetPublicAudioByLocation(int locationId, CancellationToken cancellationToken)

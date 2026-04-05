@@ -64,3 +64,4 @@ obj/
 *.nupkg
 project.nuget.cache
 .build-temp/
+.env/

@@ -416,14 +416,16 @@ public partial class MainPage : ContentPage
             return;
         }
 
+        var collapseOffset = -Math.Max(
+            PullToRefreshHeader.Height,
+            PullToRefreshHeader.HeightRequest);
+
         await Task.WhenAll(
             PullToRefreshHeader.FadeToAsync(0, 120, Easing.CubicOut),
-            PullToRefreshHeader.LayoutToAsync(
-                new Rect(PullToRefreshHeader.X, PullToRefreshHeader.Y, PullToRefreshHeader.Width, 0),
-                120,
-                Easing.CubicOut));
+            PullToRefreshHeader.TranslateToAsync(0, collapseOffset, 120, Easing.CubicOut));
 
         PullToRefreshHeader.HeightRequest = 0;
+        PullToRefreshHeader.TranslationY = 0;
         PullToRefreshHeader.IsVisible = false;
         PullToRefreshLabel.Text = "Kéo xuống để cập nhật";
         PullToRefreshHeader.Opacity = 1;
@@ -1159,7 +1161,7 @@ public partial class MainPage : ContentPage
 
             if (preferredTrack is null)
             {
-                await DisplayAlert("Audio", "POI này chưa có audio khả dụng.", "OK");
+                await DisplayAlertAsync("Audio", "POI này chưa có audio khả dụng.", "OK");
                 return;
             }
 
@@ -1174,7 +1176,7 @@ public partial class MainPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Audio", ex.Message, "OK");
+            await DisplayAlertAsync("Audio", ex.Message, "OK");
         }
     }
 
@@ -1203,7 +1205,7 @@ public partial class MainPage : ContentPage
 
             if (selectedTrack is null)
             {
-                await DisplayAlert("Audio", "Không tìm thấy audio đã chọn.", "OK");
+                await DisplayAlertAsync("Audio", "Không tìm thấy audio đã chọn.", "OK");
                 return;
             }
 
@@ -1214,7 +1216,7 @@ public partial class MainPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Audio", ex.Message, "OK");
+            await DisplayAlertAsync("Audio", ex.Message, "OK");
         }
     }
 

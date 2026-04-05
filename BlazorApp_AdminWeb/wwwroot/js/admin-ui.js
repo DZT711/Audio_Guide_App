@@ -205,8 +205,28 @@
         return score;
     };
 
-    const rankVoices = (voices, language, voiceGender, preferNativeVoice) =>
-        [...voices].sort((left, right) => {
+    const pickVoice = async (language, voiceGender, preferNativeVoice) => {
+        const voices = await loadVoicesAsync();
+        if (!voices.length) {
+            return null;
+        }
+
+        const requestedPrefix = getLanguagePrefix(language);
+        const localizedVoices = voices.filter((voice) => getLanguagePrefix(voice?.lang) === requestedPrefix);
+        if (!localizedVoices.length) {
+            return null;
+        }
+
+        const genderKeywords = getVoiceKeywords(voiceGender);
+        const matchingGenderVoices = !genderKeywords.length
+            ? localizedVoices
+            : localizedVoices.filter((voice) => matchesVoiceGender(getVoiceSignature(voice), voiceGender));
+
+        if (!matchingGenderVoices.length) {
+            return null;
+        }
+
+        const rankedVoices = [...matchingGenderVoices].sort((left, right) => {
             const scoreDelta = scoreVoice(right, language, voiceGender, preferNativeVoice)
                 - scoreVoice(left, language, voiceGender, preferNativeVoice);
 
@@ -217,78 +237,7 @@
             return getVoiceSignature(left).localeCompare(getVoiceSignature(right));
         });
 
-    const pickVoice = async (language, voiceGender, preferNativeVoice) => {
-        const voices = await loadVoicesAsync();
-        if (!voices.length) {
-            return null;
-        }
-
-        const requestedLanguage = normalizeLanguageCode(language);
-        const requestedPrefix = getLanguagePrefix(language);
-        const exactLanguageVoices = voices.filter((voice) => normalizeLanguageCode(voice?.lang) === requestedLanguage);
-        const localizedVoices = voices.filter((voice) => getLanguagePrefix(voice?.lang) === requestedPrefix);
-        const genderKeywords = getVoiceKeywords(voiceGender);
-        const hasGenderPreference = genderKeywords.length > 0;
-
-        const exactLanguageGenderVoices = hasGenderPreference
-            ? exactLanguageVoices.filter((voice) => matchesVoiceGender(getVoiceSignature(voice), voiceGender))
-            : exactLanguageVoices;
-        if (exactLanguageGenderVoices.length) {
-            return rankVoices(exactLanguageGenderVoices, language, voiceGender, preferNativeVoice)[0] ?? null;
-        }
-
-        const localizedGenderVoices = hasGenderPreference
-            ? localizedVoices.filter((voice) => matchesVoiceGender(getVoiceSignature(voice), voiceGender))
-            : localizedVoices;
-        if (localizedGenderVoices.length) {
-            return rankVoices(localizedGenderVoices, language, voiceGender, preferNativeVoice)[0] ?? null;
-        }
-
-        if (exactLanguageVoices.length) {
-            return rankVoices(exactLanguageVoices, language, voiceGender, preferNativeVoice)[0] ?? null;
-        }
-
-        if (!localizedVoices.length) {
-            return null;
-        }
-
-        return rankVoices(localizedVoices, language, voiceGender, preferNativeVoice)[0] ?? null;
-    };
-
-    const inspectVoices = async (language, voiceGender, preferNativeVoice) => {
-        const voices = await loadVoicesAsync();
-        const normalizedLanguage = normalizeLanguageCode(language);
-        const requestedPrefix = getLanguagePrefix(normalizedLanguage);
-        const selectedVoice = await pickVoice(language, voiceGender, preferNativeVoice);
-        const selectedSignature = getVoiceSignature(selectedVoice);
-
-        return voices
-            .map((voice) => {
-                const voiceLanguage = normalizeLanguageCode(voice?.lang);
-                const voicePrefix = getLanguagePrefix(voiceLanguage);
-                const voiceSignature = getVoiceSignature(voice);
-
-                return {
-                    name: voice?.name ?? "",
-                    voiceUri: voice?.voiceURI ?? "",
-                    lang: voice?.lang ?? "",
-                    normalizedLang: voiceLanguage,
-                    isDefault: !!voice?.default,
-                    isLocalService: !!voice?.localService,
-                    matchesRequestedLanguage: !!normalizedLanguage && voiceLanguage === normalizedLanguage,
-                    matchesRequestedPrefix: !!requestedPrefix && voicePrefix === requestedPrefix,
-                    matchesGender: matchesVoiceGender(voiceSignature, voiceGender),
-                    score: scoreVoice(voice, language, voiceGender, preferNativeVoice),
-                    isSelected: !!selectedSignature && voiceSignature === selectedSignature
-                };
-            })
-            .sort((left, right) => {
-                if (right.score !== left.score) {
-                    return right.score - left.score;
-                }
-
-                return `${left.name} ${left.voiceUri}`.localeCompare(`${right.name} ${right.voiceUri}`);
-            });
+        return rankedVoices[0] ?? null;
     };
 
     admin.tts = {
@@ -314,8 +263,6 @@
             window.speechSynthesis.speak(utterance);
             return true;
         },
-        inspectVoices: async (language, voiceGender, preferNativeVoice) =>
-            await inspectVoices(language, voiceGender, !!preferNativeVoice),
         stop: () => {
             if ("speechSynthesis" in window) {
                 window.speechSynthesis.cancel();

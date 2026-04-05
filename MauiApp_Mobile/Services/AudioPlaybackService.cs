@@ -74,7 +74,7 @@ public sealed class AudioPlaybackService
                     await PlayTranslatedCloudTtsAsync(track, cancellationToken);
                     return;
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     // Fall back to the device voice or stored audio if cloud TTS is unavailable.
                 }

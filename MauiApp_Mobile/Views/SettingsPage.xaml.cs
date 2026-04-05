@@ -255,7 +255,7 @@ public partial class SettingsPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Audio", ex.Message, "OK");
+            await DisplayAlertAsync("Audio", ex.Message, "OK");
         }
         finally
         {
