@@ -11,7 +11,8 @@ namespace WebApplication_API.Controller;
 [Route("[controller]")]
 public class CategoryController(
     DBContext context,
-    AdminRequestAuthorizationService authService) : ControllerBase
+    AdminRequestAuthorizationService authService,
+    ActivityLogService activityLogService) : ControllerBase
 {
     [HttpGet("public")]
     public async Task<IActionResult> GetPublicCategories(CancellationToken cancellationToken)
@@ -89,6 +90,13 @@ public class CategoryController(
 
         context.Categories.Add(category);
         await context.SaveChangesAsync();
+        await activityLogService.LogAsync(
+            access.User!,
+            "Create",
+            "Category",
+            category.CategoryId,
+            category.Name,
+            $"Created category '{category.Name}'.");
 
         return CreatedAtAction(nameof(GetCategoryById), new { id = category.CategoryId }, category.ToDto());
     }
@@ -126,6 +134,13 @@ public class CategoryController(
         category.UpdatedAt = DateTime.UtcNow;
 
         await context.SaveChangesAsync();
+        await activityLogService.LogAsync(
+            access.User!,
+            "Edit",
+            "Category",
+            category.CategoryId,
+            category.Name,
+            $"Updated category '{category.Name}'.");
         return Ok(new ApiMessageResponse { Message = "Category updated successfully." });
     }
 
@@ -147,6 +162,13 @@ public class CategoryController(
         category.Status = 0;
         category.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        await activityLogService.LogAsync(
+            access.User!,
+            "Delete",
+            "Category",
+            category.CategoryId,
+            category.Name,
+            $"Archived category '{category.Name}'.");
 
         return Ok(new ApiMessageResponse { Message = "Category archived successfully." });
     }

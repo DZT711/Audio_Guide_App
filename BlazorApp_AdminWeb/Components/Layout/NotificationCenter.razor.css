@@ -2,10 +2,11 @@
     position: fixed;
     top: 1.2rem;
     right: 1.2rem;
-    z-index: 1200;
+    z-index: 2200;
     display: grid;
     gap: 0.85rem;
     width: min(360px, calc(100vw - 1.5rem));
+    pointer-events: none;
 }
 
 .notification-card {
@@ -19,6 +20,7 @@
     background: rgba(255, 255, 255, 0.94);
     box-shadow: 0 24px 52px rgba(15, 23, 42, 0.16);
     backdrop-filter: blur(18px);
+    pointer-events: auto;
 }
 
 .notification-card__icon {

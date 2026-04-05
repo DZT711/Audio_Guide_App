@@ -109,37 +109,42 @@ else
             }
             else
             {
-                <div class="language-list">
-                    @foreach (var language in PagedLanguages)
-                    {
-                        <article class="@GetLanguageCardClass(language.Status)">
-                            <div class="language-card__copy">
-                                <div class="language-card__top">
-                                    <div>
-                                        <h3>@language.Name</h3>
-                                        <p>@language.Code</p>
+                <div class="management-page-swap" @key="CurrentLanguagePage">
+                    <div class="language-list">
+                        @foreach (var language in PagedLanguages)
+                        {
+                            <article class="@GetLanguageCardClass(language.Status)">
+                                <div class="language-card__copy">
+                                    <div class="language-card__top">
+                                        <div class="language-card__identity">
+                                            <span class="language-flag" title="@GetLanguageFlagLabel(language)">@GetLanguageFlagCode(language)</span>
+                                            <div>
+                                                <h3>@language.Name</h3>
+                                                <p>@language.Code</p>
+                                            </div>
+                                        </div>
+                                        <span class="@GetStatusClass(language.Status)">@GetStatusLabel(language.Status)</span>
                                     </div>
-                                    <span class="@GetStatusClass(language.Status)">@GetStatusLabel(language.Status)</span>
+
+                                    <div class="language-card__meta">
+                                        <span class="language-card__tag">@(string.IsNullOrWhiteSpace(language.NativeName) ? "No native name" : language.NativeName)</span>
+                                        <span class="language-card__tag">@(language.PreferNativeVoice ? "Native voice preview" : "Flexible preview")</span>
+                                        @if (language.IsDefault)
+                                        {
+                                            <span class="language-card__tag language-card__tag--default">Default</span>
+                                        }
+                                    </div>
                                 </div>
 
-                                <div class="language-card__meta">
-                                    <span class="language-card__tag">@(string.IsNullOrWhiteSpace(language.NativeName) ? "No native name" : language.NativeName)</span>
-                                    <span class="language-card__tag">@(language.PreferNativeVoice ? "Native voice preview" : "Flexible preview")</span>
-                                    @if (language.IsDefault)
-                                    {
-                                        <span class="language-card__tag language-card__tag--default">Default</span>
-                                    }
+                                <div class="management-inline-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(language)">@(CanManage ? "Edit" : "View")</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || language.Status == 0)" @onclick="() => PromptArchiveLanguage(language)">
+                                        @(language.Status == 0 ? "Inactive" : "Archive")
+                                    </button>
                                 </div>
-                            </div>
-
-                            <div class="management-inline-actions">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(language)">@(CanManage ? "Edit" : "View")</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || language.Status == 0)" @onclick="() => PromptArchiveLanguage(language)">
-                                    @(language.Status == 0 ? "Inactive" : "Archive")
-                                </button>
-                            </div>
-                        </article>
-                    }
+                            </article>
+                        }
+                    </div>
                 </div>
 
                 @if (TotalLanguagePages > 1)
@@ -169,7 +174,7 @@ else
 
             @if (CanManage)
             {
-            <EditForm Model="_formModel" OnValidSubmit="SaveLanguageAsync" class="management-form">
+            <EditForm Model="_formModel" OnValidSubmit="SaveLanguageAsync" OnInvalidSubmit="HandleInvalidLanguageSubmit" class="management-form">
                 <DataAnnotationsValidator />
 
                 <div class="management-field">
@@ -240,7 +245,10 @@ else
 
                     <div class="language-detail-card">
                         <span>Code</span>
-                        <strong>@selectedLanguage.Code</strong>
+                        <strong class="language-detail-card__headline">
+                            <span class="language-flag" title="@GetLanguageFlagLabel(selectedLanguage)">@GetLanguageFlagCode(selectedLanguage)</span>
+                            @selectedLanguage.Code
+                        </strong>
                         <small>@GetStatusLabel(selectedLanguage.Status)</small>
                     </div>
 
@@ -413,6 +421,21 @@ else
         }
     }
 
+    private void HandleInvalidLanguageSubmit(EditContext editContext)
+    {
+        var message = editContext.GetValidationMessages()
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.Ordinal)
+            .Take(3)
+            .ToList();
+
+        Notifications.Warning(
+            message.Count == 0
+                ? "Fix the highlighted language fields before saving."
+                : string.Join(" ", message),
+            "Language form incomplete");
+    }
+
     private void PromptArchiveLanguage(LanguageDto language)
     {
         if (!CanManage)
@@ -514,6 +537,43 @@ else
     private static string GetLanguageCardClass(int status) => status == 1
         ? "language-card"
         : "language-card language-card--inactive";
+
+    private static string GetLanguageFlagCode(LanguageDto language)
+    {
+        var code = language.Code?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return "GL";
+        }
+
+        var parts = code.Replace('_', '-').Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length > 1 && parts[^1].Length == 2)
+        {
+            return parts[^1].ToUpperInvariant();
+        }
+
+        return parts[0].ToLowerInvariant() switch
+        {
+            "vi" => "VN",
+            "en" => "US",
+            "fr" => "FR",
+            "de" => "DE",
+            "es" => "ES",
+            "it" => "IT",
+            "ja" => "JP",
+            "ko" => "KR",
+            "zh" => "CN",
+            "th" => "TH",
+            "id" => "ID",
+            "ms" => "MY",
+            "pt" => "PT",
+            "ru" => "RU",
+            _ => parts[0][..Math.Min(parts[0].Length, 2)].ToUpperInvariant()
+        };
+    }
+
+    private static string GetLanguageFlagLabel(LanguageDto language) =>
+        $"{GetLanguageFlagCode(language)} locale";
 
     private string GetPendingArchiveLanguageMessage() =>
         _pendingArchivedLanguage is null

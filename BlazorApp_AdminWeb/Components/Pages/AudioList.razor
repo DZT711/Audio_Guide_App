@@ -3,6 +3,7 @@
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Forms
 @inject AdminSessionState SessionState
 
 <PageTitle>Audio & Voice Management</PageTitle>
@@ -79,16 +80,24 @@ else
                 <div class="management-toolbar">
                     <label class="management-search">
                         <i class="bi bi-search"></i>
-                        <input class="form-control" type="search" placeholder="Search audio..." @bind="_searchText" @bind:event="oninput" />
+                        <input class="form-control" type="search" placeholder="Search audio..." @bind="_searchText" @bind:event="oninput" @bind:after="ResetAudioPage" />
                     </label>
 
-                    <select class="form-select management-filter" @bind="_voiceFilter">
+                    <select class="form-select management-filter" @bind="_locationFilter" @bind:after="ResetAudioPage">
+                        <option value="">All locations</option>
+                        @foreach (var location in LocationOptions)
+                        {
+                            <option value="@location.Id">@GetLocationOptionLabel(location)</option>
+                        }
+                    </select>
+
+                    <select class="form-select management-filter" @bind="_voiceFilter" @bind:after="ResetAudioPage">
                         <option value="">All voices</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                     </select>
 
-                    <select class="form-select management-filter" @bind="_statusFilter">
+                    <select class="form-select management-filter" @bind="_statusFilter" @bind:after="ResetAudioPage">
                         <option value="">All statuses</option>
                         <option value="1">Active</option>
                         <option value="0">Inactive</option>
@@ -124,38 +133,40 @@ else
             }
             else
             {
-                <div class="audio-list">
-                    @foreach (var audio in PagedAudio)
-                    {
-                        <article class="@GetAudioCardClass(audio.Status)">
-                            <div class="audio-card__header">
-                                <div>
-                                    <h3>@audio.Title</h3>
-                                    <p>@audio.LocationName</p>
+                <div class="management-page-swap" @key="CurrentAudioPage">
+                    <div class="audio-list">
+                        @foreach (var audio in PagedAudio)
+                        {
+                            <article class="@GetAudioCardClass(audio.Status)">
+                                <div class="audio-card__header">
+                                    <div>
+                                        <h3>@audio.Title</h3>
+                                        <p>@audio.LocationName</p>
+                                    </div>
+
+                                    <span class="@GetStatusClass(audio.Status)">@GetStatusLabel(audio.Status)</span>
                                 </div>
 
-                                <span class="@GetStatusClass(audio.Status)">@GetStatusLabel(audio.Status)</span>
-                            </div>
-
-                            <div class="audio-card__meta">
-                                <span class="audio-card__tag">@GetAudioKind(audio)</span>
-                                <span class="audio-card__tag">@($"{GetAudioLanguageLabel(audio)} / {GetVoiceLabel(audio.VoiceGender)}")</span>
-                                <span class="audio-card__tag">@($"{audio.Duration} sec")</span>
-                            </div>
-
-                            <p class="audio-card__description">@(string.IsNullOrWhiteSpace(audio.Description) ? "No description provided yet." : audio.Description)</p>
-
-                            <div class="audio-card__footer">
-                                <small class="management-muted">@GetAudioStorageLabel(audio.AudioURL)</small>
-                                <div class="management-inline-actions">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">@(CanEditContent ? "Edit" : "View")</button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage && !CanSubmitRequests || audio.Status == 0)" @onclick="() => PromptArchiveAudio(audio)">
-                                        @(audio.Status == 0 ? "Inactive" : CanManage ? "Archive" : "Request Archive")
-                                    </button>
+                                <div class="audio-card__meta">
+                                    <span class="audio-card__tag">@GetAudioKind(audio)</span>
+                                    <span class="audio-card__tag">@($"{GetAudioLanguageLabel(audio)} / {GetVoiceLabel(audio.VoiceGender)}")</span>
+                                    <span class="audio-card__tag">@($"{audio.Duration} sec")</span>
                                 </div>
-                            </div>
-                        </article>
-                    }
+
+                                <p class="audio-card__description">@(string.IsNullOrWhiteSpace(audio.Description) ? "No description provided yet." : audio.Description)</p>
+
+                                <div class="audio-card__footer">
+                                    <small class="management-muted">@GetAudioStorageLabel(audio.AudioURL)</small>
+                                    <div class="management-inline-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">@(CanEditContent ? "Edit" : "View")</button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage && !CanSubmitRequests || audio.Status == 0)" @onclick="() => PromptArchiveAudio(audio)">
+                                            @(audio.Status == 0 ? "Inactive" : CanManage ? "Archive" : "Request Archive")
+                                        </button>
+                                    </div>
+                                </div>
+                            </article>
+                        }
+                    </div>
                 </div>
 
                 @if (TotalAudioPages > 1)
@@ -185,7 +196,7 @@ else
 
             @if (CanEditContent)
             {
-            <EditForm Model="_formModel" OnValidSubmit="SaveAudioAsync" class="management-form">
+            <EditForm Model="_formModel" OnValidSubmit="SaveAudioAsync" OnInvalidSubmit="HandleInvalidAudioSubmit" class="management-form">
                 <DataAnnotationsValidator />
 
                 <div class="management-form__grid">
@@ -199,9 +210,9 @@ else
                         <label for="audio-location">Location</label>
                         <InputSelect id="audio-location" class="form-select" @bind-Value="_formModel.LocationId">
                             <option value="0">Choose location</option>
-                            @foreach (var location in ActiveLocationOptions)
+                            @foreach (var location in LocationOptions)
                             {
-                                <option value="@location.Id">@location.Name</option>
+                                <option value="@location.Id">@GetLocationOptionLabel(location)</option>
                             }
                         </InputSelect>
                         <ValidationMessage For="() => _formModel.LocationId" />
@@ -463,7 +474,7 @@ else
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveLocations || !HasLanguageCatalog || !CanEditContent)">
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasLocationCatalog || !HasLanguageCatalog || !CanEditContent)">
                         @GetSaveButtonLabel()
                     </button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel")</button>
@@ -628,6 +639,7 @@ else
     private bool _isSaving;
     private int? _editingId;
     private string _searchText = "";
+    private string _locationFilter = "";
     private string _voiceFilter = "";
     private string _statusFilter = "";
     private string? _audioPreviewUrl;
@@ -654,12 +666,13 @@ else
     private bool CanSubmitRequests => SessionState.HasPermission(AdminPermissions.AudioRequest);
     private bool CanEditContent => CanManage || CanSubmitRequests;
     private bool CanLoadLanguages => SessionState.HasPermission(AdminPermissions.LanguageRead);
-    private IEnumerable<LocationDto> ActiveLocationOptions => _locations
-        .Where(item => item.Status == 1)
-        .OrderBy(item => item.Name);
-    private bool HasActiveLocations => ActiveLocationOptions.Any();
+    private IEnumerable<LocationDto> LocationOptions => _locations
+        .OrderByDescending(item => item.Status)
+        .ThenBy(item => item.Name);
+    private bool HasLocationCatalog => _locations.Count > 0;
     private bool HasLanguageCatalog => LanguageOptions.Any();
     private AudioDto? SelectedAudioForDisplay => ResolveSelectedAudio();
+    private LocationDto? SelectedLocationOption => _locations.FirstOrDefault(item => item.Id == _formModel.LocationId);
     private LanguageDto? SelectedLanguage =>
         _languages.FirstOrDefault(item => string.Equals(item.Code, _formModel.Language, StringComparison.OrdinalIgnoreCase));
     private IEnumerable<LanguageDto> LanguageOptions =>
@@ -676,6 +689,9 @@ else
                 || audio.Language.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
                 || (audio.LanguageName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (audio.NativeLanguageName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
+            .Where(audio =>
+                string.IsNullOrWhiteSpace(_locationFilter)
+                || audio.LocationId.ToString() == _locationFilter)
             .Where(audio =>
                 string.IsNullOrWhiteSpace(_voiceFilter)
                 || IsVoice(audio, _voiceFilter))
@@ -773,6 +789,8 @@ else
         }
     }
 
+    private void ResetAudioPage() => _currentAudioPage = 1;
+
     private void StartCreate()
     {
         _editingId = null;
@@ -847,6 +865,21 @@ else
         {
             _isSaving = false;
         }
+    }
+
+    private void HandleInvalidAudioSubmit(EditContext editContext)
+    {
+        var message = editContext.GetValidationMessages()
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.Ordinal)
+            .Take(3)
+            .ToList();
+
+        Notifications.Warning(
+            message.Count == 0
+                ? "Fix the highlighted audio fields before saving."
+                : string.Join(" ", message),
+            "Audio form incomplete");
     }
 
     private void PromptArchiveAudio(AudioDto audio)
@@ -1275,12 +1308,26 @@ else
         ?? _languages.FirstOrDefault(item => item.Status == 1)?.Code
         ?? "vi-VN";
 
-    private string GetLocationSelectionHint() =>
-        HasActiveLocations
-            ? _formModel.LocationId > 0
-                ? "Only active locations are available for audio assignments."
-                : "Archived locations are hidden. Choose an active location before saving."
-            : "Activate at least one location before saving audio.";
+    private string GetLocationSelectionHint()
+    {
+        if (!HasLocationCatalog)
+        {
+            return "Create or restore a POI before saving audio.";
+        }
+
+        if (SelectedLocationOption is null)
+        {
+            return "Active and inactive POIs are available for audio assignments.";
+        }
+
+        return SelectedLocationOption.Status == 1
+            ? "This audio is currently linked to an active POI."
+            : "This audio is linked to an inactive POI and can still stay in the catalog.";
+    }
+
+    private static string GetLocationOptionLabel(LocationDto location) => location.Status == 1
+        ? location.Name
+        : $"{location.Name} (Inactive)";
 
     private void EnsureFormLocationSelection()
     {
@@ -1290,10 +1337,9 @@ else
             return;
         }
 
-        var selectedLocationIsActive = _locations.Any(item =>
-            item.Status == 1 && item.Id == _formModel.LocationId);
+        var selectedLocationExists = _locations.Any(item => item.Id == _formModel.LocationId);
 
-        if (!selectedLocationIsActive)
+        if (!selectedLocationExists)
         {
             _formModel.LocationId = 0;
         }

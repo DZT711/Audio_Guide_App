@@ -43,6 +43,7 @@ public class ChangeRequestController(
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> SubmitLocationRequest(
         [FromForm] LocationChangeRequestSubmission request,
+        [FromForm(Name = "PreferenceImageFile")] IFormFile? preferenceImageFile,
         [FromForm(Name = "ImageFiles")] List<IFormFile>? imageFiles,
         CancellationToken cancellationToken)
     {
@@ -59,7 +60,12 @@ public class ChangeRequestController(
 
         try
         {
-            var result = await workflowService.SubmitLocationAsync(access.User!, request, imageFiles, cancellationToken);
+            var result = await workflowService.SubmitLocationAsync(
+                access.User!,
+                request,
+                preferenceImageFile,
+                imageFiles,
+                cancellationToken);
             return Ok(result);
         }
         catch (InvalidOperationException ex)

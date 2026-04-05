@@ -6,6 +6,15 @@ using Project_SharedClassLibrary.Security;
 
 namespace BlazorApp_AdminWeb.Models;
 
+public sealed class BufferedUploadFile
+{
+    public string Name { get; set; } = "";
+
+    public string ContentType { get; set; } = "";
+
+    public byte[] Content { get; set; } = [];
+}
+
 public sealed class AdminCredentialsModel
 {
     [Required(ErrorMessage = "Username is required.")]
@@ -66,7 +75,7 @@ public sealed class LanguageFormModel
     };
 }
 
-public sealed class LocationFormModel
+public sealed class LocationFormModel : IValidatableObject
 {
     [Required]
     [StringLength(200)]
@@ -118,33 +127,55 @@ public sealed class LocationFormModel
     [Range(0, 1)]
     public int Status { get; set; } = 1;
 
+    public string ExistingPreferenceImageUrl { get; set; } = "";
+
+    public BufferedUploadFile? PreferenceImageFile { get; set; }
+
     public IReadOnlyList<string> ExistingImageUrls { get; set; } = [];
 
-    public IReadOnlyList<IBrowserFile> ImageFiles { get; set; } = [];
+    public IReadOnlyList<BufferedUploadFile> ImageFiles { get; set; } = [];
 
-    public static LocationFormModel FromDto(LocationDto dto, IEnumerable<CategoryDto> categories) => new()
+    public static LocationFormModel FromDto(LocationDto dto, IEnumerable<CategoryDto> categories)
     {
-        Name = dto.Name,
-        Address = dto.Address ?? "",
-        CategoryId = dto.CategoryId > 0
-            ? dto.CategoryId
-            : categories.FirstOrDefault(category => string.Equals(category.Name, dto.Category, StringComparison.OrdinalIgnoreCase))?.Id ?? 0,
-        OwnerId = dto.OwnerId,
-        EstablishedYear = dto.EstablishedYear,
-        Description = dto.Description ?? "",
-        Latitude = dto.Latitude,
-        Longitude = dto.Longitude,
-        Radius = dto.Radius,
-        StandbyRadius = dto.StandbyRadius,
-        Priority = dto.Priority,
-        DebounceSeconds = dto.DebounceSeconds,
-        IsGpsTriggerEnabled = dto.IsGpsTriggerEnabled,
-        WebURL = dto.WebURL ?? "",
-        Phone = dto.Phone ?? "",
-        Email = dto.Email ?? "",
-        Status = dto.Status,
-        ExistingImageUrls = dto.ImageUrls.ToList()
-    };
+        var preferenceImageUrl = dto.PreferenceImageUrl ?? dto.CoverImageUrl ?? "";
+
+        return new LocationFormModel
+        {
+            Name = dto.Name,
+            Address = dto.Address ?? "",
+            CategoryId = dto.CategoryId > 0
+                ? dto.CategoryId
+                : categories.FirstOrDefault(category => string.Equals(category.Name, dto.Category, StringComparison.OrdinalIgnoreCase))?.Id ?? 0,
+            OwnerId = dto.OwnerId,
+            EstablishedYear = dto.EstablishedYear,
+            Description = dto.Description ?? "",
+            Latitude = dto.Latitude,
+            Longitude = dto.Longitude,
+            Radius = dto.Radius,
+            StandbyRadius = dto.StandbyRadius,
+            Priority = dto.Priority,
+            DebounceSeconds = dto.DebounceSeconds,
+            IsGpsTriggerEnabled = dto.IsGpsTriggerEnabled,
+            WebURL = dto.WebURL ?? "",
+            Phone = dto.Phone ?? "",
+            Email = dto.Email ?? "",
+            Status = dto.Status,
+            ExistingPreferenceImageUrl = preferenceImageUrl,
+            ExistingImageUrls = dto.ImageUrls
+                .Where(item => !string.Equals(item, preferenceImageUrl, StringComparison.OrdinalIgnoreCase))
+                .ToList()
+        };
+    }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (PreferenceImageFile is null && string.IsNullOrWhiteSpace(ExistingPreferenceImageUrl))
+        {
+            yield return new ValidationResult(
+                "Upload a preference image for this POI.",
+                [nameof(PreferenceImageFile)]);
+        }
+    }
 }
 
 public sealed class AudioFormModel : IValidatableObject

@@ -29,6 +29,15 @@ public sealed class AdminSessionTokenService
         }
     }
 
+    public int GetActiveUserCount()
+    {
+        CleanupExpired();
+        return _tickets.Values
+            .Select(item => item.UserId)
+            .Distinct()
+            .Count();
+    }
+
     private void CleanupExpired()
     {
         var now = DateTime.UtcNow;

@@ -109,26 +109,33 @@ else
             }
             else
             {
-                <div class="category-list">
-                    @foreach (var category in PagedCategories)
-                    {
-                        <article class="@GetCategoryCardClass(category.Status)">
-                            <div class="category-card__copy">
-                                <div class="category-card__top">
-                                    <h3>@category.Name</h3>
-                                    <span class="@GetStatusClass(category.Status)">@GetStatusLabel(category.Status)</span>
+                <div class="management-page-swap" @key="CurrentCategoryPage">
+                    <div class="category-list">
+                        @foreach (var category in PagedCategories)
+                        {
+                            <article class="@GetCategoryCardClass(category.Status)">
+                                <div class="category-card__copy">
+                                    <div class="category-card__top">
+                                        <div class="category-card__heading">
+                                            <span class="category-icon @CategoryVisuals.GetToneClass(category.Name)">
+                                                <i class="@CategoryVisuals.GetIconClass(category.Name)"></i>
+                                            </span>
+                                            <h3>@category.Name</h3>
+                                        </div>
+                                        <span class="@GetStatusClass(category.Status)">@GetStatusLabel(category.Status)</span>
+                                    </div>
+                                    <p>@(string.IsNullOrWhiteSpace(category.Description) ? "No description provided yet." : category.Description)</p>
                                 </div>
-                                <p>@(string.IsNullOrWhiteSpace(category.Description) ? "No description provided yet." : category.Description)</p>
-                            </div>
 
-                            <div class="management-inline-actions">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">@(CanManage ? "Edit" : "View")</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || category.Status == 0)" @onclick="() => PromptArchiveCategory(category)">
-                                    @(category.Status == 0 ? "Inactive" : "Archive")
-                                </button>
-                            </div>
-                        </article>
-                    }
+                                <div class="management-inline-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">@(CanManage ? "Edit" : "View")</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || category.Status == 0)" @onclick="() => PromptArchiveCategory(category)">
+                                        @(category.Status == 0 ? "Inactive" : "Archive")
+                                    </button>
+                                </div>
+                            </article>
+                        }
+                    </div>
                 </div>
 
                 @if (TotalCategoryPages > 1)
@@ -158,7 +165,7 @@ else
 
             @if (CanManage)
             {
-            <EditForm Model="_formModel" OnValidSubmit="SaveCategoryAsync" class="management-form">
+            <EditForm Model="_formModel" OnValidSubmit="SaveCategoryAsync" OnInvalidSubmit="HandleInvalidCategorySubmit" class="management-form">
                 <DataAnnotationsValidator />
 
                 <div class="management-field management-field--full">
@@ -206,7 +213,12 @@ else
 
                     <div class="category-detail-card">
                         <span>Name</span>
-                        <strong>@selectedCategory.Name</strong>
+                        <strong class="category-detail-card__name">
+                            <span class="category-icon @CategoryVisuals.GetToneClass(selectedCategory.Name)">
+                                <i class="@CategoryVisuals.GetIconClass(selectedCategory.Name)"></i>
+                            </span>
+                            @selectedCategory.Name
+                        </strong>
                         <small>@GetStatusLabel(selectedCategory.Status)</small>
                     </div>
 
@@ -365,6 +377,21 @@ else
         {
             _isSaving = false;
         }
+    }
+
+    private void HandleInvalidCategorySubmit(EditContext editContext)
+    {
+        var message = editContext.GetValidationMessages()
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.Ordinal)
+            .Take(3)
+            .ToList();
+
+        Notifications.Warning(
+            message.Count == 0
+                ? "Fix the highlighted category fields before saving."
+                : string.Join(" ", message),
+            "Category form incomplete");
     }
 
     private void PromptArchiveCategory(CategoryDto category)

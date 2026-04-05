@@ -13,7 +13,6 @@ namespace BlazorApp_AdminWeb.Services;
 public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sessionState)
 {
     private const long MaxAudioUploadBytes = 25L * 1024 * 1024;
-    private const long MaxImageUploadBytes = 15L * 1024 * 1024;
 
     public async Task<AdminLoginResponse> LoginAsync(string userName, string password)
     {
@@ -106,6 +105,16 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         return await ReadJsonAsync<StatisticsOverviewDto>(response, "Unable to load statistics.");
     }
 
+    public async Task<ActivityLogListDto> GetActivityLogsAsync(ActivityLogQueryDto query, CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        var route = BuildActivityLogRoute(query);
+        using var response = await httpClient.GetAsync(route, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load activity history.");
+        return await ReadJsonAsync<ActivityLogListDto>(response, "Unable to load activity history.");
+    }
+
     public async Task<DashboardOverviewDto> GetDashboardOverviewAsync()
     {
         ApplyAuthHeader();
@@ -122,6 +131,15 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         using var response = await httpClient.GetAsync(ApiRoutes.DashboardSnapshot);
         await EnsureSuccessAsync(response, "Unable to export the dashboard snapshot.");
         return await ReadJsonAsync<DashboardSnapshotDto>(response, "Unable to export the dashboard snapshot.");
+    }
+
+    public async Task<ServerInfoDto> GetServerInfoAsync(CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.GetAsync(ApiRoutes.ServerInfo, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load server info.");
+        return await ReadJsonAsync<ServerInfoDto>(response, "Unable to load server info.");
     }
 
     public async Task CreateCategoryAsync(CategoryFormModel model)
@@ -521,6 +539,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         AddString(content, nameof(model.WebURL), model.WebURL);
         AddString(content, nameof(model.Email), model.Email);
         AddString(content, nameof(model.Phone), model.Phone);
+        AddString(content, "RetainedPreferenceImageUrl", model.ExistingPreferenceImageUrl);
         foreach (var retainedImageUrl in model.ExistingImageUrls.Where(item => !string.IsNullOrWhiteSpace(item)))
         {
             AddString(content, "RetainedImageUrls", retainedImageUrl);
@@ -531,10 +550,21 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         AddString(content, "TargetId", targetId?.ToString(CultureInfo.InvariantCulture));
         AddString(content, "Reason", reason);
 
+        if (model.PreferenceImageFile is not null)
+        {
+            var fileContent = new ByteArrayContent(model.PreferenceImageFile.Content);
+
+            if (!string.IsNullOrWhiteSpace(model.PreferenceImageFile.ContentType))
+            {
+                fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(model.PreferenceImageFile.ContentType);
+            }
+
+            content.Add(fileContent, "PreferenceImageFile", Path.GetFileName(model.PreferenceImageFile.Name));
+        }
+
         foreach (var imageFile in model.ImageFiles)
         {
-            var stream = imageFile.OpenReadStream(MaxImageUploadBytes);
-            var fileContent = new StreamContent(stream);
+            var fileContent = new ByteArrayContent(imageFile.Content);
 
             if (!string.IsNullOrWhiteSpace(imageFile.ContentType))
             {
@@ -740,6 +770,31 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         }
 
         return $"{ApiRoutes.Inbox}?{string.Join("&", segments)}";
+    }
+
+    private static string BuildActivityLogRoute(ActivityLogQueryDto query)
+    {
+        var segments = new List<string>
+        {
+            $"page={Math.Max(1, query.Page).ToString(CultureInfo.InvariantCulture)}",
+            $"pageSize={Math.Clamp(query.PageSize, 1, 50).ToString(CultureInfo.InvariantCulture)}"
+        };
+
+        AddQuerySegment("search", query.Search);
+        AddQuerySegment("action", query.Action);
+        AddQuerySegment("entity", query.Entity);
+
+        return $"{ApiRoutes.ActivityLogs}?{string.Join("&", segments)}";
+
+        void AddQuerySegment(string key, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            segments.Add($"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}");
+        }
     }
 
     private async Task EnsureSuccessAsync(HttpResponseMessage response, string fallbackMessage)

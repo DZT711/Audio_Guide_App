@@ -1,9 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net10.0;net10.0-android</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UseSharedCompilation>false</UseSharedCompilation>
+    <TargetFrameworks>net10.0;net10.0-android</TargetFrameworks>
   </PropertyGroup>
 
 </Project>

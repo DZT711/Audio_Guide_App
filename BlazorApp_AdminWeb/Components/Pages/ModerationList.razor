@@ -1,6 +1,8 @@
 @page "/moderation"
+@implements IAsyncDisposable
 @inject AdminApiClient ApiClient
 @inject InboxState InboxState
+@inject IJSRuntime JS
 @inject NotificationService Notifications
 @inject AdminSessionState SessionState
 
@@ -128,33 +130,55 @@ else
             }
             else
             {
-                <div class="moderation-list">
-                    @foreach (var item in _items)
-                    {
-                        <article class="@GetModerationCardClass(item)">
-                            <div class="moderation-card__header">
-                                <div>
-                                    <div class="moderation-card__title">@item.Name</div>
-                                    <small>@item.OwnerName</small>
+                <div class="management-page-swap" @key="_result.Page">
+                    <div class="moderation-list">
+                        @foreach (var item in _items)
+                        {
+                            <article class="@GetModerationCardClass(item)">
+                                <div class="moderation-card__header">
+                                    <div>
+                                        <div class="moderation-card__title">@item.Name</div>
+                                        <small>@item.OwnerName</small>
+                                    </div>
+                                    <span class="@GetActionClass(item.ActionType)">@item.ActionType</span>
                                 </div>
-                                <span class="@GetActionClass(item.ActionType)">@item.ActionType</span>
-                            </div>
 
-                            <div class="moderation-card__meta">
-                                <span class="audio-card__tag">@item.Type</span>
-                                <span class="audio-card__tag">@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</span>
-                                <span class="audio-card__tag">@item.Status</span>
-                            </div>
+                                <div class="moderation-card__meta">
+                                    <span class="audio-card__tag">@item.Type</span>
+                                    <span class="audio-card__tag">@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                                    <span class="@GetStatusPillClass(item.Status)">
+                                        <i class="@GetStatusIconClass(item.Status)"></i>
+                                        @item.Status
+                                    </span>
+                                </div>
 
-                            <p class="audio-card__description">@GetSummary(item)</p>
+                                <p class="audio-card__description">@GetSummary(item)</p>
 
-                            <div class="management-inline-actions">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => SelectItem(item)">Details</button>
-                                <button type="button" class="btn btn-sm btn-outline-success" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => ApproveAsync(item)">Approve</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => RejectAsync(item)">Reject</button>
-                            </div>
-                        </article>
-                    }
+                                <div class="management-inline-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OpenDetailModal(item)">View Detail</button>
+                                    @if (string.Equals(item.Status, "Approved", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <button type="button" class="btn btn-sm moderation-card__status-button moderation-card__status-button--approved" disabled>
+                                            <i class="bi bi-check-lg"></i>
+                                            Approved
+                                        </button>
+                                    }
+                                    else if (string.Equals(item.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <button type="button" class="btn btn-sm moderation-card__status-button moderation-card__status-button--rejected" disabled>
+                                            <i class="bi bi-x-lg"></i>
+                                            Rejected
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-success" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => ApproveAsync(item)">Approve</button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => RejectAsync(item)">Reject</button>
+                                    }
+                                </div>
+                            </article>
+                        }
+                    </div>
                 </div>
 
                 @if (_result.TotalPages > 1)
@@ -174,12 +198,14 @@ else
             }
         </section>
 
-        <section class="management-panel moderation-detail" data-reveal>
-            <div class="management-panel__header">
-                <div>
-                    <span class="management-panel__eyebrow">Details</span>
-                    <h2>@(SelectedItem is null ? "Select a Request" : "Request Details")</h2>
+        <div class="@GetDetailModalClass()" @onclick="CloseDetailModal" aria-hidden="@(!_isDetailModalOpen)">
+        <section class="management-panel app-modal-panel moderation-detail moderation-detail--modal" role="dialog" aria-modal="true" aria-labelledby="moderation-detail-title" @onclick:stopPropagation="true">
+            <div class="management-panel__header moderation-detail__header">
+                <div class="moderation-detail__title">
+                    <span class="moderation-detail__badge">Details</span>
+                    <h2 id="moderation-detail-title">@(SelectedItem is null ? "Select a Request" : "Request Details")</h2>
                 </div>
+                <button type="button" class="btn-close" aria-label="Close details" @onclick="CloseDetailModal"></button>
             </div>
 
             @if (SelectedItem is null)
@@ -191,116 +217,404 @@ else
             else
             {
                 var item = SelectedItem;
+                var changedFields = GetChangedFields(item);
+                var changeSummaryRows = GetChangeSummaryRows(item);
 
-                <div class="audio-readonly">
+                <div class="audio-readonly moderation-detail__content">
                     <div class="audio-readonly__notice">
                         Approve to apply the pending change. Reject to keep live data unchanged and notify the owner with your reason.
                     </div>
 
-                    <div class="audio-detail-grid">
-                        <article class="audio-detail-card">
-                            <span>Item</span>
-                            <strong>@item.Name</strong>
-                            <small>@item.Type</small>
-                        </article>
-                        <article class="audio-detail-card">
-                            <span>Action</span>
-                            <strong>@item.ActionType</strong>
-                            <small>@item.Status</small>
-                        </article>
-                        <article class="audio-detail-card">
-                            <span>Owner</span>
+                    <section class="moderation-request-overview moderation-section-card">
+                        <div class="moderation-request-overview__copy">
+                            <div class="moderation-request-overview__chips">
+                                <span class="audio-card__tag">@item.Type</span>
+                                <span class="audio-card__tag">@item.ActionType</span>
+                                <span class="audio-card__tag">@item.Status</span>
+                            </div>
+                            <h3>@item.Name</h3>
+                            <p>@GetSummary(item)</p>
+                        </div>
+                        <div class="moderation-request-overview__meta">
+                            <span>Submitted By</span>
                             <strong>@item.OwnerName</strong>
                             <small>@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</small>
-                        </article>
-                        <article class="audio-detail-card">
-                            <span>Owner Note</span>
-                            <strong>@(string.IsNullOrWhiteSpace(item.Reason) ? "No submission note" : item.Reason)</strong>
                             <small>@(item.TargetId > 0 ? $"Live target #{item.TargetId}" : "New item request")</small>
-                        </article>
-
-                        @if (item.Location is not null)
+                        </div>
+                        @if (changedFields.Count > 0)
                         {
-                            <article class="audio-detail-card">
-                                <span>Category</span>
-                                <strong>@item.Location.Category</strong>
-                                <small>@(string.IsNullOrWhiteSpace(item.Location.Address) ? "No address" : item.Location.Address)</small>
-                            </article>
-                            <article class="audio-detail-card">
-                                <span>Coordinates</span>
-                                <strong>@($"{item.Location.Latitude:F6}, {item.Location.Longitude:F6}")</strong>
-                                <small>@($"{item.Location.Radius:F0}m trigger / {item.Location.StandbyRadius:F0}m standby")</small>
-                            </article>
-                            <article class="audio-detail-card audio-detail-card--wide">
-                                <span>Description</span>
-                                <strong>@(string.IsNullOrWhiteSpace(item.Location.Description) ? "No description provided." : item.Location.Description)</strong>
-                            </article>
-                            <article class="audio-detail-card">
-                                <span>Media</span>
-                                <strong>@item.Location.ImageUrls.Count image(s)</strong>
-                                <small>@($"{item.Location.AudioCount} linked audio item(s)")</small>
-                            </article>
-                            <article class="audio-detail-card">
-                                <span>Contact</span>
-                                <strong>@(string.IsNullOrWhiteSpace(item.Location.Phone) ? "No phone" : item.Location.Phone)</strong>
-                                <small>@(string.IsNullOrWhiteSpace(item.Location.Email) ? "No email" : item.Location.Email)</small>
-                            </article>
+                            <div class="moderation-request-overview__footer">
+                                <div class="moderation-change-section">
+                                    <div class="moderation-change-section__header">
+                                        <h4>Modified Fields</h4>
+                                    </div>
+                                    <div class="moderation-change-list">
+                                        @foreach (var changedField in changedFields)
+                                        {
+                                            <span class="moderation-change-chip">@changedField</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
                         }
-                        else if (item.Audio is not null)
-                        {
-                            <article class="audio-detail-card">
-                                <span>Location</span>
-                                <strong>@item.Audio.LocationName</strong>
-                                <small>@(string.IsNullOrWhiteSpace(item.Audio.OwnerName) ? "No owner" : item.Audio.OwnerName)</small>
-                            </article>
-                            <article class="audio-detail-card">
-                                <span>Language</span>
-                                <strong>@GetAudioLanguageLabel(item.Audio)</strong>
-                                <small>@GetVoiceLabel(item.Audio.VoiceGender)</small>
-                            </article>
-                            <article class="audio-detail-card">
-                                <span>Source</span>
-                                <strong>@item.Audio.SourceType</strong>
-                                <small>@($"{item.Audio.Duration} sec")</small>
-                            </article>
-                            <article class="audio-detail-card">
-                                <span>Stored Audio</span>
-                                <strong>@(string.IsNullOrWhiteSpace(item.Audio.AudioURL) ? "No stored file" : System.IO.Path.GetFileName(item.Audio.AudioURL))</strong>
-                                <small>@(string.IsNullOrWhiteSpace(item.Audio.VoiceName) ? "No named voice" : item.Audio.VoiceName)</small>
-                            </article>
-                            <article class="audio-detail-card audio-detail-card--wide">
-                                <span>Description</span>
-                                <strong>@(string.IsNullOrWhiteSpace(item.Audio.Description) ? "No description provided." : item.Audio.Description)</strong>
-                            </article>
-                            <article class="audio-detail-card audio-detail-card--wide">
-                                <span>Script</span>
-                                <strong>@(string.IsNullOrWhiteSpace(item.Audio.Script) ? "No script provided." : item.Audio.Script)</strong>
-                            </article>
-                        }
-                    </div>
 
-                    <div class="management-field">
-                        <label for="moderation-admin-note">Reviewer Note</label>
-                        <InputTextArea id="moderation-admin-note" class="form-control" rows="4" @bind-Value="_reviewNote" />
-                        <span class="management-field__hint">Required when rejecting. This note is delivered to the owner inbox.</span>
-                    </div>
+                        <div class="moderation-request-overview__footer">
+                            <button type="button" class="moderation-meta-toggle" @onclick="() => _showDetailMetadata = !_showDetailMetadata">
+                                <span>Request metadata</span>
+                                <i class="bi @(_showDetailMetadata ? "bi-chevron-up" : "bi-chevron-down")"></i>
+                            </button>
+                            @if (_showDetailMetadata)
+                            {
+                                <div class="audio-detail-grid moderation-detail-grid moderation-detail-grid--compact">
+                                    <article class="audio-detail-card">
+                                        <span>Item</span>
+                                        <strong>@item.Name</strong>
+                                        <small>@item.Type</small>
+                                    </article>
+                                    <article class="audio-detail-card">
+                                        <span>Action</span>
+                                        <strong>@item.ActionType</strong>
+                                        <small>@item.Status</small>
+                                    </article>
+                                    <article class="audio-detail-card">
+                                        <span>Owner</span>
+                                        <strong>@item.OwnerName</strong>
+                                        <small>@item.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                                    </article>
+                                    <article class="audio-detail-card">
+                                        <span>Owner Note</span>
+                                        <strong>@(string.IsNullOrWhiteSpace(item.Reason) ? "No submission note" : item.Reason)</strong>
+                                        <small>@(item.TargetId > 0 ? $"Live target #{item.TargetId}" : "New item request")</small>
+                                    </article>
+                                </div>
+                            }
+                        </div>
+                    </section>
 
-                    @if (!string.IsNullOrWhiteSpace(item.AdminNote))
+                    @if (item.Location is not null || item.LiveLocation is not null)
                     {
-                        <div class="management-muted">Latest reviewer note: @item.AdminNote</div>
+                        <div class="moderation-compare-grid">
+                            @if (item.Location is not null)
+                            {
+                                var pendingPreferenceImageUrl = GetPreferenceImageUrl(item.Location);
+                                var pendingGalleryImageUrls = GetResolvedImageUrls(item.Location);
+
+                                <section class="moderation-compare-panel moderation-compare-panel--full moderation-section-card">
+                                    <div class="moderation-column-header moderation-column-header--pending">
+                                        <div class="moderation-column-header__eyebrow">
+                                            <span class="moderation-column-header__dot"></span>
+                                            <span>Pending Changes</span>
+                                        </div>
+                                        <h3>Submitted POI Data</h3>
+                                    </div>
+                                    <div class="audio-detail-grid">
+                                        <article class="@GetDetailCardClass(changedFields, "Category", "Address")">
+                                            <span>Category</span>
+                                            <strong>@item.Location.Category</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.Location.Address) ? "No address" : item.Location.Address)</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Coordinates", "Trigger radius")">
+                                            <span>Coordinates</span>
+                                            <strong>@($"{item.Location.Latitude:F6}, {item.Location.Longitude:F6}")</strong>
+                                            <small>@($"{item.Location.Radius:F0}m trigger / {item.Location.StandbyRadius:F0}m standby")</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Preference image")">
+                                            <span>Preference Image</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Location.PreferenceImageUrl) ? "Missing" : System.IO.Path.GetFileName(item.Location.PreferenceImageUrl))</strong>
+                                            <small>@($"{item.Location.ImageUrls.Count} total image(s)")</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Contact info")">
+                                            <span>Contact</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Location.Phone) ? "No phone" : item.Location.Phone)</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.Location.Email) ? "No email" : item.Location.Email)</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Status")">
+                                            <span>Status</span>
+                                            <strong>@(item.Location.Status == 1 ? "Active" : "Inactive")</strong>
+                                            <small>@($"{item.Location.AudioCount} linked audio item(s)")</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Contact info", "GPS trigger")">
+                                            <span>Website</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Location.WebURL) ? "No website" : item.Location.WebURL)</strong>
+                                            <small>@(item.Location.IsGpsTriggerEnabled ? "GPS trigger enabled" : "GPS trigger disabled")</small>
+                                        </article>
+                                        <article class="@GetWideDetailCardClass(changedFields, "Description")">
+                                            <span>Description</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Location.Description) ? "No description provided." : item.Location.Description)</strong>
+                                        </article>
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(pendingPreferenceImageUrl))
+                                    {
+                                        <div class="moderation-media-highlight @(HasChangedField(changedFields, "Preference image") ? "moderation-media-highlight--changed" : string.Empty)">
+                                            <img class="moderation-media-highlight__image" src="@pendingPreferenceImageUrl" alt="@($"{item.Location.Name} preference image")" />
+                                            <div class="moderation-media-highlight__copy">
+                                                <span>Preference Image</span>
+                                                <strong>Primary POI avatar</strong>
+                                                <small>@(string.IsNullOrWhiteSpace(item.Location.PreferenceImageUrl) ? "No saved filename" : System.IO.Path.GetFileName(item.Location.PreferenceImageUrl))</small>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    @if (pendingGalleryImageUrls.Count > 0)
+                                    {
+                                        <div class="moderation-media-section moderation-media-section__gallery @(HasChangedField(changedFields, "Gallery images") ? "moderation-media-section__gallery--changed" : string.Empty)">
+                                            <div class="moderation-media-section__title">Gallery Images (@pendingGalleryImageUrls.Count)</div>
+                                            <div class="moderation-image-grid">
+                                                @foreach (var imageUrl in pendingGalleryImageUrls)
+                                                {
+                                                    <img class="moderation-image-thumb" src="@imageUrl" alt="@item.Location.Name" />
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </section>
+                            }
+
+                            @if (item.LiveLocation is not null)
+                            {
+                                var livePreferenceImageUrl = GetPreferenceImageUrl(item.LiveLocation);
+                                var liveGalleryImageUrls = GetResolvedImageUrls(item.LiveLocation);
+
+                                <section class="moderation-compare-panel moderation-compare-panel--full moderation-compare-panel--live moderation-section-card">
+                                    <div class="moderation-column-header moderation-column-header--current">
+                                        <div class="moderation-column-header__eyebrow">
+                                            <span class="moderation-column-header__dot"></span>
+                                            <span>Current</span>
+                                        </div>
+                                        <h3>Live POI Data</h3>
+                                    </div>
+                                    <div class="audio-detail-grid">
+                                        <article class="@GetDetailCardClass(changedFields, "Category", "Address")">
+                                            <span>Category</span>
+                                            <strong>@item.LiveLocation.Category</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.LiveLocation.Address) ? "No address" : item.LiveLocation.Address)</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Coordinates", "Trigger radius")">
+                                            <span>Coordinates</span>
+                                            <strong>@($"{item.LiveLocation.Latitude:F6}, {item.LiveLocation.Longitude:F6}")</strong>
+                                            <small>@($"{item.LiveLocation.Radius:F0}m trigger / {item.LiveLocation.StandbyRadius:F0}m standby")</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Preference image")">
+                                            <span>Preference Image</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.LiveLocation.PreferenceImageUrl) ? "Missing" : System.IO.Path.GetFileName(item.LiveLocation.PreferenceImageUrl))</strong>
+                                            <small>@($"{item.LiveLocation.ImageUrls.Count} total image(s)")</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Contact info")">
+                                            <span>Contact</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.LiveLocation.Phone) ? "No phone" : item.LiveLocation.Phone)</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.LiveLocation.Email) ? "No email" : item.LiveLocation.Email)</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Status")">
+                                            <span>Status</span>
+                                            <strong>@(item.LiveLocation.Status == 1 ? "Active" : "Inactive")</strong>
+                                            <small>@($"{item.LiveLocation.AudioCount} linked audio item(s)")</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Contact info", "GPS trigger")">
+                                            <span>Website</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.LiveLocation.WebURL) ? "No website" : item.LiveLocation.WebURL)</strong>
+                                            <small>@(item.LiveLocation.IsGpsTriggerEnabled ? "GPS trigger enabled" : "GPS trigger disabled")</small>
+                                        </article>
+                                        <article class="@GetWideDetailCardClass(changedFields, "Description")">
+                                            <span>Description</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.LiveLocation.Description) ? "No description provided." : item.LiveLocation.Description)</strong>
+                                        </article>
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(livePreferenceImageUrl))
+                                    {
+                                        <div class="moderation-media-highlight @(HasChangedField(changedFields, "Preference image") ? "moderation-media-highlight--changed" : string.Empty)">
+                                            <img class="moderation-media-highlight__image" src="@livePreferenceImageUrl" alt="@($"{item.LiveLocation.Name} preference image")" />
+                                            <div class="moderation-media-highlight__copy">
+                                                <span>Preference Image</span>
+                                                <strong>Current POI avatar</strong>
+                                                <small>@(string.IsNullOrWhiteSpace(item.LiveLocation.PreferenceImageUrl) ? "No saved filename" : System.IO.Path.GetFileName(item.LiveLocation.PreferenceImageUrl))</small>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    @if (liveGalleryImageUrls.Count > 0)
+                                    {
+                                        <div class="moderation-media-section moderation-media-section__gallery @(HasChangedField(changedFields, "Gallery images") ? "moderation-media-section__gallery--changed" : string.Empty)">
+                                            <div class="moderation-media-section__title">Gallery Images (@liveGalleryImageUrls.Count)</div>
+                                            <div class="moderation-image-grid">
+                                                @foreach (var imageUrl in liveGalleryImageUrls)
+                                                {
+                                                    <img class="moderation-image-thumb" src="@imageUrl" alt="@item.LiveLocation.Name" />
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </section>
+                            }
+                        </div>
                     }
 
-                    <div class="management-actions">
-                        <button type="button" class="btn btn-success" disabled="@(!CanManage || _isReviewing || item.Status != "Pending")" @onclick="() => ApproveAsync(item)">
-                            @(_isReviewing ? "Working..." : "Approve")
-                        </button>
-                        <button type="button" class="btn btn-outline-danger" disabled="@(!CanManage || _isReviewing || item.Status != "Pending")" @onclick="() => RejectAsync(item)">
-                            @(_isReviewing ? "Working..." : "Reject")
-                        </button>
-                    </div>
+                    @if (item.Audio is not null || item.LiveAudio is not null)
+                    {
+                        <div class="moderation-compare-grid">
+                            @if (item.Audio is not null)
+                            {
+                                <section class="moderation-compare-panel moderation-compare-panel--full moderation-section-card">
+                                    <div class="moderation-column-header moderation-column-header--pending">
+                                        <div class="moderation-column-header__eyebrow">
+                                            <span class="moderation-column-header__dot"></span>
+                                            <span>Pending Changes</span>
+                                        </div>
+                                        <h3>Submitted Audio Data</h3>
+                                    </div>
+                                    <div class="audio-detail-grid">
+                                        <article class="@GetDetailCardClass(changedFields, "Location")">
+                                            <span>Location</span>
+                                            <strong>@item.Audio.LocationName</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.Audio.OwnerName) ? "No owner" : item.Audio.OwnerName)</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Language", "Voice")">
+                                            <span>Language</span>
+                                            <strong>@GetAudioLanguageLabel(item.Audio)</strong>
+                                            <small>@GetVoiceLabel(item.Audio.VoiceGender)</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Source type", "Duration")">
+                                            <span>Source</span>
+                                            <strong>@item.Audio.SourceType</strong>
+                                            <small>@($"{item.Audio.Duration} sec")</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Stored audio")">
+                                            <span>Stored Audio</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Audio.AudioURL) ? "No stored file" : System.IO.Path.GetFileName(item.Audio.AudioURL))</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.Audio.VoiceName) ? "No named voice" : item.Audio.VoiceName)</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Status")">
+                                            <span>Status</span>
+                                            <strong>@(item.Audio.Status == 1 ? "Active" : "Inactive")</strong>
+                                            <small>@(item.Audio.IsDownloadable ? "Downloadable" : "Streaming only")</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Playback")">
+                                            <span>Playback</span>
+                                            <strong>@item.Audio.PlaybackMode</strong>
+                                            <small>@item.Audio.InterruptPolicy</small>
+                                        </article>
+                                        <article class="@GetWideDetailCardClass(changedFields, "Description")">
+                                            <span>Description</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Audio.Description) ? "No description provided." : item.Audio.Description)</strong>
+                                        </article>
+                                        <article class="@GetWideDetailCardClass(changedFields, "Script")">
+                                            <span>Script</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.Audio.Script) ? "No script provided." : item.Audio.Script)</strong>
+                                        </article>
+                                    </div>
+                                </section>
+                            }
+
+                            @if (item.LiveAudio is not null)
+                            {
+                                <section class="moderation-compare-panel moderation-compare-panel--full moderation-compare-panel--live moderation-section-card">
+                                    <div class="moderation-column-header moderation-column-header--current">
+                                        <div class="moderation-column-header__eyebrow">
+                                            <span class="moderation-column-header__dot"></span>
+                                            <span>Current</span>
+                                        </div>
+                                        <h3>Live Audio Data</h3>
+                                    </div>
+                                    <div class="audio-detail-grid">
+                                        <article class="@GetDetailCardClass(changedFields, "Location")">
+                                            <span>Location</span>
+                                            <strong>@item.LiveAudio.LocationName</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.LiveAudio.OwnerName) ? "No owner" : item.LiveAudio.OwnerName)</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Language", "Voice")">
+                                            <span>Language</span>
+                                            <strong>@GetAudioLanguageLabel(item.LiveAudio)</strong>
+                                            <small>@GetVoiceLabel(item.LiveAudio.VoiceGender)</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Source type", "Duration")">
+                                            <span>Source</span>
+                                            <strong>@item.LiveAudio.SourceType</strong>
+                                            <small>@($"{item.LiveAudio.Duration} sec")</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Stored audio")">
+                                            <span>Stored Audio</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.LiveAudio.AudioURL) ? "No stored file" : System.IO.Path.GetFileName(item.LiveAudio.AudioURL))</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.LiveAudio.VoiceName) ? "No named voice" : item.LiveAudio.VoiceName)</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Status")">
+                                            <span>Status</span>
+                                            <strong>@(item.LiveAudio.Status == 1 ? "Active" : "Inactive")</strong>
+                                            <small>@(item.LiveAudio.IsDownloadable ? "Downloadable" : "Streaming only")</small>
+                                        </article>
+                                        <article class="@GetDetailCardClass(changedFields, "Playback")">
+                                            <span>Playback</span>
+                                            <strong>@item.LiveAudio.PlaybackMode</strong>
+                                            <small>@item.LiveAudio.InterruptPolicy</small>
+                                        </article>
+                                        <article class="@GetWideDetailCardClass(changedFields, "Description")">
+                                            <span>Description</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.LiveAudio.Description) ? "No description provided." : item.LiveAudio.Description)</strong>
+                                        </article>
+                                        <article class="@GetWideDetailCardClass(changedFields, "Script")">
+                                            <span>Script</span>
+                                            <strong>@(string.IsNullOrWhiteSpace(item.LiveAudio.Script) ? "No script provided." : item.LiveAudio.Script)</strong>
+                                        </article>
+                                    </div>
+                                </section>
+                            }
+                        </div>
+                    }
+
+                    @if (changeSummaryRows.Count > 0)
+                    {
+                        <section class="moderation-change-summary moderation-section-card">
+                            <div class="moderation-change-summary__header">
+                                <span class="management-panel__eyebrow">Changes Summary</span>
+                                <h3>What will change if you approve</h3>
+                            </div>
+                            <div class="moderation-change-summary__rows">
+                                @foreach (var row in changeSummaryRows)
+                                {
+                                    <div class="moderation-change-summary__row">
+                                        <span class="moderation-change-summary__field">@row.Field</span>
+                                        <span class="moderation-change-summary__value">@row.From</span>
+                                        <i class="bi bi-arrow-right moderation-change-summary__arrow"></i>
+                                        <span class="moderation-change-summary__value moderation-change-summary__value--to">@row.To</span>
+                                    </div>
+                                }
+                            </div>
+                        </section>
+                    }
+
+                    <section class="moderation-review-panel moderation-review-panel--full moderation-section-card">
+                        <div class="moderation-review-panel__top">
+                            <div>
+                                <h3>Reviewer Note</h3>
+                                <p>Required when rejecting and delivered to the owner inbox.</p>
+                            </div>
+                            <div class="management-actions moderation-review-panel__actions">
+                                <button type="button" class="btn btn-success" disabled="@(!CanManage || _isReviewing || item.Status != "Pending")" @onclick="() => ApproveAsync(item)">
+                                    @(_isReviewing ? "Working..." : "Approve")
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" disabled="@(!CanManage || _isReviewing || item.Status != "Pending")" @onclick="() => RejectAsync(item)">
+                                    @(_isReviewing ? "Working..." : "Reject")
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="management-field moderation-review-panel__note">
+                            <label for="moderation-admin-note">Reviewer Note</label>
+                            <InputTextArea id="moderation-admin-note" class="form-control" rows="4" @bind-Value="_reviewNote" />
+                            <span class="management-field__hint">Required when rejecting. This note is delivered to the owner inbox.</span>
+                        </div>
+
+                        <div class="moderation-review-panel__aside">
+                            @if (!string.IsNullOrWhiteSpace(item.AdminNote))
+                            {
+                                <div class="management-muted moderation-review-panel__history">Latest reviewer note: @item.AdminNote</div>
+                            }
+                        </div>
+                    </section>
                 </div>
             }
         </section>
+        </div>
     </div>
 </div>
 }
@@ -310,7 +624,10 @@ else
     private ChangeRequestListDto _result = new();
     private ChangeRequestDto? _selectedItem;
     private bool _isLoading = true;
+    private bool _isDetailModalOpen;
+    private bool _bodyScrollLockState;
     private bool _isReviewing;
+    private bool _showDetailMetadata;
     private int _currentPage = 1;
     private string _searchText = "";
     private string _typeFilter = "";
@@ -326,6 +643,14 @@ else
     protected override async Task OnInitializedAsync()
     {
         await LoadItemsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_bodyScrollLockState != _isDetailModalOpen)
+        {
+            await SyncBodyScrollLockAsync(_isDetailModalOpen);
+        }
     }
 
     private async Task RefreshAsync() => await LoadItemsAsync();
@@ -395,6 +720,34 @@ else
     {
         _selectedItem = item;
         _reviewNote = item.AdminNote ?? "";
+    }
+
+    private void OpenDetailModal(ChangeRequestDto item)
+    {
+        SelectItem(item);
+        _showDetailMetadata = false;
+        _isDetailModalOpen = true;
+    }
+
+    private void CloseDetailModal()
+    {
+        _showDetailMetadata = false;
+        _isDetailModalOpen = false;
+    }
+
+    private async Task SyncBodyScrollLockAsync(bool isLocked)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", isLocked);
+            _bodyScrollLockState = isLocked;
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
     }
 
     private async Task ApproveAsync(ChangeRequestDto item)
@@ -478,16 +831,34 @@ else
 
         _selectedItem ??= _items.FirstOrDefault();
 
+        if (_selectedItem is null)
+        {
+            _isDetailModalOpen = false;
+            _reviewNote = "";
+            return;
+        }
+
         if (_selectedItem is not null && string.IsNullOrWhiteSpace(_reviewNote))
         {
             _reviewNote = _selectedItem.AdminNote ?? "";
         }
     }
 
+    private string GetDetailModalClass() => _isDetailModalOpen
+        ? "moderation-detail-modal moderation-detail-modal--open"
+        : "moderation-detail-modal";
+
     private static string GetModerationCardClass(ChangeRequestDto item) =>
-        item.ActionType == "Delete"
+        $"{(item.ActionType == "Delete"
             ? "audio-card audio-card--inactive moderation-card moderation-card--delete"
-            : "audio-card moderation-card";
+            : "audio-card moderation-card")} {GetModerationStatusToneClass(item.Status)}".Trim();
+
+    private static string GetModerationStatusToneClass(string status) => status switch
+    {
+        "Approved" => "moderation-card--approved",
+        "Rejected" => "moderation-card--rejected",
+        _ => string.Empty
+    };
 
     private static string GetActionClass(string actionType) => actionType switch
     {
@@ -497,6 +868,33 @@ else
         _ => "management-status management-status--info"
     };
 
+    private static string GetStatusPillClass(string status) => status switch
+    {
+        "Approved" => "audio-card__tag moderation-status-pill moderation-status-pill--approved",
+        "Rejected" => "audio-card__tag moderation-status-pill moderation-status-pill--rejected",
+        _ => "audio-card__tag moderation-status-pill"
+    };
+
+    private static string GetStatusIconClass(string status) => status switch
+    {
+        "Approved" => "bi bi-check-lg",
+        "Rejected" => "bi bi-x-lg",
+        _ => "bi bi-hourglass-split"
+    };
+
+    private static bool HasChangedField(IReadOnlyCollection<string> changedFields, params string[] fieldNames) =>
+        fieldNames.Any(fieldName => changedFields.Contains(fieldName));
+
+    private static string GetDetailCardClass(IReadOnlyCollection<string> changedFields, params string[] fieldNames) =>
+        HasChangedField(changedFields, fieldNames)
+            ? "audio-detail-card audio-detail-card--changed"
+            : "audio-detail-card";
+
+    private static string GetWideDetailCardClass(IReadOnlyCollection<string> changedFields, params string[] fieldNames) =>
+        HasChangedField(changedFields, fieldNames)
+            ? "audio-detail-card audio-detail-card--wide audio-detail-card--changed"
+            : "audio-detail-card audio-detail-card--wide";
+
     private static string GetSummary(ChangeRequestDto item) =>
         item.Location is not null
             ? $"Category: {item.Location.Category}. {(string.IsNullOrWhiteSpace(item.Location.Address) ? "No address" : item.Location.Address)}"
@@ -504,9 +902,283 @@ else
                 ? $"{item.Audio.LocationName} · {GetAudioLanguageLabel(item.Audio)} · {item.Audio.SourceType}"
                 : "No summary available.";
 
+    private List<ChangeSummaryRow> GetChangeSummaryRows(ChangeRequestDto item)
+    {
+        var rows = new List<ChangeSummaryRow>();
+
+        if (item.Location is not null)
+        {
+            if (item.LiveLocation is null)
+            {
+                rows.Add(new("POI", "No live item", item.Location.Name));
+                return rows;
+            }
+
+            AddIfChanged("Category", item.LiveLocation.Category, item.Location.Category);
+            AddIfChanged("Coordinates", FormatCoordinates(item.LiveLocation.Latitude, item.LiveLocation.Longitude), FormatCoordinates(item.Location.Latitude, item.Location.Longitude));
+            AddIfChanged("Description", FormatText(item.LiveLocation.Description, "No description provided."), FormatText(item.Location.Description, "No description provided."));
+            AddIfChanged("Preference Image", FormatPreferenceImageSummary(item.LiveLocation), FormatPreferenceImageSummary(item.Location));
+            AddIfChanged("Gallery Images", $"{item.LiveLocation.ImageUrls.Count} image(s)", $"{item.Location.ImageUrls.Count} image(s)");
+            AddIfChanged("Contact Info", FormatLocationContactSummary(item.LiveLocation), FormatLocationContactSummary(item.Location));
+            AddIfChanged("Status", FormatLocationStatusSummary(item.LiveLocation), FormatLocationStatusSummary(item.Location));
+        }
+        else if (item.Audio is not null)
+        {
+            if (item.LiveAudio is null)
+            {
+                rows.Add(new("Audio", "No live item", item.Audio.Title));
+                return rows;
+            }
+
+            AddIfChanged("Title", item.LiveAudio.Title, item.Audio.Title);
+            AddIfChanged("Location", item.LiveAudio.LocationName, item.Audio.LocationName);
+            AddIfChanged("Language", GetAudioLanguageLabel(item.LiveAudio), GetAudioLanguageLabel(item.Audio));
+            AddIfChanged("Source", item.LiveAudio.SourceType, item.Audio.SourceType);
+            AddIfChanged("Stored Audio", FormatText(item.LiveAudio.AudioURL, "No stored file"), FormatText(item.Audio.AudioURL, "No stored file"));
+            AddIfChanged("Status", FormatAudioStatusSummary(item.LiveAudio), FormatAudioStatusSummary(item.Audio));
+            AddIfChanged("Script", FormatText(item.LiveAudio.Script, "No script provided."), FormatText(item.Audio.Script, "No script provided."));
+        }
+
+        return rows;
+
+        void AddIfChanged(string field, string from, string to)
+        {
+            if (!string.Equals(from, to, StringComparison.Ordinal))
+            {
+                rows.Add(new(field, from, to));
+            }
+        }
+    }
+
     private static string GetVoiceLabel(string? voiceGender) =>
         string.IsNullOrWhiteSpace(voiceGender) ? "Unspecified voice" : $"{voiceGender} voice";
 
     private static string GetAudioLanguageLabel(AudioDto audio) =>
         string.IsNullOrWhiteSpace(audio.LanguageName) ? audio.Language : $"{audio.LanguageName} ({audio.Language})";
+
+    private List<string> GetChangedFields(ChangeRequestDto item)
+    {
+        var changes = new List<string>();
+
+        if (string.Equals(item.ActionType, "Add", StringComparison.OrdinalIgnoreCase))
+        {
+            changes.Add("New item");
+            return changes;
+        }
+
+        if (string.Equals(item.ActionType, "Delete", StringComparison.OrdinalIgnoreCase))
+        {
+            changes.Add("Archive live item");
+        }
+
+        if (item.Location is not null)
+        {
+            if (item.LiveLocation is null)
+            {
+                changes.Add("Live POI missing");
+                return changes;
+            }
+
+            if (!string.Equals(item.Location.Name, item.LiveLocation.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Name");
+            }
+
+            if (!string.Equals(item.Location.Category, item.LiveLocation.Category, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Category");
+            }
+
+            if (!string.Equals(item.Location.Description, item.LiveLocation.Description, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Description");
+            }
+
+            if (!string.Equals(item.Location.Address, item.LiveLocation.Address, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Address");
+            }
+
+            if (Math.Abs(item.Location.Latitude - item.LiveLocation.Latitude) > 0.000001d
+                || Math.Abs(item.Location.Longitude - item.LiveLocation.Longitude) > 0.000001d)
+            {
+                changes.Add("Coordinates");
+            }
+
+            if (Math.Abs(item.Location.Radius - item.LiveLocation.Radius) > 0.001d
+                || Math.Abs(item.Location.StandbyRadius - item.LiveLocation.StandbyRadius) > 0.001d)
+            {
+                changes.Add("Trigger radius");
+            }
+
+            if (item.Location.Priority != item.LiveLocation.Priority
+                || item.Location.DebounceSeconds != item.LiveLocation.DebounceSeconds)
+            {
+                changes.Add("Priority or cooldown");
+            }
+
+            if (item.Location.IsGpsTriggerEnabled != item.LiveLocation.IsGpsTriggerEnabled)
+            {
+                changes.Add("GPS trigger");
+            }
+
+            if (!string.Equals(item.Location.PreferenceImageUrl, item.LiveLocation.PreferenceImageUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Preference image");
+            }
+
+            if (!HaveMatchingImageSets(item.Location.ImageUrls, item.LiveLocation.ImageUrls))
+            {
+                changes.Add("Gallery images");
+            }
+
+            if (!string.Equals(item.Location.WebURL, item.LiveLocation.WebURL, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(item.Location.Email, item.LiveLocation.Email, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(item.Location.Phone, item.LiveLocation.Phone, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Contact info");
+            }
+
+            if (item.Location.Status != item.LiveLocation.Status)
+            {
+                changes.Add("Status");
+            }
+        }
+        else if (item.Audio is not null)
+        {
+            if (item.LiveAudio is null)
+            {
+                changes.Add("Live audio missing");
+                return changes;
+            }
+
+            if (!string.Equals(item.Audio.Title, item.LiveAudio.Title, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Title");
+            }
+
+            if (!string.Equals(item.Audio.LocationName, item.LiveAudio.LocationName, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Location");
+            }
+
+            if (!string.Equals(item.Audio.Language, item.LiveAudio.Language, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Language");
+            }
+
+            if (!string.Equals(item.Audio.Description, item.LiveAudio.Description, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Description");
+            }
+
+            if (!string.Equals(item.Audio.SourceType, item.LiveAudio.SourceType, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Source type");
+            }
+
+            if (!string.Equals(item.Audio.Script, item.LiveAudio.Script, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Script");
+            }
+
+            if (!string.Equals(item.Audio.AudioURL, item.LiveAudio.AudioURL, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Stored audio");
+            }
+
+            if (item.Audio.Duration != item.LiveAudio.Duration)
+            {
+                changes.Add("Duration");
+            }
+
+            if (!string.Equals(item.Audio.VoiceName, item.LiveAudio.VoiceName, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(item.Audio.VoiceGender, item.LiveAudio.VoiceGender, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Voice");
+            }
+
+            if (item.Audio.Priority != item.LiveAudio.Priority)
+            {
+                changes.Add("Priority");
+            }
+
+            if (!string.Equals(item.Audio.PlaybackMode, item.LiveAudio.PlaybackMode, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(item.Audio.InterruptPolicy, item.LiveAudio.InterruptPolicy, StringComparison.OrdinalIgnoreCase))
+            {
+                changes.Add("Playback");
+            }
+
+            if (item.Audio.Status != item.LiveAudio.Status)
+            {
+                changes.Add("Status");
+            }
+        }
+
+        return changes;
+    }
+
+    private static bool HaveMatchingImageSets(IEnumerable<string> list1, IEnumerable<string> list2)
+    {
+        if (list1.Count() != list2.Count())
+        {
+            return false;
+        }
+
+        return list1.OrderBy(x => x).SequenceEqual(list2.OrderBy(x => x));
+    }
+
+    private string? GetPreferenceImageUrl(LocationDto location)
+    {
+        return ApiClient.ResolveImageUrl(location.PreferenceImageUrl ?? location.ImageUrls.FirstOrDefault());
+    }
+
+    private List<string> GetResolvedImageUrls(LocationDto location)
+    {
+        return location.ImageUrls
+            .Where(url => !string.Equals(url, location.PreferenceImageUrl, StringComparison.OrdinalIgnoreCase))
+            .Select(ApiClient.ResolveImageUrl)
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Cast<string>()
+            .ToList();
+    }
+
+    private static string FormatCoordinates(double latitude, double longitude) =>
+        $"{latitude:F6}, {longitude:F6}";
+
+    private static string FormatText(string? value, string fallback) =>
+        string.IsNullOrWhiteSpace(value) ? fallback : value;
+
+    private static string FormatPreferenceImageSummary(LocationDto location) =>
+        $"{Path.GetFileName(location.PreferenceImageUrl ?? "Missing")} ({location.ImageUrls.Count} image(s))";
+
+    private static string FormatLocationContactSummary(LocationDto location) =>
+        $"{FormatText(location.Phone, "No phone")} · {FormatText(location.Email, "No email")}";
+
+    private static string FormatLocationStatusSummary(LocationDto location) =>
+        $"{(location.Status == 1 ? "Active" : "Inactive")} · {(location.IsGpsTriggerEnabled ? "GPS on" : "GPS off")}";
+
+    private static string FormatAudioStatusSummary(AudioDto audio) =>
+        $"{(audio.Status == 1 ? "Active" : "Inactive")} · {(audio.IsDownloadable ? "Downloadable" : "Streaming only")}";
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!_bodyScrollLockState)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", false);
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+
+    private sealed record ChangeSummaryRow(string Field, string From, string To);
 }

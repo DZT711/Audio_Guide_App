@@ -1,0 +1,386 @@
+@page "/history"
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject AdminSessionState SessionState
+
+<PageTitle>Activity History</PageTitle>
+
+@if (!CanView)
+{
+    <div class="management-page activity-history-page">
+        <div class="management-error">
+            <strong>Access denied.</strong>
+            <div>Your current role cannot view activity history.</div>
+        </div>
+    </div>
+}
+else
+{
+<div class="management-page activity-history-page">
+    <section class="management-hero" data-reveal>
+        <div>
+            <span class="management-hero__eyebrow">Admin Log</span>
+            <h1>Activity History</h1>
+            <p>Review create, edit, delete, approval, rejection, and broadcast actions across the admin console. This page is visible to Admin and Developer roles only.</p>
+        </div>
+
+        <div class="management-hero__actions">
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
+                <i class="bi bi-arrow-clockwise me-2"></i>
+                Refresh
+            </button>
+        </div>
+    </section>
+
+    <div class="management-stat-grid" data-stagger data-stagger-step="80">
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-clock-history"></i></span>
+            <div>
+                <strong class="management-stat__value">@_result.TotalCount</strong>
+                <span class="management-stat__label">Matching Events</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-people"></i></span>
+            <div>
+                <strong class="management-stat__value">@DistinctActorCount</strong>
+                <span class="management-stat__label">Actors On Page</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-funnel"></i></span>
+            <div>
+                <strong class="management-stat__value">@GetFilterSummary()</strong>
+                <span class="management-stat__label">Current Filters</span>
+            </div>
+        </article>
+        <article class="management-stat" data-reveal>
+            <span class="management-stat__icon"><i class="bi bi-calendar-event"></i></span>
+            <div>
+                <strong class="management-stat__value">@GetLatestLogLabel()</strong>
+                <span class="management-stat__label">Latest Event</span>
+            </div>
+        </article>
+    </div>
+
+    <section class="management-panel" data-reveal>
+        <div class="management-panel__header">
+            <div>
+                <span class="management-panel__eyebrow">Timeline</span>
+                <h2>System Activity Feed</h2>
+            </div>
+
+            <div class="management-toolbar">
+                <label class="management-search">
+                    <i class="bi bi-search"></i>
+                    <input class="form-control" type="search" placeholder="Search user, entity, or summary..." @bind="_searchText" @bind:event="oninput" @bind:after="HandleFiltersChangedAsync" />
+                </label>
+
+                <select class="form-select management-filter" @bind="_actionFilter" @bind:after="HandleFiltersChangedAsync">
+                    <option value="">All actions</option>
+                    @foreach (var action in ActionOptions)
+                    {
+                        <option value="@action">@action</option>
+                    }
+                </select>
+
+                <select class="form-select management-filter" @bind="_entityFilter" @bind:after="HandleFiltersChangedAsync">
+                    <option value="">All entities</option>
+                    @foreach (var entity in EntityOptions)
+                    {
+                        <option value="@entity">@entity</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="moderation-skeleton-list">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <article class="moderation-skeleton-card">
+                        <div class="skeleton skeleton--title"></div>
+                        <div class="skeleton skeleton--line"></div>
+                        <div class="skeleton skeleton--line skeleton--line-short"></div>
+                    </article>
+                }
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_loadError))
+        {
+            <div class="management-error">
+                <strong>Unable to load activity history.</strong>
+                <div>@_loadError</div>
+            </div>
+        }
+        else if (_items.Count == 0)
+        {
+            <div class="app-empty-state">
+                No activity events match the current filters.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive management-page-swap" @key="_result.Page">
+                <table class="table management-table activity-log-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Entity</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in _items)
+                        {
+                            <tr>
+                                <td>
+                                    <div>@item.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</div>
+                                    <small class="management-muted">@GetRelativeTimeLabel(item.CreatedAt)</small>
+                                </td>
+                                <td>
+                                    <div class="activity-log-actor">
+                                        <strong>@GetActorName(item)</strong>
+                                        <small class="management-muted">@item.UserName</small>
+                                        <span class="audio-card__tag">@GetRoleLabel(item.Role)</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="@GetActionClass(item.ActionType)">@item.ActionType</span>
+                                </td>
+                                <td>
+                                    <div class="activity-log-summary">
+                                        <div class="activity-log-chip-row">
+                                            <span class="audio-card__tag">@item.EntityType</span>
+                                            @if (item.EntityId is > 0)
+                                            {
+                                                <span class="audio-card__tag">#@item.EntityId</span>
+                                            }
+                                        </div>
+                                        <strong>@(string.IsNullOrWhiteSpace(item.EntityName) ? "Unnamed target" : item.EntityName)</strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="activity-log-summary">
+                                        <div>@item.Summary</div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (_result.TotalPages > 1)
+            {
+                <div class="management-pagination">
+                    <span class="management-pagination__info">Page @_result.Page of @_result.TotalPages (@_result.TotalCount total events)</span>
+                    <div class="management-pagination__actions">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousPageAsync" disabled="@(_result.Page <= 1)">
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </button>
+                        <div class="management-pagination__pages">
+                            @foreach (var pageNumber in GetVisiblePages())
+                            {
+                                <button type="button"
+                                        class="@GetPaginationButtonClass(pageNumber == _result.Page)"
+                                        @onclick="() => GoToPageAsync(pageNumber)"
+                                        disabled="@(pageNumber == _result.Page)">
+                                    @pageNumber
+                                </button>
+                            }
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPageAsync" disabled="@(_result.Page >= _result.TotalPages)">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            }
+        }
+    </section>
+</div>
+}
+
+@code {
+    private static readonly string[] ActionOptions =
+    [
+        "Create",
+        "Edit",
+        "Delete",
+        "Approve",
+        "Reject",
+        "Invite"
+    ];
+
+    private static readonly string[] EntityOptions =
+    [
+        "Announcement",
+        "Audio",
+        "Audio Request",
+        "Category",
+        "Language",
+        "POI",
+        "POI Request",
+        "Tour",
+        "User"
+    ];
+
+    private readonly List<ActivityLogEntryDto> _items = [];
+    private ActivityLogListDto _result = new();
+    private bool _isLoading = true;
+    private int _currentPage = 1;
+    private string _searchText = "";
+    private string _actionFilter = "";
+    private string _entityFilter = "";
+    private string? _loadError;
+
+    private bool CanView => SessionState.HasPermission(AdminPermissions.ActivityLogView);
+
+    private int DistinctActorCount => _items
+        .Select(item => item.UserId?.ToString() ?? item.UserName)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Count();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task RefreshAsync() => await LoadAsync();
+
+    private async Task HandleFiltersChangedAsync()
+    {
+        _currentPage = 1;
+        await LoadAsync();
+    }
+
+    private async Task NextPageAsync()
+    {
+        if (_result.Page >= _result.TotalPages)
+        {
+            return;
+        }
+
+        _currentPage = _result.Page + 1;
+        await LoadAsync();
+    }
+
+    private async Task PreviousPageAsync()
+    {
+        if (_result.Page <= 1)
+        {
+            return;
+        }
+
+        _currentPage = _result.Page - 1;
+        await LoadAsync();
+    }
+
+    private async Task GoToPageAsync(int pageNumber)
+    {
+        if (pageNumber < 1 || pageNumber > _result.TotalPages || pageNumber == _result.Page)
+        {
+            return;
+        }
+
+        _currentPage = pageNumber;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            _result = await ApiClient.GetActivityLogsAsync(new ActivityLogQueryDto
+            {
+                Page = _currentPage,
+                PageSize = 12,
+                Search = string.IsNullOrWhiteSpace(_searchText) ? null : _searchText.Trim(),
+                Action = string.IsNullOrWhiteSpace(_actionFilter) ? null : _actionFilter,
+                Entity = string.IsNullOrWhiteSpace(_entityFilter) ? null : _entityFilter
+            });
+
+            _currentPage = _result.Page;
+            _items.Clear();
+            _items.AddRange(_result.Items);
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, "Activity history load failed");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetFilterSummary()
+    {
+        var action = string.IsNullOrWhiteSpace(_actionFilter) ? "All actions" : _actionFilter;
+        var entity = string.IsNullOrWhiteSpace(_entityFilter) ? "all entities" : _entityFilter;
+        return $"{action} / {entity}";
+    }
+
+    private string GetLatestLogLabel() => _items.Count == 0
+        ? "No data"
+        : _items[0].CreatedAt.ToLocalTime().ToString("dd MMM");
+
+    private static string GetActorName(ActivityLogEntryDto item) =>
+        string.IsNullOrWhiteSpace(item.FullName) ? item.UserName : item.FullName;
+
+    private static string GetRoleLabel(string role) =>
+        string.IsNullOrWhiteSpace(role) ? "Unknown role" : role;
+
+    private static string GetActionClass(string actionType) => actionType switch
+    {
+        "Create" => "management-status management-status--active",
+        "Approve" => "management-status management-status--active",
+        "Edit" => "management-status management-status--pending",
+        "Invite" => "management-status management-status--info",
+        "Delete" => "management-status management-status--inactive",
+        "Reject" => "management-status management-status--inactive",
+        _ => "management-status management-status--info"
+    };
+
+    private static string GetRelativeTimeLabel(DateTime createdAt)
+    {
+        var delta = DateTime.UtcNow - createdAt;
+        if (delta.TotalMinutes < 1)
+        {
+            return "Just now";
+        }
+
+        if (delta.TotalHours < 1)
+        {
+            return $"{Math.Max(1, (int)delta.TotalMinutes)} min ago";
+        }
+
+        if (delta.TotalDays < 1)
+        {
+            return $"{Math.Max(1, (int)delta.TotalHours)} hr ago";
+        }
+
+        return $"{Math.Max(1, (int)delta.TotalDays)} day(s) ago";
+    }
+
+    private IReadOnlyList<int> GetVisiblePages()
+    {
+        const int maxButtons = 5;
+        var start = Math.Max(1, _result.Page - 2);
+        var end = Math.Min(_result.TotalPages, start + maxButtons - 1);
+        start = Math.Max(1, end - maxButtons + 1);
+        return Enumerable.Range(start, end - start + 1).ToList();
+    }
+
+    private static string GetPaginationButtonClass(bool isActive) =>
+        isActive
+            ? "management-pagination__page management-pagination__page--active"
+            : "management-pagination__page";
+}

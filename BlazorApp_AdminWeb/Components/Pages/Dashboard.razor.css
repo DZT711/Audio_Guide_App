@@ -104,6 +104,7 @@
     border-radius: 24px;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.95) 100%);
     box-shadow: var(--app-shadow);
+    animation: dashboardMetricFloatIn 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .metric-card::before {
@@ -341,6 +342,12 @@
     height: 100%;
     border-radius: inherit;
     background: linear-gradient(90deg, #0f766e, #38bdf8);
+    transform: scaleX(0);
+    transform-origin: left center;
+}
+
+.dashboard-panel.is-visible .focus-progress span {
+    animation: dashboardProgressFill 880ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @media (max-width: 991.98px) {
@@ -360,5 +367,27 @@
     .focus-card__top {
         flex-direction: column;
         align-items: flex-start;
+    }
+}
+
+@keyframes dashboardMetricFloatIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes dashboardProgressFill {
+    from {
+        transform: scaleX(0);
+    }
+
+    to {
+        transform: scaleX(1);
     }
 }

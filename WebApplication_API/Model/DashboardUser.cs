@@ -37,4 +37,6 @@ public class DashboardUser
     public ICollection<ChangeRequest> ChangeRequests { get; set; } = [];
 
     public ICollection<InboxMessage> InboxMessages { get; set; } = [];
+
+    public ICollection<ActivityLog> ActivityLogs { get; set; } = [];
 }

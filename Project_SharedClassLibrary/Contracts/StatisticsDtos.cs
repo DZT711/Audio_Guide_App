@@ -37,6 +37,7 @@ public sealed class StatisticsLocationDto
 {
     public int LocationId { get; init; }
     public string Name { get; init; } = "";
+    public string? PreferenceImageUrl { get; init; }
     public string? OwnerName { get; init; }
     public string Ward { get; init; } = "";
     public double Latitude { get; init; }
@@ -82,6 +83,7 @@ public sealed class StatisticsPoiReportRowDto
 {
     public int LocationId { get; init; }
     public string LocationName { get; init; } = "";
+    public string? PreferenceImageUrl { get; init; }
     public string? OwnerName { get; init; }
     public string Ward { get; init; } = "";
     public int PlayCount { get; init; }

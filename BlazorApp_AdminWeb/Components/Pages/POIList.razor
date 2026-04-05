@@ -3,6 +3,8 @@
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Forms
+@using System.IO
 @using System.Text.Json.Serialization
 @using Project_SharedClassLibrary.Constants
 @inject AdminSessionState SessionState
@@ -32,6 +34,12 @@ else
         </div>
 
         <div class="management-hero__actions">
+            @if (CanEditContent)
+            {
+                <button type="button" class="btn btn-primary btn-lg" @onclick="StartCreateAsync">
+                    @(CanManage ? "New POI" : "Request New POI")
+                </button>
+            }
             <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
                 <i class="bi bi-arrow-clockwise me-2"></i>
                 Refresh
@@ -70,7 +78,7 @@ else
         </article>
     </div>
 
-    <div class="management-layout">
+    <div class="management-layout @(CanEditContent ? "poi-layout--editor-modal" : string.Empty)">
         <section class="management-panel" data-reveal>
             <div class="management-panel__header">
                 <div>
@@ -131,10 +139,11 @@ else
             }
             else
             {
-                <div class="table-responsive">
+                <div class="table-responsive management-page-swap" @key="CurrentLocationPage">
                     <table class="table management-table">
                         <thead>
                             <tr>
+                                <th>Avatar</th>
                                 <th>Name</th>
                                 <th>Category</th>
                                 <th>Address</th>
@@ -148,10 +157,31 @@ else
                             {
                                 <tr class="@GetRowClass(location.Status)">
                                     <td>
+                                        <div class="poi-list-avatar">
+                                            @if (GetLocationAvatarUrl(location) is { } avatarUrl)
+                                            {
+                                                <img class="poi-list-avatar__image" src="@avatarUrl" alt="@($"{location.Name} avatar")" />
+                                            }
+                                            else
+                                            {
+                                                <span class="poi-list-avatar__placeholder">
+                                                    <i class="bi bi-image"></i>
+                                                </span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
                                         <div class="poi-name">@location.Name</div>
                                         <small class="management-muted">@(string.IsNullOrWhiteSpace(location.OwnerName) ? "No owner assigned" : location.OwnerName)</small>
                                     </td>
-                                    <td>@location.Category</td>
+                                    <td>
+                                        <span class="poi-category-pill">
+                                            <span class="category-icon @CategoryVisuals.GetToneClass(location.Category)">
+                                                <i class="@CategoryVisuals.GetIconClass(location.Category)"></i>
+                                            </span>
+                                            <span>@location.Category</span>
+                                        </span>
+                                    </td>
                                     <td>@(string.IsNullOrWhiteSpace(location.Address) ? "No address" : location.Address)</td>
                                     <td>@($"{location.Latitude:F4}, {location.Longitude:F4}")</td>
                                     <td>
@@ -188,20 +218,69 @@ else
             }
         </section>
 
-        <section class="management-panel poi-editor" data-reveal>
-            <div class="management-panel__header">
+        <div class="@GetEditorShellClass()" @onclick="HandleEditorBackdropClick" aria-hidden="@(CanEditContent && !_isEditorOpen)">
+        <section class="@GetEditorPanelClass()" data-reveal role="@(CanEditContent ? "dialog" : null)" aria-modal="@(CanEditContent ? "true" : null)" aria-labelledby="poi-editor-title" @onclick:stopPropagation="true">
+            <div class="management-panel__header poi-editor__header">
                 <div>
                     <span class="management-panel__eyebrow">@(CanEditContent ? (CanManage ? "Editor" : "Submission") : "Read Only")</span>
-                    <h2>@(CanEditContent ? (_editingId is null ? "Create Location" : "Edit Location") : "Location Details")</h2>
+                    <h2 id="poi-editor-title">@(CanEditContent ? (_editingId is null ? "Create Location" : "Edit Location") : "Location Details")</h2>
+                    @if (CanEditContent)
+                    {
+                        <p class="poi-editor__subtitle">Open the POI editor in a focused modal while keeping the location dataset visible behind it.</p>
+                    }
                 </div>
+                @if (CanEditContent)
+                {
+                    <button type="button" class="btn-close" aria-label="Close POI editor" @onclick="CancelEditAsync"></button>
+                }
             </div>
 
             @if (CanEditContent)
             {
-            <EditForm Model="_formModel" OnValidSubmit="SaveLocationAsync" class="management-form">
+            <EditForm Model="_formModel" OnValidSubmit="SaveLocationAsync" OnInvalidSubmit="HandleInvalidLocationSubmit" class="management-form">
                 <DataAnnotationsValidator />
 
-                <div class="management-form__grid">
+                <div class="poi-editor__summary">
+                    <div class="poi-editor__summary-copy">
+                        <span class="poi-editor__summary-kicker">@(_editingId is null ? "New Location Draft" : "Editing Existing POI")</span>
+                        <strong>@(string.IsNullOrWhiteSpace(_formModel.Name) ? "Untitled POI" : _formModel.Name)</strong>
+                        <small>@GetEditorCategorySummary()</small>
+                    </div>
+                    <div class="poi-editor__summary-badges">
+                        <span class="poi-editor__badge">@(CanManage ? "Direct Save" : "Approval Request")</span>
+                        <span class="poi-editor__badge">@(_editingId is null ? "Create" : "Edit")</span>
+                        <span class="poi-editor__badge">@GetStatusLabel(_formModel.Status)</span>
+                    </div>
+                </div>
+
+                <div class="poi-editor-tabs" role="tablist" aria-label="POI editor sections">
+                    <button type="button" class='@GetEditorTabClass("basic")' @onclick='() => SetEditorTab("basic")'>
+                        <i class="bi bi-info-circle"></i>
+                        <span>Basic Info</span>
+                    </button>
+                    <button type="button" class='@GetEditorTabClass("details")' @onclick='() => SetEditorTab("details")'>
+                        <i class="bi bi-layers"></i>
+                        <span>Details</span>
+                    </button>
+                    <button type="button" class='@GetEditorTabClass("media")' @onclick='() => SetEditorTab("media")'>
+                        <i class="bi bi-image"></i>
+                        <span>Media</span>
+                    </button>
+                    <button type="button" class='@GetEditorTabClass("settings")' @onclick='() => SetEditorTab("settings")'>
+                        <i class="bi bi-sliders"></i>
+                        <span>Settings</span>
+                    </button>
+                </div>
+
+                <div class="poi-editor-sections">
+                    @if (IsEditorTabActive("basic"))
+                    {
+                    <section class="poi-editor-section">
+                        <div class="poi-editor-section__header">
+                            <h3>Basic Info</h3>
+                            <p>The main identity, address, and summary shown in POI lists and detail screens.</p>
+                        </div>
+                        <div class="management-form__grid">
                     <div class="management-field">
                         <label for="location-name">Name</label>
                         <InputText id="location-name" class="form-control" @bind-Value="_formModel.Name" />
@@ -296,6 +375,19 @@ else
                         <ValidationMessage For="() => _formModel.Description" />
                     </div>
 
+                        </div>
+                    </section>
+                    }
+
+                    @if (IsEditorTabActive("details"))
+                    {
+                    <section class="poi-editor-section">
+                        <div class="poi-editor-section__header">
+                            <h3>Details</h3>
+                            <p>Coordinates, ownership, contact, and trigger settings for the selected POI.</p>
+                        </div>
+                        <div class="management-form__grid">
+
                     <div class="management-field">
                         <label for="location-year">Established Year</label>
                         <InputNumber id="location-year" class="form-control" @bind-Value="_formModel.EstablishedYear" />
@@ -374,17 +466,69 @@ else
                         <ValidationMessage For="() => _formModel.Email" />
                     </div>
 
+                        </div>
+                    </section>
+                    }
+
+                    @if (IsEditorTabActive("media"))
+                    {
+                    <section class="poi-editor-section">
+                        <div class="poi-editor-section__header">
+                            <h3>Media</h3>
+                            <p>Upload the preference image and gallery photos that will appear across the app.</p>
+                        </div>
+                        <div class="management-form__grid">
+
                     <div class="management-field management-field--full">
-                        <label for="location-images">Location Images</label>
+                        <label for="location-preference-image">Preference Image</label>
+                        <InputFile @key="_preferenceImageInputVersion" id="location-preference-image" class="form-control" OnChange="HandlePreferenceImageSelected" accept="image/*" />
+                        <ValidationMessage For="() => _formModel.PreferenceImageFile" />
+                        <span class="management-field__hint">Required. This image becomes the POI avatar in lists, tours, and moderation details.</span>
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <div class="poi-image-preview">
+                            <div>
+                                <span class="management-field__label">Preference Image Preview</span>
+                                <div class="management-field__hint">@GetPreferenceImagePreviewHint()</div>
+                            </div>
+
+                            @if (_isPreparingImagePreview)
+                            {
+                                <div class="management-muted">Preparing image previews...</div>
+                            }
+                            else if (GetPreferenceImagePreviewUrl() is { } preferencePreviewUrl)
+                            {
+                                <div class="poi-preference-preview">
+                                    <div class="poi-image-tile poi-image-tile--feature">
+                                        <img class="poi-image-thumb" src="@preferencePreviewUrl" alt="Preference location image" />
+                                        @if (_formModel.PreferenceImageFile is not null)
+                                        {
+                                            <button type="button" class="poi-image-remove" title="Revert preference image" aria-label="Revert preference image" @onclick="RemovePendingPreferenceImageAsync">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="management-muted">Upload a preference image to set the POI avatar.</div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="management-field management-field--full">
+                        <label for="location-images">Additional Gallery Images</label>
                         <InputFile @key="_imageInputVersion" id="location-images" class="form-control" OnChange="HandleLocationImagesSelected" accept="image/*" multiple />
-                        <span class="management-field__hint">Upload one or more images. Files are stored automatically in `Project_SharedClassLibrary/SharedStorage/Images`.</span>
+                        <span class="management-field__hint">Upload one or more extra images. Each new selection is added to the current upload queue.</span>
                         <span class="management-field__hint">Use the `X` button on a preview tile to remove a stored image or cancel a pending upload before saving.</span>
                     </div>
 
                     <div class="management-field management-field--full">
                         <div class="poi-image-preview">
                             <div>
-                                <span class="management-field__label">Image Preview</span>
+                                <span class="management-field__label">Gallery Preview</span>
                                 <div class="management-field__hint">@GetImagePreviewHint()</div>
                             </div>
 
@@ -411,13 +555,25 @@ else
                                         </div>
                                     }
 
-                                    @for (var imageIndex = 0; imageIndex < _imagePreviewUrls.Count; imageIndex++)
+                                    @for (var imageIndex = 0; imageIndex < _formModel.ImageFiles.Count; imageIndex++)
                                     {
                                         var currentImageIndex = imageIndex;
-                                        var previewUrl = _imagePreviewUrls[imageIndex];
+                                        var pendingImage = _formModel.ImageFiles[imageIndex];
+                                        var previewUrl = imageIndex < _imagePreviewUrls.Count
+                                            ? _imagePreviewUrls[imageIndex]
+                                            : null;
 
                                         <div class="poi-image-tile">
-                                            <img class="poi-image-thumb" src="@previewUrl" alt="New location image" />
+                                            @if (!string.IsNullOrWhiteSpace(previewUrl))
+                                            {
+                                                <img class="poi-image-thumb" src="@previewUrl" alt="@($"New location image {pendingImage.Name}")" />
+                                            }
+                                            else
+                                            {
+                                                <div class="poi-image-thumb poi-image-thumb--placeholder" title="@pendingImage.Name">
+                                                    <span>@pendingImage.Name</span>
+                                                </div>
+                                            }
                                             <button type="button" class="poi-image-remove" title="Remove upload" aria-label="Remove upload" @onclick="() => RemovePendingImageAsync(currentImageIndex)">
                                                 <i class="bi bi-x-lg"></i>
                                             </button>
@@ -427,10 +583,23 @@ else
                             }
                             else
                             {
-                                <div class="management-muted">Upload images or edit a location that already has stored photos.</div>
+                                <div class="management-muted">Upload extra images or edit a location that already has stored gallery photos.</div>
                             }
                         </div>
                     </div>
+
+                        </div>
+                    </section>
+                    }
+
+                    @if (IsEditorTabActive("settings"))
+                    {
+                    <section class="poi-editor-section">
+                        <div class="poi-editor-section__header">
+                            <h3>Publishing</h3>
+                            <p>Finish trigger behavior and live status before saving or submitting the request.</p>
+                        </div>
+                        <div class="management-form__grid">
 
                     <div class="management-field management-field--full">
                         <span class="management-field__label">GPS Trigger</span>
@@ -456,13 +625,16 @@ else
                             <span class="management-field__hint">Optional note for Admin or Developer review.</span>
                         </div>
                     }
+                        </div>
+                    </section>
+                    }
                 </div>
 
                 <div class="management-actions">
                     <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveCategories || !CanEditContent)">
                         @GetSaveButtonLabel()
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Reset" : "Cancel")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Close" : "Cancel")</button>
                 </div>
             </EditForm>
             }
@@ -539,6 +711,7 @@ else
                 </div>
             }
         </section>
+        </div>
     </div>
 </div>
 
@@ -564,24 +737,34 @@ else
 @code {
     private const double DefaultLatitude = LocationDefaults.District4Latitude;
     private const double DefaultLongitude = LocationDefaults.District4Longitude;
+    private const long MaxLocationImageBytes = 15L * 1024 * 1024;
+    private const int MaxQueuedGalleryImages = 24;
+    private const int MaxPreviewableGalleryImages = 6;
     private readonly LocationFormModel _formModel = new();
     private readonly List<LocationDto> _locations = new();
     private readonly List<CategoryDto> _categories = new();
     private readonly List<DashboardUserDto> _owners = new();
-    private readonly List<string> _imagePreviewUrls = new();
+    private readonly List<string?> _imagePreviewUrls = new();
     private readonly List<MapSearchResult> _mapSearchResults = new();
     private readonly HashSet<string> _imageObjectUrls = new(StringComparer.OrdinalIgnoreCase);
+    private string? _preferenceImagePreviewUrl;
+    private string? _preferenceImageObjectUrl;
     private DotNetObjectReference<POIList>? _mapReference;
     private LocationDto? _selectedLocation;
     private LocationDto? _pendingArchivedLocation;
     private bool _isLoading = true;
     private bool _isSaving;
+    private bool _isEditorOpen;
     private bool _isPreparingImagePreview;
     private bool _isMapSearching;
     private bool _deviceLocationPending = true;
+    private bool _mapInitializationPending = true;
     private bool _mapSyncPending;
+    private bool? _bodyScrollLockState;
     private int _imageInputVersion;
+    private int _preferenceImageInputVersion;
     private int? _editingId;
+    private string _editorTab = "basic";
     private string _searchText = "";
     private string _mapSearchText = "";
     private string _selectedCategoryName = "";
@@ -642,10 +825,16 @@ else
         if (firstRender && CanEditContent)
         {
             _mapReference = DotNetObjectReference.Create(this);
-            await InitializeMapAsync();
         }
 
-        if (CanEditContent && _mapSyncPending)
+        if (CanEditContent && _isEditorOpen && IsEditorTabActive("basic") && _mapInitializationPending)
+        {
+            _mapInitializationPending = false;
+            await InitializeMapAsync();
+            _mapSyncPending = true;
+        }
+
+        if (CanEditContent && _isEditorOpen && IsEditorTabActive("basic") && _mapSyncPending)
         {
             _mapSyncPending = false;
             await SyncMapAsync();
@@ -655,6 +844,11 @@ else
         {
             _deviceLocationPending = false;
             await TryUseDeviceLocationAsync(showFallbackNotice: false);
+        }
+
+        if (CanEditContent && _bodyScrollLockState != _isEditorOpen)
+        {
+            await SyncBodyScrollLockAsync(_isEditorOpen);
         }
     }
 
@@ -764,6 +958,21 @@ else
         }
     }
 
+    private async Task SyncBodyScrollLockAsync(bool isLocked)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", isLocked);
+            _bodyScrollLockState = isLocked;
+        }
+        catch (JSException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+
     private async Task CenterMapOnCoordinatesAsync() => await SyncMapAsync();
 
     private async Task SearchMapAsync()
@@ -828,10 +1037,14 @@ else
 
     private async Task StartCreateAsync()
     {
+        _isEditorOpen = CanEditContent;
+        _editorTab = "basic";
+        _mapInitializationPending = true;
         _editingId = null;
         _selectedLocation = null;
         ResetForm();
         await RefreshLocationImagePreviewsAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task StartEditAsync(LocationDto location)
@@ -844,12 +1057,16 @@ else
             return;
         }
 
+        _isEditorOpen = true;
+        _editorTab = "basic";
+        _mapInitializationPending = true;
         _editingId = location.Id;
         _deviceLocationPending = false;
         var snapshot = LocationFormModel.FromDto(location, _categories);
         ApplyForm(snapshot);
         ResetMapSearchState(snapshot.Address ?? snapshot.Name);
         await RefreshLocationImagePreviewsAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task SaveLocationAsync()
@@ -889,7 +1106,7 @@ else
             }
 
             await LoadDataAsync();
-            await StartCreateAsync();
+            await CloseEditorAsync(clearSelectedLocation: false);
         }
         catch (Exception ex)
         {
@@ -899,6 +1116,21 @@ else
         {
             _isSaving = false;
         }
+    }
+
+    private void HandleInvalidLocationSubmit(EditContext editContext)
+    {
+        var message = editContext.GetValidationMessages()
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.Ordinal)
+            .Take(3)
+            .ToList();
+
+        Notifications.Warning(
+            message.Count == 0
+                ? "Fix the highlighted POI fields before saving."
+                : string.Join(" ", message),
+            "Location form incomplete");
     }
 
     private void PromptArchiveLocation(LocationDto location)
@@ -940,7 +1172,7 @@ else
 
             if (_editingId == _pendingArchivedLocation.Id)
             {
-                await StartCreateAsync();
+                await CloseEditorAsync(clearSelectedLocation: true);
             }
         }
         catch (Exception ex)
@@ -955,6 +1187,8 @@ else
 
     private void ResetForm()
     {
+        _editorTab = "basic";
+        _mapInitializationPending = true;
         ApplyForm(new LocationFormModel
         {
             EstablishedYear = DateTime.UtcNow.Year,
@@ -974,7 +1208,34 @@ else
 
     private async Task CancelEditAsync()
     {
-        await StartCreateAsync();
+        await CloseEditorAsync(clearSelectedLocation: true);
+    }
+
+    private async Task CloseEditorAsync(bool clearSelectedLocation)
+    {
+        _isEditorOpen = false;
+        _editorTab = "basic";
+        _mapInitializationPending = true;
+        _editingId = null;
+
+        if (clearSelectedLocation)
+        {
+            _selectedLocation = null;
+        }
+
+        ResetForm();
+        await RefreshLocationImagePreviewsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleEditorBackdropClick()
+    {
+        if (!CanEditContent || !_isEditorOpen)
+        {
+            return;
+        }
+
+        await CancelEditAsync();
     }
 
     private void ApplyForm(LocationFormModel model)
@@ -996,18 +1257,83 @@ else
         _formModel.Phone = model.Phone;
         _formModel.Email = model.Email;
         _formModel.Status = model.Status;
+        _formModel.ExistingPreferenceImageUrl = model.ExistingPreferenceImageUrl;
+        _formModel.PreferenceImageFile = null;
         _formModel.ExistingImageUrls = model.ExistingImageUrls.ToList();
         _formModel.ImageFiles = [];
         EnsureFormCategorySelection();
         _imageInputVersion++;
+        _preferenceImageInputVersion++;
         _mapSyncPending = CanEditContent;
     }
 
     private async Task UseDeviceLocationAsync() => await TryUseDeviceLocationAsync(showFallbackNotice: true);
 
+    private async Task HandlePreferenceImageSelected(InputFileChangeEventArgs eventArgs)
+    {
+        _formModel.PreferenceImageFile = await BufferLocationImageAsync(eventArgs.File, "Preference image");
+        _preferenceImageInputVersion++;
+        await RefreshLocationImagePreviewsAsync();
+    }
+
     private async Task HandleLocationImagesSelected(InputFileChangeEventArgs eventArgs)
     {
-        _formModel.ImageFiles = eventArgs.GetMultipleFiles().ToList();
+        IReadOnlyList<IBrowserFile> selectedFiles;
+
+        try
+        {
+            selectedFiles = eventArgs.GetMultipleFiles(MaxQueuedGalleryImages);
+        }
+        catch (InvalidOperationException)
+        {
+            Notifications.Warning(
+                $"Select up to {MaxQueuedGalleryImages} gallery images at a time.",
+                "Too many gallery images");
+            _imageInputVersion++;
+            return;
+        }
+
+        var remainingSlots = MaxQueuedGalleryImages - _formModel.ImageFiles.Count;
+        if (remainingSlots <= 0)
+        {
+            Notifications.Info(
+                $"The gallery upload queue already has {MaxQueuedGalleryImages} image(s). Remove one before adding more.",
+                "Gallery queue full");
+            _imageInputVersion++;
+            return;
+        }
+
+        var nextFiles = _formModel.ImageFiles.ToList();
+        foreach (var browserFile in selectedFiles.Take(remainingSlots))
+        {
+            var bufferedFile = await BufferLocationImageAsync(browserFile, "Gallery image");
+            if (bufferedFile is not null)
+            {
+                nextFiles.Add(bufferedFile);
+            }
+        }
+
+        if (selectedFiles.Count > remainingSlots)
+        {
+            Notifications.Info(
+                $"Only {remainingSlots} more gallery image(s) fit in the current queue.",
+                "Gallery queue trimmed");
+        }
+
+        _formModel.ImageFiles = nextFiles;
+        _imageInputVersion++;
+        await RefreshLocationImagePreviewsAsync();
+    }
+
+    private async Task RemovePendingPreferenceImageAsync()
+    {
+        if (!CanEditContent)
+        {
+            return;
+        }
+
+        _formModel.PreferenceImageFile = null;
+        _preferenceImageInputVersion++;
         await RefreshLocationImagePreviewsAsync();
     }
 
@@ -1090,15 +1416,17 @@ else
     {
         if (_formModel.ImageFiles.Count > 0)
         {
-            return $"{_formModel.ImageFiles.Count} new image file(s) selected for upload.";
+            return _formModel.ImageFiles.Count > MaxPreviewableGalleryImages
+                ? $"{_formModel.ImageFiles.Count} gallery image file(s) queued for upload. Showing inline previews for the first {MaxPreviewableGalleryImages}."
+                : $"{_formModel.ImageFiles.Count} gallery image file(s) queued for upload.";
         }
 
         if (_formModel.ExistingImageUrls.Count > 0)
         {
-            return $"{_formModel.ExistingImageUrls.Count} stored image(s) linked to this location.";
+            return $"{_formModel.ExistingImageUrls.Count} stored gallery image(s) linked to this location.";
         }
 
-        return "Stored images and newly selected uploads are previewed here.";
+        return "Stored gallery images and newly selected uploads are previewed here.";
     }
 
     private List<string> GetResolvedImageUrls(LocationDto? location) =>
@@ -1107,6 +1435,43 @@ else
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Cast<string>()
             .ToList() ?? [];
+
+    private string? GetPreferenceImagePreviewUrl()
+    {
+        if (!string.IsNullOrWhiteSpace(_preferenceImagePreviewUrl))
+        {
+            return _preferenceImagePreviewUrl;
+        }
+
+        return string.IsNullOrWhiteSpace(_formModel.ExistingPreferenceImageUrl)
+            ? null
+            : ApiClient.ResolveImageUrl(_formModel.ExistingPreferenceImageUrl);
+    }
+
+    private string GetPreferenceImagePreviewHint()
+    {
+        if (_formModel.PreferenceImageFile is not null)
+        {
+            return $"Previewing the new preference image: {_formModel.PreferenceImageFile.Name}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(_formModel.ExistingPreferenceImageUrl))
+        {
+            return "This stored image is the current POI avatar.";
+        }
+
+        return "A preference image is required for each POI.";
+    }
+
+    private string? GetLocationAvatarUrl(LocationDto? location)
+    {
+        if (location is null)
+        {
+            return null;
+        }
+
+        return ApiClient.ResolveImageUrl(location.PreferenceImageUrl ?? location.CoverImageUrl);
+    }
 
     private LocationDto? ResolveSelectedLocation()
     {
@@ -1138,25 +1503,38 @@ else
         try
         {
             await ClearLocationImagePreviewsAsync();
+            var previewUnavailable = false;
 
-            foreach (var imageFile in _formModel.ImageFiles)
+            if (_formModel.PreferenceImageFile is not null)
             {
-                await using var sourceStream = imageFile.OpenReadStream(15L * 1024 * 1024);
-                using var streamReference = new DotNetStreamReference(sourceStream);
+                _preferenceImagePreviewUrl = await TryCreateImagePreviewUrlAsync(_formModel.PreferenceImageFile);
+                previewUnavailable |= string.IsNullOrWhiteSpace(_preferenceImagePreviewUrl);
+                _preferenceImageObjectUrl = _preferenceImagePreviewUrl;
+            }
 
-                var objectUrl = await JS.InvokeAsync<string>(
-                    "smartTourAdmin.filePreview.createObjectUrlFromStream",
-                    streamReference,
-                    imageFile.ContentType);
+            foreach (var imageFile in _formModel.ImageFiles.Take(MaxPreviewableGalleryImages))
+            {
+                var objectUrl = await TryCreateImagePreviewUrlAsync(imageFile);
+                previewUnavailable |= string.IsNullOrWhiteSpace(objectUrl);
+                _imagePreviewUrls.Add(objectUrl);
 
                 if (!string.IsNullOrWhiteSpace(objectUrl))
                 {
-                    _imagePreviewUrls.Add(objectUrl);
                     _imageObjectUrls.Add(objectUrl);
                 }
             }
+
+            while (_imagePreviewUrls.Count < _formModel.ImageFiles.Count)
+            {
+                _imagePreviewUrls.Add(null);
+            }
+
+            if (previewUnavailable)
+            {
+                Notifications.Warning("Some location images could not be previewed, but you can still save them.", "Preview unavailable");
+            }
         }
-        catch (Exception ex) when (ex is IOException or JSException)
+        catch (Exception ex) when (ex is JSException or TaskCanceledException)
         {
             Notifications.Warning("Some location images could not be previewed, but you can still save them.", "Preview unavailable");
         }
@@ -1166,8 +1544,80 @@ else
         }
     }
 
+    private async Task<BufferedUploadFile?> BufferLocationImageAsync(IBrowserFile? browserFile, string imageRole)
+    {
+        if (browserFile is null)
+        {
+            return null;
+        }
+
+        var displayName = Path.GetFileName(browserFile.Name);
+        if (browserFile.Size > MaxLocationImageBytes)
+        {
+            Notifications.Warning(
+                $"{displayName} is larger than 15 MB. Choose a smaller image and try again.",
+                $"{imageRole} too large");
+            return null;
+        }
+
+        try
+        {
+            await using var sourceStream = browserFile.OpenReadStream(MaxLocationImageBytes);
+            using var memoryStream = new MemoryStream();
+            await sourceStream.CopyToAsync(memoryStream);
+
+            return new BufferedUploadFile
+            {
+                Name = displayName,
+                ContentType = browserFile.ContentType,
+                Content = memoryStream.ToArray()
+            };
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or JSException or TaskCanceledException)
+        {
+            Notifications.Warning(
+                $"{displayName} could not be added to the upload queue. Try selecting it again.",
+                $"{imageRole} unavailable");
+            return null;
+        }
+    }
+
+    private async Task<string?> TryCreateImagePreviewUrlAsync(BufferedUploadFile file)
+    {
+        if (file.Content.Length == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            await using var sourceStream = new MemoryStream(file.Content, writable: false);
+            using var streamReference = new DotNetStreamReference(sourceStream);
+
+            return await JS.InvokeAsync<string>(
+                "smartTourAdmin.filePreview.createObjectUrlFromStream",
+                streamReference,
+                file.ContentType);
+        }
+        catch (Exception ex) when (ex is JSException or IOException or InvalidOperationException or TaskCanceledException)
+        {
+            return null;
+        }
+    }
+
     private async Task ClearLocationImagePreviewsAsync()
     {
+        if (!string.IsNullOrWhiteSpace(_preferenceImageObjectUrl))
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("smartTourAdmin.filePreview.revokeObjectUrl", _preferenceImageObjectUrl);
+            }
+            catch (JSException)
+            {
+            }
+        }
+
         foreach (var objectUrl in _imageObjectUrls)
         {
             try
@@ -1179,6 +1629,8 @@ else
             }
         }
 
+        _preferenceImageObjectUrl = null;
+        _preferenceImagePreviewUrl = null;
         _imageObjectUrls.Clear();
         _imagePreviewUrls.Clear();
     }
@@ -1241,6 +1693,48 @@ else
         ? "management-chip management-chip--selected"
         : "management-chip";
 
+    private string GetEditorShellClass() =>
+        CanEditContent
+            ? _isEditorOpen
+                ? "poi-editor-shell poi-editor-shell--modal poi-editor-shell--open"
+                : "poi-editor-shell poi-editor-shell--modal"
+            : "poi-editor-shell";
+
+    private string GetEditorPanelClass() =>
+        CanEditContent
+            ? "management-panel app-modal-panel poi-editor poi-editor--modal"
+            : "management-panel poi-editor";
+
+    private void SetEditorTab(string tabId)
+    {
+        _editorTab = tabId;
+
+        if (string.Equals(tabId, "basic", StringComparison.OrdinalIgnoreCase))
+        {
+            _mapInitializationPending = true;
+            _mapSyncPending = true;
+        }
+    }
+
+    private bool IsEditorTabActive(string tabId) =>
+        string.Equals(_editorTab, tabId, StringComparison.OrdinalIgnoreCase);
+
+    private string GetEditorTabClass(string tabId) =>
+        IsEditorTabActive(tabId)
+            ? "poi-editor-tab poi-editor-tab--active"
+            : "poi-editor-tab";
+
+    private string GetEditorCategorySummary()
+    {
+        if (_formModel.CategoryId <= 0)
+        {
+            return "Choose a category and complete each section before saving.";
+        }
+
+        return _categories.FirstOrDefault(item => item.Id == _formModel.CategoryId)?.Name
+            ?? "Category selected";
+    }
+
     private string GetSaveButtonLabel()
     {
         if (_isSaving)
@@ -1290,6 +1784,11 @@ else
     {
         try
         {
+            if (_bodyScrollLockState == true)
+            {
+                await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", false);
+            }
+
             if (CanEditContent)
             {
                 await JS.InvokeVoidAsync("smartTourAdmin.map.disposeLocationPicker", _mapElement);

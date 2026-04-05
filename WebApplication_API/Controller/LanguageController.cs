@@ -12,7 +12,8 @@ namespace WebApplication_API.Controller;
 [Route("[controller]")]
 public class LanguageController(
     DBContext context,
-    AdminRequestAuthorizationService authService) : ControllerBase
+    AdminRequestAuthorizationService authService,
+    ActivityLogService activityLogService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAllLanguages()
@@ -90,6 +91,13 @@ public class LanguageController(
         context.Languages.Add(language);
         await context.SaveChangesAsync();
         await EnsureDefaultLanguageAsync(language.LanguageId);
+        await activityLogService.LogAsync(
+            access.User!,
+            "Create",
+            "Language",
+            language.LanguageId,
+            language.LangName,
+            $"Created language '{language.LangName}' ({language.LangCode}).");
 
         return CreatedAtAction(nameof(GetLanguageById), new { id = language.LanguageId }, language.ToDto());
     }
@@ -136,6 +144,13 @@ public class LanguageController(
 
         await context.SaveChangesAsync();
         await EnsureDefaultLanguageAsync(id);
+        await activityLogService.LogAsync(
+            access.User!,
+            "Edit",
+            "Language",
+            language.LanguageId,
+            language.LangName,
+            $"Updated language '{language.LangName}' ({language.LangCode}).");
 
         return Ok(new ApiMessageResponse { Message = "Language updated successfully." });
     }
@@ -159,6 +174,13 @@ public class LanguageController(
         language.IsDefault = false;
         await context.SaveChangesAsync();
         await EnsureDefaultLanguageAsync();
+        await activityLogService.LogAsync(
+            access.User!,
+            "Delete",
+            "Language",
+            language.LanguageId,
+            language.LangName,
+            $"Archived language '{language.LangName}' ({language.LangCode}).");
 
         return Ok(new ApiMessageResponse { Message = "Language archived successfully." });
     }

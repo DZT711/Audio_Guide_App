@@ -48,6 +48,7 @@ public class DashboardController(
             .Include(item => item.Owner)
             .Include(item => item.Images)
             .Include(item => item.AudioContents)
+            .AsSplitQuery()
             .Where(item => !ownerScoped || item.OwnerId == currentUser.UserId)
             .OrderBy(item => item.Name)
             .ToListAsync();
@@ -346,6 +347,7 @@ public class DashboardController(
             .Include(item => item.Stops)
             .ThenInclude(item => item.Location)
             .ThenInclude(item => item!.Category)
+            .AsSplitQuery()
             .AsQueryable();
 
         return IsOwnerScoped(currentUser)

@@ -40,6 +40,7 @@ public static class AdminPermissions
     public const string ModerationView = "moderation:view";
     public const string ModerationManage = "moderation:manage";
     public const string AnalyticsView = "analytics:view";
+    public const string ActivityLogView = "activity-log:view";
 }
 
 public static class AdminRolePolicies
@@ -77,7 +78,8 @@ public static class AdminRolePolicies
                 AdminPermissions.UserManage,
                 AdminPermissions.ModerationView,
                 AdminPermissions.ModerationManage,
-                AdminPermissions.AnalyticsView
+                AdminPermissions.AnalyticsView,
+                AdminPermissions.ActivityLogView
             ],
             [AdminRoles.Developer] =
             [
@@ -99,7 +101,8 @@ public static class AdminRolePolicies
                 AdminPermissions.UserManage,
                 AdminPermissions.ModerationView,
                 AdminPermissions.ModerationManage,
-                AdminPermissions.AnalyticsView
+                AdminPermissions.AnalyticsView,
+                AdminPermissions.ActivityLogView
             ],
             [AdminRoles.Editor] =
             [

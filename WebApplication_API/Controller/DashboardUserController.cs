@@ -13,7 +13,8 @@ namespace WebApplication_API.Controller;
 [Route("[controller]")]
 public class DashboardUserController(
     DBContext context,
-    AdminRequestAuthorizationService authService) : ControllerBase
+    AdminRequestAuthorizationService authService,
+    ActivityLogService activityLogService) : ControllerBase
 {
     private static readonly PasswordHasher<DashboardUser> PasswordHasher = new();
 
@@ -113,6 +114,13 @@ public class DashboardUserController(
         user.PasswordHash = PasswordHasher.HashPassword(user, request.Password.Trim());
         context.DashboardUsers.Add(user);
         await context.SaveChangesAsync();
+        await activityLogService.LogAsync(
+            access.User!,
+            "Create",
+            "User",
+            user.UserId,
+            user.Username,
+            $"Created user '{user.Username}' with role {user.Role}.");
 
         return CreatedAtAction(nameof(GetUserById), new { id = user.UserId }, user.ToDto(0, 0));
     }
@@ -173,6 +181,13 @@ public class DashboardUserController(
         user.PasswordHash = PasswordHasher.HashPassword(user, upsertRequest.Password);
         context.DashboardUsers.Add(user);
         await context.SaveChangesAsync();
+        await activityLogService.LogAsync(
+            access.User!,
+            "Create",
+            "User Invite",
+            user.UserId,
+            user.Username,
+            $"Invited user '{user.Username}' with role {user.Role}.");
 
         return Ok(new DashboardUserInviteResultDto
         {
@@ -227,6 +242,13 @@ public class DashboardUserController(
         }
 
         await context.SaveChangesAsync();
+        await activityLogService.LogAsync(
+            access.User!,
+            "Edit",
+            "User",
+            user.UserId,
+            user.Username,
+            $"Updated user '{user.Username}' with role {user.Role}.");
         return Ok(new ApiMessageResponse { Message = "User updated successfully." });
     }
 
@@ -254,6 +276,13 @@ public class DashboardUserController(
         user.Status = 0;
         user.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        await activityLogService.LogAsync(
+            access.User!,
+            "Delete",
+            "User",
+            user.UserId,
+            user.Username,
+            $"Archived user '{user.Username}'.");
 
         return Ok(new ApiMessageResponse { Message = "User archived successfully." });
     }
