@@ -16,12 +16,15 @@ public sealed class PlaceCatalogService
     private static readonly JsonSerializerOptions CacheJsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly string CacheFilePath = Path.Combine(FileSystem.Current.AppDataDirectory, "places-cache.json");
     private static readonly string CategoryCacheFilePath = Path.Combine(FileSystem.Current.AppDataDirectory, "place-categories-cache.json");
+    private static readonly string AudioTrackCacheFilePath = Path.Combine(FileSystem.Current.AppDataDirectory, "place-audio-cache.json");
     private static readonly string ImageCacheDirectoryPath = Path.Combine(FileSystem.Current.AppDataDirectory, "place-images");
     private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
     private readonly SemaphoreSlim _categoryLoadSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _audioCacheSemaphore = new(1, 1);
     private readonly List<PlaceItem> _places = [];
     private readonly List<CategoryDto> _categories = [];
     private readonly Dictionary<string, List<PublicAudioTrackDto>> _audioTracksByPlaceId = new(StringComparer.OrdinalIgnoreCase);
+    private bool _hasLoadedAudioTrackCache;
 
     private PlaceCatalogService()
     {
@@ -139,23 +142,40 @@ public sealed class PlaceCatalogService
             return [];
         }
 
+        await EnsureAudioTrackCacheLoadedAsync(cancellationToken);
+
+        if (!AppDataModeService.Instance.IsApiEnabled)
+        {
+            return _audioTracksByPlaceId.TryGetValue(normalizedPlaceId, out var offlineTracks)
+                ? offlineTracks.ToList()
+                : [];
+        }
+
         try
         {
             var route = string.Format(CultureInfo.InvariantCulture, ApiRoutes.PublicLocationAudioTemplate, locationId);
             var audioTracks = await HttpClient.GetFromJsonAsync<List<PublicAudioTrackDto>>(route, cancellationToken) ?? [];
             _audioTracksByPlaceId[normalizedPlaceId] = audioTracks;
+            await SaveAudioTrackCacheAsync(cancellationToken);
 
             var place = _places.FirstOrDefault(item => string.Equals(item.Id, normalizedPlaceId, StringComparison.OrdinalIgnoreCase));
             if (place is not null)
             {
                 place.AudioTracks = audioTracks;
                 place.AudioCountText = $"{audioTracks.Count} audio";
+                place.AvailableVoiceGenders = audioTracks
+                    .Select(item => NormalizeVoiceGender(item.VoiceGender))
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Cast<string>()
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
             }
 
             return audioTracks.ToList();
         }
         catch when (!cancellationToken.IsCancellationRequested)
         {
+            await EnsureAudioTrackCacheLoadedAsync(cancellationToken);
             return _audioTracksByPlaceId.TryGetValue(normalizedPlaceId, out var fallbackTracks)
                 ? fallbackTracks.ToList()
                 : [];
@@ -274,6 +294,12 @@ public sealed class PlaceCatalogService
             GpsTriggerText = location.IsGpsTriggerEnabled ? "Bật GPS trigger" : "Tắt GPS trigger",
             AudioCountText = $"{location.AudioCount} audio",
             AudioTracks = Array.Empty<PublicAudioTrackDto>(),
+            AvailableVoiceGenders = location.AvailableVoiceGenders
+                .Select(NormalizeVoiceGender)
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Cast<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList(),
             Latitude = location.Latitude,
             Longitude = location.Longitude,
             CategoryColor = categoryColors.Background,
@@ -364,6 +390,11 @@ public sealed class PlaceCatalogService
 
     private static async Task<IReadOnlyList<LocationDto>> LoadLocationsWithFallbackAsync(bool forceRefresh, CancellationToken cancellationToken)
     {
+        if (!AppDataModeService.Instance.IsApiEnabled)
+        {
+            return await LoadCacheAsync(cancellationToken);
+        }
+
         if (!forceRefresh)
         {
             var cachedLocations = await LoadCacheAsync(cancellationToken);
@@ -399,6 +430,11 @@ public sealed class PlaceCatalogService
 
     private static async Task<IReadOnlyList<CategoryDto>> LoadCategoriesWithFallbackAsync(bool forceRefresh, CancellationToken cancellationToken)
     {
+        if (!AppDataModeService.Instance.IsApiEnabled)
+        {
+            return await LoadCategoryCacheAsync(cancellationToken);
+        }
+
         if (!forceRefresh)
         {
             var cachedCategories = await LoadCategoryCacheAsync(cancellationToken);
@@ -480,6 +516,7 @@ public sealed class PlaceCatalogService
                 Phone = location.Phone,
                 EstablishedYear = location.EstablishedYear,
                 AudioCount = location.AudioCount,
+                AvailableVoiceGenders = location.AvailableVoiceGenders,
                 Status = location.Status,
                 CreatedAt = location.CreatedAt,
                 UpdatedAt = location.UpdatedAt
@@ -597,6 +634,93 @@ public sealed class PlaceCatalogService
         {
             return [];
         }
+    }
+
+    private async Task EnsureAudioTrackCacheLoadedAsync(CancellationToken cancellationToken)
+    {
+        if (_hasLoadedAudioTrackCache)
+        {
+            return;
+        }
+
+        await _audioCacheSemaphore.WaitAsync(cancellationToken);
+        try
+        {
+            if (_hasLoadedAudioTrackCache)
+            {
+                return;
+            }
+
+            var cachedAudioTracks = await LoadAudioTrackCacheAsync(cancellationToken);
+            _audioTracksByPlaceId.Clear();
+
+            foreach (var pair in cachedAudioTracks)
+            {
+                _audioTracksByPlaceId[pair.Key] = pair.Value;
+            }
+
+            _hasLoadedAudioTrackCache = true;
+        }
+        finally
+        {
+            _audioCacheSemaphore.Release();
+        }
+    }
+
+    private async Task SaveAudioTrackCacheAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(AudioTrackCacheFilePath)!);
+            await using var stream = File.Create(AudioTrackCacheFilePath);
+            await JsonSerializer.SerializeAsync(stream, _audioTracksByPlaceId, CacheJsonOptions, cancellationToken);
+        }
+        catch when (!cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private static async Task<Dictionary<string, List<PublicAudioTrackDto>>> LoadAudioTrackCacheAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!File.Exists(AudioTrackCacheFilePath))
+            {
+                return new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            await using var stream = File.OpenRead(AudioTrackCacheFilePath);
+            var cache = await JsonSerializer.DeserializeAsync<Dictionary<string, List<PublicAudioTrackDto>>>(
+                stream,
+                CacheJsonOptions,
+                cancellationToken);
+
+            return cache is null
+                ? new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, List<PublicAudioTrackDto>>(cache, StringComparer.OrdinalIgnoreCase);
+        }
+        catch when (!cancellationToken.IsCancellationRequested)
+        {
+            return new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static string? NormalizeVoiceGender(string? voiceGender)
+    {
+        if (string.IsNullOrWhiteSpace(voiceGender))
+        {
+            return null;
+        }
+
+        return voiceGender.Trim().ToUpperInvariant() switch
+        {
+            "MALE" => "Male",
+            "NAM" => "Male",
+            "FEMALE" => "Female",
+            "NU" => "Female",
+            "NỮ" => "Female",
+            _ => voiceGender.Trim()
+        };
     }
 
     private static int ResolveSourceTypeOrder(string? sourceType) =>

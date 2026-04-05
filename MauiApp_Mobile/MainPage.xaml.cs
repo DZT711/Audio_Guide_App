@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using Microsoft.Maui.Dispatching;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
@@ -12,9 +13,14 @@ public partial class MainPage : ContentPage
     private const double PlaceDetailFallbackClosedOffset = 520;
     private const double PlaceDetailHalfVisibleRatio = 0.58;
     private const string AllCategoryValue = "__all__";
+    private const string AllVoiceValue = "__all_voice__";
+    private const string MaleVoiceValue = "Male";
+    private const string FemaleVoiceValue = "Female";
+    private static readonly TimeSpan LiveReloadInterval = TimeSpan.FromSeconds(12);
 
     private readonly List<PlaceItem> _allPlaces = new();
     private string _selectedCategoryValue = AllCategoryValue;
+    private string _selectedVoiceValue = AllVoiceValue;
     private bool _isPlaceDetailVisible;
     private PlaceItem? _selectedPlace;
     private double _detailSheetStartY;
@@ -30,13 +36,17 @@ public partial class MainPage : ContentPage
     private bool _isPlacesAtTop = true;
     private bool _canStartPullToRefresh;
     private double _pullRefreshDistance;
+    private string _placesSignature = string.Empty;
+    private string _categoriesSignature = string.Empty;
     private CancellationTokenSource? _placesLoadingCts;
     private IDispatcherTimer? _placeGalleryTimer;
+    private IDispatcherTimer? _liveReloadTimer;
     private const double PullRefreshThreshold = 78;
     private const double PullRefreshMaxDistance = 96;
 
     public ObservableCollection<PlaceItem> Places { get; set; } = new();
     public ObservableCollection<CategoryFilterOption> CategoryFilters { get; } = new();
+    public ObservableCollection<CategoryFilterOption> VoiceFilters { get; } = new();
     public ObservableCollection<PlaceGallerySlide> SelectedPlaceGallery { get; } = new();
     public ObservableCollection<PlaceDetailAudioTrack> SelectedPlaceAudioTracks { get; } = new();
 
@@ -106,6 +116,7 @@ public partial class MainPage : ContentPage
         BindingContext = this;
         ApplyTexts();
         SyncCategoryFilters([]);
+        SyncVoiceFilters();
         PlacesCollectionView.IsVisible = false;
         EmptyStateLayout.IsVisible = false;
 
@@ -121,9 +132,12 @@ public partial class MainPage : ContentPage
         ThemeService.Instance.PropertyChanged += (_, _) =>
         {
             UpdateCategorySelectionState();
+            UpdateVoiceSelectionState();
             UpdateFilterHeader();
             RefreshSelectedPlaceGallery(resetPosition: false);
         };
+
+        AppDataModeService.Instance.PropertyChanged += OnAppDataModeChanged;
 
         AudioPlaybackService.Instance.PlaybackStateChanged += (_, currentTrack) =>
         {
@@ -143,6 +157,7 @@ public partial class MainPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        UpdateLiveReloadTimer();
 
         if (!_hasLoadedPlaces)
         {
@@ -164,6 +179,7 @@ public partial class MainPage : ContentPage
         base.OnDisappearing();
         _placesLoadingCts?.Cancel();
         StopPlaceGalleryAutoplay();
+        StopLiveReloadTimer();
     }
 
     private async Task LoadPlacesAsync(bool forceRefresh = false)
@@ -192,11 +208,9 @@ public partial class MainPage : ContentPage
         {
             await Task.Delay(420);
 
-            _allPlaces.Clear();
             var places = await PlaceCatalogService.Instance.GetPlacesAsync(forceRefresh, _placesLoadingCts.Token);
-            _allPlaces.AddRange(places);
-            await RefreshCategoryFiltersAsync(forceRefresh, _placesLoadingCts.Token);
-            ApplyFilter();
+            var categories = await LoadCategoriesSafelyAsync(forceRefresh, _placesLoadingCts.Token);
+            ApplyCatalogSnapshot(places, categories);
 
             _placesLoadingCts.Cancel();
 
@@ -260,6 +274,18 @@ public partial class MainPage : ContentPage
         }
     }
 
+    private async Task<IReadOnlyList<CategoryDto>> LoadCategoriesSafelyAsync(bool forceRefresh, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await PlaceCatalogService.Instance.GetCategoriesAsync(forceRefresh, cancellationToken);
+        }
+        catch
+        {
+            return PlaceCatalogService.Instance.GetCategories();
+        }
+    }
+
     private async Task RefreshPlacesSilentlyAsync()
     {
         if (_isSilentRefreshing || IsRefreshing)
@@ -268,11 +294,15 @@ public partial class MainPage : ContentPage
         try
         {
             _isSilentRefreshing = true;
-            var places = await PlaceCatalogService.Instance.GetPlacesAsync(forceRefresh: true);
-            _allPlaces.Clear();
-            _allPlaces.AddRange(places);
-            await RefreshCategoryFiltersAsync(forceRefresh: true);
-            ApplyFilter();
+            var places = await PlaceCatalogService.Instance.GetPlacesAsync(forceRefresh: AppDataModeService.Instance.IsApiEnabled);
+            var categories = await LoadCategoriesSafelyAsync(forceRefresh: AppDataModeService.Instance.IsApiEnabled);
+
+            if (!HasCatalogChanged(places, categories))
+            {
+                return;
+            }
+
+            ApplyCatalogSnapshot(places, categories);
         }
         catch
         {
@@ -408,7 +438,9 @@ public partial class MainPage : ContentPage
         CountHintLabel.Text = LocalizationService.Instance.T("Places.CountHint");
 
         FilterPopupTitleLabel.Text = LocalizationService.Instance.T("Filter.Title");
+        VoiceFilterPopupTitleLabel.Text = LocalizationService.Instance.T("Filter.VoiceTitle");
         SyncCategoryFilters(PlaceCatalogService.Instance.GetCategories());
+        SyncVoiceFilters();
 
         UpdateFilterHeader();
         UpdateCount();
@@ -470,9 +502,13 @@ public partial class MainPage : ContentPage
         OnPropertyChanged(nameof(AudioTrackSummaryText));
     }
 
-    private static IReadOnlyList<PlaceDetailAudioTrack> BuildPlaceAudioTracks(PlaceItem place) =>
-        place.AudioTracks
-            .OrderByDescending(item => item.Priority)
+    private IReadOnlyList<PlaceDetailAudioTrack> BuildPlaceAudioTracks(PlaceItem place)
+    {
+        var preferredVoice = GetPreferredVoiceFilterValue();
+
+        return place.AudioTracks
+            .OrderByDescending(item => DoesTrackMatchPreferredVoice(item, preferredVoice))
+            .ThenByDescending(item => item.Priority)
             .ThenBy(item => ResolveSourceTypeOrder(item.SourceType))
             .ThenBy(item => item.Id)
             .Select(item => new PlaceDetailAudioTrack
@@ -489,6 +525,7 @@ public partial class MainPage : ContentPage
                 IsDefault = item.IsDefault
             })
             .ToList();
+    }
 
     private static string FormatDuration(int durationSeconds)
     {
@@ -679,6 +716,7 @@ public partial class MainPage : ContentPage
         var filtered = _allPlaces
             .Where(place =>
                 (_selectedCategoryValue == AllCategoryValue || string.Equals(place.Category, _selectedCategoryValue, StringComparison.OrdinalIgnoreCase)) &&
+                MatchesVoiceFilter(place) &&
                 (string.IsNullOrWhiteSpace(keyword) || place.Name.ToLower().Contains(keyword)))
             .ToList();
 
@@ -706,14 +744,29 @@ public partial class MainPage : ContentPage
     private void UpdateFilterHeader()
     {
         var selectedCategory = CategoryFilters.FirstOrDefault(item => item.IsSelected);
-        if (selectedCategory is null || selectedCategory.IsAllOption)
+        var selectedVoice = VoiceFilters.FirstOrDefault(item => item.IsSelected);
+        var hasCategoryFilter = selectedCategory is not null && !selectedCategory.IsAllOption;
+        var hasVoiceFilter = selectedVoice is not null && !selectedVoice.IsAllOption;
+
+        if (!hasCategoryFilter && !hasVoiceFilter)
         {
             FilterLabel.Text = LocalizationService.Instance.T("Places.Filter");
             FilterLabel.TextColor = ThemeService.Instance.GetColor("BodyText", "#243B5A");
             return;
         }
 
-        FilterLabel.Text = $"{LocalizationService.Instance.T("Places.Filter")}: {selectedCategory.DisplayName}";
+        var parts = new List<string>();
+        if (hasCategoryFilter)
+        {
+            parts.Add(selectedCategory!.DisplayName);
+        }
+
+        if (hasVoiceFilter)
+        {
+            parts.Add(selectedVoice!.DisplayName);
+        }
+
+        FilterLabel.Text = $"{LocalizationService.Instance.T("Places.Filter")}: {string.Join(" • ", parts)}";
         FilterLabel.TextColor = ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B");
     }
 
@@ -727,9 +780,20 @@ public partial class MainPage : ContentPage
         _selectedCategoryValue = _selectedCategoryValue == categoryValue
             ? AllCategoryValue
             : categoryValue;
-        _ = UiEffectsService.TogglePopupAsync(FilterPopup, false);
         UpdateCategorySelectionState();
         ApplyFilter();
+        _ = UiEffectsService.TogglePopupAsync(FilterPopup, false);
+    }
+
+    private void ApplyVoice(string voiceValue)
+    {
+        _selectedVoiceValue = _selectedVoiceValue == voiceValue
+            ? AllVoiceValue
+            : voiceValue;
+        UpdateVoiceSelectionState();
+        ApplyFilter();
+        RefreshSelectedPlaceAudioTracks();
+        _ = UiEffectsService.TogglePopupAsync(FilterPopup, false);
     }
 
     private void SyncCategoryFilters(IEnumerable<Project_SharedClassLibrary.Contracts.CategoryDto> categories)
@@ -779,6 +843,60 @@ public partial class MainPage : ContentPage
         }
     }
 
+    private void SyncVoiceFilters()
+    {
+        var selectedExists = _selectedVoiceValue == AllVoiceValue ||
+            string.Equals(_selectedVoiceValue, MaleVoiceValue, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(_selectedVoiceValue, FemaleVoiceValue, StringComparison.OrdinalIgnoreCase);
+
+        if (!selectedExists)
+        {
+            _selectedVoiceValue = AllVoiceValue;
+        }
+
+        VoiceFilters.Clear();
+        VoiceFilters.Add(new CategoryFilterOption
+        {
+            Value = AllVoiceValue,
+            DisplayName = LocalizationService.Instance.T("Filter.All"),
+            Icon = "🎙",
+            IsAllOption = true
+        });
+        VoiceFilters.Add(new CategoryFilterOption
+        {
+            Value = MaleVoiceValue,
+            DisplayName = LocalizationService.Instance.T("Filter.VoiceMale"),
+            Icon = "♂"
+        });
+        VoiceFilters.Add(new CategoryFilterOption
+        {
+            Value = FemaleVoiceValue,
+            DisplayName = LocalizationService.Instance.T("Filter.VoiceFemale"),
+            Icon = "♀"
+        });
+
+        UpdateVoiceSelectionState();
+    }
+
+    private void UpdateVoiceSelectionState()
+    {
+        foreach (var option in VoiceFilters)
+        {
+            option.IsSelected = string.Equals(option.Value, _selectedVoiceValue, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private bool MatchesVoiceFilter(PlaceItem place)
+    {
+        if (_selectedVoiceValue == AllVoiceValue)
+        {
+            return true;
+        }
+
+        return place.AvailableVoiceGenders.Any(item =>
+            string.Equals(NormalizeVoiceGender(item), _selectedVoiceValue, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static string ResolveCategoryIcon(string category)
     {
         var normalized = category.Trim().ToLowerInvariant();
@@ -807,6 +925,14 @@ public partial class MainPage : ContentPage
             return;
 
         ApplyCategory(option.Value);
+    }
+
+    private void OnVoiceFilterTapped(object sender, TappedEventArgs e)
+    {
+        if (sender is not BindableObject bindable || bindable.BindingContext is not CategoryFilterOption option)
+            return;
+
+        ApplyVoice(option.Value);
     }
 
     private async void OnPlaceTapped(object sender, TappedEventArgs e)
@@ -931,10 +1057,27 @@ public partial class MainPage : ContentPage
 
     private async Task LoadSelectedPlaceAudioTracksAsync(PlaceItem place, bool forceRefresh = false)
     {
-        var audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(place.Id, forceRefresh);
+        var previousAudioSignature = ComputeAudioSignature(place.AudioTracks);
+        var audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(
+            place.Id,
+            forceRefresh && AppDataModeService.Instance.IsApiEnabled);
+
+        var nextAudioSignature = ComputeAudioSignature(audioTracks);
+        if (string.Equals(previousAudioSignature, nextAudioSignature, StringComparison.Ordinal))
+        {
+            return;
+        }
+
         place.AudioTracks = audioTracks;
         place.AudioCountText = $"{audioTracks.Count} audio";
+        place.AvailableVoiceGenders = audioTracks
+            .Select(item => NormalizeVoiceGender(item.VoiceGender))
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         RefreshSelectedPlaceAudioTracks();
+        ApplyFilter();
     }
 
     private double ResolvePlaceDetailSnapTarget(double currentY, double totalDragY)
@@ -1009,21 +1152,25 @@ public partial class MainPage : ContentPage
     {
         try
         {
-            var defaultTrack = await PlaceCatalogService.Instance.GetDefaultAudioTrackAsync(place.Id, forceRefresh: true);
-            if (defaultTrack is null)
+            var audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(
+                place.Id,
+                forceRefresh: AppDataModeService.Instance.IsApiEnabled);
+            var preferredTrack = SelectPreferredTrack(audioTracks);
+
+            if (preferredTrack is null)
             {
                 await DisplayAlert("Audio", "POI này chưa có audio khả dụng.", "OK");
                 return;
             }
 
-            await AudioPlaybackService.Instance.PlayAsync(defaultTrack);
+            await AudioPlaybackService.Instance.PlayAsync(preferredTrack);
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 place.IsPlayed = true;
                 HistoryService.Instance.AddToHistory(place);
             });
 
-            MarkPlayingTrack(defaultTrack.Id);
+            MarkPlayingTrack(preferredTrack.Id);
         }
         catch (Exception ex)
         {
@@ -1077,6 +1224,227 @@ public partial class MainPage : ContentPage
         {
             item.IsPlaying = trackId.HasValue && item.Id == trackId.Value;
         }
+    }
+
+    private void OnAppDataModeChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(AppDataModeService.IsApiEnabled), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            UpdateLiveReloadTimer();
+            await RefreshPlacesSilentlyAsync();
+
+            if (SelectedPlace is not null)
+            {
+                await LoadSelectedPlaceAudioTracksAsync(SelectedPlace, forceRefresh: true);
+            }
+        });
+    }
+
+    private void UpdateLiveReloadTimer()
+    {
+        if (AppDataModeService.Instance.IsApiEnabled)
+        {
+            StartLiveReloadTimer();
+            return;
+        }
+
+        StopLiveReloadTimer();
+    }
+
+    private void StartLiveReloadTimer()
+    {
+        if (Dispatcher is null)
+        {
+            return;
+        }
+
+        if (_liveReloadTimer is not null)
+        {
+            _liveReloadTimer.Start();
+            return;
+        }
+
+        _liveReloadTimer = Dispatcher.CreateTimer();
+        _liveReloadTimer.Interval = LiveReloadInterval;
+        _liveReloadTimer.Tick += OnLiveReloadTimerTick;
+        _liveReloadTimer.Start();
+    }
+
+    private void StopLiveReloadTimer()
+    {
+        if (_liveReloadTimer is null)
+        {
+            return;
+        }
+
+        _liveReloadTimer.Stop();
+    }
+
+    private async void OnLiveReloadTimerTick(object? sender, EventArgs e)
+    {
+        if (!AppDataModeService.Instance.IsApiEnabled || IsRefreshing || _isSilentRefreshing)
+        {
+            return;
+        }
+
+        if (FilterPopup.IsVisible || SearchEntry.IsFocused || IsPlaceDetailVisible)
+        {
+            return;
+        }
+
+        await RefreshPlacesSilentlyAsync();
+
+        if (SelectedPlace is not null)
+        {
+            await LoadSelectedPlaceAudioTracksAsync(SelectedPlace, forceRefresh: true);
+        }
+    }
+
+    private void ApplyCatalogSnapshot(IReadOnlyList<PlaceItem> places, IReadOnlyList<CategoryDto> categories)
+    {
+        _placesSignature = ComputePlacesSignature(places);
+        _categoriesSignature = ComputeCategoriesSignature(categories);
+
+        _allPlaces.Clear();
+        _allPlaces.AddRange(places);
+        SyncCategoryFilters(categories);
+        ApplyFilter();
+        RefreshSelectedPlaceReference();
+    }
+
+    private bool HasCatalogChanged(IReadOnlyList<PlaceItem> places, IReadOnlyList<CategoryDto> categories)
+    {
+        var nextPlacesSignature = ComputePlacesSignature(places);
+        var nextCategoriesSignature = ComputeCategoriesSignature(categories);
+
+        return !string.Equals(_placesSignature, nextPlacesSignature, StringComparison.Ordinal)
+            || !string.Equals(_categoriesSignature, nextCategoriesSignature, StringComparison.Ordinal);
+    }
+
+    private void RefreshSelectedPlaceReference()
+    {
+        if (SelectedPlace is null)
+        {
+            return;
+        }
+
+        var refreshedPlace = _allPlaces.FirstOrDefault(item =>
+            string.Equals(item.Id, SelectedPlace.Id, StringComparison.OrdinalIgnoreCase));
+
+        if (refreshedPlace is null)
+        {
+            return;
+        }
+
+        refreshedPlace.AudioTracks = SelectedPlace.AudioTracks;
+        refreshedPlace.AudioCountText = SelectedPlace.AudioCountText;
+        refreshedPlace.AvailableVoiceGenders = SelectedPlace.AvailableVoiceGenders;
+        SelectedPlace = refreshedPlace;
+    }
+
+    private PublicAudioTrackDto? SelectPreferredTrack(IEnumerable<PublicAudioTrackDto> audioTracks)
+    {
+        var preferredVoice = GetPreferredVoiceFilterValue();
+
+        return audioTracks
+            .OrderByDescending(item => DoesTrackMatchPreferredVoice(item, preferredVoice))
+            .ThenByDescending(item => item.Priority)
+            .ThenBy(item => ResolveSourceTypeOrder(item.SourceType))
+            .ThenBy(item => item.Id)
+            .FirstOrDefault();
+    }
+
+    private string? GetPreferredVoiceFilterValue() =>
+        _selectedVoiceValue == AllVoiceValue
+            ? null
+            : _selectedVoiceValue;
+
+    private static bool DoesTrackMatchPreferredVoice(PublicAudioTrackDto track, string? preferredVoice)
+    {
+        if (string.IsNullOrWhiteSpace(preferredVoice))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            NormalizeVoiceGender(track.VoiceGender),
+            preferredVoice,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ComputePlacesSignature(IEnumerable<PlaceItem> places)
+    {
+        return string.Join(
+            "||",
+            places
+                .OrderBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(item =>
+                {
+                    var voices = string.Join(",", item.AvailableVoiceGenders.OrderBy(value => value, StringComparer.OrdinalIgnoreCase));
+                    return string.Join(
+                        "|",
+                        item.Id,
+                        item.Name,
+                        item.Category,
+                        item.Description,
+                        item.Image,
+                        item.AudioCountText,
+                        voices,
+                        item.PriorityText,
+                        item.StatusText,
+                        item.Latitude.ToString("F6", CultureInfo.InvariantCulture),
+                        item.Longitude.ToString("F6", CultureInfo.InvariantCulture));
+                }));
+    }
+
+    private static string ComputeCategoriesSignature(IEnumerable<CategoryDto> categories)
+    {
+        return string.Join(
+            "||",
+            categories
+                .OrderBy(item => item.Id)
+                .Select(item => $"{item.Id}|{item.Name}|{item.Status}"));
+    }
+
+    private static string ComputeAudioSignature(IEnumerable<PublicAudioTrackDto> audioTracks)
+    {
+        return string.Join(
+            "||",
+            audioTracks
+                .OrderBy(item => item.Id)
+                .Select(item => string.Join(
+                    "|",
+                    item.Id,
+                    item.Title,
+                    item.SourceType,
+                    item.Priority.ToString(CultureInfo.InvariantCulture),
+                    item.Language,
+                    item.VoiceGender,
+                    item.AudioURL,
+                    item.IsDefault)));
+    }
+
+    private static string NormalizeVoiceGender(string? voiceGender)
+    {
+        if (string.IsNullOrWhiteSpace(voiceGender))
+        {
+            return string.Empty;
+        }
+
+        return voiceGender.Trim().ToUpperInvariant() switch
+        {
+            "MALE" => MaleVoiceValue,
+            "NAM" => MaleVoiceValue,
+            "FEMALE" => FemaleVoiceValue,
+            "NU" => FemaleVoiceValue,
+            "NỮ" => FemaleVoiceValue,
+            _ => voiceGender.Trim()
+        };
     }
 }
 

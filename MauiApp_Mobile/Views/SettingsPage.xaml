@@ -471,11 +471,15 @@
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
-                                <Label x:Name="OfflineModeLabel"
-                                       Text="Chế độ Offline"
+                                <Label x:Name="ApiModeLabel"
+                                       Text="Kết nối API"
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
-                                <Switch Grid.Column="1" IsToggled="False" OnColor="{DynamicResource PrimaryGreen}" />
+                                <Switch x:Name="ApiModeSwitch"
+                                        Grid.Column="1"
+                                        IsToggled="True"
+                                        OnColor="{DynamicResource PrimaryGreen}"
+                                        Toggled="OnApiModeToggled" />
                             </Grid>
                         </VerticalStackLayout>
                     </Border>

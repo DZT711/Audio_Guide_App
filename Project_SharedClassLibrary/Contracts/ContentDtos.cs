@@ -46,6 +46,7 @@ public sealed class LocationDto
     public string? Phone { get; init; }
     public int EstablishedYear { get; init; }
     public int AudioCount { get; init; }
+    public IReadOnlyList<string> AvailableVoiceGenders { get; init; } = [];
     public int Status { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }

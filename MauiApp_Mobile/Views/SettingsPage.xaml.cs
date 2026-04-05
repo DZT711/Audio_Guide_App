@@ -14,9 +14,11 @@ public partial class SettingsPage : ContentPage
         UpdateSliderLabels();
         UpdateLanguageSelectionUI();
         UpdateThemeSelectionUI();
+        UpdateApiModeUI();
 
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
         ThemeService.Instance.PropertyChanged += OnThemeChanged;
+        AppDataModeService.Instance.PropertyChanged += OnAppDataModeChanged;
     }
 
     protected override void OnAppearing()
@@ -62,15 +64,26 @@ public partial class SettingsPage : ContentPage
             NotifyNearLabel,
             BackgroundTrackingLabel,
             BatterySaverLabel,
-            OfflineModeLabel,
+            ApiModeLabel,
             LanguagePopupTitleLabel);
         UpdateLanguageSelectionUI();
+        UpdateApiModeUI();
     }
 
     private void OnThemeChanged(object? sender, PropertyChangedEventArgs e)
     {
         UpdateLanguageSelectionUI();
         UpdateThemeSelectionUI();
+    }
+
+    private void OnAppDataModeChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(AppDataModeService.IsApiEnabled), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(UpdateApiModeUI);
     }
 
     private void ApplyTexts()
@@ -108,7 +121,7 @@ public partial class SettingsPage : ContentPage
         NotifyNearLabel.Text = LocalizationService.Instance.T("Settings.NotifyNear");
         BackgroundTrackingLabel.Text = LocalizationService.Instance.T("Settings.BackgroundTracking");
         BatterySaverLabel.Text = LocalizationService.Instance.T("Settings.BatterySaver");
-        OfflineModeLabel.Text = LocalizationService.Instance.T("Settings.Offline");
+        ApiModeLabel.Text = LocalizationService.Instance.T("Settings.ApiMode");
 
         LanguagePopupTitleLabel.Text = LocalizationService.Instance.T("Settings.ChooseLanguage");
 
@@ -219,6 +232,14 @@ public partial class SettingsPage : ContentPage
         WaitTimeValueLabel.Text = $"{Math.Round(WaitTimeSlider.Value):0}s";
     }
 
+    private void UpdateApiModeUI()
+    {
+        if (ApiModeSwitch.IsToggled != AppDataModeService.Instance.IsApiEnabled)
+        {
+            ApiModeSwitch.IsToggled = AppDataModeService.Instance.IsApiEnabled;
+        }
+    }
+
     private void OnReadingSpeedChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnVolumeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnTriggerRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
@@ -248,4 +269,9 @@ public partial class SettingsPage : ContentPage
     private void OnLanguageJpTapped(object sender, TappedEventArgs e) => ChangeLanguage("jp");
     private void OnLanguageKrTapped(object sender, TappedEventArgs e) => ChangeLanguage("kr");
     private void OnLanguageFrTapped(object sender, TappedEventArgs e) => ChangeLanguage("fr");
+
+    private void OnApiModeToggled(object sender, ToggledEventArgs e)
+    {
+        AppDataModeService.Instance.IsApiEnabled = e.Value;
+    }
 }
