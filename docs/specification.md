@@ -106,19 +106,19 @@
 
 ### 🛠️ Core Admin Features (MVP)
 
-- [ ] **POI Management**
+- [✅] **POI Management**
   - [✅] Create / Edit / Delete POI
   - [✅] Set coordinates, radius, priority
-- [ ] **Audio Management**
+- [✅] **Audio Management**
   - [✅] Upload pre-recorded audio files
   - [✅] Manage TTS scripts
-- [ ] **Translation Management**
+- [✅] **Translation Management**
   - [✅] Add/edit multilingual content per POI
-- [ ] **Tour Management**
-  - [ ] Group POIs into tours
-  - [ ] Set tour order / sequence
-- [ ] **Usage History**
-  - [ ] View playback logs per POI
+- [✅] **Tour Management**
+  - [✅] Group POIs into tours
+  - [✅] Set tour order / sequence
+- [✅] **Usage History**
+  - [✅] View playback logs per POI
 
 ---
 
