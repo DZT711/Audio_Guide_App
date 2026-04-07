@@ -10,6 +10,7 @@ public partial class SettingsPage : ContentPage
     public SettingsPage()
     {
         InitializeComponent();
+        LoadSavedSettings();
         ApplyTexts();
         UpdateSliderLabels();
         UpdateLanguageSelectionUI();
@@ -65,7 +66,8 @@ public partial class SettingsPage : ContentPage
             BackgroundTrackingLabel,
             BatterySaverLabel,
             ApiModeLabel,
-            LanguagePopupTitleLabel);
+            LanguagePopupTitleLabel,
+            SaveSettingsButton);
         UpdateLanguageSelectionUI();
         UpdateApiModeUI();
     }
@@ -122,6 +124,7 @@ public partial class SettingsPage : ContentPage
         BackgroundTrackingLabel.Text = LocalizationService.Instance.T("Settings.BackgroundTracking");
         BatterySaverLabel.Text = LocalizationService.Instance.T("Settings.BatterySaver");
         ApiModeLabel.Text = LocalizationService.Instance.T("Settings.ApiMode");
+        SaveSettingsButton.Text = LocalizationService.Instance.T("Settings.Save");
 
         LanguagePopupTitleLabel.Text = LocalizationService.Instance.T("Settings.ChooseLanguage");
 
@@ -240,6 +243,20 @@ public partial class SettingsPage : ContentPage
         }
     }
 
+    private void LoadSavedSettings()
+    {
+        var settings = AppSettingsService.Instance.CreateSnapshot();
+        ReadingSpeedSlider.Value = settings.ReadingSpeed;
+        VolumeSlider.Value = settings.VolumePercent;
+        TriggerRadiusSlider.Value = settings.TriggerRadiusMeters;
+        AlertRadiusSlider.Value = settings.AlertRadiusMeters;
+        WaitTimeSlider.Value = settings.WaitTimeSeconds;
+        AutoPlaySwitch.IsToggled = settings.AutoPlayEnabled;
+        NotifyNearSwitch.IsToggled = settings.NotifyNearEnabled;
+        BackgroundTrackingSwitch.IsToggled = settings.BackgroundTrackingEnabled;
+        BatterySaverSwitch.IsToggled = settings.BatterySaverEnabled;
+    }
+
     private void OnReadingSpeedChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnVolumeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnTriggerRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
@@ -260,6 +277,34 @@ public partial class SettingsPage : ContentPage
         finally
         {
             TestVoiceButton.IsEnabled = true;
+        }
+    }
+
+    private async void OnSaveSettingsClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            SaveSettingsButton.IsEnabled = false;
+
+            AppSettingsService.Instance.Save(new AppSettingsSnapshot(
+                ReadingSpeedSlider.Value,
+                VolumeSlider.Value,
+                TriggerRadiusSlider.Value,
+                AlertRadiusSlider.Value,
+                WaitTimeSlider.Value,
+                AutoPlaySwitch.IsToggled,
+                NotifyNearSwitch.IsToggled,
+                BackgroundTrackingSwitch.IsToggled,
+                BatterySaverSwitch.IsToggled));
+
+            await DisplayAlertAsync(
+                LocalizationService.Instance.T("Settings.Title"),
+                LocalizationService.Instance.T("Settings.SaveSuccess"),
+                "OK");
+        }
+        finally
+        {
+            SaveSettingsButton.IsEnabled = true;
         }
     }
 

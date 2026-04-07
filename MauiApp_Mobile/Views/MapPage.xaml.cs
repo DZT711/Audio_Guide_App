@@ -877,6 +877,11 @@ public partial class MapPage : ContentPage
         if (string.IsNullOrWhiteSpace(imageSource))
             return string.Empty;
 
+        if (Path.IsPathRooted(imageSource) && File.Exists(imageSource))
+        {
+            return new Uri(imageSource).AbsoluteUri;
+        }
+
         if (imageSource.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
             imageSource.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
             imageSource.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||

@@ -530,7 +530,7 @@
         }
 
         function getResolvedPlaceImage(imageSource, title) {
-            return /^data:|^https?:/i.test(String(imageSource))
+            return /^(?:data:|https?:|file:|content:)/i.test(String(imageSource))
                 ? String(imageSource)
                 : createPoiThumbnail(title || "");
         }
@@ -541,13 +541,14 @@
             var address = place.address || place.Address || "";
             var category = place.category || place.Category || "";
             var primaryImage = getResolvedPlaceImage(imageSource, title);
-            var hydratedImages = (providedGalleryImages || [])
+            var hydratedImages = [primaryImage].concat((providedGalleryImages || [])
                 .map(function(item) {
                     return getResolvedPlaceImage(item, title);
-                })
+                }))
                 .filter(function(item, index, items) {
                     return !!item && items.indexOf(item) === index;
-                });
+                })
+                .slice(0, 5);
 
             if (hydratedImages.length) {
                 return hydratedImages;
@@ -577,9 +578,9 @@
 
         function createPoiMarkerIcon(place) {
             var palette = getThemePalette();
-            var imageSource = place.galleryImages && place.galleryImages.length
+            var imageSource = place.image || (place.galleryImages && place.galleryImages.length
                 ? place.galleryImages[0]
-                : place.image;
+                : "");
             var borderColor = place.isNearest ? palette.nearestStroke : palette.poiStroke;
             var badgeColor = place.isNearest ? palette.nearestFill : palette.poiFill;
             var haloStyle = place.isNearest

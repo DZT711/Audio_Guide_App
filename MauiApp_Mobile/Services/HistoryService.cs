@@ -33,6 +33,11 @@ public class HistoryService
         }
     }
 
+    public void ClearHistory()
+    {
+        HistoryItems.Clear();
+    }
+
     private static PlaceItem ClonePlaceItem(PlaceItem item)
     {
         return new PlaceItem
@@ -44,6 +49,7 @@ public class HistoryService
             Category = item.Category,
             Rating = item.Rating,
             Image = item.Image,
+            PreferenceImage = item.PreferenceImage,
             GalleryImages = item.GalleryImages.ToList(),
             Address = item.Address,
             Phone = item.Phone,
@@ -59,10 +65,13 @@ public class HistoryService
             StatusText = item.StatusText,
             GpsTriggerText = item.GpsTriggerText,
             AudioCountText = item.AudioCountText,
+            AudioTracks = item.AudioTracks.ToList(),
+            AvailableVoiceGenders = item.AvailableVoiceGenders.ToList(),
             Latitude = item.Latitude,
             Longitude = item.Longitude,
             CategoryColor = item.CategoryColor,
             CategoryTextColor = item.CategoryTextColor,
+            HistoryAddedAt = DateTimeOffset.Now,
             IsPlayed = false
         };
     }

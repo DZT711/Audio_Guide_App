@@ -14,6 +14,7 @@ public class PlaceItem : INotifyPropertyChanged
     public string Category { get; set; } = "";
     public string Rating { get; set; } = "";
     public string Image { get; set; } = "";
+    public string PreferenceImage { get; set; } = "";
     public IReadOnlyList<string> GalleryImages { get; set; } = Array.Empty<string>();
     public string Address { get; set; } = ""; // Added for History page detail
     public string Phone { get; set; } = "";
@@ -31,6 +32,7 @@ public class PlaceItem : INotifyPropertyChanged
     public string AudioCountText { get; set; } = "";
     public IReadOnlyList<PublicAudioTrackDto> AudioTracks { get; set; } = Array.Empty<PublicAudioTrackDto>();
     public IReadOnlyList<string> AvailableVoiceGenders { get; set; } = Array.Empty<string>();
+    public DateTimeOffset? HistoryAddedAt { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public Color CategoryColor { get; set; } = Colors.LightGray;
@@ -82,6 +84,35 @@ public class PlaceItem : INotifyPropertyChanged
     }
 
     public string PlayIcon => (IsPlaying || IsPlayed) ? "❚❚" : "▶";
+
+    public string HistoryRelativeTimeText
+    {
+        get
+        {
+            if (HistoryAddedAt is not DateTimeOffset timestamp)
+            {
+                return "Vừa nghe";
+            }
+
+            var elapsed = DateTimeOffset.Now - timestamp;
+            if (elapsed.TotalMinutes < 1)
+            {
+                return "Vừa xong";
+            }
+
+            if (elapsed.TotalHours < 1)
+            {
+                return $"{Math.Max(1, (int)Math.Floor(elapsed.TotalMinutes))} phút trước";
+            }
+
+            if (elapsed.TotalDays < 1)
+            {
+                return $"{Math.Max(1, (int)Math.Floor(elapsed.TotalHours))} giờ trước";
+            }
+
+            return $"{Math.Max(1, (int)Math.Floor(elapsed.TotalDays))} ngày trước";
+        }
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

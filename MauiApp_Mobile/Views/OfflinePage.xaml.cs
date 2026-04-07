@@ -50,6 +50,7 @@ public partial class OfflinePage : ContentPage
     public ICommand DeleteCommand { get; }
     public ICommand RedownloadCommand { get; }
     public ICommand PlayTrackCommand { get; }
+    public ICommand ToggleInlinePackCommand { get; }
 
     public string DownloadedCountText => string.Format(
         LocalizationService.Instance.T("Offline.ReadyCountFormat"),
@@ -115,6 +116,7 @@ public partial class OfflinePage : ContentPage
         DeleteCommand = new Command<OfflinePackItem>(OnDelete);
         RedownloadCommand = new Command<OfflinePackItem>(OnRedownload);
         PlayTrackCommand = new Command<OfflineAudioTrack>(OnPlayTrack);
+        ToggleInlinePackCommand = new Command<OfflinePackItem>(OnToggleInlinePack);
 
         ApplyLocalizedText();
         SyncCategoryFilters([]);
@@ -267,7 +269,7 @@ public partial class OfflinePage : ContentPage
         }
     }
 
-    public string OfflineAudioListExpandIcon => IsOfflineAudioListExpanded ? "⌃" : "⌄";
+    public string OfflineAudioListExpandIcon => IsOfflineAudioListExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
 
     private async Task RefreshOfflinePacksSilentlyAsync()
     {
@@ -347,7 +349,7 @@ public partial class OfflinePage : ContentPage
             Duration = FormatDuration(estimatedDurationSeconds),
             Size = $"{sizeValue:0.#} MB",
             SizeValue = sizeValue,
-            Image = place.Image,
+            Image = string.IsNullOrWhiteSpace(place.PreferenceImage) ? place.Image : place.PreferenceImage,
             Description = place.Description,
             Address = place.Address,
             Phone = place.Phone,
@@ -361,7 +363,7 @@ public partial class OfflinePage : ContentPage
             CategoryTextColor = place.CategoryTextColor,
             IsDownloaded = state.IsDownloaded,
             DownloadedAt = state.DownloadedAt,
-            AudioTracks = BuildAudioTracksForPlace(place.Name, audioCount),
+            AudioTracks = BuildAudioTracksForPlace(place, audioCount),
             LocalizedTitles = BuildMirroredLocalizedTitles(place.Name)
         };
     }
@@ -432,31 +434,73 @@ public partial class OfflinePage : ContentPage
         };
     }
 
-    private static ObservableCollection<OfflineAudioTrack> BuildAudioTracksForPlace(string placeName, int audioCount)
+    private static ObservableCollection<OfflineAudioTrack> BuildAudioTracksForPlace(PlaceItem place, int audioCount)
     {
-        var languageTemplates = new (string LanguageCode, string LanguageName)[]
+        if (place.AudioTracks.Count > 0)
         {
-            ("VI", "Tiếng Việt"),
-            ("EN", "English"),
-            ("FR", "Francais"),
-            ("KO", "Korean"),
-            ("JA", "Japanese"),
-            ("ZH", "Chinese")
+            return new ObservableCollection<OfflineAudioTrack>(
+                place.AudioTracks
+                    .Take(Math.Max(audioCount, 1))
+                    .Select(track => new OfflineAudioTrack
+                    {
+                        LanguageCode = ResolveLanguageBadge(track.Language),
+                        LanguageName = track.LanguageName ?? track.Language,
+                        LocaleCode = string.IsNullOrWhiteSpace(track.Language) ? "vi-VN" : track.Language,
+                        Title = string.IsNullOrWhiteSpace(track.Title) ? place.Name : track.Title,
+                        Duration = FormatDuration(track.Duration > 0 ? track.Duration : 125),
+                        SourceType = string.IsNullOrWhiteSpace(track.SourceType) ? "TTS" : track.SourceType.Trim().ToUpperInvariant()
+                    }));
+        }
+
+        var trackTemplates = new (string LanguageCode, string LanguageName, string LocaleCode, string Title, string SourceType)[]
+        {
+            ("VN", "Tiếng Việt", "vi-VN", "Giới thiệu tổng quan", "TTS"),
+            ("GB", "English", "en-US", "Overview Introduction", "TTS"),
+            ("JP", "Japanese", "ja-JP", "日本語での紹介", "TTS"),
+            ("CN", "Chinese", "zh-CN", "总体介绍", "TTS"),
+            ("KR", "Korean", "ko-KR", "한국어 소개", "Recorded"),
+            ("FR", "Francais", "fr-FR", "Decouverte culturelle", "TTS")
         };
 
-        var trackCount = Math.Clamp(audioCount, 1, languageTemplates.Length);
-        var estimatedTrackSeconds = Math.Max(60, 125);
-
+        var trackCount = Math.Clamp(audioCount, 1, trackTemplates.Length);
         return new ObservableCollection<OfflineAudioTrack>(
-            languageTemplates
+            trackTemplates
                 .Take(trackCount)
                 .Select(item => new OfflineAudioTrack
             {
                 LanguageCode = item.LanguageCode,
                 LanguageName = item.LanguageName,
-                Title = placeName,
-                Duration = FormatDuration(estimatedTrackSeconds)
+                LocaleCode = item.LocaleCode,
+                Title = item.Title,
+                Duration = FormatDuration(125),
+                SourceType = item.SourceType
             }));
+    }
+
+    private static string ResolveLanguageBadge(string? locale)
+    {
+        if (string.IsNullOrWhiteSpace(locale))
+        {
+            return "VN";
+        }
+
+        var normalized = locale.Trim().ToLowerInvariant();
+        if (normalized.StartsWith("en"))
+            return "GB";
+
+        if (normalized.StartsWith("ja"))
+            return "JP";
+
+        if (normalized.StartsWith("zh"))
+            return "CN";
+
+        if (normalized.StartsWith("ko"))
+            return "KR";
+
+        if (normalized.StartsWith("fr"))
+            return "FR";
+
+        return "VN";
     }
 
     private static int ExtractAudioCount(string? audioCountText)
@@ -606,6 +650,7 @@ public partial class OfflinePage : ContentPage
 
         item.IsDownloaded = true;
         item.DownloadedAt = DateTime.Now;
+        item.IsExpanded = true;
         ApplyFilter();
     }
 
@@ -627,6 +672,7 @@ public partial class OfflinePage : ContentPage
 
         item.IsDownloaded = true;
         item.DownloadedAt = DateTime.Now;
+        item.IsExpanded = true;
         ApplyFilter();
     }
 
@@ -690,6 +736,25 @@ public partial class OfflinePage : ContentPage
         }
 
         ApplyFilter();
+    }
+
+    private void OnToggleInlinePack(OfflinePackItem? item)
+    {
+        if (item is null)
+        {
+            return;
+        }
+
+        var nextExpandedState = !item.IsExpanded;
+        foreach (var pack in _allItems)
+        {
+            if (!ReferenceEquals(pack, item) && pack.IsExpanded)
+            {
+                pack.IsExpanded = false;
+            }
+        }
+
+        item.IsExpanded = nextExpandedState;
     }
 
     private void OnPlayTrack(OfflineAudioTrack? track)
@@ -953,6 +1018,7 @@ public partial class OfflinePage : ContentPage
             {
                 item.IsDownloaded = false;
                 item.DownloadedAt = null;
+                item.IsExpanded = false;
             }
 
             _pendingDeleteItem = null;
@@ -973,6 +1039,7 @@ public partial class OfflinePage : ContentPage
 
         _pendingDeleteItem.IsDownloaded = false;
         _pendingDeleteItem.DownloadedAt = null;
+        _pendingDeleteItem.IsExpanded = false;
 
         _pendingDeleteItem = null;
         _isBulkDeleteConfirm = false;
@@ -1012,15 +1079,27 @@ public class OfflinePackItem : INotifyPropertyChanged
 
     private bool _isDownloaded;
     private DateTime? _downloadedAt;
+    private bool _isExpanded;
 
     public string AudioCountText => $"{AudioCount} audio";
     public string LanguagesText => string.Join(" • ", AudioTracks.Select(track => track.LanguageCode));
     public string DownloadedDateText => DownloadedAt is DateTime downloadedAt
-        ? $"Đã tải {downloadedAt:dd/MM/yyyy HH:mm}"
-        : "Sẵn sàng tải về";
+        ? $"✓ Đã tải {downloadedAt:dd/MM/yyyy}"
+        : "Chưa tải về";
     public Color CardStrokeColor => IsDownloaded
         ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
         : ThemeService.Instance.GetColor("BorderColor", "#E5E7EB");
+    public Color TrackPanelBackgroundColor => IsDownloaded
+        ? ThemeService.Instance.GetColor("SuccessBg", "#F3FFF6")
+        : ThemeService.Instance.GetColor("SurfaceAlt", "#F8FAFC");
+    public Color TrackPanelStrokeColor => IsDownloaded
+        ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+        : ThemeService.Instance.GetColor("BorderColor", "#E5E7EB");
+    public Color ExpandButtonBackgroundColor => ThemeService.Instance.GetColor("SurfaceAlt", "#F3F4F6");
+    public Color StatusTextColor => IsDownloaded
+        ? ThemeService.Instance.GetColor("SuccessText", "#18A94B")
+        : ThemeService.Instance.GetColor("MutedText", "#98A2B3");
+    public string ExpandIconSource => IsExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
 
     public bool IsDownloaded
     {
@@ -1028,14 +1107,38 @@ public class OfflinePackItem : INotifyPropertyChanged
         set
         {
             _isDownloaded = value;
+            foreach (var track in AudioTracks)
+            {
+                track.IsDownloaded = value;
+            }
+
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsNotDownloaded));
             OnPropertyChanged(nameof(CardStrokeColor));
             OnPropertyChanged(nameof(DownloadedDateText));
+            OnPropertyChanged(nameof(StatusTextColor));
+            OnPropertyChanged(nameof(TrackPanelBackgroundColor));
+            OnPropertyChanged(nameof(TrackPanelStrokeColor));
         }
     }
 
     public bool IsNotDownloaded => !IsDownloaded;
+
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            if (_isExpanded == value)
+            {
+                return;
+            }
+
+            _isExpanded = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ExpandIconSource));
+        }
+    }
 
     public DateTime? DownloadedAt
     {
@@ -1053,6 +1156,15 @@ public class OfflinePackItem : INotifyPropertyChanged
         OnPropertyChanged(nameof(CardStrokeColor));
         OnPropertyChanged(nameof(CategoryBg));
         OnPropertyChanged(nameof(CategoryTextColor));
+        OnPropertyChanged(nameof(TrackPanelBackgroundColor));
+        OnPropertyChanged(nameof(TrackPanelStrokeColor));
+        OnPropertyChanged(nameof(ExpandButtonBackgroundColor));
+        OnPropertyChanged(nameof(StatusTextColor));
+
+        foreach (var track in AudioTracks)
+        {
+            track.RefreshThemeState();
+        }
     }
 
     public void ApplyLanguage(string language)
@@ -1091,17 +1203,30 @@ public class LocalizedTitleItem
     public string LocalizedName { get; set; } = "";
 }
 
-public class OfflineAudioTrack
+public class OfflineAudioTrack : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public string LanguageCode { get; set; } = "";
     public string LanguageName { get; set; } = "";
+    public string LocaleCode { get; set; } = "";
     public string Title { get; set; } = "";
     public string Duration { get; set; } = "";
-    public string MetaText => $"{LanguageName} • {Duration}";
+    public string SourceType { get; set; } = "TTS";
+    public string MetaText => $"{LocaleCode} - {SourceType}";
+    public string StatusSymbol => IsDownloaded ? "✓" : "";
+    public Color StatusBackgroundColor => IsDownloaded
+        ? ThemeService.Instance.GetColor("SuccessBg", "#E9FFF0")
+        : ThemeService.Instance.GetColor("CardBg", "#FFFFFF");
+    public Color StatusStrokeColor => IsDownloaded
+        ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+        : ThemeService.Instance.GetColor("BorderColor", "#D0D5DD");
+    public Color StatusTextColor => IsDownloaded
+        ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+        : ThemeService.Instance.GetColor("MutedText", "#D0D5DD");
 
     private bool _isPlayed;
+    private bool _isDownloaded;
 
     public bool IsPlayed
     {
@@ -1118,6 +1243,32 @@ public class OfflineAudioTrack
     }
 
     public string PlayIcon => IsPlayed ? "❚❚" : "▶";
+
+    public bool IsDownloaded
+    {
+        get => _isDownloaded;
+        set
+        {
+            if (_isDownloaded == value)
+            {
+                return;
+            }
+
+            _isDownloaded = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(StatusSymbol));
+            OnPropertyChanged(nameof(StatusBackgroundColor));
+            OnPropertyChanged(nameof(StatusStrokeColor));
+            OnPropertyChanged(nameof(StatusTextColor));
+        }
+    }
+
+    public void RefreshThemeState()
+    {
+        OnPropertyChanged(nameof(StatusBackgroundColor));
+        OnPropertyChanged(nameof(StatusStrokeColor));
+        OnPropertyChanged(nameof(StatusTextColor));
+    }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)
     {

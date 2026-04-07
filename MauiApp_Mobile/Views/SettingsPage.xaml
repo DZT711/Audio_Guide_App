@@ -48,17 +48,24 @@
                                 </Grid.GestureRecognizers>
                             </Grid>
 
-                            <Grid ColumnDefinitions="*,Auto">
+                            <Grid ColumnDefinitions="*,Auto,Auto"
+                                  ColumnSpacing="8">
                                 <Label x:Name="VoiceRowLabel"
                                        Text="Giọng đọc"
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
                                 <Label x:Name="VoiceValueLabel"
                                        Grid.Column="1"
-                                       Text="Giọng nữ miền Nam ▼"
+                                       Text="Giọng nữ miền Nam"
                                        FontSize="16"
                                        TextColor="{DynamicResource PrimaryGreen}"
                                        FontAttributes="Bold" />
+                                <Image Grid.Column="2"
+                                       Source="triangle_down_filled.svg"
+                                       WidthRequest="14"
+                                       HeightRequest="10"
+                                       VerticalOptions="Center"
+                                       HorizontalOptions="Center" />
                             </Grid>
 
                             <Label x:Name="ReadingSpeedLabel"
@@ -443,7 +450,10 @@
                                        Text="Tự động phát khi vào vùng"
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
-                                <Switch Grid.Column="1" IsToggled="True" OnColor="{DynamicResource PrimaryGreen}" />
+                                <Switch x:Name="AutoPlaySwitch"
+                                        Grid.Column="1"
+                                        IsToggled="True"
+                                        OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
@@ -451,7 +461,10 @@
                                        Text="Thông báo khi đến gần"
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
-                                <Switch Grid.Column="1" IsToggled="True" OnColor="{DynamicResource PrimaryGreen}" />
+                                <Switch x:Name="NotifyNearSwitch"
+                                        Grid.Column="1"
+                                        IsToggled="True"
+                                        OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
@@ -459,7 +472,10 @@
                                        Text="Theo dõi ở nền"
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
-                                <Switch Grid.Column="1" IsToggled="True" OnColor="{DynamicResource PrimaryGreen}" />
+                                <Switch x:Name="BackgroundTrackingSwitch"
+                                        Grid.Column="1"
+                                        IsToggled="True"
+                                        OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
@@ -467,7 +483,10 @@
                                        Text="Chế độ tiết kiệm pin"
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
-                                <Switch Grid.Column="1" IsToggled="False" OnColor="{DynamicResource PrimaryGreen}" />
+                                <Switch x:Name="BatterySaverSwitch"
+                                        Grid.Column="1"
+                                        IsToggled="False"
+                                        OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
@@ -483,6 +502,11 @@
                             </Grid>
                         </VerticalStackLayout>
                     </Border>
+
+                    <Button x:Name="SaveSettingsButton"
+                            Text="Lưu cài đặt"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Clicked="OnSaveSettingsClicked" />
 
                 </VerticalStackLayout>
             </ScrollView>

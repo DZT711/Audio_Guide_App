@@ -82,7 +82,7 @@ public partial class MainPage : ContentPage
         }
     }
 
-    public string AudioListExpandIcon => IsAudioListExpanded ? "⌃" : "⌄";
+    public string AudioListExpandIcon => IsAudioListExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
 
     public string AudioTrackSummaryText => SelectedPlaceAudioTracks.Count == 0
         ? "Chưa có audio"
@@ -410,6 +410,7 @@ public partial class MainPage : ContentPage
         IsAudioListExpanded = false;
         OnPropertyChanged(nameof(AudioTrackSummaryText));
         UpdatePlaybackIndicators(AudioPlaybackService.Instance.CurrentTrack, AudioPlaybackService.Instance.IsLoading);
+        _ = SyncSelectedPlaceAudioDownloadStatesAsync();
     }
 
     private IReadOnlyList<PlaceDetailAudioTrack> BuildPlaceAudioTracks(PlaceItem place)
@@ -435,6 +436,32 @@ public partial class MainPage : ContentPage
                 IsDefault = item.IsDefault
             })
             .ToList();
+    }
+
+    private async Task SyncSelectedPlaceAudioDownloadStatesAsync()
+    {
+        if (SelectedPlace is null || SelectedPlaceAudioTracks.Count == 0)
+        {
+            return;
+        }
+
+        var sourceTracks = SelectedPlace.AudioTracks.ToDictionary(item => item.Id);
+
+        foreach (var track in SelectedPlaceAudioTracks.ToList())
+        {
+            if (!sourceTracks.TryGetValue(track.Id, out var sourceTrack))
+            {
+                continue;
+            }
+
+            var snapshot = await AudioDownloadService.Instance.GetSnapshotAsync(sourceTrack);
+            if (!SelectedPlaceAudioTracks.Contains(track))
+            {
+                continue;
+            }
+
+            MainThread.BeginInvokeOnMainThread(() => track.ApplyDownloadSnapshot(snapshot));
+        }
     }
 
     private static string FormatDuration(int durationSeconds)
@@ -1078,6 +1105,17 @@ public partial class MainPage : ContentPage
         await PlaySelectedTrackAsync(track);
     }
 
+    private async void OnAudioTrackDownloadTapped(object sender, TappedEventArgs e)
+    {
+        if (sender is not Element element || element.BindingContext is not PlaceDetailAudioTrack track)
+            return;
+
+        if (track.IsDownloading)
+            return;
+
+        await DownloadSelectedTrackAsync(track);
+    }
+
     private async void OnViewPlaceOnMapTapped(object sender, TappedEventArgs e)
     {
         if (SelectedPlace is null)
@@ -1140,7 +1178,8 @@ public partial class MainPage : ContentPage
             }
 
             MarkPendingPlayback(place.Id, preferredTrack.Id);
-            await AudioPlaybackService.Instance.PlayAsync(preferredTrack);
+            var playbackTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(preferredTrack);
+            await AudioPlaybackService.Instance.PlayAsync(playbackTrack);
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 HistoryService.Instance.AddToHistory(place);
@@ -1194,7 +1233,8 @@ public partial class MainPage : ContentPage
                 return;
             }
 
-            await AudioPlaybackService.Instance.PlayAsync(selectedTrack);
+            var playbackTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(selectedTrack);
+            await AudioPlaybackService.Instance.PlayAsync(playbackTrack);
             HistoryService.Instance.AddToHistory(SelectedPlace);
         }
         catch (OperationCanceledException)
@@ -1205,6 +1245,54 @@ public partial class MainPage : ContentPage
         {
             MarkPendingPlayback(null, null);
             await DisplayAlertAsync("Audio", ex.Message, "OK");
+        }
+    }
+
+    private async Task DownloadSelectedTrackAsync(PlaceDetailAudioTrack track)
+    {
+        try
+        {
+            if (SelectedPlace is null)
+            {
+                return;
+            }
+
+            var selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
+            if (selectedTrack is null)
+            {
+                await LoadSelectedPlaceAudioTracksAsync(SelectedPlace);
+                selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
+            }
+
+            if (selectedTrack is null && AppDataModeService.Instance.IsApiEnabled)
+            {
+                await LoadSelectedPlaceAudioTracksAsync(SelectedPlace, forceRefresh: true);
+                selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
+            }
+
+            if (selectedTrack is null)
+            {
+                track.ApplyDownloadFailure("Không tìm thấy audio đã chọn để tải.");
+                return;
+            }
+
+            track.BeginDownload();
+            var progress = new Progress<AudioDownloadProgressUpdate>(update =>
+            {
+                MainThread.BeginInvokeOnMainThread(() => track.UpdateDownloadProgress(update));
+            });
+
+            var snapshot = await AudioDownloadService.Instance.DownloadAsync(selectedTrack, progress);
+            await MainThread.InvokeOnMainThreadAsync(() => track.ApplyDownloadSnapshot(snapshot));
+        }
+        catch (OperationCanceledException)
+        {
+            track.ApplyDownloadFailure("Tải audio đã bị hủy.");
+        }
+        catch (Exception ex)
+        {
+            track.ApplyDownloadFailure(ex.Message);
+            System.Diagnostics.Debug.WriteLine($"Audio download failed for track {track.Id}: {ex}");
         }
     }
 
@@ -1494,6 +1582,9 @@ public class PlaceDetailAudioTrack : BindableObject
 
     private bool _isPlaying;
     private bool _isLoading;
+    private TrackDownloadVisualState _downloadState;
+    private double _downloadProgress;
+    private string _downloadDetailText = string.Empty;
 
     public bool IsPlaying
     {
@@ -1522,5 +1613,160 @@ public class PlaceDetailAudioTrack : BindableObject
         }
     }
 
+    public bool IsDownloading => _downloadState == TrackDownloadVisualState.Downloading;
+
+    public bool IsDownloadStatusVisible => _downloadState != TrackDownloadVisualState.None;
+
+    public bool IsDownloadProgressVisible => IsDownloading;
+
+    public bool HasDownloadDetail => !string.IsNullOrWhiteSpace(DownloadDetailText);
+
+    public bool IsDownloadedTrack => _downloadState == TrackDownloadVisualState.Downloaded;
+
+    public double DownloadProgress
+    {
+        get => _downloadProgress;
+        private set
+        {
+            if (Math.Abs(_downloadProgress - value) < 0.0001d)
+                return;
+
+            _downloadProgress = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string DownloadStatusIcon => _downloadState switch
+    {
+        TrackDownloadVisualState.Downloaded => "✓",
+        TrackDownloadVisualState.Failed => "✕",
+        TrackDownloadVisualState.Downloading => "↓",
+        _ => string.Empty
+    };
+
+    public string DownloadStatusText => _downloadState switch
+    {
+        TrackDownloadVisualState.Downloaded => "Đã tải xong",
+        TrackDownloadVisualState.Failed => "Tải thất bại",
+        TrackDownloadVisualState.Downloading => "Đang tải audio",
+        _ => string.Empty
+    };
+
+    public string DownloadDetailText
+    {
+        get => _downloadDetailText;
+        private set
+        {
+            if (string.Equals(_downloadDetailText, value, StringComparison.Ordinal))
+                return;
+
+            _downloadDetailText = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasDownloadDetail));
+        }
+    }
+
+    public Color DownloadStatusBackgroundColor => _downloadState switch
+    {
+        TrackDownloadVisualState.Downloaded => Color.FromArgb("#E8F7EE"),
+        TrackDownloadVisualState.Failed => Color.FromArgb("#FEECEC"),
+        TrackDownloadVisualState.Downloading => Color.FromArgb("#EEF5FF"),
+        _ => Colors.Transparent
+    };
+
+    public Color DownloadStatusTextColor => _downloadState switch
+    {
+        TrackDownloadVisualState.Downloaded => Color.FromArgb("#148F40"),
+        TrackDownloadVisualState.Failed => Color.FromArgb("#C62828"),
+        TrackDownloadVisualState.Downloading => Color.FromArgb("#1D4ED8"),
+        _ => Color.FromArgb("#344054")
+    };
+
+    public Color DownloadButtonBackgroundColor => IsDownloadedTrack
+        ? Color.FromArgb("#E8F7EE")
+        : Color.FromArgb("#FFFFFF");
+
+    public Color DownloadButtonStrokeColor => IsDownloadedTrack
+        ? Color.FromArgb("#18A94B")
+        : Color.FromArgb("#D0D5DD");
+
     public string PlayIcon => IsPlaying ? "❚❚" : "▶";
+
+    public void BeginDownload()
+    {
+        SetDownloadState(TrackDownloadVisualState.Downloading);
+        DownloadProgress = 0;
+        DownloadDetailText = "0% • 0 MB / ? MB";
+    }
+
+    public void UpdateDownloadProgress(AudioDownloadProgressUpdate update)
+    {
+        SetDownloadState(TrackDownloadVisualState.Downloading);
+        DownloadProgress = update.ProgressRatio > 0 ? update.ProgressRatio : DownloadProgress;
+
+        var percent = update.TotalBytes.HasValue && update.TotalBytes.Value > 0
+            ? $"{Math.Round(update.ProgressRatio * 100d):0}%"
+            : "?%";
+        DownloadDetailText = $"{percent} • {FormatBytes(update.DownloadedBytes)} / {FormatBytes(update.TotalBytes)}";
+    }
+
+    public void ApplyDownloadSnapshot(AudioDownloadSnapshot snapshot)
+    {
+        if (!snapshot.IsDownloaded)
+        {
+            SetDownloadState(TrackDownloadVisualState.None);
+            DownloadProgress = 0;
+            DownloadDetailText = string.Empty;
+            return;
+        }
+
+        SetDownloadState(TrackDownloadVisualState.Downloaded);
+        DownloadProgress = 1;
+        DownloadDetailText = $"100% • {FormatBytes(snapshot.DownloadedBytes)} / {FormatBytes(snapshot.TotalBytes)}";
+    }
+
+    public void ApplyDownloadFailure(string reason)
+    {
+        SetDownloadState(TrackDownloadVisualState.Failed);
+        DownloadProgress = 0;
+        DownloadDetailText = string.IsNullOrWhiteSpace(reason)
+            ? "Tải audio thất bại do lỗi không xác định."
+            : reason;
+    }
+
+    private void SetDownloadState(TrackDownloadVisualState value)
+    {
+        if (_downloadState == value)
+            return;
+
+        _downloadState = value;
+        OnPropertyChanged(nameof(IsDownloading));
+        OnPropertyChanged(nameof(IsDownloadStatusVisible));
+        OnPropertyChanged(nameof(IsDownloadProgressVisible));
+        OnPropertyChanged(nameof(IsDownloadedTrack));
+        OnPropertyChanged(nameof(DownloadStatusIcon));
+        OnPropertyChanged(nameof(DownloadStatusText));
+        OnPropertyChanged(nameof(DownloadStatusBackgroundColor));
+        OnPropertyChanged(nameof(DownloadStatusTextColor));
+        OnPropertyChanged(nameof(DownloadButtonBackgroundColor));
+        OnPropertyChanged(nameof(DownloadButtonStrokeColor));
+    }
+
+    private static string FormatBytes(long? value)
+    {
+        if (!value.HasValue || value.Value <= 0)
+        {
+            return "? MB";
+        }
+
+        return $"{value.Value / 1024d / 1024d:0.0} MB";
+    }
+
+    private enum TrackDownloadVisualState
+    {
+        None,
+        Downloading,
+        Downloaded,
+        Failed
+    }
 }

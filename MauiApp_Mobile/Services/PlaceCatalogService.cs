@@ -233,8 +233,8 @@ public sealed class PlaceCatalogService
                 Category = item.Category,
                 Latitude = item.Latitude,
                 Longitude = item.Longitude,
-                Image = item.Image,
-                GalleryImages = item.GalleryImages
+                Image = string.IsNullOrWhiteSpace(item.PreferenceImage) ? item.Image : item.PreferenceImage,
+                GalleryImages = SelectMapGalleryImages(item)
             })
             .ToList();
     }
@@ -243,6 +243,7 @@ public sealed class PlaceCatalogService
     {
         var categoryColors = ResolveCategoryPalette(location.Category);
         var primaryImage = ResolveImageUrl(location.CoverImageUrl);
+        var preferenceImage = ResolveImageUrl(location.PreferenceImageUrl);
         var galleryImages = location.ImageUrls
             .Select(ResolveImageUrl)
             .Where(item => !string.IsNullOrWhiteSpace(item))
@@ -278,6 +279,7 @@ public sealed class PlaceCatalogService
             Category = string.IsNullOrWhiteSpace(location.Category) ? "Khác" : location.Category,
             Rating = location.Priority.ToString(CultureInfo.InvariantCulture),
             Image = primaryImage,
+            PreferenceImage = string.IsNullOrWhiteSpace(preferenceImage) ? primaryImage : preferenceImage,
             GalleryImages = galleryImages,
             Address = location.Address ?? "Chưa có địa chỉ",
             Phone = location.Phone ?? "Chưa cập nhật",
@@ -305,6 +307,32 @@ public sealed class PlaceCatalogService
             CategoryColor = categoryColors.Background,
             CategoryTextColor = categoryColors.Foreground
         };
+    }
+
+    private static IReadOnlyList<string> SelectMapGalleryImages(PlaceItem item)
+    {
+        var markerImage = string.IsNullOrWhiteSpace(item.PreferenceImage) ? item.Image : item.PreferenceImage;
+        var galleryImages = item.GalleryImages
+            .Where(image => !string.IsNullOrWhiteSpace(image))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(image => string.Equals(image, markerImage, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(image => ComputeStableHash($"{item.Id}|{image}"))
+            .Take(5)
+            .ToList();
+
+        if (galleryImages.Count == 0 && !string.IsNullOrWhiteSpace(markerImage))
+        {
+            galleryImages.Add(markerImage);
+        }
+
+        if (galleryImages.Count < 5 &&
+            !string.IsNullOrWhiteSpace(item.Image) &&
+            !galleryImages.Contains(item.Image, StringComparer.OrdinalIgnoreCase))
+        {
+            galleryImages.Add(item.Image);
+        }
+
+        return galleryImages;
     }
 
     private static string ResolveImageUrl(string? imageUrl)
@@ -475,6 +503,7 @@ public sealed class PlaceCatalogService
 
         foreach (var location in locations)
         {
+            var cachedPreferenceImage = await CacheImageAsync(location.PreferenceImageUrl, cancellationToken);
             var cachedCoverImage = await CacheImageAsync(location.CoverImageUrl, cancellationToken);
             var cachedGalleryImages = new List<string>(location.ImageUrls.Count);
 
@@ -509,6 +538,7 @@ public sealed class PlaceCatalogService
                 DebounceSeconds = location.DebounceSeconds,
                 IsGpsTriggerEnabled = location.IsGpsTriggerEnabled,
                 Address = location.Address,
+                PreferenceImageUrl = string.IsNullOrWhiteSpace(cachedPreferenceImage) ? location.PreferenceImageUrl : cachedPreferenceImage,
                 CoverImageUrl = string.IsNullOrWhiteSpace(cachedCoverImage) ? location.CoverImageUrl : cachedCoverImage,
                 ImageUrls = cachedGalleryImages.Count == 0 ? location.ImageUrls : cachedGalleryImages,
                 WebURL = location.WebURL,
@@ -572,6 +602,20 @@ public sealed class PlaceCatalogService
     {
         var bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(value));
         return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    private static int ComputeStableHash(string value)
+    {
+        unchecked
+        {
+            var hash = 17;
+            foreach (var character in value)
+            {
+                hash = (hash * 31) + character;
+            }
+
+            return hash;
+        }
     }
 
     private static async Task SaveCacheAsync(IReadOnlyList<LocationDto> locations, CancellationToken cancellationToken)

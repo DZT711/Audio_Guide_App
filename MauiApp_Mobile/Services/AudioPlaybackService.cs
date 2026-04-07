@@ -395,6 +395,8 @@ public sealed class AudioPlaybackService
             .SetContentType(AudioContentType.Music)
             .SetUsage(AudioUsageKind.Media)
             .Build());
+        var playbackVolume = AppSettingsService.Instance.PlaybackVolumeRatio;
+        _androidPlayer.SetVolume(playbackVolume, playbackVolume);
         _androidPlayer.SetDataSource(playbackSource);
         var completionSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         Interlocked.Exchange(ref _activePlaybackCompletionSource, completionSource);
@@ -430,7 +432,7 @@ public sealed class AudioPlaybackService
         _windowsPlayer = new WindowsMediaPlayer();
         _windowsPlayer.AudioCategory = MediaPlayerAudioCategory.Media;
         _windowsPlayer.IsMuted = false;
-        _windowsPlayer.Volume = 1d;
+        _windowsPlayer.Volume = AppSettingsService.Instance.PlaybackVolumeRatio;
         _windowsPlayer.AutoPlay = false;
         var completionSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _windowsPlayer.MediaEnded += (_, _) =>
@@ -605,6 +607,8 @@ public sealed class AudioPlaybackService
         {
             return false;
         }
+
+        _androidTts.SetSpeechRate(AppSettingsService.Instance.AndroidSpeechRate);
 
         var speakCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var utteranceId = Guid.NewGuid().ToString("N");
