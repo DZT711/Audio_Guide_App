@@ -359,5 +359,5 @@ public class HistoryAudioTrack : BindableObject
         }
     }
 
-    public string PlayIcon => IsPlaying ? "🔊" : "▶";
+    public string PlayIcon => IsPlaying ? "⏸" : "▶";
 }

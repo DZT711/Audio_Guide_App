@@ -1117,7 +1117,7 @@ public class OfflineAudioTrack
         }
     }
 
-    public string PlayIcon => IsPlayed ? "🔊" : "▶";
+    public string PlayIcon => IsPlayed ? "⏸" : "▶";
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)
     {

@@ -37,6 +37,8 @@ public class PlaceItem : INotifyPropertyChanged
     public Color CategoryTextColor { get; set; } = Colors.Black;
 
     private bool _isPlayed;
+    private bool _isPlaying;
+
     public bool IsPlayed
     {
         get => _isPlayed;
@@ -51,7 +53,21 @@ public class PlaceItem : INotifyPropertyChanged
         }
     }
 
-    public string PlayIcon => IsPlayed ? "🔊" : "▶";
+    public bool IsPlaying
+    {
+        get => _isPlaying;
+        set
+        {
+            if (_isPlaying != value)
+            {
+                _isPlaying = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(PlayIcon));
+            }
+        }
+    }
+
+    public string PlayIcon => (IsPlaying || IsPlayed) ? "||" : "▶";
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

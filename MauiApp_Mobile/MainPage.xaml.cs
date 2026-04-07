@@ -33,16 +33,11 @@ public partial class MainPage : ContentPage
     private bool _isRefreshing;
     private bool _isSilentRefreshing;
     private bool _isAudioListExpanded;
-    private bool _isPlacesAtTop = true;
-    private bool _canStartPullToRefresh;
-    private double _pullRefreshDistance;
     private string _placesSignature = string.Empty;
     private string _categoriesSignature = string.Empty;
     private CancellationTokenSource? _placesLoadingCts;
     private IDispatcherTimer? _placeGalleryTimer;
     private IDispatcherTimer? _liveReloadTimer;
-    private const double PullRefreshThreshold = 78;
-    private const double PullRefreshMaxDistance = 96;
 
     public ObservableCollection<PlaceItem> Places { get; set; } = new();
     public ObservableCollection<CategoryFilterOption> CategoryFilters { get; } = new();
@@ -143,7 +138,7 @@ public partial class MainPage : ContentPage
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                MarkPlayingTrack(currentTrack?.Id);
+                UpdatePlaybackIndicators(currentTrack);
             });
         };
     }
@@ -318,7 +313,6 @@ public partial class MainPage : ContentPage
         try
         {
             IsRefreshing = true;
-            SetPullRefreshState(42, "Đang cập nhật...");
             await LoadPlacesAsync(forceRefresh: true);
             await TryOpenPendingPlaceAsync();
         }
@@ -335,100 +329,12 @@ public partial class MainPage : ContentPage
         finally
         {
             IsRefreshing = false;
-            await ResetPullRefreshHeaderAsync();
         }
     }
 
-    private void OnPlacesScrolled(object? sender, ItemsViewScrolledEventArgs e)
+    private async void OnPlacesRefreshing(object? sender, EventArgs e)
     {
-        _isPlacesAtTop = e.VerticalOffset <= 0;
-    }
-
-    private async void OnPlacesPanUpdated(object? sender, PanUpdatedEventArgs e)
-    {
-        if (IsRefreshing)
-        {
-            return;
-        }
-
-        switch (e.StatusType)
-        {
-            case GestureStatus.Started:
-                _canStartPullToRefresh = _isPlacesAtTop;
-                break;
-
-            case GestureStatus.Running:
-                if (!_canStartPullToRefresh)
-                {
-                    return;
-                }
-
-                if (e.TotalY <= 0)
-                {
-                    SetPullRefreshState(0, "Kéo xuống để cập nhật");
-                    return;
-                }
-
-                var displayDistance = Math.Min(PullRefreshMaxDistance, e.TotalY * 0.45);
-                SetPullRefreshState(
-                    displayDistance,
-                    displayDistance >= PullRefreshThreshold ? "Thả để cập nhật" : "Kéo xuống để cập nhật");
-                break;
-
-            case GestureStatus.Completed:
-            case GestureStatus.Canceled:
-                if (!_canStartPullToRefresh)
-                {
-                    return;
-                }
-
-                _canStartPullToRefresh = false;
-
-                if (_pullRefreshDistance >= PullRefreshThreshold)
-                {
-                    await RefreshPlacesAsync();
-                }
-                else
-                {
-                    await ResetPullRefreshHeaderAsync();
-                }
-                break;
-        }
-    }
-
-    private void SetPullRefreshState(double height, string message)
-    {
-        _pullRefreshDistance = height;
-        PullToRefreshLabel.Text = message;
-        PullToRefreshHeader.IsVisible = height > 0;
-        PullToRefreshHeader.HeightRequest = height;
-        PullToRefreshHeader.Opacity = height <= 0 ? 0 : Math.Min(1, height / 28);
-    }
-
-    private async Task ResetPullRefreshHeaderAsync()
-    {
-        _pullRefreshDistance = 0;
-
-        if (!PullToRefreshHeader.IsVisible)
-        {
-            PullToRefreshHeader.HeightRequest = 0;
-            PullToRefreshHeader.Opacity = 0;
-            return;
-        }
-
-        var collapseOffset = -Math.Max(
-            PullToRefreshHeader.Height,
-            PullToRefreshHeader.HeightRequest);
-
-        await Task.WhenAll(
-            PullToRefreshHeader.FadeToAsync(0, 120, Easing.CubicOut),
-            PullToRefreshHeader.TranslateToAsync(0, collapseOffset, 120, Easing.CubicOut));
-
-        PullToRefreshHeader.HeightRequest = 0;
-        PullToRefreshHeader.TranslationY = 0;
-        PullToRefreshHeader.IsVisible = false;
-        PullToRefreshLabel.Text = "Kéo xuống để cập nhật";
-        PullToRefreshHeader.Opacity = 1;
+        await RefreshPlacesAsync();
     }
 
     private void ApplyTexts()
@@ -502,6 +408,7 @@ public partial class MainPage : ContentPage
 
         IsAudioListExpanded = false;
         OnPropertyChanged(nameof(AudioTrackSummaryText));
+        UpdatePlaybackIndicators(AudioPlaybackService.Instance.CurrentTrack);
     }
 
     private IReadOnlyList<PlaceDetailAudioTrack> BuildPlaceAudioTracks(PlaceItem place)
@@ -1152,6 +1059,12 @@ public partial class MainPage : ContentPage
 
     private async Task PlayDefaultAudioAsync(PlaceItem place)
     {
+        if (place.IsPlaying)
+        {
+            await AudioPlaybackService.Instance.StopAsync();
+            return;
+        }
+
         try
         {
             var audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(
@@ -1168,11 +1081,11 @@ public partial class MainPage : ContentPage
             await AudioPlaybackService.Instance.PlayAsync(preferredTrack);
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                place.IsPlayed = true;
                 HistoryService.Instance.AddToHistory(place);
             });
-
-            MarkPlayingTrack(preferredTrack.Id);
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
@@ -1210,14 +1123,28 @@ public partial class MainPage : ContentPage
             }
 
             await AudioPlaybackService.Instance.PlayAsync(selectedTrack);
-            SelectedPlace.IsPlayed = true;
             HistoryService.Instance.AddToHistory(SelectedPlace);
-            MarkPlayingTrack(selectedTrack.Id);
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
             await DisplayAlertAsync("Audio", ex.Message, "OK");
         }
+    }
+
+    private void UpdatePlaybackIndicators(PublicAudioTrackDto? currentTrack)
+    {
+        var playingPlaceId = currentTrack?.LocationId.ToString(CultureInfo.InvariantCulture);
+
+        foreach (var place in _allPlaces)
+        {
+            place.IsPlaying = !string.IsNullOrWhiteSpace(playingPlaceId)
+                && string.Equals(place.Id, playingPlaceId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        MarkPlayingTrack(currentTrack?.Id);
     }
 
     private void MarkPlayingTrack(int? trackId)
@@ -1317,6 +1244,7 @@ public partial class MainPage : ContentPage
         SyncCategoryFilters(categories);
         ApplyFilter();
         RefreshSelectedPlaceReference();
+        UpdatePlaybackIndicators(AudioPlaybackService.Instance.CurrentTrack);
     }
 
     private bool HasCatalogChanged(IReadOnlyList<PlaceItem> places, IReadOnlyList<CategoryDto> categories)
@@ -1482,5 +1410,5 @@ public class PlaceDetailAudioTrack : BindableObject
         }
     }
 
-    public string PlayIcon => IsPlaying ? "🔊" : "▶";
+    public string PlayIcon => IsPlaying ? "⏸" : "▶";
 }
