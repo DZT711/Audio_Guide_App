@@ -3,6 +3,7 @@ using Microsoft.Maui.ApplicationModel;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Constants;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using MauiTextToSpeech = Microsoft.Maui.Media.TextToSpeech;
 
 #if ANDROID
@@ -39,7 +40,6 @@ public sealed class AudioPlaybackService
 
     private CancellationTokenSource? _ttsCancellationTokenSource;
     private TaskCompletionSource<bool>? _activePlaybackCompletionSource;
-    private string? _temporaryPlaybackFilePath;
 
 #if ANDROID
     private MediaPlayer? _androidPlayer;
@@ -58,6 +58,8 @@ public sealed class AudioPlaybackService
 
     public PublicAudioTrackDto? CurrentTrack { get; private set; }
 
+    public bool IsLoading { get; private set; }
+
     public bool IsPlaying { get; private set; }
 
     public async Task PlayAsync(PublicAudioTrackDto track, CancellationToken cancellationToken = default)
@@ -65,7 +67,8 @@ public sealed class AudioPlaybackService
         await StopAsync();
 
         CurrentTrack = track;
-        IsPlaying = true;
+        IsLoading = true;
+        IsPlaying = false;
         RaisePlaybackStateChanged();
 
         try
@@ -125,6 +128,7 @@ public sealed class AudioPlaybackService
         {
             await PlatformStopAudioAsync();
             CurrentTrack = null;
+            IsLoading = false;
             IsPlaying = false;
             RaisePlaybackStateChanged();
             throw;
@@ -159,6 +163,7 @@ public sealed class AudioPlaybackService
         await PlatformStopAudioAsync();
 
         CurrentTrack = null;
+        IsLoading = false;
         IsPlaying = false;
         RaisePlaybackStateChanged();
     }
@@ -181,6 +186,7 @@ public sealed class AudioPlaybackService
             options.Locale = locale;
         }
 
+        MarkPlaybackStarted();
         await MauiTextToSpeech.Default.SpeakAsync(track.Script, options, _ttsCancellationTokenSource.Token);
 #endif
         await OnPlaybackCompletedAsync();
@@ -397,7 +403,11 @@ public sealed class AudioPlaybackService
             completionSource.TrySetResult(true);
             MainThread.BeginInvokeOnMainThread(async () => await OnPlaybackCompletedAsync());
         };
-        _androidPlayer.Prepared += (_, _) => _androidPlayer?.Start();
+        _androidPlayer.Prepared += (_, _) =>
+        {
+            MarkPlaybackStarted();
+            _androidPlayer?.Start();
+        };
         _androidPlayer.Error += (_, args) =>
         {
             completionSource.TrySetException(new InvalidOperationException("Android audio playback failed."));
@@ -473,7 +483,6 @@ public sealed class AudioPlaybackService
             _androidPlayer = null;
         }
 
-        CleanupTemporaryPlaybackFile();
         return Task.CompletedTask;
 #elif WINDOWS
         _windowsPlayer?.Pause();
@@ -489,12 +498,25 @@ public sealed class AudioPlaybackService
     {
         await PlatformStopAudioAsync();
         CurrentTrack = null;
+        IsLoading = false;
         IsPlaying = false;
         RaisePlaybackStateChanged();
     }
 
     private void RaisePlaybackStateChanged() =>
         PlaybackStateChanged?.Invoke(this, CurrentTrack);
+
+    private void MarkPlaybackStarted()
+    {
+        if (CurrentTrack is null)
+        {
+            return;
+        }
+
+        IsLoading = false;
+        IsPlaying = true;
+        RaisePlaybackStateChanged();
+    }
 
 #if ANDROID
     private async Task PlatformSpeakTtsAsync(string script, string? languageCode, CancellationToken cancellationToken)
@@ -533,6 +555,7 @@ public sealed class AudioPlaybackService
             options.Locale = mauiLocale;
         }
 
+        MarkPlaybackStarted();
         await MauiTextToSpeech.Default.SpeakAsync(script, options, _ttsCancellationTokenSource.Token);
 
         if (lastException is not null)
@@ -597,6 +620,8 @@ public sealed class AudioPlaybackService
             return false;
         }
 
+        MarkPlaybackStarted();
+
         using var speakRegistration = cancellationToken.Register(() =>
         {
             _androidTts?.Stop();
@@ -609,8 +634,6 @@ public sealed class AudioPlaybackService
 
     private async Task<string> PrepareAndroidPlaybackSourceAsync(string source, CancellationToken cancellationToken)
     {
-        CleanupTemporaryPlaybackFile();
-
         if (!Uri.TryCreate(source, UriKind.Absolute, out var sourceUri))
         {
             return source;
@@ -630,42 +653,60 @@ public sealed class AudioPlaybackService
             return source;
         }
 
+        var cachedFilePath = ResolveCachedPlaybackFilePath(sourceUri);
+        if (File.Exists(cachedFilePath) && new FileInfo(cachedFilePath).Length > 0)
+        {
+            return cachedFilePath;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(cachedFilePath)!);
+        var partialFilePath = $"{cachedFilePath}.download";
+
+        try
+        {
+            using var response = await SpeechHttpClient.GetAsync(sourceUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            await using var tempStream = File.Create(partialFilePath);
+            await responseStream.CopyToAsync(tempStream, cancellationToken);
+
+            if (File.Exists(cachedFilePath))
+            {
+                File.Delete(cachedFilePath);
+            }
+
+            File.Move(partialFilePath, cachedFilePath);
+            return cachedFilePath;
+        }
+        catch
+        {
+            try
+            {
+                if (File.Exists(partialFilePath))
+                {
+                    File.Delete(partialFilePath);
+                }
+            }
+            catch
+            {
+            }
+
+            throw;
+        }
+    }
+
+    private static string ResolveCachedPlaybackFilePath(Uri sourceUri)
+    {
         var extension = Path.GetExtension(sourceUri.AbsolutePath);
         if (string.IsNullOrWhiteSpace(extension))
         {
             extension = ".mp3";
         }
 
-        var tempFilePath = Path.Combine(
-            FileSystem.Current.CacheDirectory,
-            $"smarttour-audio-{Guid.NewGuid():N}{extension}");
-
-        using var response = await SpeechHttpClient.GetAsync(sourceUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var tempStream = File.Create(tempFilePath);
-        await responseStream.CopyToAsync(tempStream, cancellationToken);
-
-        _temporaryPlaybackFilePath = tempFilePath;
-        return tempFilePath;
-    }
-
-    private void CleanupTemporaryPlaybackFile()
-    {
-        var tempFilePath = Interlocked.Exchange(ref _temporaryPlaybackFilePath, null);
-        if (string.IsNullOrWhiteSpace(tempFilePath) || !File.Exists(tempFilePath))
-        {
-            return;
-        }
-
-        try
-        {
-            File.Delete(tempFilePath);
-        }
-        catch
-        {
-        }
+        var hashBytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(sourceUri.AbsoluteUri));
+        var fileName = $"{Convert.ToHexString(hashBytes).ToLowerInvariant()}{extension}";
+        return Path.Combine(FileSystem.Current.CacheDirectory, "audio-cache", fileName);
     }
 
     private static AndroidLocale ResolveAndroidLocale(string? languageCode)

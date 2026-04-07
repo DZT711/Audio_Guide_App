@@ -925,15 +925,12 @@ public partial class MapPage : ContentPage
     private void UpdateDeveloperModeVisuals()
     {
         DeveloperModeButton.BackgroundColor = _isDeveloperModeEnabled
-            ? ThemeService.Instance.GetColor("SoftGreen", "#E8F7EE")
-            : ThemeService.Instance.GetColor("PopupBg", "#FFFFFF");
+            ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+            : Color.FromArgb("#FFFFFF");
         DeveloperModeButton.Stroke = new SolidColorBrush(
             _isDeveloperModeEnabled
                 ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
-                : ThemeService.Instance.GetColor("BorderColor", "#E5E7EB"));
-        DeveloperModeLabel.TextColor = _isDeveloperModeEnabled
-            ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
-            : ThemeService.Instance.GetColor("BodyText", "#243B5A");
+                : ThemeService.Instance.GetColor("MapButtonRing", "#D6FAE3"));
         DeveloperModeButton.Opacity = _isMapReady ? 1 : 0.68;
         DeveloperModeButton.InputTransparent = !_isMapReady;
     }

@@ -267,7 +267,7 @@ public partial class OfflinePage : ContentPage
         }
     }
 
-    public string OfflineAudioListExpandIcon => IsOfflineAudioListExpanded ? "˄" : "˅";
+    public string OfflineAudioListExpandIcon => IsOfflineAudioListExpanded ? "⌃" : "⌄";
 
     private async Task RefreshOfflinePacksSilentlyAsync()
     {
@@ -1117,7 +1117,7 @@ public class OfflineAudioTrack
         }
     }
 
-    public string PlayIcon => IsPlayed ? "⏸" : "▶";
+    public string PlayIcon => IsPlayed ? "❚❚" : "▶";
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)
     {

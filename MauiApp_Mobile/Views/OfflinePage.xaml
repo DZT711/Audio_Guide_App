@@ -30,7 +30,7 @@
 
                     <Button x:Name="DownloadAllButton"
                             Grid.Column="1"
-                            Text="↓ Tải tất cả"
+                            Text="⬇ Tải tất cả"
                             Clicked="OnDownloadAllClicked"
                             Style="{StaticResource TopHeaderActionButtonStyle}" />
                 </Grid>
@@ -361,7 +361,7 @@
                                                 Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DownloadCommand}"
                                                 CommandParameter="{Binding .}" />
                                         </Border.GestureRecognizers>
-                                        <Label Text="↓"
+                                        <Label Text="⬇"
                                                TextColor="White"
                                                FontSize="20"
                                                HorizontalTextAlignment="Center"

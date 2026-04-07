@@ -65,3 +65,4 @@ obj/
 project.nuget.cache
 .build-temp/
 .env/
+MauiApp_Mobile/MauiApp_Mobile.csproj.lscache

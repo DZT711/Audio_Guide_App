@@ -126,3 +126,7 @@ allow user watch details statistics of their own data✅
 add more details in dashboard page for each poi
 
 auto warn user cannt load preview vietnamese male tts when the browser/device dont support web speech api
+
+change sever's database into sql sever
+
+add mobile sqlite

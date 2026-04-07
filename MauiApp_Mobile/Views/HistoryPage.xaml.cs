@@ -59,7 +59,7 @@ public partial class HistoryPage : ContentPage
         }
     }
 
-    public string HistoryAudioListExpandIcon => IsHistoryAudioListExpanded ? "˄" : "˅";
+    public string HistoryAudioListExpandIcon => IsHistoryAudioListExpanded ? "⌃" : "⌄";
     public string SelectedHistoryLanguagesText => SelectedHistoryItem == null
         ? string.Empty
         : string.Join(" • ", SelectedHistoryAudioTracks.Select(track => track.LanguageCode));
@@ -359,5 +359,5 @@ public class HistoryAudioTrack : BindableObject
         }
     }
 
-    public string PlayIcon => IsPlaying ? "⏸" : "▶";
+    public string PlayIcon => IsPlaying ? "❚❚" : "▶";
 }

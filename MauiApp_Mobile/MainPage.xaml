@@ -191,11 +191,29 @@
                                            BackgroundColor="{DynamicResource PrimaryGreen}"
                                            HorizontalOptions="End"
                                            VerticalOptions="Center">
-                                        <Label Text="{Binding PlayIcon}"
-                                               HorizontalOptions="Center"
-                                               VerticalOptions="Center"
-                                               TextColor="White"
-                                               FontSize="18" />
+                                        <Grid>
+                                            <ActivityIndicator IsVisible="{Binding IsAudioLoading}"
+                                                               IsRunning="{Binding IsAudioLoading}"
+                                                               Color="White"
+                                                               WidthRequest="18"
+                                                               HeightRequest="18"
+                                                               HorizontalOptions="Center"
+                                                               VerticalOptions="Center" />
+                                            <Label Text="{Binding PlayIcon}"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center"
+                                                   TextColor="White"
+                                                   FontSize="18">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label"
+                                                                 Binding="{Binding IsAudioLoading}"
+                                                                 Value="True">
+                                                        <Setter Property="Opacity"
+                                                                Value="0" />
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+                                        </Grid>
                                         <Frame.GestureRecognizers>
                                             <TapGestureRecognizer Tapped="OnPlayTapped" />
                                         </Frame.GestureRecognizers>
@@ -741,11 +759,29 @@
                                                         <Border.GestureRecognizers>
                                                             <TapGestureRecognizer Tapped="OnAudioTrackPlayTapped" />
                                                         </Border.GestureRecognizers>
-                                                        <Label Text="{Binding PlayIcon}"
-                                                               TextColor="White"
-                                                               FontSize="14"
-                                                               HorizontalTextAlignment="Center"
-                                                               VerticalTextAlignment="Center" />
+                                                        <Grid>
+                                                            <ActivityIndicator IsVisible="{Binding IsLoading}"
+                                                                               IsRunning="{Binding IsLoading}"
+                                                                               Color="White"
+                                                                               WidthRequest="16"
+                                                                               HeightRequest="16"
+                                                                               HorizontalOptions="Center"
+                                                                               VerticalOptions="Center" />
+                                                            <Label Text="{Binding PlayIcon}"
+                                                                   TextColor="White"
+                                                                   FontSize="14"
+                                                                   HorizontalTextAlignment="Center"
+                                                                   VerticalTextAlignment="Center">
+                                                                <Label.Triggers>
+                                                                    <DataTrigger TargetType="Label"
+                                                                                 Binding="{Binding IsLoading}"
+                                                                                 Value="True">
+                                                                        <Setter Property="Opacity"
+                                                                                Value="0" />
+                                                                    </DataTrigger>
+                                                                </Label.Triggers>
+                                                            </Label>
+                                                        </Grid>
                                                     </Border>
                                                 </Grid>
                                             </DataTemplate>

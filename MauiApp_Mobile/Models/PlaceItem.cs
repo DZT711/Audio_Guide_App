@@ -38,6 +38,7 @@ public class PlaceItem : INotifyPropertyChanged
 
     private bool _isPlayed;
     private bool _isPlaying;
+    private bool _isAudioLoading;
 
     public bool IsPlayed
     {
@@ -67,7 +68,20 @@ public class PlaceItem : INotifyPropertyChanged
         }
     }
 
-    public string PlayIcon => (IsPlaying || IsPlayed) ? "||" : "▶";
+    public bool IsAudioLoading
+    {
+        get => _isAudioLoading;
+        set
+        {
+            if (_isAudioLoading != value)
+            {
+                _isAudioLoading = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string PlayIcon => (IsPlaying || IsPlayed) ? "❚❚" : "▶";
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

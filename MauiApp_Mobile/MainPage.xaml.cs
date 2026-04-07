@@ -14,6 +14,7 @@ public partial class MainPage : ContentPage
     private const double PlaceDetailHalfVisibleRatio = 0.58;
     private const string AllCategoryValue = "__all__";
     private const string AllVoiceValue = "__all_voice__";
+    private const string AudioAvailableVoiceValue = "__audio_available__";
     private const string MaleVoiceValue = "Male";
     private const string FemaleVoiceValue = "Female";
     private static readonly TimeSpan LiveReloadInterval = TimeSpan.FromSeconds(12);
@@ -81,7 +82,7 @@ public partial class MainPage : ContentPage
         }
     }
 
-    public string AudioListExpandIcon => IsAudioListExpanded ? "˄" : "˅";
+    public string AudioListExpandIcon => IsAudioListExpanded ? "⌃" : "⌄";
 
     public string AudioTrackSummaryText => SelectedPlaceAudioTracks.Count == 0
         ? "Chưa có audio"
@@ -138,7 +139,7 @@ public partial class MainPage : ContentPage
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                UpdatePlaybackIndicators(currentTrack);
+                UpdatePlaybackIndicators(currentTrack, AudioPlaybackService.Instance.IsLoading);
             });
         };
     }
@@ -408,7 +409,7 @@ public partial class MainPage : ContentPage
 
         IsAudioListExpanded = false;
         OnPropertyChanged(nameof(AudioTrackSummaryText));
-        UpdatePlaybackIndicators(AudioPlaybackService.Instance.CurrentTrack);
+        UpdatePlaybackIndicators(AudioPlaybackService.Instance.CurrentTrack, AudioPlaybackService.Instance.IsLoading);
     }
 
     private IReadOnlyList<PlaceDetailAudioTrack> BuildPlaceAudioTracks(PlaceItem place)
@@ -755,6 +756,7 @@ public partial class MainPage : ContentPage
     private void SyncVoiceFilters()
     {
         var selectedExists = _selectedVoiceValue == AllVoiceValue ||
+            _selectedVoiceValue == AudioAvailableVoiceValue ||
             string.Equals(_selectedVoiceValue, MaleVoiceValue, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(_selectedVoiceValue, FemaleVoiceValue, StringComparison.OrdinalIgnoreCase);
 
@@ -770,6 +772,12 @@ public partial class MainPage : ContentPage
             DisplayName = LocalizationService.Instance.T("Filter.All"),
             Icon = "🎙",
             IsAllOption = true
+        });
+        VoiceFilters.Add(new CategoryFilterOption
+        {
+            Value = AudioAvailableVoiceValue,
+            DisplayName = LocalizationService.Instance.T("Filter.WithAudio"),
+            Icon = "🔊"
         });
         VoiceFilters.Add(new CategoryFilterOption
         {
@@ -802,8 +810,32 @@ public partial class MainPage : ContentPage
             return true;
         }
 
+        if (_selectedVoiceValue == AudioAvailableVoiceValue)
+        {
+            return HasPlayableAudio(place);
+        }
+
         return place.AvailableVoiceGenders.Any(item =>
             string.Equals(NormalizeVoiceGender(item), _selectedVoiceValue, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool HasPlayableAudio(PlaceItem place)
+    {
+        if (place.AudioTracks.Count > 0)
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(place.AudioCountText))
+        {
+            return false;
+        }
+
+        var numericPrefix = new string(place.AudioCountText
+            .TakeWhile(character => char.IsDigit(character))
+            .ToArray());
+
+        return int.TryParse(numericPrefix, out var audioCount) && audioCount > 0;
     }
 
     private static string ResolveCategoryIcon(string category)
@@ -966,6 +998,13 @@ public partial class MainPage : ContentPage
 
     private async Task LoadSelectedPlaceAudioTracksAsync(PlaceItem place, bool forceRefresh = false)
     {
+        if (!forceRefresh && place.AudioTracks.Count > 0)
+        {
+            RefreshSelectedPlaceAudioTracks();
+            ApplyFilter();
+            return;
+        }
+
         var previousAudioSignature = ComputeAudioSignature(place.AudioTracks);
         var audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(
             place.Id,
@@ -1014,6 +1053,9 @@ public partial class MainPage : ContentPage
         if (sender is not Element element || element.BindingContext is not PlaceItem item)
             return;
 
+        if (item.IsAudioLoading)
+            return;
+
         await PlayDefaultAudioAsync(item);
     }
 
@@ -1028,6 +1070,9 @@ public partial class MainPage : ContentPage
     private async void OnAudioTrackPlayTapped(object sender, TappedEventArgs e)
     {
         if (sender is not Element element || element.BindingContext is not PlaceDetailAudioTrack track)
+            return;
+
+        if (track.IsLoading)
             return;
 
         await PlaySelectedTrackAsync(track);
@@ -1059,25 +1104,42 @@ public partial class MainPage : ContentPage
 
     private async Task PlayDefaultAudioAsync(PlaceItem place)
     {
+        if (place.IsAudioLoading)
+        {
+            return;
+        }
+
         if (place.IsPlaying)
         {
             await AudioPlaybackService.Instance.StopAsync();
             return;
         }
 
+        MarkPendingPlayback(place.Id, null);
+
         try
         {
-            var audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(
-                place.Id,
-                forceRefresh: AppDataModeService.Instance.IsApiEnabled);
+            var audioTracks = place.AudioTracks;
+            if (audioTracks.Count == 0)
+            {
+                audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(place.Id);
+            }
+
+            if (audioTracks.Count == 0 && AppDataModeService.Instance.IsApiEnabled)
+            {
+                audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(place.Id, forceRefresh: true);
+            }
+
             var preferredTrack = SelectPreferredTrack(audioTracks);
 
             if (preferredTrack is null)
             {
+                MarkPendingPlayback(null, null);
                 await DisplayAlertAsync("Audio", "POI này chưa có audio khả dụng.", "OK");
                 return;
             }
 
+            MarkPendingPlayback(place.Id, preferredTrack.Id);
             await AudioPlaybackService.Instance.PlayAsync(preferredTrack);
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
@@ -1086,9 +1148,11 @@ public partial class MainPage : ContentPage
         }
         catch (OperationCanceledException)
         {
+            MarkPendingPlayback(null, null);
         }
         catch (Exception ex)
         {
+            MarkPendingPlayback(null, null);
             await DisplayAlertAsync("Audio", ex.Message, "OK");
         }
     }
@@ -1105,12 +1169,19 @@ public partial class MainPage : ContentPage
             if (track.IsPlaying)
             {
                 await AudioPlaybackService.Instance.StopAsync();
-                MarkPlayingTrack(null);
+                MarkPlayingTrack(null, isLoading: false);
                 return;
             }
 
+            MarkPendingPlayback(SelectedPlace.Id, track.Id);
             var selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
             if (selectedTrack is null)
+            {
+                await LoadSelectedPlaceAudioTracksAsync(SelectedPlace);
+                selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
+            }
+
+            if (selectedTrack is null && AppDataModeService.Instance.IsApiEnabled)
             {
                 await LoadSelectedPlaceAudioTracksAsync(SelectedPlace, forceRefresh: true);
                 selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
@@ -1118,6 +1189,7 @@ public partial class MainPage : ContentPage
 
             if (selectedTrack is null)
             {
+                MarkPendingPlayback(null, null);
                 await DisplayAlertAsync("Audio", "Không tìm thấy audio đã chọn.", "OK");
                 return;
             }
@@ -1127,31 +1199,57 @@ public partial class MainPage : ContentPage
         }
         catch (OperationCanceledException)
         {
+            MarkPendingPlayback(null, null);
         }
         catch (Exception ex)
         {
+            MarkPendingPlayback(null, null);
             await DisplayAlertAsync("Audio", ex.Message, "OK");
         }
     }
 
-    private void UpdatePlaybackIndicators(PublicAudioTrackDto? currentTrack)
+    private void UpdatePlaybackIndicators(PublicAudioTrackDto? currentTrack, bool isLoading)
     {
         var playingPlaceId = currentTrack?.LocationId.ToString(CultureInfo.InvariantCulture);
 
         foreach (var place in _allPlaces)
         {
-            place.IsPlaying = !string.IsNullOrWhiteSpace(playingPlaceId)
+            var isActivePlace = !string.IsNullOrWhiteSpace(playingPlaceId)
                 && string.Equals(place.Id, playingPlaceId, StringComparison.OrdinalIgnoreCase);
+
+            place.IsAudioLoading = isActivePlace && isLoading;
+            place.IsPlaying = isActivePlace && !isLoading;
         }
 
-        MarkPlayingTrack(currentTrack?.Id);
+        MarkPlayingTrack(currentTrack?.Id, isLoading);
     }
 
-    private void MarkPlayingTrack(int? trackId)
+    private void MarkPendingPlayback(string? placeId, int? trackId)
+    {
+        foreach (var place in _allPlaces)
+        {
+            var isPendingPlace = !string.IsNullOrWhiteSpace(placeId)
+                && string.Equals(place.Id, placeId, StringComparison.OrdinalIgnoreCase);
+
+            place.IsAudioLoading = isPendingPlace;
+            place.IsPlaying = false;
+        }
+
+        foreach (var item in SelectedPlaceAudioTracks)
+        {
+            var isPendingTrack = trackId.HasValue && item.Id == trackId.Value;
+            item.IsLoading = isPendingTrack;
+            item.IsPlaying = false;
+        }
+    }
+
+    private void MarkPlayingTrack(int? trackId, bool isLoading)
     {
         foreach (var item in SelectedPlaceAudioTracks)
         {
-            item.IsPlaying = trackId.HasValue && item.Id == trackId.Value;
+            var isActiveTrack = trackId.HasValue && item.Id == trackId.Value;
+            item.IsLoading = isActiveTrack && isLoading;
+            item.IsPlaying = isActiveTrack && !isLoading;
         }
     }
 
@@ -1244,7 +1342,7 @@ public partial class MainPage : ContentPage
         SyncCategoryFilters(categories);
         ApplyFilter();
         RefreshSelectedPlaceReference();
-        UpdatePlaybackIndicators(AudioPlaybackService.Instance.CurrentTrack);
+        UpdatePlaybackIndicators(AudioPlaybackService.Instance.CurrentTrack, AudioPlaybackService.Instance.IsLoading);
     }
 
     private bool HasCatalogChanged(IReadOnlyList<PlaceItem> places, IReadOnlyList<CategoryDto> categories)
@@ -1290,7 +1388,7 @@ public partial class MainPage : ContentPage
     }
 
     private string? GetPreferredVoiceFilterValue() =>
-        _selectedVoiceValue == AllVoiceValue
+        _selectedVoiceValue == AllVoiceValue || _selectedVoiceValue == AudioAvailableVoiceValue
             ? null
             : _selectedVoiceValue;
 
@@ -1395,6 +1493,7 @@ public class PlaceDetailAudioTrack : BindableObject
         : $"{LanguageName} • {SourceType} • P{Priority} • {Duration}";
 
     private bool _isPlaying;
+    private bool _isLoading;
 
     public bool IsPlaying
     {
@@ -1410,5 +1509,18 @@ public class PlaceDetailAudioTrack : BindableObject
         }
     }
 
-    public string PlayIcon => IsPlaying ? "⏸" : "▶";
+    public bool IsLoading
+    {
+        get => _isLoading;
+        set
+        {
+            if (_isLoading == value)
+                return;
+
+            _isLoading = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string PlayIcon => IsPlaying ? "❚❚" : "▶";
 }

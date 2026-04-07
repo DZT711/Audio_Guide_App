@@ -99,6 +99,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Filter.Title"] = "DANH MỤC",
             ["Filter.VoiceTitle"] = "GIỌNG ĐỌC",
             ["Filter.All"] = "Tất cả",
+            ["Filter.WithAudio"] = "Có audio / TTS",
             ["Filter.VoiceMale"] = "Nam",
             ["Filter.VoiceFemale"] = "Nữ",
             ["Filter.SignatureDish"] = "Món ăn đặc trưng",
@@ -179,6 +180,7 @@ public class LocalizationService : INotifyPropertyChanged
             ["Filter.Title"] = "CATEGORY",
             ["Filter.VoiceTitle"] = "VOICE",
             ["Filter.All"] = "All",
+            ["Filter.WithAudio"] = "Audio / TTS",
             ["Filter.VoiceMale"] = "Male",
             ["Filter.VoiceFemale"] = "Female",
             ["Filter.SignatureDish"] = "Signature dishes",
@@ -251,6 +253,7 @@ public class LocalizationService : INotifyPropertyChanged
 
             ["Filter.Title"] = "分类",
             ["Filter.All"] = "全部",
+            ["Filter.WithAudio"] = "音频 / TTS",
             ["Filter.SignatureDish"] = "特色菜",
             ["Filter.FamousRestaurant"] = "知名餐馆",
             ["Filter.Drinks"] = "饮品",
@@ -321,6 +324,7 @@ public class LocalizationService : INotifyPropertyChanged
 
             ["Filter.Title"] = "カテゴリ",
             ["Filter.All"] = "すべて",
+            ["Filter.WithAudio"] = "音声 / TTS",
             ["Filter.SignatureDish"] = "名物料理",
             ["Filter.FamousRestaurant"] = "有名店",
             ["Filter.Drinks"] = "飲み物",
@@ -391,6 +395,7 @@ public class LocalizationService : INotifyPropertyChanged
 
             ["Filter.Title"] = "카테고리",
             ["Filter.All"] = "전체",
+            ["Filter.WithAudio"] = "오디오 / TTS",
             ["Filter.SignatureDish"] = "대표 음식",
             ["Filter.FamousRestaurant"] = "유명 맛집",
             ["Filter.Drinks"] = "음료",
@@ -461,6 +466,7 @@ public class LocalizationService : INotifyPropertyChanged
 
             ["Filter.Title"] = "CATÉGORIE",
             ["Filter.All"] = "Tous",
+            ["Filter.WithAudio"] = "Audio / TTS",
             ["Filter.SignatureDish"] = "Plats emblématiques",
             ["Filter.FamousRestaurant"] = "Restaurants célèbres",
             ["Filter.Drinks"] = "Boissons",
@@ -475,7 +481,7 @@ public class LocalizationService : INotifyPropertyChanged
         {
             ["Offline.Title"] = "Offline",
             ["Offline.Subtitle"] = "Quản lý audio pack nghe offline",
-            ["Offline.DownloadAll"] = "↓ Tải tất cả",
+            ["Offline.DownloadAll"] = "⬇ Tải tất cả",
             ["Offline.Search"] = "Tìm kiếm pack offline...",
             ["Offline.CountSuffix"] = "gói",
             ["Offline.ReadyCountFormat"] = "{0}/{1} gói",
@@ -507,7 +513,7 @@ public class LocalizationService : INotifyPropertyChanged
         {
             ["Offline.Title"] = "Offline",
             ["Offline.Subtitle"] = "Manage offline audio packs",
-            ["Offline.DownloadAll"] = "↓ Download all",
+            ["Offline.DownloadAll"] = "⬇ Download all",
             ["Offline.Search"] = "Search offline packs...",
             ["Offline.CountSuffix"] = "packs",
             ["Offline.ReadyCountFormat"] = "{0}/{1} packs",
@@ -539,7 +545,7 @@ public class LocalizationService : INotifyPropertyChanged
         {
             ["Offline.Title"] = "离线",
             ["Offline.Subtitle"] = "管理离线音频包",
-            ["Offline.DownloadAll"] = "↓ 全部下载",
+            ["Offline.DownloadAll"] = "⬇ 全部下载",
             ["Offline.Search"] = "搜索离线音频包...",
             ["Offline.CountSuffix"] = "个包",
             ["Offline.ReadyCountFormat"] = "{0}/{1} 个包",
@@ -577,7 +583,7 @@ public class LocalizationService : INotifyPropertyChanged
         {
             ["Offline.Title"] = "オフライン",
             ["Offline.Subtitle"] = "オフライン音声パックを管理",
-            ["Offline.DownloadAll"] = "↓ すべてダウンロード",
+            ["Offline.DownloadAll"] = "⬇ すべてダウンロード",
             ["Offline.Search"] = "オフラインパックを検索...",
             ["Offline.CountSuffix"] = "件",
             ["Offline.ReadyCountFormat"] = "{0}/{1} 件",
@@ -615,7 +621,7 @@ public class LocalizationService : INotifyPropertyChanged
         {
             ["Offline.Title"] = "오프라인",
             ["Offline.Subtitle"] = "오프라인 오디오 팩 관리",
-            ["Offline.DownloadAll"] = "↓ 모두 다운로드",
+            ["Offline.DownloadAll"] = "⬇ 모두 다운로드",
             ["Offline.Search"] = "오프라인 팩 검색...",
             ["Offline.CountSuffix"] = "개 팩",
             ["Offline.ReadyCountFormat"] = "{0}/{1}개 팩",
@@ -653,7 +659,7 @@ public class LocalizationService : INotifyPropertyChanged
         {
             ["Offline.Title"] = "Hors ligne",
             ["Offline.Subtitle"] = "Gerer les packs audio hors ligne",
-            ["Offline.DownloadAll"] = "↓ Tout telecharger",
+            ["Offline.DownloadAll"] = "⬇ Tout telecharger",
             ["Offline.Search"] = "Rechercher des packs hors ligne...",
             ["Offline.CountSuffix"] = "packs",
             ["Offline.ReadyCountFormat"] = "{0}/{1} packs",

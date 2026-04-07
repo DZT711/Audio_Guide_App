@@ -302,10 +302,10 @@ public static class DataExtension
             await context.SaveChangesAsync();
         }
 
-        await EnsureAnalyticsSamplesAsync(context);
+        await EnsureAnalyticsSamplesAsync(context, contentRootPath);
     }
 
-    private static async Task EnsureAnalyticsSamplesAsync(DBContext context)
+    private static async Task EnsureAnalyticsSamplesAsync(DBContext context, string contentRootPath)
     {
         await NormalizeSeedAddressesAsync(context);
 
@@ -420,6 +420,38 @@ public static class DataExtension
                 "Male",
                 "en-US")
         };
+
+        await EnsureAnalyticsRecordedAudioAsync(
+            context,
+            contentRootPath,
+            benNhaRong.LocationId,
+            "Ben Nha Rong Recorded Demo",
+            "Synthetic recorded clip used to verify Android file playback and button loading states.",
+            null,
+            4,
+            "Recorded Demo Lan",
+            "Female",
+            "vi-VN",
+            "Recorded",
+            "demo-ben-nha-rong-recorded.wav",
+            392,
+            554);
+
+        await EnsureAnalyticsRecordedAudioAsync(
+            context,
+            contentRootPath,
+            benThanh.LocationId,
+            "Ben Thanh Hybrid Demo",
+            "Hybrid sample that keeps both a script and a stored file for fallback testing.",
+            "This hybrid sample lets the mobile app switch between stored audio and on-device speech when needed.",
+            4,
+            "Recorded Demo Minh",
+            "Male",
+            "en-US",
+            "Hybrid",
+            "demo-ben-thanh-hybrid.wav",
+            523,
+            659);
 
         await EnsureAnalyticsTourAsync(
             context,
@@ -682,6 +714,125 @@ public static class DataExtension
         context.AudioContents.Add(audio);
         await context.SaveChangesAsync();
         return audio;
+    }
+
+    private static async Task<Audio> EnsureAnalyticsRecordedAudioAsync(
+        DBContext context,
+        string contentRootPath,
+        int locationId,
+        string title,
+        string description,
+        string? script,
+        int durationSeconds,
+        string voiceName,
+        string voiceGender,
+        string languageCode,
+        string sourceType,
+        string fileName,
+        int startFrequencyHz,
+        int endFrequencyHz)
+    {
+        var audioFile = await EnsureSeedAudioClipAsync(
+            contentRootPath,
+            fileName,
+            durationSeconds,
+            startFrequencyHz,
+            endFrequencyHz);
+
+        var existingAudio = await context.AudioContents.FirstOrDefaultAsync(item => item.LocationId == locationId && item.Title == title);
+        if (existingAudio is not null)
+        {
+            return existingAudio;
+        }
+
+        var audio = new Audio
+        {
+            LocationId = locationId,
+            Title = title,
+            Description = description,
+            LanguageCode = languageCode,
+            SourceType = sourceType,
+            Script = script,
+            FilePath = SharedStoragePaths.ToPublicAudioPath(audioFile.Name),
+            FileSizeBytes = checked((int)audioFile.Length),
+            DurationSeconds = durationSeconds,
+            VoiceName = voiceName,
+            VoiceGender = voiceGender,
+            Priority = 7,
+            PlaybackMode = "Auto",
+            InterruptPolicy = "NotificationFirst",
+            IsDownloadable = true,
+            Status = 1,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        context.AudioContents.Add(audio);
+        await context.SaveChangesAsync();
+        return audio;
+    }
+
+    private static async Task<FileInfo> EnsureSeedAudioClipAsync(
+        string contentRootPath,
+        string fileName,
+        int durationSeconds,
+        int startFrequencyHz,
+        int endFrequencyHz)
+    {
+        var audioDirectory = SharedStoragePaths.GetAudioDirectory(contentRootPath);
+        Directory.CreateDirectory(audioDirectory);
+
+        var filePath = Path.Combine(audioDirectory, fileName);
+        if (File.Exists(filePath) && new FileInfo(filePath).Length > 0)
+        {
+            return new FileInfo(filePath);
+        }
+
+        await using var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read);
+        using var writer = new BinaryWriter(stream, System.Text.Encoding.ASCII, leaveOpen: true);
+        WriteSeedWaveTone(writer, durationSeconds, startFrequencyHz, endFrequencyHz);
+        await stream.FlushAsync();
+
+        return new FileInfo(filePath);
+    }
+
+    private static void WriteSeedWaveTone(
+        BinaryWriter writer,
+        int durationSeconds,
+        int startFrequencyHz,
+        int endFrequencyHz)
+    {
+        const short channelCount = 1;
+        const int sampleRate = 16000;
+        const short bitsPerSample = 16;
+
+        var totalSamples = Math.Max(sampleRate, sampleRate * Math.Max(1, durationSeconds));
+        var blockAlign = (short)(channelCount * bitsPerSample / 8);
+        var byteRate = sampleRate * blockAlign;
+        var dataSize = totalSamples * blockAlign;
+
+        writer.Write(System.Text.Encoding.ASCII.GetBytes("RIFF"));
+        writer.Write(36 + dataSize);
+        writer.Write(System.Text.Encoding.ASCII.GetBytes("WAVE"));
+        writer.Write(System.Text.Encoding.ASCII.GetBytes("fmt "));
+        writer.Write(16);
+        writer.Write((short)1);
+        writer.Write(channelCount);
+        writer.Write(sampleRate);
+        writer.Write(byteRate);
+        writer.Write(blockAlign);
+        writer.Write(bitsPerSample);
+        writer.Write(System.Text.Encoding.ASCII.GetBytes("data"));
+        writer.Write(dataSize);
+
+        for (var sampleIndex = 0; sampleIndex < totalSamples; sampleIndex++)
+        {
+            var progress = totalSamples <= 1 ? 0d : sampleIndex / (double)(totalSamples - 1);
+            var frequency = startFrequencyHz + ((endFrequencyHz - startFrequencyHz) * progress);
+            var time = sampleIndex / (double)sampleRate;
+            var envelope = Math.Sin(Math.PI * progress);
+            var amplitude = Math.Sin(2 * Math.PI * frequency * time) * 0.24 * envelope;
+            writer.Write((short)(amplitude * short.MaxValue));
+        }
     }
 
     private static async Task EnsureAnalyticsTourAsync(
