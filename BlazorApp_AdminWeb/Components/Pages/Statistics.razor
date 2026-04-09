@@ -1081,6 +1081,9 @@ route.SessionKey;
         {
             await JS.InvokeVoidAsync("smartTourAdmin.map.disposeStatisticsMap", _statisticsMapElement);
         }
+        catch (JSDisconnectedException)
+        {
+        }
         catch (JSException)
         {
         }
@@ -1105,6 +1108,9 @@ route.SessionKey;
             {
                 await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", false);
             }
+        }
+        catch (JSDisconnectedException)
+        {
         }
         catch (JSException)
         {

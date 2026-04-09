@@ -1172,6 +1172,9 @@ else
         {
             await JS.InvokeVoidAsync("smartTourAdmin.shell.setBodyScrollLock", false);
         }
+        catch (JSDisconnectedException)
+        {
+        }
         catch (JSException)
         {
         }

@@ -1613,6 +1613,9 @@ else
             {
                 await JS.InvokeVoidAsync("smartTourAdmin.filePreview.revokeObjectUrl", _preferenceImageObjectUrl);
             }
+            catch (JSDisconnectedException)
+            {
+            }
             catch (JSException)
             {
             }
@@ -1623,6 +1626,9 @@ else
             try
             {
                 await JS.InvokeVoidAsync("smartTourAdmin.filePreview.revokeObjectUrl", objectUrl);
+            }
+            catch (JSDisconnectedException)
+            {
             }
             catch (JSException)
             {
@@ -1795,6 +1801,9 @@ else
             }
 
             await ClearLocationImagePreviewsAsync();
+        }
+        catch (JSDisconnectedException)
+        {
         }
         catch (JSException)
         {
