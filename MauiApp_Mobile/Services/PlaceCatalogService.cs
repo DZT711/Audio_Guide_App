@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -17,7 +18,8 @@ public sealed class PlaceCatalogService
     private static readonly string CacheFilePath = Path.Combine(FileSystem.Current.AppDataDirectory, "places-cache.json");
     private static readonly string CategoryCacheFilePath = Path.Combine(FileSystem.Current.AppDataDirectory, "place-categories-cache.json");
     private static readonly string AudioTrackCacheFilePath = Path.Combine(FileSystem.Current.AppDataDirectory, "place-audio-cache.json");
-    private static readonly string ImageCacheDirectoryPath = Path.Combine(FileSystem.Current.AppDataDirectory, "place-images");
+    private static readonly string ImageCacheDirectoryPath = Path.Combine(FileSystem.Current.CacheDirectory, "place-images");
+    private static readonly SemaphoreSlim ImageWarmupSemaphore = new(1, 1);
     private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
     private readonly SemaphoreSlim _categoryLoadSemaphore = new(1, 1);
     private readonly SemaphoreSlim _audioCacheSemaphore = new(1, 1);
@@ -342,26 +344,58 @@ public sealed class PlaceCatalogService
             return string.Empty;
         }
 
-        if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var absoluteUri))
+        var normalizedImageUrl = imageUrl.Trim().Replace("\\", "/");
+
+        if (Uri.TryCreate(normalizedImageUrl, UriKind.Absolute, out var absoluteUri))
         {
             if (absoluteUri.IsFile)
             {
+                if (HasUnsupportedVectorExtension(absoluteUri.AbsolutePath))
+                {
+                    return "location.png";
+                }
+
                 return File.Exists(absoluteUri.LocalPath)
                     ? absoluteUri.AbsoluteUri
                     : string.Empty;
             }
 
-            return imageUrl;
+            if (HasUnsupportedVectorExtension(absoluteUri.AbsolutePath))
+            {
+                return "location.png";
+            }
+
+            return TryResolveCachedRemoteImageUri(absoluteUri, out var cachedRemoteImageUri)
+                ? cachedRemoteImageUri
+                : absoluteUri.AbsoluteUri;
         }
 
-        if (Path.IsPathRooted(imageUrl) && !imageUrl.StartsWith("/", StringComparison.Ordinal))
+        if (Path.IsPathRooted(normalizedImageUrl) && !normalizedImageUrl.StartsWith("/", StringComparison.Ordinal))
         {
-            return File.Exists(imageUrl)
-                ? new Uri(imageUrl).AbsoluteUri
+            if (HasUnsupportedVectorExtension(normalizedImageUrl))
+            {
+                return "location.png";
+            }
+
+            return File.Exists(normalizedImageUrl)
+                ? new Uri(normalizedImageUrl).AbsoluteUri
                 : string.Empty;
         }
 
-        return new Uri(new Uri(MobileApiOptions.BaseUrl), imageUrl.TrimStart('/')).ToString();
+        if (IsBundledImageAsset(normalizedImageUrl))
+        {
+            return normalizedImageUrl;
+        }
+
+        var remoteUri = new Uri(MobileApiOptions.BaseUri, normalizedImageUrl.TrimStart('/'));
+        if (HasUnsupportedVectorExtension(remoteUri.AbsolutePath))
+        {
+            return "location.png";
+        }
+
+        return TryResolveCachedRemoteImageUri(remoteUri, out var cachedImageUri)
+            ? cachedImageUri
+            : remoteUri.AbsoluteUri;
     }
 
     private static (Color Background, Color Foreground) ResolveCategoryPalette(string? category)
@@ -409,9 +443,15 @@ public sealed class PlaceCatalogService
 
     private static HttpClient CreateHttpClient()
     {
-        return new HttpClient
+        return new HttpClient(new SocketsHttpHandler
         {
-            BaseAddress = new Uri(MobileApiOptions.BaseUrl),
+            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+            MaxConnectionsPerServer = 8
+        })
+        {
+            BaseAddress = MobileApiOptions.BaseUri,
             Timeout = TimeSpan.FromSeconds(10)
         };
     }
@@ -428,6 +468,7 @@ public sealed class PlaceCatalogService
             var cachedLocations = await LoadCacheAsync(cancellationToken);
             if (cachedLocations.Count > 0)
             {
+                _ = WarmLocationImagesInBackgroundAsync(cachedLocations);
                 return cachedLocations;
             }
         }
@@ -435,15 +476,16 @@ public sealed class PlaceCatalogService
         try
         {
             var locations = await HttpClient.GetFromJsonAsync<List<LocationDto>>(ApiRoutes.PublicLocations, cancellationToken) ?? [];
-            var cachedLocations = await CacheLocationImagesAsync(locations, cancellationToken);
-            await SaveCacheAsync(cachedLocations, cancellationToken);
-            return cachedLocations;
+            await SaveCacheAsync(locations, cancellationToken);
+            _ = WarmLocationImagesInBackgroundAsync(locations);
+            return locations;
         }
         catch when (!cancellationToken.IsCancellationRequested)
         {
             var cachedLocations = await LoadCacheAsync(cancellationToken);
             if (cachedLocations.Count > 0)
             {
+                _ = WarmLocationImagesInBackgroundAsync(cachedLocations);
                 return cachedLocations;
             }
 
@@ -495,65 +537,46 @@ public sealed class PlaceCatalogService
         }
     }
 
-    private static async Task<List<LocationDto>> CacheLocationImagesAsync(
-        IReadOnlyList<LocationDto> locations,
-        CancellationToken cancellationToken)
+    private static Task WarmLocationImagesInBackgroundAsync(IReadOnlyList<LocationDto> locations)
     {
-        var normalizedLocations = new List<LocationDto>(locations.Count);
-
-        foreach (var location in locations)
+        if (locations.Count == 0 || !AppDataModeService.Instance.IsApiEnabled)
         {
-            var cachedPreferenceImage = await CacheImageAsync(location.PreferenceImageUrl, cancellationToken);
-            var cachedCoverImage = await CacheImageAsync(location.CoverImageUrl, cancellationToken);
-            var cachedGalleryImages = new List<string>(location.ImageUrls.Count);
-
-            foreach (var imageUrl in location.ImageUrls)
-            {
-                var cachedImage = await CacheImageAsync(imageUrl, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(cachedImage))
-                {
-                    cachedGalleryImages.Add(cachedImage);
-                }
-            }
-
-            if (cachedGalleryImages.Count == 0 && !string.IsNullOrWhiteSpace(cachedCoverImage))
-            {
-                cachedGalleryImages.Add(cachedCoverImage);
-            }
-
-            normalizedLocations.Add(new LocationDto
-            {
-                Id = location.Id,
-                CategoryId = location.CategoryId,
-                Category = location.Category,
-                OwnerId = location.OwnerId,
-                OwnerName = location.OwnerName,
-                Name = location.Name,
-                Description = location.Description,
-                Latitude = location.Latitude,
-                Longitude = location.Longitude,
-                Radius = location.Radius,
-                StandbyRadius = location.StandbyRadius,
-                Priority = location.Priority,
-                DebounceSeconds = location.DebounceSeconds,
-                IsGpsTriggerEnabled = location.IsGpsTriggerEnabled,
-                Address = location.Address,
-                PreferenceImageUrl = string.IsNullOrWhiteSpace(cachedPreferenceImage) ? location.PreferenceImageUrl : cachedPreferenceImage,
-                CoverImageUrl = string.IsNullOrWhiteSpace(cachedCoverImage) ? location.CoverImageUrl : cachedCoverImage,
-                ImageUrls = cachedGalleryImages.Count == 0 ? location.ImageUrls : cachedGalleryImages,
-                WebURL = location.WebURL,
-                Email = location.Email,
-                Phone = location.Phone,
-                EstablishedYear = location.EstablishedYear,
-                AudioCount = location.AudioCount,
-                AvailableVoiceGenders = location.AvailableVoiceGenders,
-                Status = location.Status,
-                CreatedAt = location.CreatedAt,
-                UpdatedAt = location.UpdatedAt
-            });
+            return Task.CompletedTask;
         }
 
-        return normalizedLocations;
+        return Task.Run(async () =>
+        {
+            await ImageWarmupSemaphore.WaitAsync();
+            try
+            {
+                using var parallelism = new SemaphoreSlim(4, 4);
+                var tasks = locations
+                    .SelectMany(GetImageCandidates)
+                    .Where(image => !string.IsNullOrWhiteSpace(image))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Select(async imageUrl =>
+                    {
+                        await parallelism.WaitAsync();
+                        try
+                        {
+                            await CacheImageAsync(imageUrl, CancellationToken.None);
+                        }
+                        catch
+                        {
+                        }
+                        finally
+                        {
+                            parallelism.Release();
+                        }
+                    });
+
+                await Task.WhenAll(tasks);
+            }
+            finally
+            {
+                ImageWarmupSemaphore.Release();
+            }
+        });
     }
 
     private static async Task<string> CacheImageAsync(string? imageUrl, CancellationToken cancellationToken)
@@ -573,21 +596,44 @@ public sealed class PlaceCatalogService
         {
             Directory.CreateDirectory(ImageCacheDirectoryPath);
 
-            var fileExtension = GetImageFileExtension(imageUri);
-            var targetFilePath = Path.Combine(ImageCacheDirectoryPath, $"{ComputeHash(resolvedImageUrl)}{fileExtension}");
-            if (File.Exists(targetFilePath))
+            var targetFilePath = ResolveCachedImageFilePath(imageUri);
+            if (File.Exists(targetFilePath) && new FileInfo(targetFilePath).Length > 0)
             {
-                return targetFilePath;
+                return new Uri(targetFilePath).AbsoluteUri;
             }
 
-            await using var remoteStream = await HttpClient.GetStreamAsync(imageUri, cancellationToken);
-            await using var localStream = File.Create(targetFilePath);
-            await remoteStream.CopyToAsync(localStream, cancellationToken);
+            var partialFilePath = $"{targetFilePath}.download";
+            using var response = await HttpClient.GetAsync(imageUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-            return targetFilePath;
+            await using var remoteStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            await using var localStream = File.Create(partialFilePath);
+            await remoteStream.CopyToAsync(localStream, cancellationToken);
+            await localStream.FlushAsync(cancellationToken);
+
+            if (File.Exists(targetFilePath))
+            {
+                File.Delete(targetFilePath);
+            }
+
+            File.Move(partialFilePath, targetFilePath);
+
+            return new Uri(targetFilePath).AbsoluteUri;
         }
         catch when (!cancellationToken.IsCancellationRequested)
         {
+            var partialFilePath = $"{ResolveCachedImageFilePath(imageUri)}.download";
+            try
+            {
+                if (File.Exists(partialFilePath))
+                {
+                    File.Delete(partialFilePath);
+                }
+            }
+            catch
+            {
+            }
+
             return resolvedImageUrl;
         }
     }
@@ -597,6 +643,38 @@ public sealed class PlaceCatalogService
         var extension = Path.GetExtension(imageUri.AbsolutePath);
         return string.IsNullOrWhiteSpace(extension) ? ".jpg" : extension.ToLowerInvariant();
     }
+
+    private static string ResolveCachedImageFilePath(Uri imageUri)
+    {
+        var fileExtension = GetImageFileExtension(imageUri);
+        return Path.Combine(ImageCacheDirectoryPath, $"{ComputeHash(imageUri.AbsoluteUri)}{fileExtension}");
+    }
+
+    private static bool TryResolveCachedRemoteImageUri(Uri imageUri, out string cachedImageUri)
+    {
+        cachedImageUri = string.Empty;
+        if (imageUri.IsFile)
+        {
+            return false;
+        }
+
+        var cachedFilePath = ResolveCachedImageFilePath(imageUri);
+        if (!File.Exists(cachedFilePath))
+        {
+            return false;
+        }
+
+        cachedImageUri = new Uri(cachedFilePath).AbsoluteUri;
+        return true;
+    }
+
+    private static bool HasUnsupportedVectorExtension(string imagePath) =>
+        string.Equals(Path.GetExtension(imagePath), ".svg", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsBundledImageAsset(string imagePath) =>
+        !string.IsNullOrWhiteSpace(imagePath) &&
+        !imagePath.Contains('/') &&
+        !imagePath.Contains('\\');
 
     private static string ComputeHash(string value)
     {
@@ -774,6 +852,17 @@ public sealed class PlaceCatalogService
             "HYBRID" => 1,
             _ => 2
         };
+
+    private static IEnumerable<string?> GetImageCandidates(LocationDto location)
+    {
+        yield return location.PreferenceImageUrl;
+        yield return location.CoverImageUrl;
+
+        foreach (var image in location.ImageUrls)
+        {
+            yield return image;
+        }
+    }
 
     public sealed class MapPlacePoint
     {

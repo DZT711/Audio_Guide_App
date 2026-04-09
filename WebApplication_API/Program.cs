@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Security;
 using System.Security.Authentication;
+using Microsoft.AspNetCore.ResponseCompression;
 using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Data;
 using WebApplication_API.ModelBinding;
@@ -72,6 +73,11 @@ builder.Services.AddCors(options =>
                         .AllowAnyMethod()
                         .AllowAnyHeader());
 });
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<GzipCompressionProvider>();
+});
 
 var app = builder.Build();
 var sharedAudioDirectory = SharedStoragePaths.GetAudioDirectory(app.Environment.ContentRootPath);
@@ -80,6 +86,7 @@ Directory.CreateDirectory(sharedAudioDirectory);
 Directory.CreateDirectory(sharedImageDirectory);
 
 app.UseCors("AllowBlazor");
+app.UseResponseCompression();
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(sharedAudioDirectory),

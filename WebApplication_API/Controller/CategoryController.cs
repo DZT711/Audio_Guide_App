@@ -17,7 +17,10 @@ public class CategoryController(
     [HttpGet("public")]
     public async Task<IActionResult> GetPublicCategories(CancellationToken cancellationToken)
     {
+        Response.Headers.CacheControl = "public,max-age=120";
+
         var categories = await context.Categories
+            .AsNoTracking()
             .Where(item => item.Status == 1)
             .OrderBy(item => item.Name)
             .ToListAsync(cancellationToken);

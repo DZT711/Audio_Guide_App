@@ -20,7 +20,10 @@ public class LocationController(
     [HttpGet("public")]
     public async Task<IActionResult> GetPublicLocations(CancellationToken cancellationToken)
     {
+        Response.Headers.CacheControl = "public,max-age=60";
+
         var locations = await context.Locations
+            .AsNoTracking()
             .Include(item => item.Category)
             .Include(item => item.Images)
             .Include(item => item.AudioContents)

@@ -22,7 +22,10 @@ public class AudioController(
     [HttpGet("public/location/{locationId:int}")]
     public async Task<IActionResult> GetPublicAudioByLocation(int locationId, CancellationToken cancellationToken)
     {
+        Response.Headers.CacheControl = "public,max-age=60";
+
         var location = await context.Locations
+            .AsNoTracking()
             .Where(item => item.LocationId == locationId && item.Status == 1)
             .Select(item => new
             {
@@ -37,6 +40,7 @@ public class AudioController(
         }
 
         var audioItems = (await context.AudioContents
+            .AsNoTracking()
             .Where(item => item.LocationId == locationId && item.Status == 1)
             .ToListAsync(cancellationToken))
             .OrderByDescending(item => item.Priority)
@@ -57,7 +61,10 @@ public class AudioController(
     [HttpGet("public/location/{locationId:int}/default")]
     public async Task<IActionResult> GetPublicDefaultAudioByLocation(int locationId, CancellationToken cancellationToken)
     {
+        Response.Headers.CacheControl = "public,max-age=60";
+
         var location = await context.Locations
+            .AsNoTracking()
             .Where(item => item.LocationId == locationId && item.Status == 1)
             .Select(item => new
             {
@@ -72,6 +79,7 @@ public class AudioController(
         }
 
         var audio = (await context.AudioContents
+            .AsNoTracking()
             .Where(item => item.LocationId == locationId && item.Status == 1)
             .ToListAsync(cancellationToken))
             .OrderByDescending(item => item.Priority)

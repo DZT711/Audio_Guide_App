@@ -93,7 +93,7 @@
                                         <Border StrokeThickness="0"
                                                 StrokeShape="RoundRectangle 18"
                                                 BackgroundColor="{DynamicResource SurfaceAlt}">
-                                            <Image Source="{Binding Image}"
+                                            <Image Source="{Binding Image, Converter={StaticResource PlaceImageSourceConverter}}"
                                                    Aspect="AspectFill" />
                                         </Border>
 
@@ -232,7 +232,7 @@
                         <Border BackgroundColor="#10243C"
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 24">
-                            <Image Source="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.Image}"
+                            <Image Source="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.Image, Converter={StaticResource PlaceImageSourceConverter}}"
                                    Aspect="{OnPlatform Default=AspectFill, WinUI=AspectFit}" />
                         </Border>
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Net;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Constants;
 
@@ -6,9 +7,15 @@ namespace MauiApp_Mobile.Services;
 
 public sealed class AudioDownloadService
 {
-    private static readonly HttpClient DownloadHttpClient = new()
+    private static readonly HttpClient DownloadHttpClient = new(new SocketsHttpHandler
     {
-        BaseAddress = new Uri(MobileApiOptions.BaseUrl),
+        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+        MaxConnectionsPerServer = 6
+    })
+    {
+        BaseAddress = MobileApiOptions.BaseUri,
         Timeout = TimeSpan.FromMinutes(4)
     };
 
@@ -218,7 +225,7 @@ public sealed class AudioDownloadService
             return absoluteUri;
         }
 
-        return new Uri(new Uri(MobileApiOptions.BaseUrl), audioUrl.TrimStart('/'));
+        return new Uri(MobileApiOptions.BaseUri, audioUrl.TrimStart('/'));
     }
 
     private static string ResolveFileExtension(Uri sourceUri, string? mediaType)

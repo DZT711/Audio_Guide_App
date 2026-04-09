@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:MauiApp_Mobile"
     xmlns:models="clr-namespace:MauiApp_Mobile.Models"
+    x:DataType="local:MainPage"
     Shell.NavBarIsVisible="False"
     Padding="0"
     BackgroundColor="{DynamicResource LightBg}">
@@ -30,7 +31,7 @@
                                BackgroundColor="Transparent"
                                TextColor="{DynamicResource BodyText}"
                                ClearButtonVisibility="WhileEditing"
-                               TextChanged="OnSearchChanged" />
+                               Text="{Binding ViewModel.SearchText, Mode=TwoWay}" />
                     </Grid>
                 </Frame>
             </VerticalStackLayout>
@@ -48,7 +49,7 @@
                         StrokeShape="RoundRectangle 16">
                     <VerticalStackLayout Spacing="2">
                         <Label x:Name="CountLabel"
-                               Text="10 địa điểm"
+                               Text="{Binding ViewModel.CountText}"
                                FontSize="17"
                                FontAttributes="Bold"
                                TextColor="{DynamicResource BodyText}" />
@@ -72,10 +73,10 @@
                                TextColor="{DynamicResource MutedText}"
                                VerticalOptions="Center" />
                         <Label x:Name="FilterLabel"
-                               Text="Lọc"
+                               Text="{Binding ViewModel.FilterHeaderText}"
                                FontSize="15"
                                FontAttributes="Bold"
-                               TextColor="{DynamicResource BodyText}"
+                               TextColor="{Binding ViewModel.FilterHeaderColor}"
                                VerticalOptions="Center" />
                     </HorizontalStackLayout>
 
@@ -87,7 +88,7 @@
 
             <VerticalStackLayout x:Name="EmptyStateLayout"
                                  Grid.Row="1"
-                                 IsVisible="False"
+                                 IsVisible="{Binding ViewModel.ShowEmptyState}"
                                  Spacing="8"
                                  Padding="0,8,0,8">
                 <Label Text="🔎"
@@ -134,23 +135,25 @@
             </Grid>
 
             <RefreshView Grid.Row="2"
-                         IsRefreshing="{Binding IsRefreshing, Mode=TwoWay}"
+                         IsRefreshing="{Binding ViewModel.IsRefreshing, Mode=TwoWay}"
                          RefreshColor="{DynamicResource PrimaryGreen}"
-                         Refreshing="OnPlacesRefreshing">
+                         Command="{Binding ViewModel.RefreshCommand}">
                 <CollectionView x:Name="PlacesCollectionView"
+                                ItemsSource="{Binding ViewModel.Places}"
                                 IsVisible="False"
                                 Opacity="0"
                                 SelectionMode="None"
                                 VerticalOptions="FillAndExpand"
                                 ItemsLayout="VerticalList">
                     <CollectionView.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="models:PlaceItem">
                             <Frame Style="{StaticResource CardFrameStyle}">
                                 <Frame.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnPlaceTapped" />
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type local:MainPage}}, Path=ViewModel.OpenPlaceCommand}"
+                                                          CommandParameter="{Binding .}" />
                                 </Frame.GestureRecognizers>
                                 <Grid ColumnDefinitions="88,*,Auto" ColumnSpacing="14">
-                                    <Image Source="{Binding Image}"
+                                    <Image Source="{Binding Image, Converter={StaticResource PlaceImageSourceConverter}}"
                                            WidthRequest="88"
                                            HeightRequest="88"
                                            Aspect="AspectFill" />
@@ -215,7 +218,8 @@
                                             </Label>
                                         </Grid>
                                         <Frame.GestureRecognizers>
-                                            <TapGestureRecognizer Tapped="OnPlayTapped" />
+                                            <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type local:MainPage}}, Path=ViewModel.PlayPlaceCommand}"
+                                                                  CommandParameter="{Binding .}" />
                                         </Frame.GestureRecognizers>
                                     </Frame>
                                 </Grid>
@@ -451,7 +455,7 @@
                                             <Border BackgroundColor="#0F172A"
                                                     StrokeThickness="0" />
 
-                                            <Image Source="{Binding Image}"
+                                            <Image Source="{Binding Image, Converter={StaticResource PlaceImageSourceConverter}}"
                                                    Aspect="{OnPlatform Default=AspectFill, WinUI=AspectFit}"
                                                    Margin="18,14,18,14"
                                                    Opacity="1" />

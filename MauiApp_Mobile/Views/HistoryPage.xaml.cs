@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using MauiApp_Mobile.Services;
 using MauiApp_Mobile.Models;
 
@@ -16,6 +18,7 @@ public partial class HistoryPage : ContentPage
     private double _historyDetailExpandedY = HistoryDetailOpenTopInset;
     private double _historyDetailHalfY = 180;
     private double _historyDetailClosedY = HistoryDetailFallbackClosedOffset;
+    private bool _subscriptionsAttached;
     public ObservableCollection<HistoryAudioTrack> SelectedHistoryAudioTracks { get; } = new();
 
     public bool IsHistoryDetailVisible
@@ -72,15 +75,21 @@ public partial class HistoryPage : ContentPage
         BindingContext = HistoryService.Instance;
 
         ApplyTexts();
-        LocalizationService.Instance.PropertyChanged += (_, _) => ApplyTexts();
-        HistoryService.Instance.HistoryItems.CollectionChanged += (_, _) => UpdateCount();
+        AttachSubscriptions();
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        AttachSubscriptions();
         UpdateCount();
         UpdateHistoryDetailSheetLayout();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        DetachSubscriptions();
     }
 
     protected override void OnSizeAllocated(double width, double height)
@@ -88,6 +97,36 @@ public partial class HistoryPage : ContentPage
         base.OnSizeAllocated(width, height);
         UpdateHistoryDetailSheetLayout();
     }
+
+    private void AttachSubscriptions()
+    {
+        if (_subscriptionsAttached)
+        {
+            return;
+        }
+
+        LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
+        HistoryService.Instance.HistoryItems.CollectionChanged += OnHistoryItemsChanged;
+        _subscriptionsAttached = true;
+    }
+
+    private void DetachSubscriptions()
+    {
+        if (!_subscriptionsAttached)
+        {
+            return;
+        }
+
+        LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
+        HistoryService.Instance.HistoryItems.CollectionChanged -= OnHistoryItemsChanged;
+        _subscriptionsAttached = false;
+    }
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e) =>
+        MainThread.BeginInvokeOnMainThread(ApplyTexts);
+
+    private void OnHistoryItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        MainThread.BeginInvokeOnMainThread(UpdateCount);
 
     private void UpdateCount()
     {

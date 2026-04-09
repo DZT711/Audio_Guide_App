@@ -2,6 +2,7 @@ using Microsoft.Maui.Media;
 using Microsoft.Maui.ApplicationModel;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Constants;
+using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using MauiTextToSpeech = Microsoft.Maui.Media.TextToSpeech;
@@ -32,9 +33,15 @@ public sealed class AudioPlaybackService
     private const string SamsungTtsEnginePackage = "com.samsung.SMT";
     private static readonly TimeSpan AndroidTtsInitializationTimeout = TimeSpan.FromSeconds(5);
 #endif
-    private static readonly HttpClient SpeechHttpClient = new()
+    private static readonly HttpClient SpeechHttpClient = new(new SocketsHttpHandler
     {
-        BaseAddress = new Uri(MobileApiOptions.BaseUrl),
+        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+        MaxConnectionsPerServer = 6
+    })
+    {
+        BaseAddress = MobileApiOptions.BaseUri,
         Timeout = TimeSpan.FromSeconds(45)
     };
 
@@ -292,7 +299,7 @@ public sealed class AudioPlaybackService
             return absoluteUri.ToString();
         }
 
-        return new Uri(new Uri(MobileApiOptions.BaseUrl), audioUrl.TrimStart('/')).ToString();
+        return new Uri(MobileApiOptions.BaseUri, audioUrl.TrimStart('/')).ToString();
     }
 
     private static string GetPreferredPlaybackLanguageCode() =>

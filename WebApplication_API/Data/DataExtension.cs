@@ -130,61 +130,10 @@ public static class DataExtension
             await context.SaveChangesAsync();
         }
 
-        if (!await context.LocationImages.AnyAsync())
-        {
-            var locations = await context.Locations
-                .OrderBy(item => item.LocationId)
-                .Take(2)
-                .ToListAsync();
-
-            for (var index = 0; index < locations.Count; index++)
-            {
-                var location = locations[index];
-                var imagePath = await EnsureSeedImageAsync(contentRootPath, location.Name, index + 1);
-                context.LocationImages.Add(new LocationImage
-                {
-                    LocationId = location.LocationId,
-                    ImageUrl = imagePath,
-                    SortOrder = 1,
-                    CreatedAt = DateTime.UtcNow
-                });
-                location.PreferenceImageUrl = imagePath;
-            }
-
-            await context.SaveChangesAsync();
-        }
-
+        await EnsureSeedLocationImagesAsync(context, contentRootPath);
         await EnsureLocationPreferenceImagesAsync(context);
 
-        if (!await context.AudioContents.AnyAsync())
-        {
-            var firstLocation = await context.Locations.OrderBy(item => item.LocationId).FirstAsync();
-            var audioDirectory = SharedStoragePaths.GetAudioDirectory(contentRootPath);
-            Directory.CreateDirectory(audioDirectory);
-            var seededAudioFile = Directory.EnumerateFiles(audioDirectory, "*.*", SearchOption.TopDirectoryOnly).FirstOrDefault();
-
-            context.AudioContents.Add(new Audio
-            {
-                LocationId = firstLocation.LocationId,
-                Title = "Ben Nha Rong Introduction",
-                Description = "Recorded introduction for the museum arrival experience.",
-                LanguageCode = "vi-VN",
-                SourceType = seededAudioFile is null ? "TTS" : "Hybrid",
-                Script = "Chao mung ban den voi Ben Nha Rong, mot dia diem lich su quan trong tai Thanh pho Ho Chi Minh.",
-                FilePath = seededAudioFile is null ? null : SharedStoragePaths.ToPublicAudioPath(Path.GetFileName(seededAudioFile)),
-                FileSizeBytes = seededAudioFile is null ? null : (int?)new FileInfo(seededAudioFile).Length,
-                DurationSeconds = 96,
-                VoiceName = "Local Guide",
-                VoiceGender = "Female",
-                Priority = 10,
-                PlaybackMode = "Auto",
-                InterruptPolicy = "NotificationFirst",
-                IsDownloadable = true,
-                Status = 1
-            });
-
-            await context.SaveChangesAsync();
-        }
+        await EnsureSeedAudioVariantsAsync(context, contentRootPath);
 
         if (!await context.Tours.AnyAsync())
         {
@@ -918,36 +867,217 @@ public static class DataExtension
             Status = 1
         };
 
-    private static async Task<string> EnsureSeedImageAsync(string contentRootPath, string locationName, int seedIndex)
+    private static async Task EnsureSeedLocationImagesAsync(DBContext context, string contentRootPath)
+    {
+        var locations = await context.Locations
+            .Include(item => item.Images)
+            .OrderBy(item => item.LocationId)
+            .ToListAsync();
+
+        var hasChanges = false;
+        foreach (var location in locations)
+        {
+            var existingImageUrls = location.Images
+                .Select(item => item.ImageUrl)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var nextSortOrder = location.Images.Count == 0
+                ? 1
+                : location.Images.Max(item => item.SortOrder) + 1;
+            var sampleImages = new List<string>(3);
+
+            for (var variantIndex = 1; variantIndex <= 3; variantIndex++)
+            {
+                var imagePath = await EnsureSeedImageAsync(contentRootPath, location.Name, location.LocationId, variantIndex);
+                sampleImages.Add(imagePath);
+
+                if (existingImageUrls.Contains(imagePath))
+                {
+                    continue;
+                }
+
+                context.LocationImages.Add(new LocationImage
+                {
+                    LocationId = location.LocationId,
+                    ImageUrl = imagePath,
+                    Description = $"Seed sample image {variantIndex} for {location.Name}",
+                    SortOrder = nextSortOrder++,
+                    CreatedAt = DateTime.UtcNow
+                });
+                hasChanges = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(location.PreferenceImageUrl) ||
+                HasLegacySeedSvg(location.PreferenceImageUrl) ||
+                !existingImageUrls.Contains(location.PreferenceImageUrl))
+            {
+                location.PreferenceImageUrl = sampleImages[0];
+                hasChanges = true;
+            }
+        }
+
+        if (hasChanges)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+
+    private static async Task EnsureSeedAudioVariantsAsync(DBContext context, string contentRootPath)
+    {
+        var locations = await context.Locations
+            .Where(item => item.Status == 1)
+            .OrderBy(item => item.LocationId)
+            .ToListAsync();
+
+        foreach (var location in locations)
+        {
+            await EnsureAnalyticsAudioAsync(
+                context,
+                location.LocationId,
+                $"{location.Name} TTS Guide",
+                $"Seed TTS sample for {location.Name}.",
+                BuildSeedAudioScript(location, "tts"),
+                72,
+                "Smart Tour Voice",
+                "Female",
+                "vi-VN");
+
+            await EnsureAnalyticsRecordedAudioAsync(
+                context,
+                contentRootPath,
+                location.LocationId,
+                $"{location.Name} Recorded Guide",
+                $"Seed recorded sample for {location.Name}.",
+                null,
+                64,
+                "Field Narrator",
+                "Male",
+                "en-US",
+                "Recorded",
+                $"seed-location-{location.LocationId:D2}-recorded.wav",
+                360,
+                580);
+
+            await EnsureAnalyticsRecordedAudioAsync(
+                context,
+                contentRootPath,
+                location.LocationId,
+                $"{location.Name} Hybrid Guide",
+                $"Seed hybrid sample for {location.Name}.",
+                BuildSeedAudioScript(location, "hybrid"),
+                68,
+                "Hybrid Tour Voice",
+                "Female",
+                "en-US",
+                "Hybrid",
+                $"seed-location-{location.LocationId:D2}-hybrid.wav",
+                440,
+                700);
+        }
+    }
+
+    private static string BuildSeedAudioScript(Location location, string sourceType)
+    {
+        var address = string.IsNullOrWhiteSpace(location.Address)
+            ? "Ho Chi Minh City"
+            : location.Address;
+
+        return sourceType switch
+        {
+            "hybrid" =>
+                $"Welcome to {location.Name}. This hybrid sample combines a stored clip with script backup so the mobile app can test both playback paths. Destination address: {address}.",
+            _ =>
+                $"Xin chao, day la ban thu TTS cho dia diem {location.Name}. Vi tri nay nam tai {address} va duoc tao de kiem thu ung dung du lich thong minh."
+        };
+    }
+
+    private static async Task<string> EnsureSeedImageAsync(
+        string contentRootPath,
+        string locationName,
+        int seedIndex,
+        int variantIndex = 1)
     {
         var imageDirectory = SharedStoragePaths.GetImageDirectory(contentRootPath);
         Directory.CreateDirectory(imageDirectory);
 
-        var fileName = $"seed-location-{seedIndex:D2}.svg";
+        var fileName = $"seed-location-{seedIndex:D2}-{variantIndex:D2}.bmp";
         var fullPath = Path.Combine(imageDirectory, fileName);
         if (!File.Exists(fullPath))
         {
-            var escapedTitle = System.Security.SecurityElement.Escape(locationName) ?? "Location";
-            var svg = $$"""
-                <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
-                    <defs>
-                        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#0f766e"/>
-                            <stop offset="100%" stop-color="#38bdf8"/>
-                        </linearGradient>
-                    </defs>
-                    <rect width="1200" height="800" fill="url(#bg)"/>
-                    <circle cx="980" cy="170" r="120" fill="rgba(255,255,255,0.22)"/>
-                    <circle cx="220" cy="660" r="170" fill="rgba(255,255,255,0.14)"/>
-                    <text x="90" y="320" fill="#ffffff" font-size="72" font-family="Segoe UI, Arial, sans-serif" font-weight="700">Smart Tourism</text>
-                    <text x="90" y="410" fill="#e2e8f0" font-size="42" font-family="Segoe UI, Arial, sans-serif">{{escapedTitle}}</text>
-                    <text x="90" y="490" fill="#ccfbf1" font-size="28" font-family="Segoe UI, Arial, sans-serif">Seed preview image stored in SharedLibraries</text>
-                </svg>
-                """;
-
-            await File.WriteAllTextAsync(fullPath, svg);
+            await using var stream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.Read);
+            using var writer = new BinaryWriter(stream, System.Text.Encoding.ASCII, leaveOpen: true);
+            WriteSeedBitmap(writer, locationName, seedIndex, variantIndex);
+            await stream.FlushAsync();
         }
 
         return SharedStoragePaths.ToPublicImagePath(fileName);
+    }
+
+    private static bool HasLegacySeedSvg(string? imagePath) =>
+        !string.IsNullOrWhiteSpace(imagePath) &&
+        imagePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase) &&
+        imagePath.Contains("seed-location-", StringComparison.OrdinalIgnoreCase);
+
+    private static void WriteSeedBitmap(BinaryWriter writer, string locationName, int seedIndex, int variantIndex)
+    {
+        const int width = 960;
+        const int height = 540;
+        const short bitsPerPixel = 24;
+
+        var rowSize = ((width * bitsPerPixel + 31) / 32) * 4;
+        var pixelArraySize = rowSize * height;
+        var fileSize = 54 + pixelArraySize;
+        var seed = HashCode.Combine(locationName.ToLowerInvariant(), seedIndex, variantIndex);
+
+        writer.Write((byte)'B');
+        writer.Write((byte)'M');
+        writer.Write(fileSize);
+        writer.Write(0);
+        writer.Write(54);
+
+        writer.Write(40);
+        writer.Write(width);
+        writer.Write(height);
+        writer.Write((short)1);
+        writer.Write(bitsPerPixel);
+        writer.Write(0);
+        writer.Write(pixelArraySize);
+        writer.Write(2835);
+        writer.Write(2835);
+        writer.Write(0);
+        writer.Write(0);
+
+        var baseRed = (byte)(70 + Math.Abs(seed % 120));
+        var baseGreen = (byte)(90 + Math.Abs((seed / 3) % 120));
+        var baseBlue = (byte)(110 + Math.Abs((seed / 7) % 120));
+        var accentRed = (byte)Math.Min(255, baseRed + 60);
+        var accentGreen = (byte)Math.Min(255, baseGreen + 45);
+        var accentBlue = (byte)Math.Min(255, baseBlue + 35);
+        var paddingPerRow = rowSize - (width * 3);
+        var padding = new byte[paddingPerRow];
+
+        for (var y = 0; y < height; y++)
+        {
+            var verticalRatio = height <= 1 ? 0d : y / (double)(height - 1);
+            for (var x = 0; x < width; x++)
+            {
+                var horizontalRatio = width <= 1 ? 0d : x / (double)(width - 1);
+                var stripe = ((x / 96) + variantIndex) % 3 == 0 ? 1d : 0d;
+                var glow = 1d - Math.Min(1d, Math.Abs(horizontalRatio - 0.5d) * 1.6d);
+                var mix = Math.Clamp((verticalRatio * 0.55d) + (horizontalRatio * 0.25d) + (stripe * 0.20d), 0d, 1d);
+
+                var red = (byte)Math.Clamp((baseRed * (1d - mix)) + (accentRed * mix) + (glow * 10d), 0d, 255d);
+                var green = (byte)Math.Clamp((baseGreen * (1d - mix)) + (accentGreen * mix) + (glow * 16d), 0d, 255d);
+                var blue = (byte)Math.Clamp((baseBlue * (1d - mix)) + (accentBlue * mix) + (glow * 22d), 0d, 255d);
+
+                writer.Write(blue);
+                writer.Write(green);
+                writer.Write(red);
+            }
+
+            if (paddingPerRow > 0)
+            {
+                writer.Write(padding);
+            }
+        }
     }
 }
