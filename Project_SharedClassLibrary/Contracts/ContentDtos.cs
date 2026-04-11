@@ -101,6 +101,14 @@ public sealed class PublicAudioTrackDto
     public bool IsDefault { get; init; }
 }
 
+public sealed class PublicCatalogSnapshotDto
+{
+    public DateTime RefreshedAtUtc { get; init; }
+    public IReadOnlyList<CategoryDto> Categories { get; init; } = [];
+    public IReadOnlyList<LocationDto> Locations { get; init; } = [];
+    public IReadOnlyList<PublicAudioTrackDto> AudioTracks { get; init; } = [];
+}
+
 public sealed class TourStopDto
 {
     public int LocationId { get; init; }

@@ -531,7 +531,7 @@ public class AudioController(
             Description = audio.Description,
             SourceType = audio.SourceType,
             Script = audio.Script,
-            AudioURL = audio.FilePath,
+            AudioURL = NormalizeAudioPath(audio.FilePath),
             Duration = audio.DurationSeconds ?? 0,
             VoiceName = audio.VoiceName,
             VoiceGender = audio.VoiceGender,

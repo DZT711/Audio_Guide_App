@@ -1000,9 +1000,16 @@ public sealed partial class ChangeRequestWorkflowService(
                 DebounceSeconds = payload.DebounceSeconds,
                 IsGpsTriggerEnabled = payload.IsGpsTriggerEnabled,
                 Address = payload.Address,
-                PreferenceImageUrl = payload.PreferenceImageUrl,
-                CoverImageUrl = payload.PreferenceImageUrl ?? payload.ImageUrls.FirstOrDefault(),
-                ImageUrls = payload.ImageUrls,
+                PreferenceImageUrl = NormalizeImagePath(payload.PreferenceImageUrl),
+                CoverImageUrl = NormalizeImagePath(payload.PreferenceImageUrl)
+                    ?? payload.ImageUrls
+                        .Select(NormalizeImagePath)
+                        .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item)),
+                ImageUrls = payload.ImageUrls
+                    .Select(NormalizeImagePath)
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Cast<string>()
+                    .ToList(),
                 WebURL = payload.WebURL,
                 Email = payload.Email,
                 Phone = payload.Phone,
@@ -1061,7 +1068,7 @@ public sealed partial class ChangeRequestWorkflowService(
                 Description = payload.Description,
                 SourceType = payload.SourceType,
                 Script = payload.Script,
-                AudioURL = payload.AudioURL,
+                AudioURL = NormalizeAudioPath(payload.AudioURL),
                 FileSizeBytes = payload.FileSizeBytes,
                 Duration = payload.Duration,
                 VoiceName = payload.VoiceName,

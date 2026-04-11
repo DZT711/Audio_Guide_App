@@ -7,17 +7,9 @@ namespace MauiApp_Mobile.Services;
 
 public sealed class AudioDownloadService
 {
-    private static readonly HttpClient DownloadHttpClient = new(new SocketsHttpHandler
-    {
-        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
-        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
-        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
-        MaxConnectionsPerServer = 6
-    })
-    {
-        BaseAddress = MobileApiOptions.BaseUri,
-        Timeout = TimeSpan.FromMinutes(4)
-    };
+    private static readonly HttpClient DownloadHttpClient = MobileApiHttpClientFactory.Create(
+        TimeSpan.FromMinutes(4),
+        6);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {

@@ -1,4 +1,3 @@
-using Microsoft.Extensions.FileProviders;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
@@ -20,6 +19,7 @@ builder.Services.AddControllers(options =>
     options.ModelBinderProviders.Insert(0, new FlexibleDoubleModelBinderProvider());
 });
 builder.AddDataToDatabase();
+builder.Services.AddSingleton<ManagedMediaArchiveMigrationService>();
 builder.Services.AddSingleton<SharedAudioFileStorageService>();
 builder.Services.AddSingleton<SharedImageFileStorageService>();
 builder.Services.Configure<RoutePlanningOptions>(builder.Configuration.GetSection(RoutePlanningOptions.SectionName));
@@ -80,23 +80,12 @@ builder.Services.AddResponseCompression(options =>
 });
 
 var app = builder.Build();
-var sharedAudioDirectory = SharedStoragePaths.GetAudioDirectory(app.Environment.ContentRootPath);
-var sharedImageDirectory = SharedStoragePaths.GetImageDirectory(app.Environment.ContentRootPath);
-Directory.CreateDirectory(sharedAudioDirectory);
-Directory.CreateDirectory(sharedImageDirectory);
+var mediaArchiveMigration = app.Services.GetRequiredService<ManagedMediaArchiveMigrationService>();
+mediaArchiveMigration.EnsureArchiveIsReady();
 
 app.UseCors("AllowBlazor");
 app.UseResponseCompression();
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(sharedAudioDirectory),
-    RequestPath = SharedStoragePaths.AudioRequestPath
-});
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(sharedImageDirectory),
-    RequestPath = SharedStoragePaths.ImageRequestPath
-});
+app.UseStaticFiles();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

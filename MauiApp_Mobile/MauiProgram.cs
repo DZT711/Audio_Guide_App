@@ -16,7 +16,9 @@ public static class MauiProgram
             });
 
 #if DEBUG
+        builder.Logging.SetMinimumLevel(LogLevel.Debug);
         builder.Logging.AddDebug();
+        System.Diagnostics.Debug.WriteLine($"[MobileApi] Configured API base URL: {Services.MobileApiOptions.BaseUrl}");
 #endif
 
         return builder.Build();

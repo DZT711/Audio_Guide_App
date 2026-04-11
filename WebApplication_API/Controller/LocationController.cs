@@ -34,6 +34,69 @@ public class LocationController(
         return Ok(locations.Select(item => item.ToDto()).ToList());
     }
 
+    [HttpGet("public/catalog")]
+    public async Task<IActionResult> GetPublicCatalog(CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "public,max-age=60";
+
+        var categoriesTask = context.Categories
+            .AsNoTracking()
+            .Where(item => item.Status == 1)
+            .OrderBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        var locationsTask = context.Locations
+            .AsNoTracking()
+            .Include(item => item.Category)
+            .Include(item => item.Images)
+            .Include(item => item.AudioContents)
+            .Where(item => item.Status == 1)
+            .OrderBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        await Task.WhenAll(categoriesTask, locationsTask);
+
+        var locations = locationsTask.Result;
+        var audioItems = locations
+            .SelectMany(location => location.AudioContents
+                .Where(item => item.Status == 1)
+                .Select(item => new { Location = location, Audio = item }))
+            .ToList();
+
+        var languageLookup = await LoadLanguageLookupAsync(
+            audioItems.Select(item => item.Audio.LanguageCode),
+            cancellationToken);
+
+        var publicAudioTracks = new List<PublicAudioTrackDto>(audioItems.Count);
+        foreach (var location in locations)
+        {
+            var locationAudioItems = location.AudioContents
+                .Where(item => item.Status == 1)
+                .OrderByDescending(item => item.Priority)
+                .ThenBy(item => GetSourceTypeOrder(item.SourceType))
+                .ThenBy(item => item.AudioId)
+                .ToList();
+
+            var defaultAudioId = locationAudioItems.FirstOrDefault()?.AudioId;
+            foreach (var audio in locationAudioItems)
+            {
+                publicAudioTracks.Add(ToPublicAudioTrackDto(
+                    audio,
+                    location.Name,
+                    GetLanguage(languageLookup, audio.LanguageCode),
+                    audio.AudioId == defaultAudioId));
+            }
+        }
+
+        return Ok(new PublicCatalogSnapshotDto
+        {
+            RefreshedAtUtc = DateTime.UtcNow,
+            Categories = categoriesTask.Result.Select(item => item.ToDto()).ToList(),
+            Locations = locations.Select(item => item.ToDto()).ToList(),
+            AudioTracks = publicAudioTracks
+        });
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAllLocations()
     {
@@ -576,4 +639,67 @@ public class LocationController(
 
     private static string? NormalizeImagePath(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : SharedStoragePaths.NormalizePublicImagePath(value);
+
+    private async Task<Dictionary<string, Language>> LoadLanguageLookupAsync(
+        IEnumerable<string> languageCodes,
+        CancellationToken cancellationToken)
+    {
+        var normalizedCodes = languageCodes
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalizedCodes.Count == 0)
+        {
+            return new Dictionary<string, Language>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var languages = await context.Languages
+            .AsNoTracking()
+            .Where(item => normalizedCodes.Contains(item.LangCode))
+            .ToListAsync(cancellationToken);
+
+        return languages.ToDictionary(item => item.LangCode, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static Language? GetLanguage(
+        IReadOnlyDictionary<string, Language> languageLookup,
+        string? languageCode) =>
+        string.IsNullOrWhiteSpace(languageCode)
+            ? null
+            : languageLookup.TryGetValue(languageCode, out var language)
+                ? language
+                : null;
+
+    private static PublicAudioTrackDto ToPublicAudioTrackDto(
+        Audio audio,
+        string locationName,
+        Language? language,
+        bool isDefault) =>
+        new()
+        {
+            Id = audio.AudioId,
+            LocationId = audio.LocationId,
+            LocationName = locationName,
+            Language = audio.LanguageCode,
+            LanguageName = language?.LangName,
+            Title = audio.Title,
+            Description = audio.Description,
+            SourceType = audio.SourceType,
+            Script = audio.Script,
+            AudioURL = SharedStoragePaths.NormalizePublicAudioPath(audio.FilePath),
+            Duration = audio.DurationSeconds ?? 0,
+            VoiceName = audio.VoiceName,
+            VoiceGender = audio.VoiceGender,
+            Priority = audio.Priority,
+            IsDefault = isDefault
+        };
+
+    private static int GetSourceTypeOrder(string? sourceType) =>
+        sourceType?.Trim().ToUpperInvariant() switch
+        {
+            "RECORDED" => 0,
+            "HYBRID" => 1,
+            _ => 2
+        };
 }

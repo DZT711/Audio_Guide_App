@@ -1,5 +1,6 @@
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Security;
+using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Model;
 
 namespace WebApplication_API.Services;
@@ -80,10 +81,10 @@ public static class AdminMappings
         var orderedImageUrls = location.Images
             .OrderBy(item => item.SortOrder)
             .ThenBy(item => item.ImageId)
-            .Select(item => item.ImageUrl)
+            .Select(item => NormalizeImagePath(item.ImageUrl) ?? item.ImageUrl)
             .ToList();
 
-        var preferenceImageUrl = location.PreferenceImageUrl
+        var preferenceImageUrl = NormalizeImagePath(location.PreferenceImageUrl)
             ?? orderedImageUrls.FirstOrDefault();
 
         return new LocationDto
@@ -139,7 +140,7 @@ public static class AdminMappings
             Description = audio.Description,
             SourceType = audio.SourceType,
             Script = audio.Script,
-            AudioURL = audio.FilePath,
+            AudioURL = NormalizeAudioPath(audio.FilePath),
             FileSizeBytes = audio.FileSizeBytes,
             Duration = audio.DurationSeconds ?? 0,
             VoiceName = audio.VoiceName,
@@ -177,11 +178,11 @@ public static class AdminMappings
                 OwnerName = location.Owner?.FullName ?? location.Owner?.Username,
                 Category = location.Category?.Name ?? "Unassigned",
                 Address = location.Address,
-                PreferenceImageUrl = location.PreferenceImageUrl
+                PreferenceImageUrl = NormalizeImagePath(location.PreferenceImageUrl)
                     ?? location.Images
                         .OrderBy(item => item.SortOrder)
                         .ThenBy(item => item.ImageId)
-                        .Select(item => item.ImageUrl)
+                        .Select(item => NormalizeImagePath(item.ImageUrl) ?? item.ImageUrl)
                         .FirstOrDefault(),
                 Latitude = location.Latitude,
                 Longitude = location.Longitude,
@@ -221,7 +222,7 @@ public static class AdminMappings
             Id = playbackEvent.PlaybackEventId,
             LocationId = playbackEvent.LocationId,
             LocationName = playbackEvent.Location?.Name ?? "Unknown location",
-            PreferenceImageUrl = playbackEvent.Location?.PreferenceImageUrl,
+            PreferenceImageUrl = NormalizeImagePath(playbackEvent.Location?.PreferenceImageUrl),
             OwnerId = playbackEvent.Location?.OwnerId,
             OwnerName = playbackEvent.Location?.Owner?.FullName ?? playbackEvent.Location?.Owner?.Username,
             AudioId = playbackEvent.AudioId,
@@ -275,4 +276,10 @@ public static class AdminMappings
 
         return initials.Length == 0 ? "ST" : new string(initials);
     }
+
+    private static string? NormalizeAudioPath(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : SharedStoragePaths.NormalizePublicAudioPath(value);
+
+    private static string? NormalizeImagePath(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : SharedStoragePaths.NormalizePublicImagePath(value);
 }

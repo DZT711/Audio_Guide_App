@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -20,8 +21,7 @@ public sealed class PlaceCatalogService
     private static readonly string AudioTrackCacheFilePath = Path.Combine(FileSystem.Current.AppDataDirectory, "place-audio-cache.json");
     private static readonly string ImageCacheDirectoryPath = Path.Combine(FileSystem.Current.CacheDirectory, "place-images");
     private static readonly SemaphoreSlim ImageWarmupSemaphore = new(1, 1);
-    private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
-    private readonly SemaphoreSlim _categoryLoadSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _catalogLoadSemaphore = new(1, 1);
     private readonly SemaphoreSlim _audioCacheSemaphore = new(1, 1);
     private readonly List<PlaceItem> _places = [];
     private readonly List<CategoryDto> _categories = [];
@@ -35,6 +35,12 @@ public sealed class PlaceCatalogService
     public IReadOnlyList<PlaceItem> GetPlaces() => _places.ToList();
 
     public IReadOnlyList<CategoryDto> GetCategories() => _categories.ToList();
+
+    public async Task<CatalogSnapshot> GetCatalogAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
+    {
+        await EnsureCatalogLoadedAsync(forceRefresh, cancellationToken);
+        return new CatalogSnapshot(GetPlaces(), GetCategories());
+    }
 
     public async Task<IReadOnlyList<PlaceItem>> GetPlacesAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
@@ -50,64 +56,12 @@ public sealed class PlaceCatalogService
 
     public async Task EnsureLoadedAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
-        if (!forceRefresh && _places.Count > 0)
-        {
-            return;
-        }
-
-        await _loadSemaphore.WaitAsync(cancellationToken);
-        try
-        {
-            if (!forceRefresh && _places.Count > 0)
-            {
-                return;
-            }
-
-            var locations = await LoadLocationsWithFallbackAsync(forceRefresh, cancellationToken);
-
-            if (locations.Count == 0 && _places.Count > 0)
-            {
-                return;
-            }
-
-            _places.Clear();
-            _places.AddRange(locations.Select(MapToPlaceItem));
-        }
-        finally
-        {
-            _loadSemaphore.Release();
-        }
+        await EnsureCatalogLoadedAsync(forceRefresh, cancellationToken);
     }
 
     public async Task EnsureCategoriesLoadedAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
-        if (!forceRefresh && _categories.Count > 0)
-        {
-            return;
-        }
-
-        await _categoryLoadSemaphore.WaitAsync(cancellationToken);
-        try
-        {
-            if (!forceRefresh && _categories.Count > 0)
-            {
-                return;
-            }
-
-            var categories = await LoadCategoriesWithFallbackAsync(forceRefresh, cancellationToken);
-
-            if (categories.Count == 0 && _categories.Count > 0)
-            {
-                return;
-            }
-
-            _categories.Clear();
-            _categories.AddRange(categories);
-        }
-        finally
-        {
-            _categoryLoadSemaphore.Release();
-        }
+        await EnsureCatalogLoadedAsync(forceRefresh, cancellationToken);
     }
 
     public PlaceItem? FindById(string? id)
@@ -241,8 +195,9 @@ public sealed class PlaceCatalogService
             .ToList();
     }
 
-    private static PlaceItem MapToPlaceItem(LocationDto location)
+    private static PlaceItem MapToPlaceItem(LocationDto location, IReadOnlyList<PublicAudioTrackDto>? audioTracks)
     {
+        audioTracks ??= Array.Empty<PublicAudioTrackDto>();
         var categoryColors = ResolveCategoryPalette(location.Category);
         var primaryImage = ResolveImageUrl(location.CoverImageUrl);
         var preferenceImage = ResolveImageUrl(location.PreferenceImageUrl);
@@ -296,9 +251,11 @@ public sealed class PlaceCatalogService
             OwnerName = string.IsNullOrWhiteSpace(location.OwnerName) ? "Chưa gán người quản lý" : location.OwnerName,
             StatusText = location.Status == 1 ? "Đang hoạt động" : "Ngừng hoạt động",
             GpsTriggerText = location.IsGpsTriggerEnabled ? "Bật GPS trigger" : "Tắt GPS trigger",
-            AudioCountText = $"{location.AudioCount} audio",
-            AudioTracks = Array.Empty<PublicAudioTrackDto>(),
-            AvailableVoiceGenders = location.AvailableVoiceGenders
+            AudioCountText = $"{Math.Max(location.AudioCount, audioTracks.Count)} audio",
+            AudioTracks = audioTracks,
+            AvailableVoiceGenders = (audioTracks.Count > 0
+                    ? audioTracks.Select(item => item.VoiceGender)
+                    : location.AvailableVoiceGenders)
                 .Select(NormalizeVoiceGender)
                 .Where(item => !string.IsNullOrWhiteSpace(item))
                 .Cast<string>()
@@ -443,50 +400,103 @@ public sealed class PlaceCatalogService
 
     private static HttpClient CreateHttpClient()
     {
-        return new HttpClient(new SocketsHttpHandler
-        {
-            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
-            PooledConnectionLifetime = TimeSpan.FromMinutes(10),
-            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
-            MaxConnectionsPerServer = 8
-        })
-        {
-            BaseAddress = MobileApiOptions.BaseUri,
-            Timeout = TimeSpan.FromSeconds(10)
-        };
+        return MobileApiHttpClientFactory.Create(TimeSpan.FromSeconds(10), 8);
     }
 
-    private static async Task<IReadOnlyList<LocationDto>> LoadLocationsWithFallbackAsync(bool forceRefresh, CancellationToken cancellationToken)
+    private async Task EnsureCatalogLoadedAsync(bool forceRefresh, CancellationToken cancellationToken)
+    {
+        if (!forceRefresh && _places.Count > 0 && _categories.Count > 0)
+        {
+            return;
+        }
+
+        await _catalogLoadSemaphore.WaitAsync(cancellationToken);
+        try
+        {
+            if (!forceRefresh && _places.Count > 0 && _categories.Count > 0)
+            {
+                return;
+            }
+
+            var catalogData = await LoadCatalogWithFallbackAsync(forceRefresh, cancellationToken);
+            if (!catalogData.HasContent && (_places.Count > 0 || _categories.Count > 0))
+            {
+                return;
+            }
+
+            ApplyCatalogData(catalogData);
+        }
+        finally
+        {
+            _catalogLoadSemaphore.Release();
+        }
+    }
+
+    private void ApplyCatalogData(CachedCatalogData catalogData)
+    {
+        _categories.Clear();
+        _categories.AddRange(catalogData.Categories);
+
+        _audioTracksByPlaceId.Clear();
+        foreach (var pair in catalogData.AudioTracksByPlaceId)
+        {
+            _audioTracksByPlaceId[pair.Key] = pair.Value;
+        }
+
+        _hasLoadedAudioTrackCache = true;
+
+        _places.Clear();
+        _places.AddRange(catalogData.Locations.Select(location =>
+        {
+            var locationKey = location.Id.ToString(CultureInfo.InvariantCulture);
+            IReadOnlyList<PublicAudioTrackDto> audioTracks = catalogData.AudioTracksByPlaceId.TryGetValue(locationKey, out var tracks)
+                ? tracks
+                : Array.Empty<PublicAudioTrackDto>();
+
+            return MapToPlaceItem(location, audioTracks);
+        }));
+    }
+
+    private async Task<CachedCatalogData> LoadCatalogWithFallbackAsync(bool forceRefresh, CancellationToken cancellationToken)
     {
         if (!AppDataModeService.Instance.IsApiEnabled)
         {
-            return await LoadCacheAsync(cancellationToken);
+            return await LoadCatalogFromCacheAsync(cancellationToken);
         }
 
         if (!forceRefresh)
         {
-            var cachedLocations = await LoadCacheAsync(cancellationToken);
-            if (cachedLocations.Count > 0)
+            var cachedCatalog = await LoadCatalogFromCacheAsync(cancellationToken);
+            if (cachedCatalog.HasContent)
             {
-                _ = WarmLocationImagesInBackgroundAsync(cachedLocations);
-                return cachedLocations;
+                _ = WarmLocationImagesInBackgroundAsync(cachedCatalog.Locations);
+                return cachedCatalog;
             }
         }
 
         try
         {
-            var locations = await HttpClient.GetFromJsonAsync<List<LocationDto>>(ApiRoutes.PublicLocations, cancellationToken) ?? [];
-            await SaveCacheAsync(locations, cancellationToken);
-            _ = WarmLocationImagesInBackgroundAsync(locations);
-            return locations;
+            var snapshot = await HttpClient.GetFromJsonAsync<PublicCatalogSnapshotDto>(ApiRoutes.PublicCatalog, cancellationToken)
+                ?? new PublicCatalogSnapshotDto();
+            var audioTracksByPlaceId = GroupAudioTracksByPlaceId(snapshot.AudioTracks);
+
+            await SaveCacheAsync(snapshot.Locations, cancellationToken);
+            await SaveCategoryCacheAsync(snapshot.Categories, cancellationToken);
+            await SaveAudioTrackCacheAsync(audioTracksByPlaceId, cancellationToken);
+
+            _ = WarmLocationImagesInBackgroundAsync(snapshot.Locations);
+            Debug.WriteLine(
+                $"[MobileApi] Catalog refresh synchronized {snapshot.Locations.Count} POIs, {snapshot.Categories.Count} categories, {snapshot.AudioTracks.Count} audio tracks.");
+
+            return new CachedCatalogData(snapshot.Locations, snapshot.Categories, audioTracksByPlaceId);
         }
         catch when (!cancellationToken.IsCancellationRequested)
         {
-            var cachedLocations = await LoadCacheAsync(cancellationToken);
-            if (cachedLocations.Count > 0)
+            var cachedCatalog = await LoadCatalogFromCacheAsync(cancellationToken);
+            if (cachedCatalog.HasContent)
             {
-                _ = WarmLocationImagesInBackgroundAsync(cachedLocations);
-                return cachedLocations;
+                _ = WarmLocationImagesInBackgroundAsync(cachedCatalog.Locations);
+                return cachedCatalog;
             }
 
             if (forceRefresh)
@@ -494,47 +504,18 @@ public sealed class PlaceCatalogService
                 throw;
             }
 
-            return [];
+            return CachedCatalogData.Empty;
         }
     }
 
-    private static async Task<IReadOnlyList<CategoryDto>> LoadCategoriesWithFallbackAsync(bool forceRefresh, CancellationToken cancellationToken)
+    private static async Task<CachedCatalogData> LoadCatalogFromCacheAsync(CancellationToken cancellationToken)
     {
-        if (!AppDataModeService.Instance.IsApiEnabled)
-        {
-            return await LoadCategoryCacheAsync(cancellationToken);
-        }
+        var locationsTask = LoadCacheAsync(cancellationToken);
+        var categoriesTask = LoadCategoryCacheAsync(cancellationToken);
+        var audioTracksTask = LoadAudioTrackCacheAsync(cancellationToken);
+        await Task.WhenAll(locationsTask, categoriesTask, audioTracksTask);
 
-        if (!forceRefresh)
-        {
-            var cachedCategories = await LoadCategoryCacheAsync(cancellationToken);
-            if (cachedCategories.Count > 0)
-            {
-                return cachedCategories;
-            }
-        }
-
-        try
-        {
-            var categories = await HttpClient.GetFromJsonAsync<List<CategoryDto>>(ApiRoutes.PublicCategories, cancellationToken) ?? [];
-            await SaveCategoryCacheAsync(categories, cancellationToken);
-            return categories;
-        }
-        catch when (!cancellationToken.IsCancellationRequested)
-        {
-            var cachedCategories = await LoadCategoryCacheAsync(cancellationToken);
-            if (cachedCategories.Count > 0)
-            {
-                return cachedCategories;
-            }
-
-            if (forceRefresh)
-            {
-                throw;
-            }
-
-            return [];
-        }
+        return new CachedCatalogData(locationsTask.Result, categoriesTask.Result, audioTracksTask.Result);
     }
 
     private static Task WarmLocationImagesInBackgroundAsync(IReadOnlyList<LocationDto> locations)
@@ -791,11 +772,18 @@ public sealed class PlaceCatalogService
 
     private async Task SaveAudioTrackCacheAsync(CancellationToken cancellationToken)
     {
+        await SaveAudioTrackCacheAsync(_audioTracksByPlaceId, cancellationToken);
+    }
+
+    private static async Task SaveAudioTrackCacheAsync(
+        IReadOnlyDictionary<string, List<PublicAudioTrackDto>> audioTracksByPlaceId,
+        CancellationToken cancellationToken)
+    {
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(AudioTrackCacheFilePath)!);
             await using var stream = File.Create(AudioTrackCacheFilePath);
-            await JsonSerializer.SerializeAsync(stream, _audioTracksByPlaceId, CacheJsonOptions, cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, audioTracksByPlaceId, CacheJsonOptions, cancellationToken);
         }
         catch when (!cancellationToken.IsCancellationRequested)
         {
@@ -825,6 +813,22 @@ public sealed class PlaceCatalogService
         {
             return new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase);
         }
+    }
+
+    private static Dictionary<string, List<PublicAudioTrackDto>> GroupAudioTracksByPlaceId(
+        IEnumerable<PublicAudioTrackDto> audioTracks)
+    {
+        return audioTracks
+            .Where(item => item.LocationId > 0)
+            .GroupBy(item => item.LocationId.ToString(CultureInfo.InvariantCulture), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(item => item.Priority)
+                    .ThenBy(item => ResolveSourceTypeOrder(item.SourceType))
+                    .ThenBy(item => item.Id)
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
     }
 
     private static string? NormalizeVoiceGender(string? voiceGender)
@@ -862,6 +866,23 @@ public sealed class PlaceCatalogService
         {
             yield return image;
         }
+    }
+
+    public sealed record CatalogSnapshot(
+        IReadOnlyList<PlaceItem> Places,
+        IReadOnlyList<CategoryDto> Categories);
+
+    private sealed record CachedCatalogData(
+        IReadOnlyList<LocationDto> Locations,
+        IReadOnlyList<CategoryDto> Categories,
+        IReadOnlyDictionary<string, List<PublicAudioTrackDto>> AudioTracksByPlaceId)
+    {
+        public static CachedCatalogData Empty { get; } = new(
+            Array.Empty<LocationDto>(),
+            Array.Empty<CategoryDto>(),
+            new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase));
+
+        public bool HasContent => Locations.Count > 0 || Categories.Count > 0 || AudioTracksByPlaceId.Count > 0;
     }
 
     public sealed class MapPlacePoint

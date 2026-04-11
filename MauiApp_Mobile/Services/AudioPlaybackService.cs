@@ -33,17 +33,9 @@ public sealed class AudioPlaybackService
     private const string SamsungTtsEnginePackage = "com.samsung.SMT";
     private static readonly TimeSpan AndroidTtsInitializationTimeout = TimeSpan.FromSeconds(5);
 #endif
-    private static readonly HttpClient SpeechHttpClient = new(new SocketsHttpHandler
-    {
-        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
-        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
-        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
-        MaxConnectionsPerServer = 6
-    })
-    {
-        BaseAddress = MobileApiOptions.BaseUri,
-        Timeout = TimeSpan.FromSeconds(45)
-    };
+    private static readonly HttpClient SpeechHttpClient = MobileApiHttpClientFactory.Create(
+        TimeSpan.FromSeconds(45),
+        6);
 
     private CancellationTokenSource? _ttsCancellationTokenSource;
     private TaskCompletionSource<bool>? _activePlaybackCompletionSource;

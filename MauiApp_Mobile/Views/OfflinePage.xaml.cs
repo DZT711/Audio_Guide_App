@@ -312,7 +312,8 @@ public partial class OfflinePage : ContentPage
             item => new OfflinePackState(item.IsDownloaded, item.DownloadedAt),
             StringComparer.OrdinalIgnoreCase);
 
-        var places = await PlaceCatalogService.Instance.GetPlacesAsync(forceRefresh, cancellationToken);
+        var catalogSnapshot = await PlaceCatalogService.Instance.GetCatalogAsync(forceRefresh, cancellationToken);
+        var places = catalogSnapshot.Places;
         var mappedItems = places
             .Select(place => CreateOfflinePackItem(place, existingStates))
             .ToList();
@@ -323,7 +324,7 @@ public partial class OfflinePage : ContentPage
             _allItems.Add(item);
         }
 
-        await RefreshCategoryFiltersAsync(forceRefresh, cancellationToken);
+        SyncCategoryFilters(catalogSnapshot.Categories);
         ApplyLocalizedText();
         ApplyFilter();
     }

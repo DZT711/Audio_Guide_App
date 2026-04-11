@@ -252,6 +252,7 @@ public static class DataExtension
         }
 
         await EnsureAnalyticsSamplesAsync(context, contentRootPath);
+        await NormalizeManagedMediaPathsAsync(context);
     }
 
     private static async Task EnsureAnalyticsSamplesAsync(DBContext context, string contentRootPath)
@@ -574,6 +575,54 @@ public static class DataExtension
                     orderedImages[index].SortOrder = desiredSortOrder;
                     hasChanges = true;
                 }
+            }
+        }
+
+        if (hasChanges)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+
+    private static async Task NormalizeManagedMediaPathsAsync(DBContext context)
+    {
+        var hasChanges = false;
+
+        var locations = await context.Locations
+            .Include(item => item.Images)
+            .ToListAsync();
+
+        foreach (var location in locations)
+        {
+            var normalizedPreferenceImageUrl = SharedStoragePaths.NormalizePublicImagePath(location.PreferenceImageUrl);
+            if (!string.Equals(location.PreferenceImageUrl, normalizedPreferenceImageUrl, StringComparison.Ordinal))
+            {
+                location.PreferenceImageUrl = normalizedPreferenceImageUrl;
+                hasChanges = true;
+            }
+
+            foreach (var image in location.Images)
+            {
+                var normalizedImageUrl = SharedStoragePaths.NormalizePublicImagePath(image.ImageUrl) ?? image.ImageUrl;
+                if (!string.Equals(image.ImageUrl, normalizedImageUrl, StringComparison.Ordinal))
+                {
+                    image.ImageUrl = normalizedImageUrl;
+                    hasChanges = true;
+                }
+            }
+        }
+
+        var audioItems = await context.AudioContents
+            .Where(item => item.FilePath != null)
+            .ToListAsync();
+
+        foreach (var audio in audioItems)
+        {
+            var normalizedAudioPath = SharedStoragePaths.NormalizePublicAudioPath(audio.FilePath);
+            if (!string.Equals(audio.FilePath, normalizedAudioPath, StringComparison.Ordinal))
+            {
+                audio.FilePath = normalizedAudioPath;
+                hasChanges = true;
             }
         }
 

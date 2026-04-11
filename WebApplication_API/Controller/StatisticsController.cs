@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Security;
+using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Data;
 using WebApplication_API.Model;
 using WebApplication_API.Services;
@@ -155,7 +156,7 @@ public class StatisticsController(
                 {
                     LocationId = item.LocationId,
                     Name = item.Name,
-                    PreferenceImageUrl = item.PreferenceImageUrl,
+                    PreferenceImageUrl = NormalizeImagePath(item.PreferenceImageUrl),
                     OwnerName = item.Owner?.FullName ?? item.Owner?.Username,
                     Ward = wardLookup[item.LocationId],
                     Latitude = item.Latitude,
@@ -557,7 +558,7 @@ public class StatisticsController(
                 {
                     LocationId = group.Key,
                     LocationName = location?.Name ?? "Unknown location",
-                    PreferenceImageUrl = location?.PreferenceImageUrl,
+                    PreferenceImageUrl = NormalizeImagePath(location?.PreferenceImageUrl),
                     OwnerName = location?.Owner?.FullName ?? location?.Owner?.Username,
                     Ward = wardLookup.TryGetValue(group.Key, out var ward) ? ward : "Unassigned",
                     PlayCount = group.Count(),
@@ -608,7 +609,7 @@ public class StatisticsController(
                 {
                     LocationId = group.Key,
                     LocationName = location?.Name ?? "Unknown location",
-                    PreferenceImageUrl = location?.PreferenceImageUrl,
+                    PreferenceImageUrl = NormalizeImagePath(location?.PreferenceImageUrl),
                     OwnerName = location?.Owner?.FullName ?? location?.Owner?.Username,
                     Ward = wardLookup.TryGetValue(group.Key, out var ward) ? ward : "Unassigned",
                     PlayCount = group.Count(item => IsPlayCountEvent(item.EventType)),
@@ -764,4 +765,7 @@ public class StatisticsController(
 
     private static bool IsOwnerScoped(DashboardUser user) =>
         string.Equals(user.Role, AdminRoles.User, StringComparison.OrdinalIgnoreCase);
+
+    private static string? NormalizeImagePath(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : SharedStoragePaths.NormalizePublicImagePath(value);
 }

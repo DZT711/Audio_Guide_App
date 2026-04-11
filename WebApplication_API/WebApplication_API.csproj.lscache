@@ -138,6 +138,7 @@ Services/
  ChangeRequestWorkflowService.cs
  GeminiSpeechOptions.cs
  GeminiSpeechService.cs
+ ManagedMediaArchiveMigrationService.cs
  RoutePlanningOptions.cs
  ServerRuntimeInfoService.cs
  SharedAudioFileStorageService.cs

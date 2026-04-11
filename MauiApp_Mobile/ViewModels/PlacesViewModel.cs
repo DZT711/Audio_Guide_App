@@ -73,11 +73,8 @@ public partial class PlacesViewModel : ObservableObject
 
     public async Task LoadCatalogAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
-        var placesTask = _catalogService.GetPlacesAsync(forceRefresh, cancellationToken);
-        var categoriesTask = _catalogService.GetCategoriesAsync(forceRefresh, cancellationToken);
-        await Task.WhenAll(placesTask, categoriesTask);
-
-        ApplyCatalogSnapshot(placesTask.Result, categoriesTask.Result);
+        var catalogSnapshot = await _catalogService.GetCatalogAsync(forceRefresh, cancellationToken);
+        ApplyCatalogSnapshot(catalogSnapshot.Places, catalogSnapshot.Categories);
         LastCatalogRefreshAt = DateTimeOffset.UtcNow;
     }
 
@@ -92,12 +89,9 @@ public partial class PlacesViewModel : ObservableObject
         {
             _isSilentRefreshing = true;
 
-            var placesTask = _catalogService.GetPlacesAsync(forceRefresh, cancellationToken);
-            var categoriesTask = _catalogService.GetCategoriesAsync(forceRefresh, cancellationToken);
-            await Task.WhenAll(placesTask, categoriesTask);
-
-            var places = placesTask.Result;
-            var categories = categoriesTask.Result;
+            var catalogSnapshot = await _catalogService.GetCatalogAsync(forceRefresh, cancellationToken);
+            var places = catalogSnapshot.Places;
+            var categories = catalogSnapshot.Categories;
             if (!HasCatalogChanged(places, categories))
             {
                 return false;

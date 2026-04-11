@@ -241,7 +241,7 @@ else
                         {
                             <span class="management-field__hint">Stored file: @_formModel.AudioPath</span>
                         }
-                        <span class="management-field__hint">The uploaded file is stored automatically in `Project_SharedClassLibrary/SharedStorage/Audio` and the URL is generated for you.</span>
+                        <span class="management-field__hint">The uploaded file is stored automatically in the API `wwwroot/archive/audio` folder and the URL is generated for you.</span>
                     </div>
 
                     <div class="management-field management-field--full">
@@ -1073,7 +1073,7 @@ else
             return "No stored audio file";
         }
 
-        return $"Shared library file: {System.IO.Path.GetFileName(audioPath)}";
+        return $"API archive file: {System.IO.Path.GetFileName(audioPath)}";
     }
 
     private static string GetAudioCardClass(int status) => status == 1
