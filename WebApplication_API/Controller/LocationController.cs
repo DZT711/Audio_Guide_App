@@ -29,6 +29,7 @@ public class LocationController(
             .Include(item => item.Category)
             .Include(item => item.Images)
             .Include(item => item.AudioContents)
+            .AsSplitQuery()
             .Where(item => item.Status == 1)
             .OrderBy(item => item.Name)
             .ToListAsync(cancellationToken);
@@ -53,6 +54,7 @@ public class LocationController(
             .Include(item => item.Category)
             .Include(item => item.Images)
             .Include(item => item.AudioContents)
+            .AsSplitQuery()
             .Where(item => item.Status == 1)
             .OrderBy(item => item.Name)
             .ToListAsync(cancellationToken);
@@ -525,14 +527,44 @@ public class LocationController(
             .LoadAsync(cancellationToken);
 
         var existingImages = location.Images.ToList();
-        var existingLookup = existingImages.ToDictionary(
-            item => NormalizeImagePath(item.ImageUrl) ?? item.ImageUrl,
-            item => item,
-            StringComparer.OrdinalIgnoreCase);
+        var groupedExistingImages = existingImages
+            .Select(item => new
+            {
+                Image = item,
+                NormalizedPath = NormalizeImagePath(item.ImageUrl)
+            })
+            .Where(item => !string.IsNullOrWhiteSpace(item.NormalizedPath))
+            .GroupBy(item => item.NormalizedPath!, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var duplicateImages = groupedExistingImages
+            .SelectMany(group => group
+                .OrderBy(item => item.Image.SortOrder)
+                .ThenBy(item => item.Image.ImageId)
+                .Skip(1)
+                .Select(item => item.Image))
+            .ToList();
+
+        foreach (var duplicateImage in duplicateImages)
+        {
+            context.LocationImages.Remove(duplicateImage);
+        }
+
+        var existingLookup = groupedExistingImages
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderBy(item => item.Image.SortOrder)
+                    .ThenBy(item => item.Image.ImageId)
+                    .Select(item => item.Image)
+                    .First(),
+                StringComparer.OrdinalIgnoreCase);
 
         var removedImages = existingImages
             .Where(item => !normalizedDesired.Contains(NormalizeImagePath(item.ImageUrl) ?? item.ImageUrl, StringComparer.OrdinalIgnoreCase))
             .ToList();
+
+        removedImages.AddRange(duplicateImages);
 
         foreach (var removedImage in removedImages)
         {

@@ -286,12 +286,7 @@ public sealed class AudioPlaybackService
 
     private static string ResolveAudioUrl(string audioUrl)
     {
-        if (Uri.TryCreate(audioUrl, UriKind.Absolute, out var absoluteUri))
-        {
-            return absoluteUri.ToString();
-        }
-
-        return new Uri(MobileApiOptions.BaseUri, audioUrl.TrimStart('/')).ToString();
+        return MobileApiOptions.ResolveAudioUrl(audioUrl);
     }
 
     private static string GetPreferredPlaybackLanguageCode() =>

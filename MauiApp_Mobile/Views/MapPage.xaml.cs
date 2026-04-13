@@ -31,6 +31,7 @@ public partial class MapPage : ContentPage
     private bool _isMapReady;
     private bool _hasAnimatedChrome;
     private bool _isDeveloperModeEnabled;
+    private bool _isPageDisposing;
     private MapSearchMode _searchMode = MapSearchMode.Poi;
     private CancellationTokenSource? _activeSearchCts;
     private CancellationTokenSource? _mapLoadingCts;
@@ -59,6 +60,7 @@ public partial class MapPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        _isPageDisposing = false;
 
         if (!_hasAnimatedChrome)
         {
@@ -81,8 +83,8 @@ public partial class MapPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        _activeSearchCts?.Cancel();
-        _mapLoadingCts?.Cancel();
+        _isPageDisposing = true;
+        CancelPendingOperations();
     }
 
     protected override void OnHandlerChanged()
@@ -93,6 +95,18 @@ public partial class MapPage : ContentPage
         SearchEntry.Completed += OnSearchCompleted;
         SearchEntry.TextChanged -= OnSearchTextChanged;
         SearchEntry.TextChanged += OnSearchTextChanged;
+    }
+
+    protected override void OnHandlerChanging(HandlerChangingEventArgs args)
+    {
+        if (args.NewHandler is null)
+        {
+            _isPageDisposing = true;
+            CancelPendingOperations();
+            DetachEventHandlers();
+        }
+
+        base.OnHandlerChanging(args);
     }
 
     private void ApplyTexts()
@@ -143,6 +157,9 @@ public partial class MapPage : ContentPage
 
     private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (_isPageDisposing)
+            return;
+
         ApplyTexts();
         _addressSearchCache.Clear();
 
@@ -157,6 +174,9 @@ public partial class MapPage : ContentPage
 
     private void OnThemeChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (_isPageDisposing)
+            return;
+
         UpdateSearchModeVisuals();
         UpdateDeveloperModeVisuals();
 
@@ -204,6 +224,9 @@ public partial class MapPage : ContentPage
 
     private void StartMapLoadingState()
     {
+        if (_isPageDisposing)
+            return;
+
         MapLoadingOverlay.IsVisible = true;
         MapLoadingOverlay.Opacity = 1;
         MapWebView.Opacity = 0;
@@ -229,36 +252,66 @@ public partial class MapPage : ContentPage
         if (!MapLoadingOverlay.IsVisible)
             return;
 
-        await Task.WhenAll(
-            MapWebView.FadeToAsync(1, 240, Easing.CubicOut),
-            MapLoadingOverlay.FadeToAsync(0, 180, Easing.CubicOut));
+        if (!CanAnimateMapLoadingChrome())
+        {
+            FinishMapLoadingStateWithoutAnimation();
+            return;
+        }
 
-        MapLoadingOverlay.IsVisible = false;
-        MapLoadingOverlay.Opacity = 1;
+        try
+        {
+            await Task.WhenAll(
+                MapWebView.FadeToAsync(1, 240, Easing.CubicOut),
+                MapLoadingOverlay.FadeToAsync(0, 180, Easing.CubicOut));
+        }
+        catch (ObjectDisposedException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Map loading animation skipped: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Map loading animation unavailable: {ex.Message}");
+        }
+
+        FinishMapLoadingStateWithoutAnimation();
     }
 
     private async void OnMapWebViewNavigated(object? sender, WebNavigatedEventArgs e)
     {
-        _isMapReady = e.Result == WebNavigationResult.Success;
-        SetLocateButtonState(isBusy: false, isEnabled: _isMapReady);
-        UpdateDeveloperModeVisuals();
-
-        if (!_isMapReady)
+        try
         {
-            UpdateSearchStatus("Bản đồ chưa sẵn sàng. Hãy thử tải lại trang.");
-            return;
+            if (_isPageDisposing)
+                return;
+
+            _isMapReady = e.Result == WebNavigationResult.Success;
+            SetLocateButtonState(isBusy: false, isEnabled: _isMapReady);
+            UpdateDeveloperModeVisuals();
+
+            if (!_isMapReady)
+            {
+                UpdateSearchStatus("Bản đồ chưa sẵn sàng. Hãy thử tải lại trang.");
+                return;
+            }
+
+            await SyncPlacesToMapAsync();
+            await ApplyMapThemeAsync();
+            await ApplyMapStringsAsync();
+            await ApplyDeveloperModeAsync();
+            await CompleteMapLoadingStateAsync();
+            await TryFocusPendingPlaceAsync();
+
+            if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
+            {
+                UpdateTypingHint(SearchEntry.Text);
+            }
         }
-
-        await SyncPlacesToMapAsync();
-        await ApplyMapThemeAsync();
-        await ApplyMapStringsAsync();
-        await ApplyDeveloperModeAsync();
-        await CompleteMapLoadingStateAsync();
-        await TryFocusPendingPlaceAsync();
-
-        if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
+        catch (ObjectDisposedException ex)
         {
-            UpdateTypingHint(SearchEntry.Text);
+            System.Diagnostics.Debug.WriteLine($"Map page navigation ignored after dispose: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Map page navigation halted: {ex.Message}");
         }
     }
 
@@ -1060,7 +1113,7 @@ public partial class MapPage : ContentPage
 
     private async Task<string?> EvaluateMapScriptAsync(string script, CancellationToken cancellationToken = default)
     {
-        if (!_isMapReady)
+        if (!_isMapReady || _isPageDisposing || MapWebView.Handler is null)
             return null;
 
         var lockTaken = false;
@@ -1088,6 +1141,50 @@ public partial class MapPage : ContentPage
             {
                 _mapScriptSemaphore.Release();
             }
+        }
+    }
+
+    private void CancelPendingOperations()
+    {
+        _activeSearchCts?.Cancel();
+        _mapLoadingCts?.Cancel();
+        _isMapReady = false;
+    }
+
+    private void DetachEventHandlers()
+    {
+        MapWebView.Navigated -= OnMapWebViewNavigated;
+        MapWebView.Navigating -= OnMapWebViewNavigating;
+        SearchEntry.Completed -= OnSearchCompleted;
+        SearchEntry.TextChanged -= OnSearchTextChanged;
+        LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
+        ThemeService.Instance.PropertyChanged -= OnThemeChanged;
+    }
+
+    private bool CanAnimateMapLoadingChrome()
+    {
+        return !_isPageDisposing &&
+               Handler is not null &&
+               Window is not null &&
+               MapWebView.Handler is not null &&
+               MapLoadingOverlay.Handler is not null;
+    }
+
+    private void FinishMapLoadingStateWithoutAnimation()
+    {
+        try
+        {
+            if (MapWebView.Handler is not null)
+            {
+                MapWebView.Opacity = 1;
+            }
+
+            MapLoadingOverlay.IsVisible = false;
+            MapLoadingOverlay.Opacity = 1;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Map loading state cleanup skipped: {ex.Message}");
         }
     }
 

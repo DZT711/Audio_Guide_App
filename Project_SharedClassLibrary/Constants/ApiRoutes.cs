@@ -30,4 +30,10 @@ public static class ApiRoutes
     public const string Inbox = "Inbox";
     public const string Statistics = "Statistics";
     public const string ActivityLogs = "ActivityLog";
+
+    public static string GetPublicLocationAudio(int locationId) =>
+        $"Audio/public/location/{locationId}";
+
+    public static string GetPublicLocationDefaultAudio(int locationId) =>
+        $"Audio/public/location/{locationId}/default";
 }

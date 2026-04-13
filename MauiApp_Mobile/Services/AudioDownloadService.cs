@@ -212,12 +212,7 @@ public sealed class AudioDownloadService
 
     private static Uri ResolveAudioUri(string audioUrl)
     {
-        if (Uri.TryCreate(audioUrl, UriKind.Absolute, out var absoluteUri))
-        {
-            return absoluteUri;
-        }
-
-        return new Uri(MobileApiOptions.BaseUri, audioUrl.TrimStart('/'));
+        return new Uri(MobileApiOptions.ResolveAudioUrl(audioUrl), UriKind.Absolute);
     }
 
     private static string ResolveFileExtension(Uri sourceUri, string? mediaType)

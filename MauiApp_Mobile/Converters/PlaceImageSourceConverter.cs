@@ -24,7 +24,8 @@ public sealed class PlaceImageSourceConverter : IValueConverter
             return ImageSource.FromFile("location.png");
         }
 
-        if (Uri.TryCreate(normalizedImage, UriKind.Absolute, out var absoluteUri))
+        var resolvedImageUrl = MobileApiOptions.ResolveImageUrl(normalizedImage);
+        if (Uri.TryCreate(resolvedImageUrl, UriKind.Absolute, out var absoluteUri))
         {
             if (absoluteUri.IsFile)
             {
@@ -46,7 +47,7 @@ public sealed class PlaceImageSourceConverter : IValueConverter
             return ImageSource.FromFile(normalizedImage);
         }
 
-        return ImageSource.FromUri(new Uri(MobileApiOptions.BaseUri, normalizedImage.TrimStart('/')));
+        return ImageSource.FromUri(new Uri(resolvedImageUrl));
     }
 
     private static bool HasSvgExtension(string imagePath) =>

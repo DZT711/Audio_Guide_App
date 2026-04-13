@@ -109,7 +109,7 @@ public sealed class PlaceCatalogService
 
         try
         {
-            var route = string.Format(CultureInfo.InvariantCulture, ApiRoutes.PublicLocationAudioTemplate, locationId);
+            var route = ApiRoutes.GetPublicLocationAudio(locationId);
             var audioTracks = await HttpClient.GetFromJsonAsync<List<PublicAudioTrackDto>>(route, cancellationToken) ?? [];
             _audioTracksByPlaceId[normalizedPlaceId] = audioTracks;
             await SaveAudioTrackCacheAsync(cancellationToken);
@@ -301,7 +301,7 @@ public sealed class PlaceCatalogService
             return string.Empty;
         }
 
-        var normalizedImageUrl = imageUrl.Trim().Replace("\\", "/");
+        var normalizedImageUrl = MobileApiOptions.ResolveImageUrl(imageUrl);
 
         if (Uri.TryCreate(normalizedImageUrl, UriKind.Absolute, out var absoluteUri))
         {
@@ -344,7 +344,7 @@ public sealed class PlaceCatalogService
             return normalizedImageUrl;
         }
 
-        var remoteUri = new Uri(MobileApiOptions.BaseUri, normalizedImageUrl.TrimStart('/'));
+        var remoteUri = new Uri(normalizedImageUrl, UriKind.Absolute);
         if (HasUnsupportedVectorExtension(remoteUri.AbsolutePath))
         {
             return "location.png";
