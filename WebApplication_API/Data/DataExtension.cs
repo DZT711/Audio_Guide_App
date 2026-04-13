@@ -29,10 +29,13 @@ public static class DataExtension
         if (!await context.Categories.AnyAsync())
         {
             context.Categories.AddRange(
-                new Category { Name = "Historical Site", Description = "Places with cultural and historical value." },
+                // new Category { Name = "Historical Site", Description = "Places with cultural and historical value." },
                 new Category { Name = "Food", Description = "Restaurants, cafes, and local specialties." },
-                new Category { Name = "Bus Stop", Description = "Transit locations prepared for QR and GPS guidance." },
-                new Category { Name = "Landmark", Description = "High-priority tourist landmarks and city icons." });
+                new Category { Name = "Drinks", Description = "Bustling markets and curated food halls." },
+                new Category { Name = "Markets & Food Halls", Description = "Bustling markets and curated food halls." }
+                // new Category { Name = "Bus Stop", Description = "Transit locations prepared for QR and GPS guidance." },
+                // new Category { Name = "Landmark", Description = "High-priority tourist landmarks and city icons." }
+                );
 
             await context.SaveChangesAsync();
         }
