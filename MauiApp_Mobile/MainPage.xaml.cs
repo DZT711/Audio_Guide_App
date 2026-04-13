@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Windows.Input;
 using Microsoft.Maui.Dispatching;
+using Microsoft.Maui.Networking;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
 using MauiApp_Mobile.ViewModels;
@@ -165,8 +166,11 @@ public partial class MainPage : ContentPage
         LocalizationService.Instance.PropertyChanged += OnLocalizationServicePropertyChanged;
         ThemeService.Instance.PropertyChanged += OnThemeServicePropertyChanged;
         AppDataModeService.Instance.PropertyChanged += OnAppDataModeChanged;
+        AppSettingsService.Instance.PropertyChanged += OnAppSettingsChanged;
         AudioPlaybackService.Instance.PlaybackStateChanged += OnPlaybackStateChanged;
+        Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
         _subscriptionsAttached = true;
+        UpdateConnectionStatusChip();
     }
 
     private void DetachSingletonSubscriptions()
@@ -179,7 +183,9 @@ public partial class MainPage : ContentPage
         LocalizationService.Instance.PropertyChanged -= OnLocalizationServicePropertyChanged;
         ThemeService.Instance.PropertyChanged -= OnThemeServicePropertyChanged;
         AppDataModeService.Instance.PropertyChanged -= OnAppDataModeChanged;
+        AppSettingsService.Instance.PropertyChanged -= OnAppSettingsChanged;
         AudioPlaybackService.Instance.PlaybackStateChanged -= OnPlaybackStateChanged;
+        Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
         _subscriptionsAttached = false;
     }
 
@@ -202,8 +208,20 @@ public partial class MainPage : ContentPage
             UpdateVoiceSelectionState();
             UpdateFilterHeader();
             RefreshSelectedPlaceGallery(resetPosition: false);
+            UpdateConnectionStatusChip();
         });
     }
+
+    private void OnAppSettingsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(AppSettingsService.ApiModeEnabled), StringComparison.Ordinal))
+            return;
+
+        MainThread.BeginInvokeOnMainThread(UpdateConnectionStatusChip);
+    }
+
+    private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e) =>
+        MainThread.BeginInvokeOnMainThread(UpdateConnectionStatusChip);
 
     private void OnPlaybackStateChanged(object? sender, PublicAudioTrackDto? currentTrack)
     {
@@ -1034,7 +1052,7 @@ public partial class MainPage : ContentPage
         if (sender is not Element element || element.BindingContext is not PlaceDetailAudioTrack track)
             return;
 
-        if (track.IsDownloading)
+        if (track.IsDownloading || track.IsDownloadDisabled)
             return;
 
         await DownloadSelectedTrackAsync(track);
@@ -1103,11 +1121,8 @@ public partial class MainPage : ContentPage
 
             MarkPendingPlayback(place.Id, preferredTrack.Id);
             var playbackTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(preferredTrack);
+            await MainThread.InvokeOnMainThreadAsync(() => HistoryService.Instance.AddToHistory(place));
             await AudioPlaybackService.Instance.PlayAsync(playbackTrack);
-            await MainThread.InvokeOnMainThreadAsync(() =>
-            {
-                HistoryService.Instance.AddToHistory(place);
-            });
         }
         catch (OperationCanceledException)
         {
@@ -1158,8 +1173,8 @@ public partial class MainPage : ContentPage
             }
 
             var playbackTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(selectedTrack);
-            await AudioPlaybackService.Instance.PlayAsync(playbackTrack);
             HistoryService.Instance.AddToHistory(SelectedPlace);
+            await AudioPlaybackService.Instance.PlayAsync(playbackTrack);
         }
         catch (OperationCanceledException)
         {
@@ -1234,6 +1249,23 @@ public partial class MainPage : ContentPage
         }
 
         MarkPlayingTrack(currentTrack?.Id, isLoading);
+    }
+
+    private void UpdateConnectionStatusChip()
+    {
+        var hasInternet = Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
+        var isOnline = AppDataModeService.Instance.IsApiEnabled && hasInternet;
+
+        ConnectionStatusLabel.Text = isOnline ? "Online" : "Offline";
+        ConnectionStatusDot.TextColor = isOnline
+            ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+            : Color.FromArgb("#B54708");
+        ConnectionStatusLabel.TextColor = isOnline
+            ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+            : Color.FromArgb("#B54708");
+        ConnectionStatusChip.BackgroundColor = isOnline
+            ? Color.FromArgb("#E8F7EE")
+            : Color.FromArgb("#FFF4E5");
     }
 
     private void MarkPendingPlayback(string? placeId, int? trackId)
@@ -1526,6 +1558,12 @@ public class PlaceDetailAudioTrack : BindableObject
 
     public bool IsDownloadedTrack => _downloadState == TrackDownloadVisualState.Downloaded;
 
+    public bool IsDownloadDisabled => IsDownloadedTrack || IsDownloading || string.IsNullOrWhiteSpace(AudioUrl);
+
+    public double DownloadButtonOpacity => IsDownloadDisabled ? 0.62d : 1d;
+
+    public string DownloadButtonGlyph => IsDownloadedTrack ? "✓" : "↓";
+
     public double DownloadProgress
     {
         get => _downloadProgress;
@@ -1647,6 +1685,9 @@ public class PlaceDetailAudioTrack : BindableObject
         OnPropertyChanged(nameof(IsDownloadStatusVisible));
         OnPropertyChanged(nameof(IsDownloadProgressVisible));
         OnPropertyChanged(nameof(IsDownloadedTrack));
+        OnPropertyChanged(nameof(IsDownloadDisabled));
+        OnPropertyChanged(nameof(DownloadButtonOpacity));
+        OnPropertyChanged(nameof(DownloadButtonGlyph));
         OnPropertyChanged(nameof(DownloadStatusIcon));
         OnPropertyChanged(nameof(DownloadStatusText));
         OnPropertyChanged(nameof(DownloadStatusBackgroundColor));

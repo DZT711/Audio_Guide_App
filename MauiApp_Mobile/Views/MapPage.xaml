@@ -10,9 +10,32 @@
         <Grid Style="{StaticResource TopHeaderGridStyle}"
               MinimumHeightRequest="128">
             <VerticalStackLayout Spacing="8" VerticalOptions="Center">
-                <Label x:Name="TitleLabel"
-                       Text="Bản đồ"
-                       Style="{StaticResource TopHeaderTitleStyle}" />
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                    <Label x:Name="TitleLabel"
+                           Text="Bản đồ"
+                           Style="{StaticResource TopHeaderTitleStyle}" />
+
+                    <Border x:Name="ConnectionStatusChip"
+                            Grid.Column="1"
+                            BackgroundColor="#E8F7EE"
+                            Padding="10,6"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 14"
+                            VerticalOptions="Center">
+                        <HorizontalStackLayout Spacing="6">
+                            <Label x:Name="ConnectionStatusDot"
+                                   FontSize="12"
+                                   Text="●"
+                                   VerticalOptions="Center" />
+                            <Label x:Name="ConnectionStatusLabel"
+                                   FontAttributes="Bold"
+                                   FontSize="12"
+                                   Text="Online"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Border>
+                </Grid>
 
                 <Frame Style="{StaticResource TopHeaderSearchFrameStyle}">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
@@ -279,6 +302,7 @@
             <Border x:Name="DeveloperModeButton"
                     BackgroundColor="{DynamicResource PopupBg}"
                     HorizontalOptions="End"
+                    IsVisible="False"
                     Margin="0,84,16,0"
                     Padding="0"
                     Stroke="{DynamicResource BorderColor}"

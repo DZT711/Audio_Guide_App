@@ -500,6 +500,17 @@
                                         OnColor="{DynamicResource PrimaryGreen}"
                                         Toggled="OnApiModeToggled" />
                             </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="DeveloperModeLabel"
+                                       Text="Hiện nút dev trên bản đồ"
+                                       FontSize="16"
+                                       TextColor="{DynamicResource BodyText}" />
+                                <Switch x:Name="DeveloperModeSwitch"
+                                        Grid.Column="1"
+                                        IsToggled="False"
+                                        OnColor="{DynamicResource PrimaryGreen}" />
+                            </Grid>
                         </VerticalStackLayout>
                     </Border>
 

@@ -19,6 +19,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
     private const string LanguageKey = "app_settings.language";
     private const string ThemeKey = "app_settings.theme";
     private const string ApiModeKey = "app_settings.api_mode";
+    private const string DeveloperModeKey = "app_settings.developer_mode";
     private const string InitializationMarkerKey = "app_settings.initialized";
 
     public static AppSettingsService Instance { get; } = new();
@@ -42,6 +43,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
     public string LanguageCode { get; private set; } = "vi";
     public AppThemeOption Theme { get; private set; } = AppThemeOption.Eco;
     public bool ApiModeEnabled { get; private set; } = true;
+    public bool DeveloperModeEnabled { get; private set; }
     public float PlaybackVolumeRatio => (float)Math.Clamp(VolumePercent / 100d, 0d, 1d);
     public float AndroidSpeechRate => (float)Math.Clamp(ReadingSpeed, 0.5d, 2.0d);
 
@@ -69,7 +71,8 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             await ReadBoolAsync(BatterySaverKey, BatterySaverEnabled, cancellationToken),
             await ReadStringAsync(LanguageKey, LanguageCode, cancellationToken),
             await ReadThemeAsync(cancellationToken),
-            await ReadBoolAsync(ApiModeKey, ApiModeEnabled, cancellationToken));
+            await ReadBoolAsync(ApiModeKey, ApiModeEnabled, cancellationToken),
+            await ReadBoolAsync(DeveloperModeKey, DeveloperModeEnabled, cancellationToken));
 
         ApplySnapshot(snapshot, persistToLegacyPreferences: false);
     }
@@ -86,7 +89,8 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         BatterySaverEnabled,
         LanguageCode,
         Theme,
-        ApiModeEnabled);
+        ApiModeEnabled,
+        DeveloperModeEnabled);
 
     public async Task SaveAsync(AppSettingsSnapshot snapshot, CancellationToken cancellationToken = default)
     {
@@ -104,6 +108,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         await MobileDatabaseService.Instance.SetSettingAsync(LanguageKey, LanguageCode, cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(ThemeKey, Theme.ToString(), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(ApiModeKey, ApiModeEnabled.ToString(), cancellationToken);
+        await MobileDatabaseService.Instance.SetSettingAsync(DeveloperModeKey, DeveloperModeEnabled.ToString(), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(InitializationMarkerKey, bool.TrueString, cancellationToken);
     }
 
@@ -121,6 +126,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         LanguageCode = string.IsNullOrWhiteSpace(snapshot.LanguageCode) ? "vi" : snapshot.LanguageCode.Trim().ToLowerInvariant();
         Theme = snapshot.Theme;
         ApiModeEnabled = snapshot.ApiModeEnabled;
+        DeveloperModeEnabled = snapshot.DeveloperModeEnabled;
 
         if (persistToLegacyPreferences)
         {
@@ -136,6 +142,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             Preferences.Default.Set(LanguageKey, LanguageCode);
             Preferences.Default.Set(ThemeKey, Theme.ToString());
             Preferences.Default.Set(ApiModeKey, ApiModeEnabled);
+            Preferences.Default.Set(DeveloperModeKey, DeveloperModeEnabled);
         }
 
         LocalizationService.Instance.Language = LanguageCode;
@@ -154,6 +161,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         RaisePropertyChanged(nameof(LanguageCode));
         RaisePropertyChanged(nameof(Theme));
         RaisePropertyChanged(nameof(ApiModeEnabled));
+        RaisePropertyChanged(nameof(DeveloperModeEnabled));
         RaisePropertyChanged(nameof(PlaybackVolumeRatio));
         RaisePropertyChanged(nameof(AndroidSpeechRate));
     }
@@ -178,7 +186,8 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             Preferences.Default.Get(BatterySaverKey, false),
             Preferences.Default.Get(LanguageKey, LocalizationService.Instance.Language),
             theme,
-            Preferences.Default.Get(ApiModeKey, true));
+            Preferences.Default.Get(ApiModeKey, true),
+            Preferences.Default.Get(DeveloperModeKey, false));
     }
 
     private async Task<double> ReadDoubleAsync(string key, double fallback, CancellationToken cancellationToken)
@@ -223,4 +232,5 @@ public readonly record struct AppSettingsSnapshot(
     bool BatterySaverEnabled,
     string LanguageCode,
     AppThemeOption Theme,
-    bool ApiModeEnabled);
+    bool ApiModeEnabled,
+    bool DeveloperModeEnabled);

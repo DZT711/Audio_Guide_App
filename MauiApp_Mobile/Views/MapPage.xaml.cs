@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Networking;
 using Microsoft.Maui.Devices.Sensors;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
@@ -51,10 +52,14 @@ public partial class MapPage : ContentPage
         ApplyTexts();
         UpdateSearchModeVisuals();
         UpdateDeveloperModeVisuals();
+        UpdateDeveloperModeAvailability();
+        UpdateConnectionStatusChip();
         SetLocateButtonState(isBusy: false, isEnabled: false);
 
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
         ThemeService.Instance.PropertyChanged += OnThemeChanged;
+        AppSettingsService.Instance.PropertyChanged += OnAppSettingsChanged;
+        Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
     }
 
     protected override void OnAppearing()
@@ -67,6 +72,9 @@ public partial class MapPage : ContentPage
             _hasAnimatedChrome = true;
             _ = UiEffectsService.AnimateEntranceAsync(MapTipChip, CurrentLocationButton, DeveloperModeButton);
         }
+
+        UpdateDeveloperModeAvailability();
+        UpdateConnectionStatusChip();
 
         if (!_isMapLoaded)
         {
@@ -179,6 +187,7 @@ public partial class MapPage : ContentPage
 
         UpdateSearchModeVisuals();
         UpdateDeveloperModeVisuals();
+        UpdateConnectionStatusChip();
 
         _ = MainThread.InvokeOnMainThreadAsync(async () =>
         {
@@ -188,6 +197,24 @@ public partial class MapPage : ContentPage
             }
         });
     }
+
+    private void OnAppSettingsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(AppSettingsService.DeveloperModeEnabled), StringComparison.Ordinal) &&
+            !string.Equals(e.PropertyName, nameof(AppSettingsService.ApiModeEnabled), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            UpdateDeveloperModeAvailability();
+            UpdateConnectionStatusChip();
+        });
+    }
+
+    private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e) =>
+        MainThread.BeginInvokeOnMainThread(UpdateConnectionStatusChip);
 
     private async void LoadMap()
     {
@@ -680,6 +707,9 @@ public partial class MapPage : ContentPage
 
     private async void OnDeveloperModeTapped(object? sender, TappedEventArgs e)
     {
+        if (!AppSettingsService.Instance.DeveloperModeEnabled)
+            return;
+
         if (!_isMapReady)
             return;
 
@@ -961,6 +991,7 @@ public partial class MapPage : ContentPage
 
     private void UpdateDeveloperModeVisuals()
     {
+        DeveloperModeButton.IsVisible = AppSettingsService.Instance.DeveloperModeEnabled;
         DeveloperModeButton.BackgroundColor = _isDeveloperModeEnabled
             ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
             : Color.FromArgb("#FFFFFF");
@@ -970,6 +1001,17 @@ public partial class MapPage : ContentPage
                 : ThemeService.Instance.GetColor("MapButtonRing", "#D6FAE3"));
         DeveloperModeButton.Opacity = _isMapReady ? 1 : 0.68;
         DeveloperModeButton.InputTransparent = !_isMapReady;
+    }
+
+    private void UpdateDeveloperModeAvailability()
+    {
+        if (!AppSettingsService.Instance.DeveloperModeEnabled)
+        {
+            _isDeveloperModeEnabled = false;
+        }
+
+        UpdateDeveloperModeVisuals();
+        _ = ApplyDeveloperModeAsync();
     }
 
     private async Task ApplyDeveloperModeAsync()
@@ -989,6 +1031,23 @@ public partial class MapPage : ContentPage
 
         SearchStatusLabel.Text = message;
         SearchStatusLabel.IsVisible = isVisible;
+    }
+
+    private void UpdateConnectionStatusChip()
+    {
+        var hasInternet = Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
+        var isOnline = AppDataModeService.Instance.IsApiEnabled && hasInternet;
+
+        ConnectionStatusLabel.Text = isOnline ? "Online" : "Offline";
+        ConnectionStatusDot.TextColor = isOnline
+            ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+            : Color.FromArgb("#B54708");
+        ConnectionStatusLabel.TextColor = isOnline
+            ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+            : Color.FromArgb("#B54708");
+        ConnectionStatusChip.BackgroundColor = isOnline
+            ? Color.FromArgb("#E8F7EE")
+            : Color.FromArgb("#FFF4E5");
     }
 
     private static MapFocusResult ParseFocusResult(string? rawResult)
@@ -1138,6 +1197,8 @@ public partial class MapPage : ContentPage
         SearchEntry.TextChanged -= OnSearchTextChanged;
         LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
         ThemeService.Instance.PropertyChanged -= OnThemeChanged;
+        AppSettingsService.Instance.PropertyChanged -= OnAppSettingsChanged;
+        Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
     }
 
     private bool CanAnimateMapLoadingChrome()

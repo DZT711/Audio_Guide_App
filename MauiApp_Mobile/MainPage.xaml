@@ -15,9 +15,32 @@
         <Grid Style="{StaticResource TopHeaderGridStyle}"
               MinimumHeightRequest="122">
             <VerticalStackLayout Spacing="8" VerticalOptions="Center">
-                <Label x:Name="TitleLabel"
-                       Text="Địa điểm"
-                       Style="{StaticResource TopHeaderTitleStyle}" />
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                    <Label x:Name="TitleLabel"
+                           Text="Địa điểm"
+                           Style="{StaticResource TopHeaderTitleStyle}" />
+
+                    <Border x:Name="ConnectionStatusChip"
+                            Grid.Column="1"
+                            BackgroundColor="#E8F7EE"
+                            Padding="10,6"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 14"
+                            VerticalOptions="Center">
+                        <HorizontalStackLayout Spacing="6">
+                            <Label x:Name="ConnectionStatusDot"
+                                   FontSize="12"
+                                   Text="●"
+                                   VerticalOptions="Center" />
+                            <Label x:Name="ConnectionStatusLabel"
+                                   FontAttributes="Bold"
+                                   FontSize="12"
+                                   Text="Online"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Border>
+                </Grid>
 
                 <Frame Style="{StaticResource TopHeaderSearchFrameStyle}">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
@@ -811,15 +834,17 @@
                                                             Stroke="{Binding DownloadButtonStrokeColor}"
                                                             StrokeThickness="1"
                                                             StrokeShape="RoundRectangle 18"
+                                                            InputTransparent="{Binding IsDownloadDisabled}"
+                                                            Opacity="{Binding DownloadButtonOpacity}"
                                                             WidthRequest="36"
                                                             HeightRequest="36"
                                                             VerticalOptions="Center">
                                                         <Border.GestureRecognizers>
                                                             <TapGestureRecognizer Tapped="OnAudioTrackDownloadTapped" />
                                                         </Border.GestureRecognizers>
-                                                        <Image Source="download_circle_icon.svg"
-                                                               WidthRequest="18"
-                                                               HeightRequest="18"
+                                                        <Label Text="{Binding DownloadButtonGlyph}"
+                                                               FontAttributes="Bold"
+                                                               FontSize="14"
                                                                HorizontalOptions="Center"
                                                                VerticalOptions="Center" />
                                                     </Border>

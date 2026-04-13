@@ -7,9 +7,10 @@
 ### 🔧 Setup & Infrastructure
 
 - [ ] Generate QR code for app installation link (deep link / store link)
-- [ ] Configure app for online/offline mode detection
-  - [ ] Online → connect to SQL Server/sqlite asp server
-  - [ ] Offline → use local SQLite database
+- [✅] Configure app for online/offline mode detection
+  - [ ] Online → connect to SQL Server
+  - [✅] Online → connect to sqlite asp server
+  - [✅] Offline → use local SQLite database
 - [✅] Set up `.NET MAUI` project (Android + iOS targets)
 - [ ] Configure dependency injection and platform services
 
@@ -29,7 +30,7 @@
 
 ### 🗺️ Geofencing & Auto Audio Playback (PoC)
 
-- [ ] Define POI data model:
+- [✅] Define POI data model:
   - [✅] Coordinate (Longitude, Latitude)
   - [✅] Activation Radius
   - [✅] Priority level
@@ -44,8 +45,8 @@
 
 ### 🔊 Narration Engine (PoC)
 
-- [ ] Implement **Text-to-Speech (TTS)**:
-  - [ ] Android: Android TTS engine
+- [✅] Implement **Text-to-Speech (TTS)**:
+  - [✅] Android: Android TTS engine
   - [ ] iOS: `AVSpeechSynthesizer`
   <!-- - [ ] Optional: Azure Cognitive Services (natural voice, online/offline notice) -->
   - [ ] Auto-detect device locale → default Vietnamese if region is VN
@@ -57,18 +58,18 @@
   - [ ] Multi-process scheduling
   - [ ] No audio repetition logic
   - [ ] Auto-stop / pause when OS notification arrives
-- [ ] Decide per-POI: use TTS script or pre-recorded audio file
+- [✅] Decide per-POI: use TTS script or pre-recorded audio file
 
 ---
 
 ### 🗂️ POI Management (PoC)
 
-- [ ] Build POI list screen:
+- [✅] Build POI list screen:
   - [✅] Place name & description
   - [✅] Illustration / image of the place
   - [✅] Link to map
   - [✅] Audio file or TTS script field
-- [ ] Suggest Figma AI for UI/UX design of POI screens
+- [✅] Suggest Figma AI for UI/UX design of POI screens
 
 ---
 
@@ -77,10 +78,10 @@
 - [✅] Display current user location on map
 - [✅] Show all POIs on map
 - [✅] Highlight nearest POI
-- [ ] Choose map library:
-  - [ ] `Microsoft.Maui.Controls.Maps` (basic)
+- [✅] Choose map library: Leaflet-OpenStreetMap
+  <!-- - [ ] `Microsoft.Maui.Controls.Maps` (basic)
   - [ ] Google Maps SDK / MapKit binding (advanced)
-  - [ ] Mapbox or HERE SDK (offline map caching)
+  - [ ] Mapbox or HERE SDK (offline map caching) -->
 
 ---
 
@@ -89,8 +90,9 @@
 - [✅] Set up **SQLite** database (via EF Core or sqlite-net)
 - [✅] Store POI data locally for offline use
 - [✅] Pre-load audio files for offline playback
-- [✅] Implement background sync from SQL Server/sqlite asp server when connection is available
-- [ ] Handle conflict resolution (server wins / last-write-wins policy)
+- [] Implement background sync from SQL Server when connection is available
+- [✅] Implement background sync from sqlite asp server when connection is available
+- [✅] Handle conflict resolution (server wins / last-write-wins policy)
 
 ---
 
@@ -127,7 +129,7 @@
 - [ ] Save anonymous user route history
 - [ ] Report: Top POIs by audio play count
 - [ ] Report: Average listening time per POI
-- [ ] Build **heatmap** of user positions
+- [] Build **heatmap** of user positions
 - [ ] Dashboard charts & filters (date range, tour, ward)
 
 ---
@@ -162,8 +164,8 @@
 
 ## IV. Extended Features (MVP, Post-PoC)
 
-- [ ] Settings screen:
-  - [ ] GPS / radius sensitivity tuning
+- [✅] Settings screen:
+  - [✅] GPS / radius sensitivity tuning
   - [✅] Choose TTS voice
   - [✅] Download offline language pack
 - [✅] Multi-language UI (Vietnamese default)

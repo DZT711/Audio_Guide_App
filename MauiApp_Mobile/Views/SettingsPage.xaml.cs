@@ -71,6 +71,7 @@ public partial class SettingsPage : ContentPage
             BackgroundTrackingLabel,
             BatterySaverLabel,
             ApiModeLabel,
+            DeveloperModeLabel,
             LanguagePopupTitleLabel,
             SaveSettingsButton);
         UpdateLanguageSelectionUI();
@@ -129,6 +130,7 @@ public partial class SettingsPage : ContentPage
         BackgroundTrackingLabel.Text = LocalizationService.Instance.T("Settings.BackgroundTracking");
         BatterySaverLabel.Text = LocalizationService.Instance.T("Settings.BatterySaver");
         ApiModeLabel.Text = LocalizationService.Instance.T("Settings.ApiMode");
+        DeveloperModeLabel.Text = "Hiện nút dev trên bản đồ";
         SaveSettingsButton.Text = LocalizationService.Instance.T("Settings.Save");
 
         LanguagePopupTitleLabel.Text = LocalizationService.Instance.T("Settings.ChooseLanguage");
@@ -260,6 +262,7 @@ public partial class SettingsPage : ContentPage
         NotifyNearSwitch.IsToggled = settings.NotifyNearEnabled;
         BackgroundTrackingSwitch.IsToggled = settings.BackgroundTrackingEnabled;
         BatterySaverSwitch.IsToggled = settings.BatterySaverEnabled;
+        DeveloperModeSwitch.IsToggled = settings.DeveloperModeEnabled;
     }
 
     private void OnReadingSpeedChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
@@ -303,7 +306,8 @@ public partial class SettingsPage : ContentPage
                 BatterySaverSwitch.IsToggled,
                 LocalizationService.Instance.Language,
                 ThemeService.Instance.CurrentTheme,
-                ApiModeSwitch.IsToggled));
+                ApiModeSwitch.IsToggled,
+                DeveloperModeSwitch.IsToggled));
 
             if (BackgroundTrackingSwitch.IsToggled)
             {
