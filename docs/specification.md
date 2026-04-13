@@ -86,10 +86,10 @@
 
 ### 📦 Offline Data & Sync (PoC)
 
-- [ ] Set up **SQLite** database (via EF Core or sqlite-net)
-- [ ] Store POI data locally for offline use
-- [ ] Pre-load audio files for offline playback
-- [ ] Implement background sync from SQL Server/sqlite asp server when connection is available
+- [✅] Set up **SQLite** database (via EF Core or sqlite-net)
+- [✅] Store POI data locally for offline use
+- [✅] Pre-load audio files for offline playback
+- [✅] Implement background sync from SQL Server/sqlite asp server when connection is available
 - [ ] Handle conflict resolution (server wins / last-write-wins policy)
 
 ---
@@ -141,7 +141,7 @@
 - [] Build REST API endpoints for:
   - [✅] POI CRUD
   - [✅] Audio file upload/download
-  - [ ] Sync endpoint for mobile client
+  - [✅] Sync endpoint for mobile client
   - [ ] Analytics ingestion
 - [ ] Implement anonymous telemetry collection (route history, heatmap data)
 
@@ -165,7 +165,7 @@
 - [ ] Settings screen:
   - [ ] GPS / radius sensitivity tuning
   - [✅] Choose TTS voice
-  - [ ] Download offline language pack
+  - [✅] Download offline language pack
 - [✅] Multi-language UI (Vietnamese default)
 - [ ] Notification integration (auto-stop audio on incoming call/notification)
 - [✅] POI owner web portal (non-admin role, manages own POI content)

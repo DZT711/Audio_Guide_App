@@ -93,6 +93,12 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
         }
     }
 
+    public Task<PermissionStatus> GetForegroundPermissionStatusAsync() =>
+        Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+
+    public Task<PermissionStatus> GetBackgroundPermissionStatusAsync() =>
+        Permissions.CheckStatusAsync<Permissions.LocationAlways>();
+
     public async Task<Location?> GetCurrentLocationAsync(bool forForegroundMap = true, CancellationToken cancellationToken = default)
     {
         var request = CreateRequest();
@@ -124,13 +130,24 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
 #if ANDROID
         AndroidLocationForegroundServiceManager.Stop();
 #endif
-        await EnsureLocationPermissionsAsync(requestBackgroundIfEnabled: false, cancellationToken);
+        var foregroundStatus = await GetForegroundPermissionStatusAsync();
+        if (foregroundStatus != PermissionStatus.Granted)
+        {
+            return;
+        }
+
         await StartPollingAsync(isForeground: true, cancellationToken);
     }
 
     public async Task StartBackgroundTrackingAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureLocationPermissionsAsync(requestBackgroundIfEnabled: true, cancellationToken);
+        var foregroundStatus = await GetForegroundPermissionStatusAsync();
+        var backgroundStatus = await GetBackgroundPermissionStatusAsync();
+        if (foregroundStatus != PermissionStatus.Granted || backgroundStatus != PermissionStatus.Granted)
+        {
+            return;
+        }
+
 #if ANDROID
         AndroidLocationForegroundServiceManager.Start();
 #endif

@@ -406,6 +406,15 @@ public sealed class MobileDatabaseService
                     PRIMARY KEY (DeviceId, LocationId)
                 );
                 """);
+
+            await connection.ExecuteAsync("""
+                CREATE TABLE IF NOT EXISTS PlaybackHistory (
+                    HistoryId INTEGER PRIMARY KEY AUTOINCREMENT,
+                    PlaceId TEXT NOT NULL,
+                    PlacePayloadJson TEXT NOT NULL,
+                    PlayedAtUtc TEXT NOT NULL
+                );
+                """);
         }
 
         await connection.ExecuteAsync($"PRAGMA user_version = {CurrentSchemaVersion};");
@@ -433,6 +442,51 @@ public sealed class MobileDatabaseService
         return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
             ? parsed
             : null;
+    }
+
+    public async Task SavePlaybackHistoryAsync(string placeId, string placePayloadJson, DateTimeOffset playedAtUtc, CancellationToken cancellationToken = default)
+    {
+        var connection = await GetConnectionAsync(cancellationToken);
+        await connection.ExecuteAsync("DELETE FROM PlaybackHistory WHERE PlaceId = ?;", placeId);
+        await connection.ExecuteAsync(
+            "INSERT INTO PlaybackHistory(PlaceId, PlacePayloadJson, PlayedAtUtc) VALUES (?, ?, ?);",
+            placeId,
+            placePayloadJson,
+            playedAtUtc.ToString("O", CultureInfo.InvariantCulture));
+        await connection.ExecuteAsync(
+            """
+            DELETE FROM PlaybackHistory
+            WHERE HistoryId NOT IN (
+                SELECT HistoryId FROM PlaybackHistory ORDER BY PlayedAtUtc DESC LIMIT 40
+            );
+            """);
+    }
+
+    public async Task<IReadOnlyList<PlaybackHistoryRecord>> LoadPlaybackHistoryAsync(CancellationToken cancellationToken = default)
+    {
+        var connection = await GetConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<PlaybackHistoryRow>(
+            "SELECT HistoryId, PlaceId, PlacePayloadJson, PlayedAtUtc FROM PlaybackHistory ORDER BY PlayedAtUtc DESC;");
+
+        return rows
+            .Select(row => new PlaybackHistoryRecord(
+                row.HistoryId,
+                row.PlaceId,
+                row.PlacePayloadJson,
+                ParseDateTimeOffset(row.PlayedAtUtc) ?? DateTimeOffset.UtcNow))
+            .ToList();
+    }
+
+    public async Task DeletePlaybackHistoryAsync(string placeId, CancellationToken cancellationToken = default)
+    {
+        var connection = await GetConnectionAsync(cancellationToken);
+        await connection.ExecuteAsync("DELETE FROM PlaybackHistory WHERE PlaceId = ?;", placeId);
+    }
+
+    public async Task ClearPlaybackHistoryAsync(CancellationToken cancellationToken = default)
+    {
+        var connection = await GetConnectionAsync(cancellationToken);
+        await connection.ExecuteAsync("DELETE FROM PlaybackHistory;");
     }
 
     [Table("LocalSettings")]
@@ -535,6 +589,14 @@ public sealed class MobileDatabaseService
         public string CapturedAtUtc { get; set; } = string.Empty;
     }
 
+    private sealed class PlaybackHistoryRow
+    {
+        public int HistoryId { get; set; }
+        public string PlaceId { get; set; } = string.Empty;
+        public string PlacePayloadJson { get; set; } = string.Empty;
+        public string PlayedAtUtc { get; set; } = string.Empty;
+    }
+
 }
 
 public sealed record LocationTrackingRecord(
@@ -547,3 +609,9 @@ public sealed record LocationTrackingRecord(
     int? BatteryPercent,
     bool IsForeground,
     DateTimeOffset CapturedAtUtc);
+
+public sealed record PlaybackHistoryRecord(
+    int HistoryId,
+    string PlaceId,
+    string PlacePayloadJson,
+    DateTimeOffset PlayedAtUtc);

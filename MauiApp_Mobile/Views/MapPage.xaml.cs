@@ -713,7 +713,7 @@ public partial class MapPage : ContentPage
             await CurrentLocationButton.ScaleToAsync(1, 150, Easing.CubicOut);
 
             var permissionStatus = await LocationTrackingService.Instance.EnsureLocationPermissionsAsync(
-                requestBackgroundIfEnabled: AppSettingsService.Instance.BackgroundTrackingEnabled);
+                requestBackgroundIfEnabled: false);
 
             if (permissionStatus != PermissionStatus.Granted)
             {

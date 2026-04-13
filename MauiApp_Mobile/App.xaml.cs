@@ -37,6 +37,7 @@ public partial class App : Application
             await MobileDatabaseService.Instance.InitializeAsync();
             await AppSettingsService.Instance.InitializeAsync();
             await LocationTrackingService.Instance.InitializeAsync();
+            await HistoryService.Instance.InitializeAsync();
             BackgroundSyncService.Instance.Start();
             await StartBackgroundServicesAsync();
         }
@@ -57,7 +58,15 @@ public partial class App : Application
             {
                 if (AppSettingsService.Instance.BackgroundTrackingEnabled)
                 {
-                    await LocationTrackingService.Instance.StartBackgroundTrackingAsync();
+                    var backgroundPermission = await LocationTrackingService.Instance.GetBackgroundPermissionStatusAsync();
+                    if (backgroundPermission == PermissionStatus.Granted)
+                    {
+                        await LocationTrackingService.Instance.StartBackgroundTrackingAsync();
+                    }
+                    else
+                    {
+                        await LocationTrackingService.Instance.StartForegroundTrackingAsync();
+                    }
                 }
                 else
                 {

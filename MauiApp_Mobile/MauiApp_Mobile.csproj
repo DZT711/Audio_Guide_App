@@ -33,9 +33,8 @@
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)' == 'Debug' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
-		<!-- Use fast deployment in Debug to reduce packaging work and avoid fragile full-APK rebuilds during device runs. -->
-		<EmbedAssembliesIntoApk>false</EmbedAssembliesIntoApk>
-		<AndroidFastDeploymentType>Assemblies</AndroidFastDeploymentType>
+		<!-- Keep debug Android installs fully packaged to avoid PID/attach failures during dotnet run. -->
+		<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
 	</PropertyGroup>
 
 	<ItemGroup>
