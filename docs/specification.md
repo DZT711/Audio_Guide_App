@@ -8,7 +8,7 @@
 
 - [ ] Generate QR code for app installation link (deep link / store link)
 - [ ] Configure app for online/offline mode detection
-  - [ ] Online → connect to SQL Server
+  - [ ] Online → connect to SQL Server/sqlite asp sever
   - [ ] Offline → use local SQLite database
 - [✅] Set up `.NET MAUI` project (Android + iOS targets)
 - [ ] Configure dependency injection and platform services
@@ -89,7 +89,7 @@
 - [ ] Set up **SQLite** database (via EF Core or sqlite-net)
 - [ ] Store POI data locally for offline use
 - [ ] Pre-load audio files for offline playback
-- [ ] Implement background sync from SQL Server when connection is available
+- [ ] Implement background sync from SQL Server/sqlite asp sever when connection is available
 - [ ] Handle conflict resolution (server wins / last-write-wins policy)
 
 ---
