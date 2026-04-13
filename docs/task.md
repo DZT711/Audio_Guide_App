@@ -95,7 +95,7 @@ fix preference img on maui map
 
 fix button stop when click again while audio is playing
 
-fix refeshview dont working it always in status loading
+fix refeshview dont working it always in status loading also instantly refesh data
 
 descrease refesh time to 10 or 30s
 
