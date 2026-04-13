@@ -20,10 +20,10 @@
 
 - [ ] Implement foreground GPS tracking
 - [ ] Implement background GPS tracking
-  - [ ] Android: `FusedLocationProviderClient` via Foreground Service
-  - [ ] iOS: `CLLocationManager` with `Always` permission
-- [ ] Optimize for battery efficiency (adaptive polling interval)
-- [ ] Improve location accuracy as much as possible
+  - Android: `FusedLocationProviderClient` via Foreground Service
+  - iOS: `CLLocationManager` with `Always` permission
+- [✅] Optimize for battery efficiency (adaptive polling interval)
+- [] Improve location accuracy as much as possible
 - [ ] Handle location permission requests (foreground & background)
 
 ---
@@ -50,10 +50,10 @@
   - [ ] iOS: `AVSpeechSynthesizer`
   <!-- - [ ] Optional: Azure Cognitive Services (natural voice, online/offline notice) -->
   - [ ] Auto-detect device locale → default Vietnamese if region is VN
-  - [ ] Support multiple languages (flexible, low memory footprint)
-- [ ] Implement **Recorded Audio playback**:
-  - [ ] Professional/natural voice quality
-  - [ ] Note: higher memory usage vs TTS
+  - [✅] Support multiple languages (flexible, low memory footprint)
+- [✅] Implement **Recorded Audio playback**:
+  - [✅] Professional/natural voice quality
+  - Note: higher memory usage vs TTS
 - [ ] Build **Audio Queue Manager**:
   - [ ] Multi-process scheduling
   - [ ] No audio repetition logic
@@ -129,7 +129,7 @@
 - [ ] Save anonymous user route history
 - [ ] Report: Top POIs by audio play count
 - [ ] Report: Average listening time per POI
-- [] Build **heatmap** of user positions
+- [ ] Build **heatmap** of user positions
 - [ ] Dashboard charts & filters (date range, tour, ward)
 
 ---

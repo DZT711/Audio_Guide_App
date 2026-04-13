@@ -748,7 +748,7 @@ public partial class MapPage : ContentPage
                 return;
             }
 
-            var location = await LocationTrackingService.Instance.GetCurrentLocationAsync(forForegroundMap: true);
+            var location = await UserLocationService.Instance.RefreshLocationAsync(requestPermission: false);
             if (location is null)
             {
                 UpdateSearchStatus("Không lấy được vị trí hiện tại. Hãy thử ở khu vực thoáng hơn.");
@@ -757,6 +757,7 @@ public partial class MapPage : ContentPage
                 return;
             }
 
+            UserLocationService.Instance.UpdateLocation(location);
             await ApplyMapThemeAsync();
             await ApplyMapStringsAsync();
 

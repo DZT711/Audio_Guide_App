@@ -130,7 +130,7 @@ public partial class SettingsPage : ContentPage
         NotifyNearLabel.Text = LocalizationService.Instance.T("Settings.NotifyNear");
         BackgroundTrackingLabel.Text = LocalizationService.Instance.T("Settings.BackgroundTracking");
         BatterySaverLabel.Text = LocalizationService.Instance.T("Settings.BatterySaver");
-        ApiModeLabel.Text = LocalizationService.Instance.T("Settings.ApiMode");
+        ApiModeLabel.Text = LocalizationService.Instance.T("Settings.Offline");
         DeveloperModeLabel.Text = "Hiện nút dev trên bản đồ";
         SaveSettingsButton.Text = LocalizationService.Instance.T("Settings.Save");
 
@@ -267,9 +267,10 @@ public partial class SettingsPage : ContentPage
 
     private void UpdateApiModeUI()
     {
-        if (ApiModeSwitch.IsToggled != AppDataModeService.Instance.IsApiEnabled)
+        var isOfflineModeEnabled = !AppDataModeService.Instance.IsApiEnabled;
+        if (ApiModeSwitch.IsToggled != isOfflineModeEnabled)
         {
-            ApiModeSwitch.IsToggled = AppDataModeService.Instance.IsApiEnabled;
+            ApiModeSwitch.IsToggled = isOfflineModeEnabled;
         }
     }
 
@@ -363,7 +364,7 @@ public partial class SettingsPage : ContentPage
                 BatterySaverSwitch.IsToggled,
                 LocalizationService.Instance.Language,
                 ThemeService.Instance.CurrentTheme,
-                ApiModeSwitch.IsToggled,
+                !ApiModeSwitch.IsToggled,
                 DeveloperModeSwitch.IsToggled,
                 GpsAccuracyPicker.SelectedIndex >= 0 ? (GpsAccuracyOption)GpsAccuracyPicker.SelectedIndex : GpsAccuracyOption.High));
 
@@ -396,6 +397,6 @@ public partial class SettingsPage : ContentPage
 
     private void OnApiModeToggled(object sender, ToggledEventArgs e)
     {
-        AppDataModeService.Instance.IsApiEnabled = e.Value;
+        AppDataModeService.Instance.IsApiEnabled = !e.Value;
     }
 }

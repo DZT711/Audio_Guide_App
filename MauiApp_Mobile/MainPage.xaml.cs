@@ -42,6 +42,7 @@ public partial class MainPage : ContentPage
     public ObservableCollection<PlaceItem> Places => ViewModel.Places;
     public ObservableCollection<CategoryFilterOption> CategoryFilters => ViewModel.CategoryFilters;
     public ObservableCollection<CategoryFilterOption> VoiceFilters => ViewModel.VoiceFilters;
+    public ObservableCollection<CategoryFilterOption> LanguageFilters => ViewModel.LanguageFilters;
     public ObservableCollection<PlaceGallerySlide> SelectedPlaceGallery { get; } = new();
     public ObservableCollection<PlaceDetailAudioTrack> SelectedPlaceAudioTracks { get; } = new();
 
@@ -417,6 +418,7 @@ public partial class MainPage : ContentPage
 
         FilterPopupTitleLabel.Text = LocalizationService.Instance.T("Filter.Title");
         VoiceFilterPopupTitleLabel.Text = LocalizationService.Instance.T("Filter.VoiceTitle");
+        LanguageFilterPopupTitleLabel.Text = "NGÔN NGỮ";
         ViewModel.ApplyTexts();
     }
 
@@ -768,6 +770,16 @@ public partial class MainPage : ContentPage
         ViewModel.UpdateVoiceSelectionState();
     }
 
+    private void SyncLanguageFilters()
+    {
+        ViewModel.SyncLanguageFilters();
+    }
+
+    private void UpdateLanguageSelectionState()
+    {
+        ViewModel.UpdateLanguageSelectionState();
+    }
+
     private bool MatchesVoiceFilter(PlaceItem place)
         => ViewModel.MatchesVoiceFilter(place);
 
@@ -826,6 +838,17 @@ public partial class MainPage : ContentPage
             return;
 
         ApplyVoice(option.Value);
+    }
+
+    private void OnLanguageFilterTapped(object sender, TappedEventArgs e)
+    {
+        if (sender is not BindableObject bindable || bindable.BindingContext is not CategoryFilterOption option)
+            return;
+
+        ViewModel.ApplyLanguage(option.Value);
+        ApplyFilter();
+        RefreshSelectedPlaceAudioTracks();
+        _ = UiEffectsService.TogglePopupAsync(FilterPopup, false);
     }
 
     private async void OnPlaceTapped(object sender, TappedEventArgs e)

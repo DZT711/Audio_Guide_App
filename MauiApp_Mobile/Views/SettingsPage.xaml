@@ -494,7 +494,7 @@
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="ApiModeLabel"
-                                       Text="Kết nối API"
+                                       Text="Offline mode"
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
                                 <Switch x:Name="ApiModeSwitch"

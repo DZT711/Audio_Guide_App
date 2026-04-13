@@ -72,3 +72,5 @@ BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj.lscache
 .maui-obj/
 scripts/tempCodeRunnerFile.ps1
 api-build-diagnostic.txt
+.oldzip/
+.oldzip-selected/

@@ -365,8 +365,7 @@
                                                 Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DeleteCommand}"
                                                 CommandParameter="{Binding .}" />
                                         </Border.GestureRecognizers>
-                                        <Label Text="&#xE74D;"
-                                               FontFamily="Segoe MDL2 Assets"
+                                        <Label Text="🗑"
                                                TextColor="{DynamicResource DangerText}"
                                                FontSize="18"
                                                HorizontalTextAlignment="Center"
@@ -969,8 +968,7 @@
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 21"
                                 VerticalOptions="Start">
-                            <Label Text="&#xE74D;"
-                                   FontFamily="Segoe MDL2 Assets"
+                            <Label Text="🗑"
                                    TextColor="#FF4D4F"
                                    FontSize="18"
                                    HorizontalTextAlignment="Center"
