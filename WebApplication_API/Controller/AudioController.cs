@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Security;
@@ -19,6 +20,7 @@ public class AudioController(
     AdminRequestAuthorizationService authService,
     ActivityLogService activityLogService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet("public/location/{locationId:int}")]
     public async Task<IActionResult> GetPublicAudioByLocation(int locationId, CancellationToken cancellationToken)
     {
@@ -58,6 +60,7 @@ public class AudioController(
             item.AudioId == defaultAudioId)).ToList());
     }
 
+    [AllowAnonymous]
     [HttpGet("public/location/{locationId:int}/default")]
     public async Task<IActionResult> GetPublicDefaultAudioByLocation(int locationId, CancellationToken cancellationToken)
     {
@@ -206,6 +209,7 @@ public class AudioController(
         }
     }
 
+    [AllowAnonymous]
     [HttpPost("public/translate-tts")]
     public async Task<IActionResult> TranslateTts(
         [FromBody] PublicAudioTranslateTtsRequest request,

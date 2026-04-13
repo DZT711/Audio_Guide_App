@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Security;
@@ -17,6 +18,7 @@ public class LocationController(
     AdminRequestAuthorizationService authService,
     ActivityLogService activityLogService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet("public")]
     public async Task<IActionResult> GetPublicLocations(CancellationToken cancellationToken)
     {
@@ -34,6 +36,7 @@ public class LocationController(
         return Ok(locations.Select(item => item.ToDto()).ToList());
     }
 
+    [AllowAnonymous]
     [HttpGet("public/catalog")]
     public async Task<IActionResult> GetPublicCatalog(CancellationToken cancellationToken)
     {
