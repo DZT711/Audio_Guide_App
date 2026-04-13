@@ -91,6 +91,14 @@ merge new app ui
 
 fix all poi blank /deleted media data
 
+fix preference img on maui map
+
+fix button stop when click again while audio is playing
+
+fix refeshview dont working it always in status loading
+
+descrease refesh time to 10 or 30s
+
 ## (extend task)-MVP
 
 add automation audio to text autofill in script label and from scipt auto create audio file save in system when user not upload file
