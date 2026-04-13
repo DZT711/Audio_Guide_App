@@ -160,7 +160,6 @@ public partial class LanguagePage : ContentPage
 
                 if (!Permissions.ShouldShowRationale<Permissions.LocationWhenInUse>())
                 {
-                    AppInfo.ShowSettingsUI();
                     return false;
                 }
 
@@ -186,13 +185,11 @@ public partial class LanguagePage : ContentPage
 
             if (!retryBackground)
             {
-                AppInfo.ShowSettingsUI();
                 return false;
             }
 
             if (!Permissions.ShouldShowRationale<Permissions.LocationAlways>())
             {
-                AppInfo.ShowSettingsUI();
                 return false;
             }
         }

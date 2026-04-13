@@ -6,12 +6,14 @@ namespace MauiApp_Mobile.Views;
 public partial class SettingsPage : ContentPage
 {
     private bool _hasAnimated;
+    private bool _isSyncingGpsControls;
 
     public SettingsPage()
     {
         InitializeComponent();
         LoadSavedSettings();
         ApplyTexts();
+        ConfigureGpsAccuracyOptions();
         UpdateSliderLabels();
         UpdateLanguageSelectionUI();
         UpdateThemeSelectionUI();
@@ -30,6 +32,7 @@ public partial class SettingsPage : ContentPage
         UpdateThemeSelectionUI();
         UpdateApiModeUI();
         UpdateSliderLabels();
+        ConfigureGpsAccuracyOptions();
 
         if (_hasAnimated)
             return;
@@ -62,7 +65,6 @@ public partial class SettingsPage : ContentPage
             ThemeHeritageTitleLabel,
             ThemeHeritageSubtitleLabel,
             GpsAccuracyLabel,
-            GpsAccuracyValueLabel,
             TriggerRadiusLabel,
             AlertRadiusLabel,
             WaitTimeLabel,
@@ -120,7 +122,6 @@ public partial class SettingsPage : ContentPage
         ThemeHeritageSubtitleLabel.Text = LocalizationService.Instance.T("Settings.ThemeHeritageSubtitle");
 
         GpsAccuracyLabel.Text = LocalizationService.Instance.T("Settings.Accuracy");
-        GpsAccuracyValueLabel.Text = LocalizationService.Instance.T("Settings.AccuracyValue");
         TriggerRadiusLabel.Text = LocalizationService.Instance.T("Settings.TriggerRadius");
         AlertRadiusLabel.Text = LocalizationService.Instance.T("Settings.AlertRadius");
         WaitTimeLabel.Text = LocalizationService.Instance.T("Settings.WaitTime");
@@ -141,6 +142,28 @@ public partial class SettingsPage : ContentPage
         LangJpLabel.Text = "日本語";
         LangKrLabel.Text = "한국어";
         LangFrLabel.Text = "Français";
+
+        ConfigureGpsAccuracyOptions();
+    }
+
+    private void ConfigureGpsAccuracyOptions()
+    {
+        if (GpsAccuracyPicker is null)
+        {
+            return;
+        }
+
+        var labels = new[]
+        {
+            "Very low",
+            "Low",
+            "Medium",
+            "High",
+            "Very high"
+        };
+
+        GpsAccuracyPicker.ItemsSource = labels;
+        GpsAccuracyPicker.SelectedIndex = (int)AppSettingsService.Instance.GpsAccuracy;
     }
 
     private async void OnToggleLanguagePopupTapped(object sender, TappedEventArgs e)
@@ -263,6 +286,9 @@ public partial class SettingsPage : ContentPage
         BackgroundTrackingSwitch.IsToggled = settings.BackgroundTrackingEnabled;
         BatterySaverSwitch.IsToggled = settings.BatterySaverEnabled;
         DeveloperModeSwitch.IsToggled = settings.DeveloperModeEnabled;
+        _isSyncingGpsControls = true;
+        GpsAccuracyPicker.SelectedIndex = (int)settings.GpsAccuracy;
+        _isSyncingGpsControls = false;
     }
 
     private void OnReadingSpeedChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
@@ -270,6 +296,37 @@ public partial class SettingsPage : ContentPage
     private void OnTriggerRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnAlertRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnWaitTimeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
+
+    private void OnGpsAccuracyChanged(object sender, EventArgs e)
+    {
+        if (_isSyncingGpsControls || GpsAccuracyPicker.SelectedIndex < 0)
+        {
+            return;
+        }
+
+        var selectedAccuracy = (GpsAccuracyOption)GpsAccuracyPicker.SelectedIndex;
+        if (selectedAccuracy is GpsAccuracyOption.High or GpsAccuracyOption.VeryHigh)
+        {
+            BatterySaverSwitch.IsToggled = false;
+        }
+    }
+
+    private void OnBatterySaverToggled(object sender, ToggledEventArgs e)
+    {
+        if (_isSyncingGpsControls)
+        {
+            return;
+        }
+
+        if (!e.Value)
+        {
+            return;
+        }
+
+        _isSyncingGpsControls = true;
+        GpsAccuracyPicker.SelectedIndex = (int)GpsAccuracyOption.VeryLow;
+        _isSyncingGpsControls = false;
+    }
 
     private async void OnTestVoiceClicked(object sender, EventArgs e)
     {
@@ -307,7 +364,8 @@ public partial class SettingsPage : ContentPage
                 LocalizationService.Instance.Language,
                 ThemeService.Instance.CurrentTheme,
                 ApiModeSwitch.IsToggled,
-                DeveloperModeSwitch.IsToggled));
+                DeveloperModeSwitch.IsToggled,
+                GpsAccuracyPicker.SelectedIndex >= 0 ? (GpsAccuracyOption)GpsAccuracyPicker.SelectedIndex : GpsAccuracyOption.High));
 
             if (BackgroundTrackingSwitch.IsToggled)
             {

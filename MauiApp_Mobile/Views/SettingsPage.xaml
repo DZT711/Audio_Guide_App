@@ -356,12 +356,14 @@
                                        Text="Độ chính xác GPS"
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
-                                <Label x:Name="GpsAccuracyValueLabel"
-                                       Grid.Column="1"
-                                       Text="Cao"
-                                       FontSize="16"
-                                       TextColor="{DynamicResource PrimaryGreen}"
-                                       FontAttributes="Bold" />
+                                <Picker x:Name="GpsAccuracyPicker"
+                                        Grid.Column="1"
+                                        Title="Accuracy"
+                                        WidthRequest="160"
+                                        HorizontalOptions="End"
+                                        SelectedIndexChanged="OnGpsAccuracyChanged"
+                                        TextColor="{DynamicResource PrimaryGreen}"
+                                        TitleColor="{DynamicResource MutedText}" />
                             </Grid>
 
                             <Label x:Name="TriggerRadiusLabel"
@@ -486,7 +488,8 @@
                                 <Switch x:Name="BatterySaverSwitch"
                                         Grid.Column="1"
                                         IsToggled="False"
-                                        OnColor="{DynamicResource PrimaryGreen}" />
+                                        OnColor="{DynamicResource PrimaryGreen}"
+                                        Toggled="OnBatterySaverToggled" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">

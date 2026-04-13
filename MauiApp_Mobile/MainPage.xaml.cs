@@ -1196,6 +1196,13 @@ public partial class MainPage : ContentPage
                 return;
             }
 
+            if (!AppDataModeService.Instance.IsApiEnabled || Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+            {
+                track.ApplyDownloadFailure("Không thể tải audio khi ứng dụng đang ở chế độ offline hoặc chưa có Internet.");
+                await DisplayAlertAsync("Offline", "Hãy bật Internet và API mode trước khi tải audio xuống máy.", "OK");
+                return;
+            }
+
             var selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
             if (selectedTrack is null)
             {
@@ -1223,6 +1230,11 @@ public partial class MainPage : ContentPage
 
             var snapshot = await AudioDownloadService.Instance.DownloadAsync(selectedTrack, progress);
             await MainThread.InvokeOnMainThreadAsync(() => track.ApplyDownloadSnapshot(snapshot));
+
+            if (SelectedPlace is not null)
+            {
+                await LoadSelectedPlaceAudioTracksSafelyAsync(SelectedPlace);
+            }
         }
         catch (OperationCanceledException)
         {

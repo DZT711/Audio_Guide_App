@@ -742,16 +742,9 @@ public partial class MapPage : ContentPage
             await CurrentLocationButton.ScaleToAsync(0.92, 70, Easing.CubicIn);
             await CurrentLocationButton.ScaleToAsync(1, 150, Easing.CubicOut);
 
-            var permissionStatus = await LocationTrackingService.Instance.EnsureLocationPermissionsAsync(
-                requestBackgroundIfEnabled: false);
-
-            if (permissionStatus != PermissionStatus.Granted)
+            if (!await EnsureForegroundLocationAccessForMapAsync())
             {
                 UpdateSearchStatus("Chưa cấp quyền vị trí nên không thể định vị.");
-                await PromptOpenAppSettingsAsync(
-                    "Quyền vị trí",
-                    "Ứng dụng cần quyền vị trí để xác định vị trí hiện tại trên bản đồ. Mở cài đặt ứng dụng ngay?",
-                    "Mở cài đặt");
                 return;
             }
 
@@ -793,11 +786,10 @@ public partial class MapPage : ContentPage
         }
         catch (PermissionException)
         {
-            UpdateSearchStatus("Ứng dụng không có quyền truy cập vị trí.");
-            await PromptOpenAppSettingsAsync(
-                "Quyền vị trí",
-                "Ứng dụng đang bị chặn quyền truy cập vị trí. Mở cài đặt ứng dụng để cấp quyền ngay?",
-                "Mở cài đặt");
+            if (!await EnsureForegroundLocationAccessForMapAsync())
+            {
+                UpdateSearchStatus("Ứng dụng không có quyền truy cập vị trí.");
+            }
         }
         catch (Exception ex)
         {
@@ -839,6 +831,54 @@ public partial class MapPage : ContentPage
 
         AppInfo.ShowSettingsUI();
         UpdateSearchStatus("Đã mở cài đặt ứng dụng. Hãy cấp quyền vị trí rồi quay lại ứng dụng.");
+    }
+
+    private async Task<bool> EnsureForegroundLocationAccessForMapAsync()
+    {
+        var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+        if (status == PermissionStatus.Granted)
+        {
+            return true;
+        }
+
+        status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+        if (status == PermissionStatus.Granted)
+        {
+            return true;
+        }
+
+#if ANDROID
+        if (Permissions.ShouldShowRationale<Permissions.LocationWhenInUse>())
+        {
+            var retry = await DisplayAlertAsync(
+                "Quyền vị trí",
+                "Ứng dụng cần quyền vị trí chính xác để lấy đúng vị trí hiện tại trên bản đồ.",
+                "Yêu cầu lại",
+                "Để sau");
+
+            if (!retry)
+            {
+                return false;
+            }
+
+            status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+            return status == PermissionStatus.Granted;
+        }
+#endif
+
+        var openSettings = await DisplayAlertAsync(
+            "Quyền vị trí",
+            "Android đang chặn hộp thoại cấp quyền vị trí cho ứng dụng này. Bạn có muốn mở cài đặt ứng dụng để bật lại không?",
+            "Mở cài đặt",
+            "Để sau");
+
+        if (openSettings)
+        {
+            AppInfo.ShowSettingsUI();
+            UpdateSearchStatus("Đã mở cài đặt ứng dụng. Hãy bật lại quyền vị trí rồi quay lại ứng dụng.");
+        }
+
+        return false;
     }
 
     private static void OpenLocationSettings()

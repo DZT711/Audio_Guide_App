@@ -20,6 +20,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
     private const string ThemeKey = "app_settings.theme";
     private const string ApiModeKey = "app_settings.api_mode";
     private const string DeveloperModeKey = "app_settings.developer_mode";
+    private const string GpsAccuracyKey = "app_settings.gps_accuracy";
     private const string InitializationMarkerKey = "app_settings.initialized";
 
     public static AppSettingsService Instance { get; } = new();
@@ -44,6 +45,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
     public AppThemeOption Theme { get; private set; } = AppThemeOption.Eco;
     public bool ApiModeEnabled { get; private set; } = true;
     public bool DeveloperModeEnabled { get; private set; }
+    public GpsAccuracyOption GpsAccuracy { get; private set; } = GpsAccuracyOption.High;
     public float PlaybackVolumeRatio => (float)Math.Clamp(VolumePercent / 100d, 0d, 1d);
     public float AndroidSpeechRate => (float)Math.Clamp(ReadingSpeed, 0.5d, 2.0d);
 
@@ -72,7 +74,8 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             await ReadStringAsync(LanguageKey, LanguageCode, cancellationToken),
             await ReadThemeAsync(cancellationToken),
             await ReadBoolAsync(ApiModeKey, ApiModeEnabled, cancellationToken),
-            await ReadBoolAsync(DeveloperModeKey, DeveloperModeEnabled, cancellationToken));
+            await ReadBoolAsync(DeveloperModeKey, DeveloperModeEnabled, cancellationToken),
+            await ReadGpsAccuracyAsync(cancellationToken));
 
         ApplySnapshot(snapshot, persistToLegacyPreferences: false);
     }
@@ -90,7 +93,8 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         LanguageCode,
         Theme,
         ApiModeEnabled,
-        DeveloperModeEnabled);
+        DeveloperModeEnabled,
+        GpsAccuracy);
 
     public async Task SaveAsync(AppSettingsSnapshot snapshot, CancellationToken cancellationToken = default)
     {
@@ -109,6 +113,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         await MobileDatabaseService.Instance.SetSettingAsync(ThemeKey, Theme.ToString(), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(ApiModeKey, ApiModeEnabled.ToString(), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(DeveloperModeKey, DeveloperModeEnabled.ToString(), cancellationToken);
+        await MobileDatabaseService.Instance.SetSettingAsync(GpsAccuracyKey, GpsAccuracy.ToString(), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(InitializationMarkerKey, bool.TrueString, cancellationToken);
     }
 
@@ -127,6 +132,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         Theme = snapshot.Theme;
         ApiModeEnabled = snapshot.ApiModeEnabled;
         DeveloperModeEnabled = snapshot.DeveloperModeEnabled;
+        GpsAccuracy = snapshot.GpsAccuracy;
 
         if (persistToLegacyPreferences)
         {
@@ -143,6 +149,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             Preferences.Default.Set(ThemeKey, Theme.ToString());
             Preferences.Default.Set(ApiModeKey, ApiModeEnabled);
             Preferences.Default.Set(DeveloperModeKey, DeveloperModeEnabled);
+            Preferences.Default.Set(GpsAccuracyKey, GpsAccuracy.ToString());
         }
 
         LocalizationService.Instance.Language = LanguageCode;
@@ -162,6 +169,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         RaisePropertyChanged(nameof(Theme));
         RaisePropertyChanged(nameof(ApiModeEnabled));
         RaisePropertyChanged(nameof(DeveloperModeEnabled));
+        RaisePropertyChanged(nameof(GpsAccuracy));
         RaisePropertyChanged(nameof(PlaybackVolumeRatio));
         RaisePropertyChanged(nameof(AndroidSpeechRate));
     }
@@ -172,6 +180,12 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         if (!Enum.TryParse(themePreference, true, out AppThemeOption theme))
         {
             theme = AppThemeOption.Eco;
+        }
+
+        var gpsAccuracyPreference = Preferences.Default.Get(GpsAccuracyKey, nameof(GpsAccuracyOption.High));
+        if (!Enum.TryParse(gpsAccuracyPreference, true, out GpsAccuracyOption gpsAccuracy))
+        {
+            gpsAccuracy = GpsAccuracyOption.High;
         }
 
         return new AppSettingsSnapshot(
@@ -187,7 +201,8 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             Preferences.Default.Get(LanguageKey, LocalizationService.Instance.Language),
             theme,
             Preferences.Default.Get(ApiModeKey, true),
-            Preferences.Default.Get(DeveloperModeKey, false));
+            Preferences.Default.Get(DeveloperModeKey, false),
+            gpsAccuracy);
     }
 
     private async Task<double> ReadDoubleAsync(string key, double fallback, CancellationToken cancellationToken)
@@ -214,6 +229,12 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         return Enum.TryParse(value, true, out AppThemeOption parsed) ? parsed : Theme;
     }
 
+    private async Task<GpsAccuracyOption> ReadGpsAccuracyAsync(CancellationToken cancellationToken)
+    {
+        var value = await MobileDatabaseService.Instance.GetSettingAsync(GpsAccuracyKey, cancellationToken);
+        return Enum.TryParse(value, true, out GpsAccuracyOption parsed) ? parsed : GpsAccuracy;
+    }
+
     private static double Clamp(double value, double min, double max) => Math.Clamp(value, min, max);
 
     private void RaisePropertyChanged([CallerMemberName] string? propertyName = null) =>
@@ -233,4 +254,14 @@ public readonly record struct AppSettingsSnapshot(
     string LanguageCode,
     AppThemeOption Theme,
     bool ApiModeEnabled,
-    bool DeveloperModeEnabled);
+    bool DeveloperModeEnabled,
+    GpsAccuracyOption GpsAccuracy);
+
+public enum GpsAccuracyOption
+{
+    VeryLow,
+    Low,
+    Medium,
+    High,
+    VeryHigh
+}

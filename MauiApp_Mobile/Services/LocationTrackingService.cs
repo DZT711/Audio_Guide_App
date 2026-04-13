@@ -245,10 +245,15 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
     private GeolocationRequest CreateRequest()
     {
         var accuracy = AppSettingsService.Instance.BatterySaverEnabled
-            ? GeolocationAccuracy.Medium
-            : AppSettingsService.Instance.TriggerRadiusMeters <= 30
-                ? GeolocationAccuracy.Best
-                : GeolocationAccuracy.High;
+            ? GeolocationAccuracy.Low
+            : AppSettingsService.Instance.GpsAccuracy switch
+            {
+                GpsAccuracyOption.VeryLow => GeolocationAccuracy.Low,
+                GpsAccuracyOption.Low => GeolocationAccuracy.Medium,
+                GpsAccuracyOption.Medium => GeolocationAccuracy.Default,
+                GpsAccuracyOption.VeryHigh => GeolocationAccuracy.Best,
+                _ => GeolocationAccuracy.High
+            };
 
         return new GeolocationRequest(accuracy, TimeSpan.FromSeconds(12));
     }
@@ -257,20 +262,29 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
     {
         if (AppSettingsService.Instance.BatterySaverEnabled)
         {
-            return TimeSpan.FromSeconds(45);
-        }
-
-        if (AppSettingsService.Instance.TriggerRadiusMeters <= 25)
-        {
-            return TimeSpan.FromSeconds(10);
+            return TimeSpan.FromSeconds(60);
         }
 
         if (AppSettingsService.Instance.BackgroundTrackingEnabled)
         {
-            return TimeSpan.FromSeconds(20);
+            return AppSettingsService.Instance.GpsAccuracy switch
+            {
+                GpsAccuracyOption.VeryHigh => TimeSpan.FromSeconds(8),
+                GpsAccuracyOption.High => TimeSpan.FromSeconds(12),
+                GpsAccuracyOption.Medium => TimeSpan.FromSeconds(18),
+                GpsAccuracyOption.Low => TimeSpan.FromSeconds(26),
+                _ => TimeSpan.FromSeconds(35)
+            };
         }
 
-        return TimeSpan.FromSeconds(30);
+        return AppSettingsService.Instance.GpsAccuracy switch
+        {
+            GpsAccuracyOption.VeryHigh => TimeSpan.FromSeconds(10),
+            GpsAccuracyOption.High => TimeSpan.FromSeconds(15),
+            GpsAccuracyOption.Medium => TimeSpan.FromSeconds(22),
+            GpsAccuracyOption.Low => TimeSpan.FromSeconds(30),
+            _ => TimeSpan.FromSeconds(40)
+        };
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows.Input;
+using Microsoft.Maui.Networking;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
 
@@ -655,6 +656,11 @@ public partial class OfflinePage : ContentPage
 
         try
         {
+            if (!await EnsureDownloadAvailableAsync())
+            {
+                return;
+            }
+
             await DownloadPackAsync(item);
             ApplyFilter();
         }
@@ -682,6 +688,11 @@ public partial class OfflinePage : ContentPage
 
         try
         {
+            if (!await EnsureDownloadAvailableAsync())
+            {
+                return;
+            }
+
             await AudioDownloadService.Instance.DeleteLocationTracksAsync(ParseLocationId(item.Id));
             await DownloadPackAsync(item);
             ApplyFilter();
@@ -745,6 +756,11 @@ public partial class OfflinePage : ContentPage
 
     private async void OnDownloadAllClicked(object sender, EventArgs e)
     {
+        if (!await EnsureDownloadAvailableAsync())
+        {
+            return;
+        }
+
         foreach (var item in _allItems)
         {
             try
@@ -1070,13 +1086,19 @@ public partial class OfflinePage : ContentPage
         foreach (var item in items)
         {
             var snapshots = await AudioDownloadService.Instance.GetSnapshotsForLocationAsync(ParseLocationId(item.Id), cancellationToken);
-            item.IsDownloaded = snapshots.Count > 0;
+            var downloadedTrackIds = snapshots.Select(snapshot => snapshot.TrackId).ToHashSet();
+            var downloadableTrackCount = item.AudioTracks.Count(track => track.IsDownloadable);
+            var downloadedTrackCount = item.AudioTracks.Count(track => track.IsDownloadable && downloadedTrackIds.Contains(track.TrackId));
+
+            item.IsDownloaded = downloadableTrackCount > 0 && downloadedTrackCount >= downloadableTrackCount;
             item.DownloadedAt = snapshots.OrderByDescending(snapshot => snapshot.DownloadedAt).FirstOrDefault().DownloadedAt?.LocalDateTime;
 
             foreach (var track in item.AudioTracks)
             {
-                track.IsDownloaded = track.TrackId > 0 && snapshots.Any(snapshot => snapshot.TrackId == track.TrackId);
+                track.IsDownloaded = track.TrackId > 0 && downloadedTrackIds.Contains(track.TrackId);
             }
+
+            item.RefreshTrackCollections();
         }
     }
 
@@ -1094,16 +1116,17 @@ public partial class OfflinePage : ContentPage
         foreach (var track in downloadableTracks)
         {
             await AudioDownloadService.Instance.DownloadAsync(track);
+            var matchingTrack = item.AudioTracks.FirstOrDefault(audioTrack => audioTrack.TrackId == track.Id);
+            if (matchingTrack is not null)
+            {
+                matchingTrack.IsDownloaded = true;
+            }
         }
 
-        item.IsDownloaded = true;
+        item.IsDownloaded = item.DownloadedAudioCount >= item.DownloadableAudioCount && item.DownloadableAudioCount > 0;
         item.DownloadedAt = DateTime.Now;
         item.IsExpanded = true;
-
-        foreach (var track in item.AudioTracks)
-        {
-            track.IsDownloaded = track.TrackId > 0 && downloadableTracks.Any(itemTrack => itemTrack.Id == track.TrackId);
-        }
+        item.RefreshTrackCollections();
     }
 
     private async Task DeletePackAsync(OfflinePackItem? item)
@@ -1122,6 +1145,22 @@ public partial class OfflinePage : ContentPage
         {
             track.IsDownloaded = false;
         }
+
+        item.RefreshTrackCollections();
+    }
+
+    private async Task<bool> EnsureDownloadAvailableAsync()
+    {
+        if (!AppDataModeService.Instance.IsApiEnabled || Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+        {
+            await DisplayAlertAsync(
+                "Offline",
+                "Không thể tải audio khi ứng dụng đang ở chế độ offline hoặc thiết bị chưa có Internet.",
+                "OK");
+            return false;
+        }
+
+        return true;
     }
 
     private static int ParseLocationId(string id) =>
@@ -1155,6 +1194,8 @@ public class OfflinePackItem : INotifyPropertyChanged
     public Color CategoryTextColor { get; set; } = Colors.Black;
     public ObservableCollection<LocalizedTitleItem> LocalizedTitles { get; set; } = new();
     public ObservableCollection<OfflineAudioTrack> AudioTracks { get; set; } = new();
+    public ObservableCollection<OfflineAudioTrack> DownloadedTracks { get; } = new();
+    public ObservableCollection<OfflineAudioTrack> PendingTracks { get; } = new();
 
     private bool _isDownloaded;
     private DateTime? _downloadedAt;
@@ -1162,6 +1203,11 @@ public class OfflinePackItem : INotifyPropertyChanged
 
     public string AudioCountText => $"{AudioCount} audio";
     public string LanguagesText => string.Join(" • ", AudioTracks.Select(track => track.LanguageCode));
+    public int DownloadableAudioCount => AudioTracks.Count(track => track.IsDownloadable);
+    public int DownloadedAudioCount => AudioTracks.Count(track => track.IsDownloadable && track.IsDownloaded);
+    public string DownloadedAudioSummaryText => $"{DownloadedAudioCount}/{Math.Max(DownloadableAudioCount, 0)} audio";
+    public bool HasDownloadedTracks => DownloadedTracks.Count > 0;
+    public bool HasPendingTracks => PendingTracks.Count > 0;
     public string DownloadedDateText => DownloadedAt is DateTime downloadedAt
         ? $"✓ Đã tải {downloadedAt:dd/MM/yyyy}"
         : "Chưa tải về";
@@ -1198,6 +1244,7 @@ public class OfflinePackItem : INotifyPropertyChanged
             OnPropertyChanged(nameof(StatusTextColor));
             OnPropertyChanged(nameof(TrackPanelBackgroundColor));
             OnPropertyChanged(nameof(TrackPanelStrokeColor));
+            OnPropertyChanged(nameof(DownloadedAudioSummaryText));
         }
     }
 
@@ -1244,6 +1291,28 @@ public class OfflinePackItem : INotifyPropertyChanged
         {
             track.RefreshThemeState();
         }
+    }
+
+    public void RefreshTrackCollections()
+    {
+        DownloadedTracks.Clear();
+        PendingTracks.Clear();
+
+        foreach (var track in AudioTracks.Where(track => track.IsDownloadable && track.IsDownloaded))
+        {
+            DownloadedTracks.Add(track);
+        }
+
+        foreach (var track in AudioTracks.Where(track => !track.IsDownloadable || !track.IsDownloaded))
+        {
+            PendingTracks.Add(track);
+        }
+
+        OnPropertyChanged(nameof(DownloadableAudioCount));
+        OnPropertyChanged(nameof(DownloadedAudioCount));
+        OnPropertyChanged(nameof(DownloadedAudioSummaryText));
+        OnPropertyChanged(nameof(HasDownloadedTracks));
+        OnPropertyChanged(nameof(HasPendingTracks));
     }
 
     public void ApplyLanguage(string language)
@@ -1294,6 +1363,7 @@ public class OfflineAudioTrack : INotifyPropertyChanged
     public string Duration { get; set; } = "";
     public string SourceType { get; set; } = "TTS";
     public string? AudioUrl { get; set; }
+    public bool IsDownloadable => !string.IsNullOrWhiteSpace(AudioUrl);
     public string MetaText => $"{LocaleCode} - {SourceType}";
     public string StatusSymbol => IsDownloaded ? "✓" : "";
     public Color StatusBackgroundColor => IsDownloaded
