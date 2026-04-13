@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Security;
@@ -19,10 +20,14 @@ public class AudioController(
     AdminRequestAuthorizationService authService,
     ActivityLogService activityLogService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet("public/location/{locationId:int}")]
     public async Task<IActionResult> GetPublicAudioByLocation(int locationId, CancellationToken cancellationToken)
     {
+        Response.Headers.CacheControl = "public,max-age=60";
+
         var location = await context.Locations
+            .AsNoTracking()
             .Where(item => item.LocationId == locationId && item.Status == 1)
             .Select(item => new
             {
@@ -37,6 +42,7 @@ public class AudioController(
         }
 
         var audioItems = (await context.AudioContents
+            .AsNoTracking()
             .Where(item => item.LocationId == locationId && item.Status == 1)
             .ToListAsync(cancellationToken))
             .OrderByDescending(item => item.Priority)
@@ -54,10 +60,14 @@ public class AudioController(
             item.AudioId == defaultAudioId)).ToList());
     }
 
+    [AllowAnonymous]
     [HttpGet("public/location/{locationId:int}/default")]
     public async Task<IActionResult> GetPublicDefaultAudioByLocation(int locationId, CancellationToken cancellationToken)
     {
+        Response.Headers.CacheControl = "public,max-age=60";
+
         var location = await context.Locations
+            .AsNoTracking()
             .Where(item => item.LocationId == locationId && item.Status == 1)
             .Select(item => new
             {
@@ -72,6 +82,7 @@ public class AudioController(
         }
 
         var audio = (await context.AudioContents
+            .AsNoTracking()
             .Where(item => item.LocationId == locationId && item.Status == 1)
             .ToListAsync(cancellationToken))
             .OrderByDescending(item => item.Priority)
@@ -198,6 +209,7 @@ public class AudioController(
         }
     }
 
+    [AllowAnonymous]
     [HttpPost("public/translate-tts")]
     public async Task<IActionResult> TranslateTts(
         [FromBody] PublicAudioTranslateTtsRequest request,
@@ -523,7 +535,7 @@ public class AudioController(
             Description = audio.Description,
             SourceType = audio.SourceType,
             Script = audio.Script,
-            AudioURL = audio.FilePath,
+            AudioURL = NormalizeAudioPath(audio.FilePath),
             Duration = audio.DurationSeconds ?? 0,
             VoiceName = audio.VoiceName,
             VoiceGender = audio.VoiceGender,

@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:MauiApp_Mobile"
     xmlns:models="clr-namespace:MauiApp_Mobile.Models"
+    x:DataType="local:MainPage"
     Shell.NavBarIsVisible="False"
     Padding="0"
     BackgroundColor="{DynamicResource LightBg}">
@@ -30,7 +31,7 @@
                                BackgroundColor="Transparent"
                                TextColor="{DynamicResource BodyText}"
                                ClearButtonVisibility="WhileEditing"
-                               TextChanged="OnSearchChanged" />
+                               Text="{Binding ViewModel.SearchText, Mode=TwoWay}" />
                     </Grid>
                 </Frame>
             </VerticalStackLayout>
@@ -48,7 +49,7 @@
                         StrokeShape="RoundRectangle 16">
                     <VerticalStackLayout Spacing="2">
                         <Label x:Name="CountLabel"
-                               Text="10 địa điểm"
+                               Text="{Binding ViewModel.CountText}"
                                FontSize="17"
                                FontAttributes="Bold"
                                TextColor="{DynamicResource BodyText}" />
@@ -72,10 +73,10 @@
                                TextColor="{DynamicResource MutedText}"
                                VerticalOptions="Center" />
                         <Label x:Name="FilterLabel"
-                               Text="Lọc"
+                               Text="{Binding ViewModel.FilterHeaderText}"
                                FontSize="15"
                                FontAttributes="Bold"
-                               TextColor="{DynamicResource BodyText}"
+                               TextColor="{Binding ViewModel.FilterHeaderColor}"
                                VerticalOptions="Center" />
                     </HorizontalStackLayout>
 
@@ -87,7 +88,7 @@
 
             <VerticalStackLayout x:Name="EmptyStateLayout"
                                  Grid.Row="1"
-                                 IsVisible="False"
+                                 IsVisible="{Binding ViewModel.ShowEmptyState}"
                                  Spacing="8"
                                  Padding="0,8,0,8">
                 <Label Text="🔎"
@@ -133,44 +134,26 @@
                 </VerticalStackLayout>
             </Grid>
 
-            <Grid Grid.Row="2"
-                  RowDefinitions="Auto,*"
-                  RowSpacing="0">
-                <Border x:Name="PullToRefreshHeader"
-                        HeightRequest="0"
-                        IsVisible="False"
-                        BackgroundColor="#E8F7EE"
-                        StrokeThickness="0"
-                        StrokeShape="RoundRectangle 14"
-                        HorizontalOptions="Center"
-                        Margin="0,0,0,8"
-                        Padding="12,6">
-                    <Label x:Name="PullToRefreshLabel"
-                           Text="Kéo xuống để cập nhật"
-                           FontSize="12"
-                           TextColor="{DynamicResource PrimaryGreen}"
-                           HorizontalTextAlignment="Center" />
-                </Border>
-
+            <RefreshView Grid.Row="2"
+                         IsRefreshing="{Binding ViewModel.IsRefreshing, Mode=TwoWay}"
+                         RefreshColor="{DynamicResource PrimaryGreen}"
+                         Command="{Binding ViewModel.RefreshCommand}">
                 <CollectionView x:Name="PlacesCollectionView"
-                                Grid.Row="1"
+                                ItemsSource="{Binding ViewModel.Places}"
                                 IsVisible="False"
                                 Opacity="0"
                                 SelectionMode="None"
-                                Scrolled="OnPlacesScrolled"
                                 VerticalOptions="FillAndExpand"
                                 ItemsLayout="VerticalList">
-                    <CollectionView.GestureRecognizers>
-                        <PanGestureRecognizer PanUpdated="OnPlacesPanUpdated" />
-                    </CollectionView.GestureRecognizers>
                     <CollectionView.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="models:PlaceItem">
                             <Frame Style="{StaticResource CardFrameStyle}">
                                 <Frame.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnPlaceTapped" />
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type local:MainPage}}, Path=ViewModel.OpenPlaceCommand}"
+                                                          CommandParameter="{Binding .}" />
                                 </Frame.GestureRecognizers>
                                 <Grid ColumnDefinitions="88,*,Auto" ColumnSpacing="14">
-                                    <Image Source="{Binding Image}"
+                                    <Image Source="{Binding Image, Converter={StaticResource PlaceImageSourceConverter}}"
                                            WidthRequest="88"
                                            HeightRequest="88"
                                            Aspect="AspectFill" />
@@ -211,13 +194,32 @@
                                            BackgroundColor="{DynamicResource PrimaryGreen}"
                                            HorizontalOptions="End"
                                            VerticalOptions="Center">
-                                        <Label Text="{Binding PlayIcon}"
-                                               HorizontalOptions="Center"
-                                               VerticalOptions="Center"
-                                               TextColor="White"
-                                               FontSize="18" />
+                                        <Grid>
+                                            <ActivityIndicator IsVisible="{Binding IsAudioLoading}"
+                                                               IsRunning="{Binding IsAudioLoading}"
+                                                               Color="White"
+                                                               WidthRequest="18"
+                                                               HeightRequest="18"
+                                                               HorizontalOptions="Center"
+                                                               VerticalOptions="Center" />
+                                            <Label Text="{Binding PlayIcon}"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center"
+                                                   TextColor="White"
+                                                   FontSize="18">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label"
+                                                                 Binding="{Binding IsAudioLoading}"
+                                                                 Value="True">
+                                                        <Setter Property="Opacity"
+                                                                Value="0" />
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+                                        </Grid>
                                         <Frame.GestureRecognizers>
-                                            <TapGestureRecognizer Tapped="OnPlayTapped" />
+                                            <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type local:MainPage}}, Path=ViewModel.PlayPlaceCommand}"
+                                                                  CommandParameter="{Binding .}" />
                                         </Frame.GestureRecognizers>
                                     </Frame>
                                 </Grid>
@@ -225,7 +227,7 @@
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
-            </Grid>
+            </RefreshView>
 
             <Border x:Name="FilterPopup"
                     Grid.RowSpan="3"
@@ -453,7 +455,7 @@
                                             <Border BackgroundColor="#0F172A"
                                                     StrokeThickness="0" />
 
-                                            <Image Source="{Binding Image}"
+                                            <Image Source="{Binding Image, Converter={StaticResource PlaceImageSourceConverter}}"
                                                    Aspect="{OnPlatform Default=AspectFill, WinUI=AspectFit}"
                                                    Margin="18,14,18,14"
                                                    Opacity="1" />
@@ -710,11 +712,11 @@
                                             <Border.GestureRecognizers>
                                                 <TapGestureRecognizer Tapped="OnToggleAudioListTapped" />
                                             </Border.GestureRecognizers>
-                                            <Label Text="{Binding AudioListExpandIcon}"
-                                                   FontSize="14"
-                                                   TextColor="{DynamicResource BodyText}"
-                                                   HorizontalTextAlignment="Center"
-                                                   VerticalTextAlignment="Center" />
+                                            <Image Source="{Binding AudioListExpandIcon}"
+                                                   WidthRequest="14"
+                                                   HeightRequest="10"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center" />
                                         </Border>
                                     </Grid>
 
@@ -723,7 +725,7 @@
                                                          Spacing="10">
                                         <BindableLayout.ItemTemplate>
                                             <DataTemplate x:DataType="local:PlaceDetailAudioTrack">
-                                                <Grid ColumnDefinitions="Auto,*,Auto"
+                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto"
                                                       ColumnSpacing="10">
                                                     <Border BackgroundColor="{DynamicResource SurfaceAlt}"
                                                             Stroke="{DynamicResource BorderColor}"
@@ -739,7 +741,7 @@
                                                     </Border>
 
                                                     <VerticalStackLayout Grid.Column="1"
-                                                                         Spacing="2"
+                                                                         Spacing="5"
                                                                          VerticalOptions="Center">
                                                         <Label Text="{Binding Title}"
                                                                FontSize="14"
@@ -749,9 +751,59 @@
                                                         <Label Text="{Binding MetaText}"
                                                                FontSize="12"
                                                                TextColor="{DynamicResource MutedText}" />
+
+                                                        <Border IsVisible="{Binding IsDownloadStatusVisible}"
+                                                                BackgroundColor="{Binding DownloadStatusBackgroundColor}"
+                                                                StrokeThickness="0"
+                                                                StrokeShape="RoundRectangle 10"
+                                                                Padding="8,4"
+                                                                HorizontalOptions="Start">
+                                                            <HorizontalStackLayout Spacing="6">
+                                                                <Label Text="{Binding DownloadStatusIcon}"
+                                                                       FontSize="12"
+                                                                       FontAttributes="Bold"
+                                                                       TextColor="{Binding DownloadStatusTextColor}"
+                                                                       VerticalTextAlignment="Center" />
+                                                                <Label Text="{Binding DownloadStatusText}"
+                                                                       FontSize="11"
+                                                                       FontAttributes="Bold"
+                                                                       TextColor="{Binding DownloadStatusTextColor}"
+                                                                       VerticalTextAlignment="Center" />
+                                                            </HorizontalStackLayout>
+                                                        </Border>
+
+                                                        <Label Text="{Binding DownloadDetailText}"
+                                                               FontSize="11"
+                                                               TextColor="{Binding DownloadStatusTextColor}"
+                                                               IsVisible="{Binding HasDownloadDetail}"
+                                                               LineBreakMode="WordWrap" />
+
+                                                        <ProgressBar Progress="{Binding DownloadProgress}"
+                                                                     IsVisible="{Binding IsDownloadProgressVisible}"
+                                                                     HeightRequest="6"
+                                                                     BackgroundColor="{DynamicResource DividerColor}"
+                                                                     ProgressColor="{DynamicResource PrimaryGreen}" />
                                                     </VerticalStackLayout>
 
                                                     <Border Grid.Column="2"
+                                                            BackgroundColor="{Binding DownloadButtonBackgroundColor}"
+                                                            Stroke="{Binding DownloadButtonStrokeColor}"
+                                                            StrokeThickness="1"
+                                                            StrokeShape="RoundRectangle 18"
+                                                            WidthRequest="36"
+                                                            HeightRequest="36"
+                                                            VerticalOptions="Center">
+                                                        <Border.GestureRecognizers>
+                                                            <TapGestureRecognizer Tapped="OnAudioTrackDownloadTapped" />
+                                                        </Border.GestureRecognizers>
+                                                        <Image Source="download_circle_icon.svg"
+                                                               WidthRequest="18"
+                                                               HeightRequest="18"
+                                                               HorizontalOptions="Center"
+                                                               VerticalOptions="Center" />
+                                                    </Border>
+
+                                                    <Border Grid.Column="3"
                                                             BackgroundColor="{DynamicResource PrimaryGreen}"
                                                             StrokeThickness="0"
                                                             StrokeShape="RoundRectangle 18"
@@ -761,11 +813,29 @@
                                                         <Border.GestureRecognizers>
                                                             <TapGestureRecognizer Tapped="OnAudioTrackPlayTapped" />
                                                         </Border.GestureRecognizers>
-                                                        <Label Text="{Binding PlayIcon}"
-                                                               TextColor="White"
-                                                               FontSize="14"
-                                                               HorizontalTextAlignment="Center"
-                                                               VerticalTextAlignment="Center" />
+                                                        <Grid>
+                                                            <ActivityIndicator IsVisible="{Binding IsLoading}"
+                                                                               IsRunning="{Binding IsLoading}"
+                                                                               Color="White"
+                                                                               WidthRequest="16"
+                                                                               HeightRequest="16"
+                                                                               HorizontalOptions="Center"
+                                                                               VerticalOptions="Center" />
+                                                            <Label Text="{Binding PlayIcon}"
+                                                                   TextColor="White"
+                                                                   FontSize="14"
+                                                                   HorizontalTextAlignment="Center"
+                                                                   VerticalTextAlignment="Center">
+                                                                <Label.Triggers>
+                                                                    <DataTrigger TargetType="Label"
+                                                                                 Binding="{Binding IsLoading}"
+                                                                                 Value="True">
+                                                                        <Setter Property="Opacity"
+                                                                                Value="0" />
+                                                                    </DataTrigger>
+                                                                </Label.Triggers>
+                                                            </Label>
+                                                        </Grid>
                                                     </Border>
                                                 </Grid>
                                             </DataTemplate>

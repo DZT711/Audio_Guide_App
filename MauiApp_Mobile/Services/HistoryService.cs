@@ -5,6 +5,7 @@ namespace MauiApp_Mobile.Services;
 
 public class HistoryService
 {
+    private const int MaxHistoryItems = 40;
     private static HistoryService? _instance;
     public static HistoryService Instance => _instance ??= new HistoryService();
 
@@ -14,12 +15,16 @@ public class HistoryService
 
     public void AddToHistory(PlaceItem item)
     {
-        if (HistoryItems.Any(existing => string.Equals(existing.Id, item.Id, StringComparison.OrdinalIgnoreCase)))
+        var existingItem = HistoryItems.FirstOrDefault(existing =>
+            string.Equals(existing.Id, item.Id, StringComparison.OrdinalIgnoreCase));
+
+        if (existingItem is not null)
         {
-            return;
+            HistoryItems.Remove(existingItem);
         }
 
         HistoryItems.Insert(0, ClonePlaceItem(item));
+        TrimHistory();
     }
 
     public void RemoveFromHistory(PlaceItem item)
@@ -33,6 +38,11 @@ public class HistoryService
         }
     }
 
+    public void ClearHistory()
+    {
+        HistoryItems.Clear();
+    }
+
     private static PlaceItem ClonePlaceItem(PlaceItem item)
     {
         return new PlaceItem
@@ -44,7 +54,8 @@ public class HistoryService
             Category = item.Category,
             Rating = item.Rating,
             Image = item.Image,
-            GalleryImages = item.GalleryImages.ToList(),
+            PreferenceImage = item.PreferenceImage,
+            GalleryImages = Array.Empty<string>(),
             Address = item.Address,
             Phone = item.Phone,
             Email = item.Email,
@@ -59,11 +70,22 @@ public class HistoryService
             StatusText = item.StatusText,
             GpsTriggerText = item.GpsTriggerText,
             AudioCountText = item.AudioCountText,
+            AudioTracks = Array.Empty<Project_SharedClassLibrary.Contracts.PublicAudioTrackDto>(),
+            AvailableVoiceGenders = item.AvailableVoiceGenders.Take(3).ToList(),
             Latitude = item.Latitude,
             Longitude = item.Longitude,
             CategoryColor = item.CategoryColor,
             CategoryTextColor = item.CategoryTextColor,
+            HistoryAddedAt = DateTimeOffset.Now,
             IsPlayed = false
         };
+    }
+
+    private void TrimHistory()
+    {
+        while (HistoryItems.Count > MaxHistoryItems)
+        {
+            HistoryItems.RemoveAt(HistoryItems.Count - 1);
+        }
     }
 }

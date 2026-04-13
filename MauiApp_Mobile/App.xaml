@@ -2,9 +2,11 @@
 <Application
     x:Class="MauiApp_Mobile.App"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:converters="clr-namespace:MauiApp_Mobile.Converters">
     <Application.Resources>
         <ResourceDictionary>
+            <converters:PlaceImageSourceConverter x:Key="PlaceImageSourceConverter" />
             <Color x:Key="PrimaryGreen">#18A94B</Color>
             <Color x:Key="PrimaryGreenDark">#148F40</Color>
             <Color x:Key="LightBg">#F3F4F6</Color>

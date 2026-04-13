@@ -1455,6 +1455,9 @@ else
                 await JS.InvokeVoidAsync("smartTourAdmin.map.disposeTourPlanner", _mapElement);
             }
         }
+        catch (JSDisconnectedException)
+        {
+        }
         catch (JSException)
         {
         }

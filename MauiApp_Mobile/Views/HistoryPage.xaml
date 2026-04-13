@@ -20,6 +20,9 @@
 
                 <Frame Grid.Column="1"
                        Style="{StaticResource TopHeaderActionFrameStyle}">
+                    <Frame.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnClearHistoryTapped" />
+                    </Frame.GestureRecognizers>
                     <Label Text="🗑"
                            HorizontalOptions="Center"
                            VerticalOptions="Center"
@@ -29,12 +32,41 @@
         </Grid>
 
         <ScrollView Grid.Row="1">
-            <VerticalStackLayout Padding="16,12,16,24" Spacing="12">
-                <HorizontalStackLayout Spacing="20">
-                    <Label x:Name="CountLabel"
-                           Text="0 địa điểm"
-                           FontSize="15"
-                           TextColor="{DynamicResource BodyText}" />
+            <VerticalStackLayout Padding="16,12,16,24" Spacing="14">
+                <HorizontalStackLayout Spacing="10">
+                    <Border BackgroundColor="{DynamicResource CardBg}"
+                            Stroke="{DynamicResource BorderColor}"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 16"
+                            Padding="12,8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="🕘"
+                                   FontSize="14"
+                                   VerticalTextAlignment="Center" />
+                            <Label x:Name="CountLabel"
+                                   Text="0 địa điểm"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource BodyText}" />
+                        </HorizontalStackLayout>
+                    </Border>
+
+                    <Border BackgroundColor="{DynamicResource CardBg}"
+                            Stroke="{DynamicResource BorderColor}"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 16"
+                            Padding="12,8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="🕒"
+                                   FontSize="14"
+                                   VerticalTextAlignment="Center" />
+                            <Label x:Name="DurationLabel"
+                                   Text="00:00 tổng"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource BodyText}" />
+                        </HorizontalStackLayout>
+                    </Border>
                 </HorizontalStackLayout>
 
                 <CollectionView x:Name="HistoryCollectionView"
@@ -46,50 +78,105 @@
                     </CollectionView.ItemsLayout>
                      <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Frame Style="{StaticResource CardFrameStyle}" Margin="0">
-                                <Frame.GestureRecognizers>
+                            <Border BackgroundColor="{DynamicResource CardBg}"
+                                    Stroke="{DynamicResource BorderColor}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 22"
+                                    Padding="12">
+                                <Border.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnHistoryItemTapped" />
-                                </Frame.GestureRecognizers>
-                                <Grid ColumnDefinitions="90,*,Auto" ColumnSpacing="14">
-                                    <Image Source="{Binding Image}" WidthRequest="90" HeightRequest="90" Aspect="AspectFill" />
-                                    
-                                    <VerticalStackLayout Grid.Column="1" Spacing="4">
-                                        <Label Text="{Binding Name}" FontSize="17" FontAttributes="Bold" TextColor="{DynamicResource BodyText}" />
-                                        <Label Text="{Binding Address}" FontSize="13" TextColor="{DynamicResource MutedText}" />
-                                        <HorizontalStackLayout Spacing="10">
-                                            <Frame Padding="10,4" CornerRadius="10" HasShadow="False" BackgroundColor="#FFE3E3" BorderColor="Transparent">
-                                                <Label Text="Lịch sử" FontSize="12" TextColor="#E53935" />
-                                            </Frame>
-                                            <Label Text="⭐ 10/10" FontSize="13" TextColor="{DynamicResource MutedText}" VerticalOptions="Center" />
+                                </Border.GestureRecognizers>
+                                <Grid ColumnDefinitions="74,*,Auto"
+                                      ColumnSpacing="12">
+                                    <Grid WidthRequest="74"
+                                          HeightRequest="74">
+                                        <Border StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 18"
+                                                BackgroundColor="{DynamicResource SurfaceAlt}">
+                                            <Image Source="{Binding Image, Converter={StaticResource PlaceImageSourceConverter}}"
+                                                   Aspect="AspectFill" />
+                                        </Border>
+
+                                        <Border BackgroundColor="#1F2937"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 10"
+                                                Padding="6,2"
+                                                HorizontalOptions="Start"
+                                                VerticalOptions="End"
+                                                Margin="6,0,0,6">
+                                            <Label Text="{Binding AudioCountText}"
+                                                   FontSize="10"
+                                                   TextColor="White"
+                                                   HorizontalTextAlignment="Center"
+                                                   VerticalTextAlignment="Center" />
+                                        </Border>
+                                    </Grid>
+
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="5"
+                                                         VerticalOptions="Center">
+                                        <Label Text="{Binding Name}"
+                                               FontSize="18"
+                                               FontAttributes="Bold"
+                                               TextColor="{DynamicResource BodyText}"
+                                               LineBreakMode="TailTruncation"
+                                               MaxLines="2" />
+                                        <Label Text="{Binding Address, StringFormat='📍 {0}'}"
+                                               FontSize="13"
+                                               TextColor="{DynamicResource MutedText}"
+                                               LineBreakMode="TailTruncation"
+                                               MaxLines="1" />
+                                        <HorizontalStackLayout Spacing="8">
+                                            <Border Padding="10,4"
+                                                    BackgroundColor="{Binding CategoryColor}"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 10">
+                                                <Label Text="{Binding Category}"
+                                                       FontSize="12"
+                                                       TextColor="{Binding CategoryTextColor}" />
+                                            </Border>
+                                            <Label Text="{Binding HistoryRelativeTimeText}"
+                                                   FontSize="12"
+                                                   TextColor="{DynamicResource MutedText}"
+                                                   VerticalOptions="Center" />
                                         </HorizontalStackLayout>
                                     </VerticalStackLayout>
-                                    
-                                    <VerticalStackLayout Grid.Column="2" Spacing="10" HorizontalOptions="End">
-                                        <!-- Play/Speaker Button -->
-                                        <Frame WidthRequest="44" HeightRequest="44" CornerRadius="22" Padding="0" BackgroundColor="{DynamicResource PrimaryGreen}" HasShadow="False">
+
+                                    <VerticalStackLayout Grid.Column="2"
+                                                         Spacing="10"
+                                                         HorizontalOptions="End"
+                                                         VerticalOptions="Center">
+                                        <Border WidthRequest="46"
+                                                HeightRequest="46"
+                                                BackgroundColor="{DynamicResource PrimaryGreen}"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 23">
                                             <Label Text="{Binding PlayIcon}"
                                                    HorizontalOptions="Center"
                                                    VerticalOptions="Center"
                                                    TextColor="White"
-                                                   FontSize="18"/>
-                                            <Frame.GestureRecognizers>
+                                                   FontSize="18" />
+                                            <Border.GestureRecognizers>
                                                 <TapGestureRecognizer Tapped="OnPlayTapped" />
-                                            </Frame.GestureRecognizers>
-                                        </Frame>
-                                        
-                                        <!-- Delete Button -->
-                                        <Frame WidthRequest="34" HeightRequest="34" CornerRadius="17" Padding="0" BackgroundColor="#F3F4F6" HasShadow="False">
+                                            </Border.GestureRecognizers>
+                                        </Border>
+
+                                        <Border WidthRequest="36"
+                                                HeightRequest="36"
+                                                BackgroundColor="#F3F4F6"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 18">
                                             <Label Text="🗑"
                                                    HorizontalOptions="Center"
                                                    VerticalOptions="Center"
                                                    FontSize="14" />
-                                            <Frame.GestureRecognizers>
+                                            <Border.GestureRecognizers>
                                                 <TapGestureRecognizer Tapped="OnDeleteTapped" />
-                                            </Frame.GestureRecognizers>
-                                        </Frame>
+                                            </Border.GestureRecognizers>
+                                        </Border>
                                     </VerticalStackLayout>
                                 </Grid>
-                            </Frame>
+                            </Border>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
@@ -145,7 +232,7 @@
                         <Border BackgroundColor="#10243C"
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 24">
-                            <Image Source="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.Image}"
+                            <Image Source="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.Image, Converter={StaticResource PlaceImageSourceConverter}}"
                                    Aspect="{OnPlatform Default=AspectFill, WinUI=AspectFit}" />
                         </Border>
 
@@ -325,11 +412,11 @@
                                             <Border.GestureRecognizers>
                                                 <TapGestureRecognizer Tapped="OnToggleHistoryAudioListTapped" />
                                             </Border.GestureRecognizers>
-                                            <Label Text="{Binding Source={x:Reference ThisPage}, Path=HistoryAudioListExpandIcon}"
-                                                   FontSize="14"
-                                                   TextColor="{DynamicResource BodyText}"
-                                                   HorizontalTextAlignment="Center"
-                                                   VerticalTextAlignment="Center" />
+                                            <Image Source="{Binding Source={x:Reference ThisPage}, Path=HistoryAudioListExpandIcon}"
+                                                   WidthRequest="14"
+                                                   HeightRequest="10"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center" />
                                         </Border>
                                     </Grid>
 

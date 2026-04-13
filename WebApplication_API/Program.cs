@@ -1,8 +1,10 @@
-using Microsoft.Extensions.FileProviders;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
 using System.Security.Authentication;
+using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 using Project_SharedClassLibrary.Storage;
 using WebApplication_API.Data;
 using WebApplication_API.ModelBinding;
@@ -19,6 +21,7 @@ builder.Services.AddControllers(options =>
     options.ModelBinderProviders.Insert(0, new FlexibleDoubleModelBinderProvider());
 });
 builder.AddDataToDatabase();
+builder.Services.AddSingleton<ManagedMediaArchiveMigrationService>();
 builder.Services.AddSingleton<SharedAudioFileStorageService>();
 builder.Services.AddSingleton<SharedImageFileStorageService>();
 builder.Services.Configure<RoutePlanningOptions>(builder.Configuration.GetSection(RoutePlanningOptions.SectionName));
@@ -72,23 +75,35 @@ builder.Services.AddCors(options =>
                         .AllowAnyMethod()
                         .AllowAnyHeader());
 });
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<GzipCompressionProvider>();
+});
 
 var app = builder.Build();
-var sharedAudioDirectory = SharedStoragePaths.GetAudioDirectory(app.Environment.ContentRootPath);
-var sharedImageDirectory = SharedStoragePaths.GetImageDirectory(app.Environment.ContentRootPath);
-Directory.CreateDirectory(sharedAudioDirectory);
-Directory.CreateDirectory(sharedImageDirectory);
+var mediaArchiveMigration = app.Services.GetRequiredService<ManagedMediaArchiveMigrationService>();
+mediaArchiveMigration.EnsureArchiveIsReady();
+var contentTypeProvider = new FileExtensionContentTypeProvider();
+contentTypeProvider.Mappings[".wav"] = "audio/wav";
+contentTypeProvider.Mappings[".mp3"] = "audio/mpeg";
+contentTypeProvider.Mappings[".ogg"] = "audio/ogg";
+contentTypeProvider.Mappings[".jfif"] = "image/jpeg";
+contentTypeProvider.Mappings[".bmp"] = "image/bmp";
 
 app.UseCors("AllowBlazor");
+app.UseResponseCompression();
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(sharedAudioDirectory),
-    RequestPath = SharedStoragePaths.AudioRequestPath
+    ContentTypeProvider = contentTypeProvider
 });
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(sharedImageDirectory),
-    RequestPath = SharedStoragePaths.ImageRequestPath
+    FileProvider = new PhysicalFileProvider(SharedStoragePaths.GetArchiveRoot(app.Environment.ContentRootPath)),
+    RequestPath = SharedStoragePaths.ArchiveFolderName.StartsWith("/")
+        ? SharedStoragePaths.ArchiveFolderName
+        : $"/{SharedStoragePaths.ArchiveFolderName}",
+    ContentTypeProvider = contentTypeProvider
 });
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

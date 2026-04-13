@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using MauiApp_Mobile.Services;
 using MauiApp_Mobile.Models;
 
@@ -16,6 +18,7 @@ public partial class HistoryPage : ContentPage
     private double _historyDetailExpandedY = HistoryDetailOpenTopInset;
     private double _historyDetailHalfY = 180;
     private double _historyDetailClosedY = HistoryDetailFallbackClosedOffset;
+    private bool _subscriptionsAttached;
     public ObservableCollection<HistoryAudioTrack> SelectedHistoryAudioTracks { get; } = new();
 
     public bool IsHistoryDetailVisible
@@ -59,7 +62,7 @@ public partial class HistoryPage : ContentPage
         }
     }
 
-    public string HistoryAudioListExpandIcon => IsHistoryAudioListExpanded ? "˄" : "˅";
+    public string HistoryAudioListExpandIcon => IsHistoryAudioListExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
     public string SelectedHistoryLanguagesText => SelectedHistoryItem == null
         ? string.Empty
         : string.Join(" • ", SelectedHistoryAudioTracks.Select(track => track.LanguageCode));
@@ -72,15 +75,21 @@ public partial class HistoryPage : ContentPage
         BindingContext = HistoryService.Instance;
 
         ApplyTexts();
-        LocalizationService.Instance.PropertyChanged += (_, _) => ApplyTexts();
-        HistoryService.Instance.HistoryItems.CollectionChanged += (_, _) => UpdateCount();
+        AttachSubscriptions();
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        AttachSubscriptions();
         UpdateCount();
         UpdateHistoryDetailSheetLayout();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        DetachSubscriptions();
     }
 
     protected override void OnSizeAllocated(double width, double height)
@@ -89,11 +98,70 @@ public partial class HistoryPage : ContentPage
         UpdateHistoryDetailSheetLayout();
     }
 
+    private void AttachSubscriptions()
+    {
+        if (_subscriptionsAttached)
+        {
+            return;
+        }
+
+        LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
+        HistoryService.Instance.HistoryItems.CollectionChanged += OnHistoryItemsChanged;
+        _subscriptionsAttached = true;
+    }
+
+    private void DetachSubscriptions()
+    {
+        if (!_subscriptionsAttached)
+        {
+            return;
+        }
+
+        LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
+        HistoryService.Instance.HistoryItems.CollectionChanged -= OnHistoryItemsChanged;
+        _subscriptionsAttached = false;
+    }
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e) =>
+        MainThread.BeginInvokeOnMainThread(ApplyTexts);
+
+    private void OnHistoryItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        MainThread.BeginInvokeOnMainThread(UpdateCount);
+
     private void UpdateCount()
     {
         var count = HistoryService.Instance.HistoryItems.Count;
-        CountLabel.Text = $"⏱ {count} địa điểm";
+        CountLabel.Text = $"{count} địa điểm";
+        DurationLabel.Text = $"{ComputeHistoryDurationText()} tổng";
         EmptyLabel.IsVisible = count == 0;
+    }
+
+    private string ComputeHistoryDurationText()
+    {
+        var totalSeconds = HistoryService.Instance.HistoryItems
+            .Select(item => ExtractAudioCount(item.AudioCountText) * 125)
+            .Sum();
+
+        if (totalSeconds <= 0)
+        {
+            return "00:00";
+        }
+
+        var duration = TimeSpan.FromSeconds(totalSeconds);
+        return duration.TotalHours >= 1
+            ? duration.ToString(@"h\:mm\:ss")
+            : duration.ToString(@"m\m\ ss\s");
+    }
+
+    private static int ExtractAudioCount(string? audioCountText)
+    {
+        if (string.IsNullOrWhiteSpace(audioCountText))
+        {
+            return 1;
+        }
+
+        var digits = new string(audioCountText.Where(char.IsDigit).ToArray());
+        return int.TryParse(digits, out var value) && value > 0 ? value : 1;
     }
 
     private void OnDeleteTapped(object sender, TappedEventArgs e)
@@ -155,6 +223,36 @@ public partial class HistoryPage : ContentPage
 
         IsHistoryAudioListExpanded = false;
         OnPropertyChanged(nameof(SelectedHistoryLanguagesText));
+    }
+
+    private async void OnClearHistoryTapped(object? sender, TappedEventArgs e)
+    {
+        if (HistoryService.Instance.HistoryItems.Count == 0)
+        {
+            return;
+        }
+
+        var shouldClear = await DisplayAlertAsync(
+            "Xóa lịch sử",
+            "Bạn có muốn xóa toàn bộ lịch sử nghe gần đây không?",
+            "Xóa",
+            "Hủy");
+
+        if (!shouldClear)
+        {
+            return;
+        }
+
+        HistoryService.Instance.ClearHistory();
+
+        if (IsHistoryDetailVisible)
+        {
+            await HideHistoryDetail();
+            return;
+        }
+
+        SelectedHistoryItem = null;
+        IsHistoryAudioListExpanded = false;
     }
 
     private async void OnHistoryItemTapped(object sender, TappedEventArgs e)
@@ -359,5 +457,5 @@ public class HistoryAudioTrack : BindableObject
         }
     }
 
-    public string PlayIcon => IsPlaying ? "🔊" : "▶";
+    public string PlayIcon => IsPlaying ? "❚❚" : "▶";
 }

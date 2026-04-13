@@ -65,3 +65,9 @@ obj/
 project.nuget.cache
 .build-temp/
 .env/
+MauiApp_Mobile/MauiApp_Mobile.csproj.lscache
+Project_SharedClassLibrary/Shared_ClassLibrary.csproj.lscache
+WebApplication_API/WebApplication_API.csproj.lscache
+BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj.lscache
+.maui-obj/
+scripts/tempCodeRunnerFile.ps1

@@ -74,9 +74,9 @@
 
 ### 🗺️ Map View (PoC)
 
-- [ ] Display current user location on map
+- [✅] Display current user location on map
 - [✅] Show all POIs on map
-- [ ] Highlight nearest POI
+- [✅] Highlight nearest POI
 - [ ] Choose map library:
   - [ ] `Microsoft.Maui.Controls.Maps` (basic)
   - [ ] Google Maps SDK / MapKit binding (advanced)

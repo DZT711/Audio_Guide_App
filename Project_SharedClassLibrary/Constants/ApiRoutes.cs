@@ -7,6 +7,7 @@ public static class ApiRoutes
     public const string Languages = "Language";
     public const string Locations = "Location";
     public const string PublicLocations = "Location/public";
+    public const string PublicCatalog = "Location/public/catalog";
     public const string Tours = "Tour";
     public const string ToursPreview = "Tour/preview";
     public const string Audio = "Audio";
@@ -23,9 +24,16 @@ public static class ApiRoutes
     public const string DashboardOverview = "Dashboard/overview";
     public const string DashboardSnapshot = "Dashboard/snapshot";
     public const string ServerInfo = "System/info";
+    public const string PublicServerInfo = "System/public/info";
     public const string Moderation = "Moderation";
     public const string ChangeRequests = "ChangeRequest";
     public const string Inbox = "Inbox";
     public const string Statistics = "Statistics";
     public const string ActivityLogs = "ActivityLog";
+
+    public static string GetPublicLocationAudio(int locationId) =>
+        $"Audio/public/location/{locationId}";
+
+    public static string GetPublicLocationDefaultAudio(int locationId) =>
+        $"Audio/public/location/{locationId}/default";
 }

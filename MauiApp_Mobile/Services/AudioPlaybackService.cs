@@ -2,7 +2,9 @@ using Microsoft.Maui.Media;
 using Microsoft.Maui.ApplicationModel;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Constants;
+using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using MauiTextToSpeech = Microsoft.Maui.Media.TextToSpeech;
 
 #if ANDROID
@@ -29,14 +31,14 @@ public sealed class AudioPlaybackService
 #if ANDROID
     private const string GoogleTtsEnginePackage = "com.google.android.tts";
     private const string SamsungTtsEnginePackage = "com.samsung.SMT";
+    private static readonly TimeSpan AndroidTtsInitializationTimeout = TimeSpan.FromSeconds(5);
 #endif
-    private static readonly HttpClient SpeechHttpClient = new()
-    {
-        BaseAddress = new Uri(MobileApiOptions.BaseUrl),
-        Timeout = TimeSpan.FromSeconds(45)
-    };
+    private static readonly HttpClient SpeechHttpClient = MobileApiHttpClientFactory.Create(
+        TimeSpan.FromSeconds(45),
+        6);
 
     private CancellationTokenSource? _ttsCancellationTokenSource;
+    private TaskCompletionSource<bool>? _activePlaybackCompletionSource;
 
 #if ANDROID
     private MediaPlayer? _androidPlayer;
@@ -55,6 +57,8 @@ public sealed class AudioPlaybackService
 
     public PublicAudioTrackDto? CurrentTrack { get; private set; }
 
+    public bool IsLoading { get; private set; }
+
     public bool IsPlaying { get; private set; }
 
     public async Task PlayAsync(PublicAudioTrackDto track, CancellationToken cancellationToken = default)
@@ -62,7 +66,8 @@ public sealed class AudioPlaybackService
         await StopAsync();
 
         CurrentTrack = track;
-        IsPlaying = true;
+        IsLoading = true;
+        IsPlaying = false;
         RaisePlaybackStateChanged();
 
         try
@@ -82,21 +87,47 @@ public sealed class AudioPlaybackService
 
             if (ShouldUseTts(track))
             {
-                await PlayTtsAsync(track, cancellationToken);
-                return;
+                try
+                {
+                    await PlayTtsAsync(track, cancellationToken);
+                    return;
+                }
+                catch (System.OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex) when (!string.IsNullOrWhiteSpace(track.AudioURL))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Primary TTS playback failed for track {track.Id}. Falling back to file playback. {ex.Message}");
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(track.AudioURL))
             {
-                await PlatformPlayAudioAsync(ResolveAudioUrl(track.AudioURL), cancellationToken);
-                return;
+                try
+                {
+                    await PlatformPlayAudioAsync(ResolveAudioUrl(track.AudioURL), cancellationToken);
+                    return;
+                }
+                catch (System.OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex) when (!string.IsNullOrWhiteSpace(track.Script))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Recorded playback failed for track {track.Id}. Falling back to TTS. {ex.Message}");
+                    await PlayTtsAsync(track, cancellationToken);
+                    return;
+                }
             }
 
             throw new InvalidOperationException("This audio track has no playable source.");
         }
         catch
         {
+            await PlatformStopAudioAsync();
             CurrentTrack = null;
+            IsLoading = false;
             IsPlaying = false;
             RaisePlaybackStateChanged();
             throw;
@@ -125,9 +156,13 @@ public sealed class AudioPlaybackService
         _ttsCancellationTokenSource?.Dispose();
         _ttsCancellationTokenSource = null;
 
+        var activePlaybackCompletionSource = Interlocked.Exchange(ref _activePlaybackCompletionSource, null);
+        activePlaybackCompletionSource?.TrySetCanceled();
+
         await PlatformStopAudioAsync();
 
         CurrentTrack = null;
+        IsLoading = false;
         IsPlaying = false;
         RaisePlaybackStateChanged();
     }
@@ -150,6 +185,7 @@ public sealed class AudioPlaybackService
             options.Locale = locale;
         }
 
+        MarkPlaybackStarted();
         await MauiTextToSpeech.Default.SpeakAsync(track.Script, options, _ttsCancellationTokenSource.Token);
 #endif
         await OnPlaybackCompletedAsync();
@@ -250,12 +286,7 @@ public sealed class AudioPlaybackService
 
     private static string ResolveAudioUrl(string audioUrl)
     {
-        if (Uri.TryCreate(audioUrl, UriKind.Absolute, out var absoluteUri))
-        {
-            return absoluteUri.ToString();
-        }
-
-        return new Uri(new Uri(MobileApiOptions.BaseUrl), audioUrl.TrimStart('/')).ToString();
+        return MobileApiOptions.ResolveAudioUrl(audioUrl);
     }
 
     private static string GetPreferredPlaybackLanguageCode() =>
@@ -350,6 +381,7 @@ public sealed class AudioPlaybackService
     private async Task PlatformPlayAudioAsync(string source, CancellationToken cancellationToken)
     {
 #if ANDROID
+        var playbackSource = await PrepareAndroidPlaybackSourceAsync(source, cancellationToken);
         _androidPlayer?.Release();
         _androidPlayer?.Dispose();
         _androidPlayer = new MediaPlayer();
@@ -357,31 +389,44 @@ public sealed class AudioPlaybackService
             .SetContentType(AudioContentType.Music)
             .SetUsage(AudioUsageKind.Media)
             .Build());
-        _androidPlayer.SetDataSource(source);
-        var completionSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var playbackVolume = AppSettingsService.Instance.PlaybackVolumeRatio;
+        _androidPlayer.SetVolume(playbackVolume, playbackVolume);
+        _androidPlayer.SetDataSource(playbackSource);
+        var completionSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Interlocked.Exchange(ref _activePlaybackCompletionSource, completionSource);
         _androidPlayer.Completion += (_, _) =>
         {
-            completionSource.TrySetResult();
+            completionSource.TrySetResult(true);
             MainThread.BeginInvokeOnMainThread(async () => await OnPlaybackCompletedAsync());
         };
-        _androidPlayer.Prepared += (_, _) => _androidPlayer?.Start();
+        _androidPlayer.Prepared += (_, _) =>
+        {
+            MarkPlaybackStarted();
+            _androidPlayer?.Start();
+        };
         _androidPlayer.Error += (_, args) =>
         {
             completionSource.TrySetException(new InvalidOperationException("Android audio playback failed."));
-            MainThread.BeginInvokeOnMainThread(async () => await OnPlaybackCompletedAsync());
             args.Handled = true;
         };
         _androidPlayer.PrepareAsync();
         using var registration = cancellationToken.Register(() =>
             MainThread.BeginInvokeOnMainThread(async () => await StopAsync()));
-        await completionSource.Task;
+        try
+        {
+            await completionSource.Task;
+        }
+        finally
+        {
+            Interlocked.CompareExchange(ref _activePlaybackCompletionSource, null, completionSource);
+        }
         return;
 #elif WINDOWS
         _windowsPlayer?.Dispose();
         _windowsPlayer = new WindowsMediaPlayer();
         _windowsPlayer.AudioCategory = MediaPlayerAudioCategory.Media;
         _windowsPlayer.IsMuted = false;
-        _windowsPlayer.Volume = 1d;
+        _windowsPlayer.Volume = AppSettingsService.Instance.PlaybackVolumeRatio;
         _windowsPlayer.AutoPlay = false;
         var completionSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _windowsPlayer.MediaEnded += (_, _) =>
@@ -392,7 +437,6 @@ public sealed class AudioPlaybackService
         _windowsPlayer.MediaFailed += (_, args) =>
         {
             completionSource.TrySetException(new InvalidOperationException(args.ErrorMessage));
-            MainThread.BeginInvokeOnMainThread(async () => await OnPlaybackCompletedAsync());
         };
         _windowsPlayer.Source = MediaSource.CreateFromUri(new Uri(source));
         try
@@ -446,16 +490,29 @@ public sealed class AudioPlaybackService
 #endif
     }
 
-    private Task OnPlaybackCompletedAsync()
+    private async Task OnPlaybackCompletedAsync()
     {
+        await PlatformStopAudioAsync();
         CurrentTrack = null;
+        IsLoading = false;
         IsPlaying = false;
         RaisePlaybackStateChanged();
-        return Task.CompletedTask;
     }
 
     private void RaisePlaybackStateChanged() =>
         PlaybackStateChanged?.Invoke(this, CurrentTrack);
+
+    private void MarkPlaybackStarted()
+    {
+        if (CurrentTrack is null)
+        {
+            return;
+        }
+
+        IsLoading = false;
+        IsPlaying = true;
+        RaisePlaybackStateChanged();
+    }
 
 #if ANDROID
     private async Task PlatformSpeakTtsAsync(string script, string? languageCode, CancellationToken cancellationToken)
@@ -463,9 +520,9 @@ public sealed class AudioPlaybackService
         var locale = ResolveAndroidLocale(languageCode);
         var engineCandidates = new[]
         {
+            string.Empty,
             GoogleTtsEnginePackage,
             SamsungTtsEnginePackage,
-            string.Empty
         };
 
         Exception? lastException = null;
@@ -494,6 +551,7 @@ public sealed class AudioPlaybackService
             options.Locale = mauiLocale;
         }
 
+        MarkPlaybackStarted();
         await MauiTextToSpeech.Default.SpeakAsync(script, options, _ttsCancellationTokenSource.Token);
 
         if (lastException is not null)
@@ -521,6 +579,17 @@ public sealed class AudioPlaybackService
             : new AndroidTts(Android.App.Application.Context, initListener, enginePackage);
 
         using var registration = cancellationToken.Register(() => initCompletion.TrySetCanceled(cancellationToken));
+        var completedTask = await Task.WhenAny(
+            initCompletion.Task,
+            Task.Delay(AndroidTtsInitializationTimeout, cancellationToken));
+        if (completedTask != initCompletion.Task)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new TimeoutException(string.IsNullOrWhiteSpace(enginePackage)
+                ? "The default Android TTS engine did not respond."
+                : $"The Android TTS engine '{enginePackage}' did not respond.");
+        }
+
         var initStatus = await initCompletion.Task;
         if (initStatus != (int)OperationResult.Success || _androidTts is null)
         {
@@ -532,6 +601,8 @@ public sealed class AudioPlaybackService
         {
             return false;
         }
+
+        _androidTts.SetSpeechRate(AppSettingsService.Instance.AndroidSpeechRate);
 
         var speakCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var utteranceId = Guid.NewGuid().ToString("N");
@@ -547,6 +618,8 @@ public sealed class AudioPlaybackService
             return false;
         }
 
+        MarkPlaybackStarted();
+
         using var speakRegistration = cancellationToken.Register(() =>
         {
             _androidTts?.Stop();
@@ -555,6 +628,83 @@ public sealed class AudioPlaybackService
 
         await speakCompletion.Task;
         return true;
+    }
+
+    private async Task<string> PrepareAndroidPlaybackSourceAsync(string source, CancellationToken cancellationToken)
+    {
+        if (!Uri.TryCreate(source, UriKind.Absolute, out var sourceUri))
+        {
+            return source;
+        }
+
+        if (sourceUri.IsFile)
+        {
+            return sourceUri.LocalPath;
+        }
+
+        var isHttpSource =
+            string.Equals(sourceUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(sourceUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+
+        if (!isHttpSource)
+        {
+            return source;
+        }
+
+        var cachedFilePath = ResolveCachedPlaybackFilePath(sourceUri);
+        if (File.Exists(cachedFilePath) && new FileInfo(cachedFilePath).Length > 0)
+        {
+            return cachedFilePath;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(cachedFilePath)!);
+        var partialFilePath = $"{cachedFilePath}.download";
+
+        try
+        {
+            using var response = await SpeechHttpClient.GetAsync(sourceUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            await using var tempStream = File.Create(partialFilePath);
+            await responseStream.CopyToAsync(tempStream, cancellationToken);
+
+            if (File.Exists(cachedFilePath))
+            {
+                File.Delete(cachedFilePath);
+            }
+
+            File.Move(partialFilePath, cachedFilePath);
+            return cachedFilePath;
+        }
+        catch
+        {
+            try
+            {
+                if (File.Exists(partialFilePath))
+                {
+                    File.Delete(partialFilePath);
+                }
+            }
+            catch
+            {
+            }
+
+            throw;
+        }
+    }
+
+    private static string ResolveCachedPlaybackFilePath(Uri sourceUri)
+    {
+        var extension = Path.GetExtension(sourceUri.AbsolutePath);
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            extension = ".mp3";
+        }
+
+        var hashBytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(sourceUri.AbsoluteUri));
+        var fileName = $"{Convert.ToHexString(hashBytes).ToLowerInvariant()}{extension}";
+        return Path.Combine(FileSystem.Current.CacheDirectory, "audio-cache", fileName);
     }
 
     private static AndroidLocale ResolveAndroidLocale(string? languageCode)

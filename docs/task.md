@@ -85,6 +85,20 @@ add vietnamese language for admin site
 
 add icons to increase usability
 
+let mobile connect to asp sever / reason can't connect now is required authentication in api
+
+merge new app ui
+
+fix all poi blank /deleted media data
+
+fix preference img on maui map
+
+fix button stop when click again while audio is playing
+
+fix refeshview dont working it always in status loading
+
+descrease refesh time to 10 or 30s
+
 ## (extend task)-MVP
 
 add automation audio to text autofill in script label and from scipt auto create audio file save in system when user not upload file
@@ -126,3 +140,7 @@ allow user watch details statistics of their own data✅
 add more details in dashboard page for each poi
 
 auto warn user cannt load preview vietnamese male tts when the browser/device dont support web speech api
+
+change sever's database into sql sever
+
+add mobile sqlite
