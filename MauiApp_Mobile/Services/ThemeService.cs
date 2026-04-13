@@ -59,6 +59,8 @@ public sealed class ThemeService : INotifyPropertyChanged
 
     public void SetTheme(AppThemeOption theme) => ApplyTheme(theme, persistSelection: true);
 
+    public void ApplyPersistedTheme(AppThemeOption theme) => ApplyTheme(theme, persistSelection: true);
+
     public Color GetColor(string resourceKey, string fallbackHex)
     {
         if (Application.Current?.Resources.ContainsKey(resourceKey) == true &&

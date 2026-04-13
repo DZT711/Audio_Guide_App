@@ -712,11 +712,8 @@ public partial class MapPage : ContentPage
             await CurrentLocationButton.ScaleToAsync(0.92, 70, Easing.CubicIn);
             await CurrentLocationButton.ScaleToAsync(1, 150, Easing.CubicOut);
 
-            var permissionStatus = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
-            if (permissionStatus != PermissionStatus.Granted)
-            {
-                permissionStatus = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
-            }
+            var permissionStatus = await LocationTrackingService.Instance.EnsureLocationPermissionsAsync(
+                requestBackgroundIfEnabled: AppSettingsService.Instance.BackgroundTrackingEnabled);
 
             if (permissionStatus != PermissionStatus.Granted)
             {
@@ -728,7 +725,7 @@ public partial class MapPage : ContentPage
                 return;
             }
 
-            var location = await TryGetCurrentLocationAsync();
+            var location = await LocationTrackingService.Instance.GetCurrentLocationAsync(forForegroundMap: true);
             if (location is null)
             {
                 UpdateSearchStatus("Không lấy được vị trí hiện tại. Hãy thử ở khu vực thoáng hơn.");
@@ -850,24 +847,6 @@ public partial class MapPage : ContentPage
         }
 
         await Shell.Current.GoToAsync("//mainTabs/places");
-    }
-
-    private static async Task<Location?> TryGetCurrentLocationAsync()
-    {
-        try
-        {
-            var request = new GeolocationRequest(GeolocationAccuracy.Best, TimeSpan.FromSeconds(12));
-            var currentLocation = await Geolocation.Default.GetLocationAsync(request);
-            if (currentLocation is not null)
-            {
-                return currentLocation;
-            }
-        }
-        catch (Exception ex) when (ex is TaskCanceledException or TimeoutException)
-        {
-        }
-
-        return await Geolocation.Default.GetLastKnownLocationAsync();
     }
 
     private async Task<IReadOnlyList<MapPlaceInteropPoint>> BuildMapInteropPointsAsync()

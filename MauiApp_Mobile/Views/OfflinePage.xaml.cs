@@ -324,6 +324,8 @@ public partial class OfflinePage : ContentPage
             _allItems.Add(item);
         }
 
+        await ApplyDownloadedStatesAsync(_allItems, cancellationToken);
+
         SyncCategoryFilters(catalogSnapshot.Categories);
         ApplyLocalizedText();
         ApplyFilter();
@@ -444,12 +446,14 @@ public partial class OfflinePage : ContentPage
                     .Take(Math.Max(audioCount, 1))
                     .Select(track => new OfflineAudioTrack
                     {
+                        TrackId = track.Id,
                         LanguageCode = ResolveLanguageBadge(track.Language),
                         LanguageName = track.LanguageName ?? track.Language,
                         LocaleCode = string.IsNullOrWhiteSpace(track.Language) ? "vi-VN" : track.Language,
                         Title = string.IsNullOrWhiteSpace(track.Title) ? place.Name : track.Title,
                         Duration = FormatDuration(track.Duration > 0 ? track.Duration : 125),
-                        SourceType = string.IsNullOrWhiteSpace(track.SourceType) ? "TTS" : track.SourceType.Trim().ToUpperInvariant()
+                        SourceType = string.IsNullOrWhiteSpace(track.SourceType) ? "TTS" : track.SourceType.Trim().ToUpperInvariant(),
+                        AudioUrl = track.AudioURL
                     }));
         }
 
@@ -645,14 +649,19 @@ public partial class OfflinePage : ContentPage
         return builder.ToString().Normalize(NormalizationForm.FormC);
     }
 
-    private void OnDownload(OfflinePackItem? item)
+    private async void OnDownload(OfflinePackItem? item)
     {
         if (item == null) return;
 
-        item.IsDownloaded = true;
-        item.DownloadedAt = DateTime.Now;
-        item.IsExpanded = true;
-        ApplyFilter();
+        try
+        {
+            await DownloadPackAsync(item);
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync("Offline", ex.Message, "OK");
+        }
     }
 
     private void OnDelete(OfflinePackItem? item)
@@ -667,14 +676,20 @@ public partial class OfflinePage : ContentPage
         IsDeleteConfirmVisible = true;
     }
 
-    private void OnRedownload(OfflinePackItem? item)
+    private async void OnRedownload(OfflinePackItem? item)
     {
         if (item == null) return;
 
-        item.IsDownloaded = true;
-        item.DownloadedAt = DateTime.Now;
-        item.IsExpanded = true;
-        ApplyFilter();
+        try
+        {
+            await AudioDownloadService.Instance.DeleteLocationTracksAsync(ParseLocationId(item.Id));
+            await DownloadPackAsync(item);
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync("Offline", ex.Message, "OK");
+        }
     }
 
     private void OnAllTapped(object? sender, TappedEventArgs e)
@@ -728,12 +743,17 @@ public partial class OfflinePage : ContentPage
         IsDeleteConfirmVisible = true;
     }
 
-    private void OnDownloadAllClicked(object sender, EventArgs e)
+    private async void OnDownloadAllClicked(object sender, EventArgs e)
     {
         foreach (var item in _allItems)
         {
-            item.IsDownloaded = true;
-            item.DownloadedAt ??= DateTime.Now;
+            try
+            {
+                await DownloadPackAsync(item);
+            }
+            catch
+            {
+            }
         }
 
         ApplyFilter();
@@ -1011,15 +1031,13 @@ public partial class OfflinePage : ContentPage
         IsDeleteConfirmVisible = false;
     }
 
-    private void OnConfirmDeleteClicked(object sender, EventArgs e)
+    private async void OnConfirmDeleteClicked(object sender, EventArgs e)
     {
         if (_isBulkDeleteConfirm)
         {
             foreach (var item in _allItems)
             {
-                item.IsDownloaded = false;
-                item.DownloadedAt = null;
-                item.IsExpanded = false;
+                await DeletePackAsync(item);
             }
 
             _pendingDeleteItem = null;
@@ -1038,9 +1056,7 @@ public partial class OfflinePage : ContentPage
             return;
         }
 
-        _pendingDeleteItem.IsDownloaded = false;
-        _pendingDeleteItem.DownloadedAt = null;
-        _pendingDeleteItem.IsExpanded = false;
+        await DeletePackAsync(_pendingDeleteItem);
 
         _pendingDeleteItem = null;
         _isBulkDeleteConfirm = false;
@@ -1048,6 +1064,68 @@ public partial class OfflinePage : ContentPage
         IsDeleteConfirmVisible = false;
         ApplyFilter();
     }
+
+    private async Task ApplyDownloadedStatesAsync(IEnumerable<OfflinePackItem> items, CancellationToken cancellationToken)
+    {
+        foreach (var item in items)
+        {
+            var snapshots = await AudioDownloadService.Instance.GetSnapshotsForLocationAsync(ParseLocationId(item.Id), cancellationToken);
+            item.IsDownloaded = snapshots.Count > 0;
+            item.DownloadedAt = snapshots.OrderByDescending(snapshot => snapshot.DownloadedAt).FirstOrDefault().DownloadedAt?.LocalDateTime;
+
+            foreach (var track in item.AudioTracks)
+            {
+                track.IsDownloaded = track.TrackId > 0 && snapshots.Any(snapshot => snapshot.TrackId == track.TrackId);
+            }
+        }
+    }
+
+    private async Task DownloadPackAsync(OfflinePackItem item)
+    {
+        var placeId = item.Id;
+        var tracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(placeId, forceRefresh: AppDataModeService.Instance.IsApiEnabled);
+        var downloadableTracks = tracks.Where(track => !string.IsNullOrWhiteSpace(track.AudioURL)).ToList();
+
+        if (downloadableTracks.Count == 0)
+        {
+            throw new InvalidOperationException("POI này chưa có file audio để tải offline.");
+        }
+
+        foreach (var track in downloadableTracks)
+        {
+            await AudioDownloadService.Instance.DownloadAsync(track);
+        }
+
+        item.IsDownloaded = true;
+        item.DownloadedAt = DateTime.Now;
+        item.IsExpanded = true;
+
+        foreach (var track in item.AudioTracks)
+        {
+            track.IsDownloaded = track.TrackId > 0 && downloadableTracks.Any(itemTrack => itemTrack.Id == track.TrackId);
+        }
+    }
+
+    private async Task DeletePackAsync(OfflinePackItem? item)
+    {
+        if (item is null)
+        {
+            return;
+        }
+
+        await AudioDownloadService.Instance.DeleteLocationTracksAsync(ParseLocationId(item.Id));
+        item.IsDownloaded = false;
+        item.DownloadedAt = null;
+        item.IsExpanded = false;
+
+        foreach (var track in item.AudioTracks)
+        {
+            track.IsDownloaded = false;
+        }
+    }
+
+    private static int ParseLocationId(string id) =>
+        int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : 0;
 
 }
 
@@ -1208,12 +1286,14 @@ public class OfflineAudioTrack : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    public int TrackId { get; set; }
     public string LanguageCode { get; set; } = "";
     public string LanguageName { get; set; } = "";
     public string LocaleCode { get; set; } = "";
     public string Title { get; set; } = "";
     public string Duration { get; set; } = "";
     public string SourceType { get; set; } = "TTS";
+    public string? AudioUrl { get; set; }
     public string MetaText => $"{LocaleCode} - {SourceType}";
     public string StatusSymbol => IsDownloaded ? "✓" : "";
     public Color StatusBackgroundColor => IsDownloaded

@@ -25,6 +25,11 @@ public partial class SettingsPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        LoadSavedSettings();
+        UpdateLanguageSelectionUI();
+        UpdateThemeSelectionUI();
+        UpdateApiModeUI();
+        UpdateSliderLabels();
 
         if (_hasAnimated)
             return;
@@ -286,7 +291,7 @@ public partial class SettingsPage : ContentPage
         {
             SaveSettingsButton.IsEnabled = false;
 
-            AppSettingsService.Instance.Save(new AppSettingsSnapshot(
+            await AppSettingsService.Instance.SaveAsync(new AppSettingsSnapshot(
                 ReadingSpeedSlider.Value,
                 VolumeSlider.Value,
                 TriggerRadiusSlider.Value,
@@ -295,7 +300,19 @@ public partial class SettingsPage : ContentPage
                 AutoPlaySwitch.IsToggled,
                 NotifyNearSwitch.IsToggled,
                 BackgroundTrackingSwitch.IsToggled,
-                BatterySaverSwitch.IsToggled));
+                BatterySaverSwitch.IsToggled,
+                LocalizationService.Instance.Language,
+                ThemeService.Instance.CurrentTheme,
+                ApiModeSwitch.IsToggled));
+
+            if (BackgroundTrackingSwitch.IsToggled)
+            {
+                await LocationTrackingService.Instance.StartBackgroundTrackingAsync();
+            }
+            else
+            {
+                await LocationTrackingService.Instance.StartForegroundTrackingAsync();
+            }
 
             await DisplayAlertAsync(
                 LocalizationService.Instance.T("Settings.Title"),

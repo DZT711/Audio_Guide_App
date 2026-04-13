@@ -195,6 +195,22 @@ public sealed class PlaceCatalogService
             .ToList();
     }
 
+    public async Task TrySyncCatalogInBackgroundAsync(CancellationToken cancellationToken = default)
+    {
+        if (!AppDataModeService.Instance.IsApiEnabled)
+        {
+            return;
+        }
+
+        try
+        {
+            await EnsureCatalogLoadedAsync(forceRefresh: true, cancellationToken);
+        }
+        catch
+        {
+        }
+    }
+
     private static PlaceItem MapToPlaceItem(LocationDto location, IReadOnlyList<PublicAudioTrackDto>? audioTracks)
     {
         audioTracks ??= Array.Empty<PublicAudioTrackDto>();
@@ -480,6 +496,7 @@ public sealed class PlaceCatalogService
                 ?? new PublicCatalogSnapshotDto();
             var audioTracksByPlaceId = GroupAudioTracksByPlaceId(snapshot.AudioTracks);
 
+            await MobileDatabaseService.Instance.SaveCatalogSnapshotAsync(snapshot, cancellationToken);
             await SaveCacheAsync(snapshot.Locations, cancellationToken);
             await SaveCategoryCacheAsync(snapshot.Categories, cancellationToken);
             await SaveAudioTrackCacheAsync(audioTracksByPlaceId, cancellationToken);
@@ -681,6 +698,15 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var existingSnapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            await MobileDatabaseService.Instance.SaveCatalogSnapshotAsync(new PublicCatalogSnapshotDto
+            {
+                RefreshedAtUtc = existingSnapshot.RefreshedAtUtc,
+                Categories = existingSnapshot.Categories,
+                Locations = locations,
+                AudioTracks = existingSnapshot.AudioTracks
+            }, cancellationToken);
+
             Directory.CreateDirectory(Path.GetDirectoryName(CacheFilePath)!);
             await using var stream = File.Create(CacheFilePath);
             await JsonSerializer.SerializeAsync(stream, locations, CacheJsonOptions, cancellationToken);
@@ -694,6 +720,15 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var existingSnapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            await MobileDatabaseService.Instance.SaveCatalogSnapshotAsync(new PublicCatalogSnapshotDto
+            {
+                RefreshedAtUtc = existingSnapshot.RefreshedAtUtc,
+                Categories = categories,
+                Locations = existingSnapshot.Locations,
+                AudioTracks = existingSnapshot.AudioTracks
+            }, cancellationToken);
+
             Directory.CreateDirectory(Path.GetDirectoryName(CategoryCacheFilePath)!);
             await using var stream = File.Create(CategoryCacheFilePath);
             await JsonSerializer.SerializeAsync(stream, categories, CacheJsonOptions, cancellationToken);
@@ -707,6 +742,12 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var snapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            if (snapshot.Locations.Count > 0)
+            {
+                return snapshot.Locations.ToList();
+            }
+
             if (!File.Exists(CacheFilePath))
             {
                 return [];
@@ -725,6 +766,12 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var snapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            if (snapshot.Categories.Count > 0)
+            {
+                return snapshot.Categories.ToList();
+            }
+
             if (!File.Exists(CategoryCacheFilePath))
             {
                 return [];
@@ -781,6 +828,15 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var existingSnapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            await MobileDatabaseService.Instance.SaveCatalogSnapshotAsync(new PublicCatalogSnapshotDto
+            {
+                RefreshedAtUtc = existingSnapshot.RefreshedAtUtc,
+                Categories = existingSnapshot.Categories,
+                Locations = existingSnapshot.Locations,
+                AudioTracks = audioTracksByPlaceId.Values.SelectMany(item => item).ToList()
+            }, cancellationToken);
+
             Directory.CreateDirectory(Path.GetDirectoryName(AudioTrackCacheFilePath)!);
             await using var stream = File.Create(AudioTrackCacheFilePath);
             await JsonSerializer.SerializeAsync(stream, audioTracksByPlaceId, CacheJsonOptions, cancellationToken);
@@ -794,6 +850,12 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var snapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            if (snapshot.AudioTracks.Count > 0)
+            {
+                return GroupAudioTracksByPlaceId(snapshot.AudioTracks);
+            }
+
             if (!File.Exists(AudioTrackCacheFilePath))
             {
                 return new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase);

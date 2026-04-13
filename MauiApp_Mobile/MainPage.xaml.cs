@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.Windows.Input;
 using Microsoft.Maui.Dispatching;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
@@ -35,6 +36,7 @@ public partial class MainPage : ContentPage
     private IDispatcherTimer? _liveReloadTimer;
 
     public PlacesViewModel ViewModel { get; }
+    public ICommand RefreshPlacesCommand { get; }
 
     public ObservableCollection<PlaceItem> Places => ViewModel.Places;
     public ObservableCollection<CategoryFilterOption> CategoryFilters => ViewModel.CategoryFilters;
@@ -98,12 +100,14 @@ public partial class MainPage : ContentPage
 
             ViewModel.IsRefreshing = value;
             OnPropertyChanged();
+            UpdatePullToRefreshVisualState();
         }
     }
 
     public MainPage()
     {
         ViewModel = new PlacesViewModel(PlaceCatalogService.Instance);
+        RefreshPlacesCommand = new Command(async () => await RefreshPlacesAsync());
         InitializeComponent();
 
         BindingContext = this;
@@ -348,6 +352,7 @@ public partial class MainPage : ContentPage
         try
         {
             IsRefreshing = true;
+            PullToRefreshLabel.Text = "Đang cập nhật dữ liệu...";
             await LoadPlacesAsync(forceRefresh: true);
             await TryOpenPendingPlaceAsync();
         }
@@ -364,12 +369,24 @@ public partial class MainPage : ContentPage
         finally
         {
             IsRefreshing = false;
+            PullToRefreshLabel.Text = "Kéo xuống để cập nhật";
         }
     }
 
     private async void OnPlacesRefreshing(object? sender, EventArgs e)
     {
         await RefreshPlacesAsync();
+    }
+
+    private void UpdatePullToRefreshVisualState()
+    {
+        if (PullToRefreshHeader is null)
+        {
+            return;
+        }
+
+        PullToRefreshHeader.IsVisible = IsRefreshing;
+        PullToRefreshHeader.HeightRequest = IsRefreshing ? 34 : 0;
     }
 
     private void ApplyTexts()

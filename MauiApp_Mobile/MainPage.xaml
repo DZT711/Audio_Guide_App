@@ -134,17 +134,37 @@
                 </VerticalStackLayout>
             </Grid>
 
-            <RefreshView Grid.Row="2"
-                         IsRefreshing="{Binding ViewModel.IsRefreshing, Mode=TwoWay}"
+            <RefreshView x:Name="PlacesRefreshView"
+                         Grid.Row="2"
+                         IsRefreshing="{Binding IsRefreshing, Mode=TwoWay}"
                          RefreshColor="{DynamicResource PrimaryGreen}"
-                         Command="{Binding ViewModel.RefreshCommand}">
-                <CollectionView x:Name="PlacesCollectionView"
-                                ItemsSource="{Binding ViewModel.Places}"
-                                IsVisible="False"
-                                Opacity="0"
-                                SelectionMode="None"
-                                VerticalOptions="FillAndExpand"
-                                ItemsLayout="VerticalList">
+                         Command="{Binding RefreshPlacesCommand}">
+                <Grid RowDefinitions="Auto,*"
+                      RowSpacing="0">
+                    <Border x:Name="PullToRefreshHeader"
+                            HeightRequest="0"
+                            IsVisible="False"
+                            BackgroundColor="#E8F7EE"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 14"
+                            HorizontalOptions="Center"
+                            Margin="0,0,0,8"
+                            Padding="12,6">
+                        <Label x:Name="PullToRefreshLabel"
+                               Text="Kéo xuống để cập nhật"
+                               FontSize="12"
+                               TextColor="{DynamicResource PrimaryGreen}"
+                               HorizontalTextAlignment="Center" />
+                    </Border>
+
+                    <CollectionView x:Name="PlacesCollectionView"
+                                    Grid.Row="1"
+                                    ItemsSource="{Binding ViewModel.Places}"
+                                    IsVisible="False"
+                                    Opacity="0"
+                                    SelectionMode="None"
+                                    VerticalOptions="FillAndExpand"
+                                    ItemsLayout="VerticalList">
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:PlaceItem">
                             <Frame Style="{StaticResource CardFrameStyle}">
@@ -226,7 +246,8 @@
                             </Frame>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
-                </CollectionView>
+                    </CollectionView>
+                </Grid>
             </RefreshView>
 
             <Border x:Name="FilterPopup"

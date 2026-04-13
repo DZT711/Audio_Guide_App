@@ -164,11 +164,11 @@
 
 - [ ] Settings screen:
   - [ ] GPS / radius sensitivity tuning
-  - [ ] Choose TTS voice
+  - [✅] Choose TTS voice
   - [ ] Download offline language pack
-- [ ] Multi-language UI (Vietnamese default)
+- [✅] Multi-language UI (Vietnamese default)
 - [ ] Notification integration (auto-stop audio on incoming call/notification)
-- [ ] POI owner web portal (non-admin role, manages own POI content)
+- [✅] POI owner web portal (non-admin role, manages own POI content)
 - [ ] App distribution via QR code (install link)
 
 ---
