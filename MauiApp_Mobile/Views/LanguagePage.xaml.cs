@@ -11,7 +11,7 @@ public partial class LanguagePage : ContentPage
     public LanguagePage()
     {
         InitializeComponent();
-        ApplyLanguage("vi", animateText: false);
+        ApplyLanguage(LocalizationService.Instance.Language, animateText: false);
         ThemeService.Instance.PropertyChanged += (_, _) => ApplyLanguage(LocalizationService.Instance.Language);
     }
 

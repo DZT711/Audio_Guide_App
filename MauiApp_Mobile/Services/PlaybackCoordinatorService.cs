@@ -29,6 +29,7 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
     public string CurrentTitle => CurrentTrack?.Title ?? string.Empty;
     public string CurrentSubtitle => CurrentQueueItem?.Subtitle ?? string.Empty;
     public string QueueTitle => CurrentQueueItem?.QueueTitle ?? string.Empty;
+    public int QueueCount => _queue.Count;
     public bool HasActivePlayback => CurrentTrack is not null || AudioPlaybackService.Instance.IsPaused;
     public bool CanGoPrevious => _currentIndex > 0;
     public bool CanGoNext => _currentIndex >= 0 && _currentIndex < _queue.Count - 1;
@@ -46,13 +47,18 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
         int startIndex,
         CancellationToken cancellationToken = default)
     {
+        var normalizedItems = NormalizeQueueItems(items);
+        var selectedIdentity = items.Count > 0 && startIndex >= 0 && startIndex < items.Count
+            ? GetTrackIdentity(items[startIndex].Track)
+            : string.Empty;
+
         _queue.Clear();
-        foreach (var item in items)
+        foreach (var item in normalizedItems)
         {
             _queue.Add(item);
         }
 
-        _currentIndex = Math.Clamp(startIndex, 0, Math.Max(_queue.Count - 1, 0));
+        _currentIndex = ResolveStartIndex(normalizedItems, selectedIdentity);
         NotifyStateChanged();
 
         if (_queue.Count == 0)
@@ -70,6 +76,23 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
         [
             new PlaybackQueueItem(track, queueTitle, subtitle)
         ], 0, cancellationToken);
+    }
+
+    public void Enqueue(PublicAudioTrackDto track, string queueTitle, string subtitle)
+    {
+        if (ContainsTrack(track))
+        {
+            NotifyStateChanged();
+            return;
+        }
+
+        _queue.Add(new PlaybackQueueItem(track, queueTitle, subtitle));
+        if (_currentIndex < 0)
+        {
+            _currentIndex = 0;
+        }
+
+        NotifyStateChanged();
     }
 
     public Task TogglePauseResumeAsync(CancellationToken cancellationToken = default) =>
@@ -108,6 +131,43 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
         _currentIndex = -1;
         NotifyStateChanged();
         await AudioPlaybackService.Instance.StopAsync();
+    }
+
+    public void RemoveQueueItem(PlaybackQueueItem item)
+    {
+        var index = _queue.IndexOf(item);
+        if (index < 0)
+        {
+            return;
+        }
+
+        _queue.RemoveAt(index);
+        if (index < _currentIndex)
+        {
+            _currentIndex--;
+        }
+        else if (_currentIndex >= _queue.Count)
+        {
+            _currentIndex = _queue.Count - 1;
+        }
+
+        NotifyStateChanged();
+    }
+
+    public void ClearQueuedUpcoming()
+    {
+        if (_queue.Count == 0)
+        {
+            return;
+        }
+
+        var keepCount = _currentIndex >= 0 ? _currentIndex + 1 : 0;
+        while (_queue.Count > keepCount)
+        {
+            _queue.RemoveAt(_queue.Count - 1);
+        }
+
+        NotifyStateChanged();
     }
 
     private async Task PlayCurrentAsync(CancellationToken cancellationToken = default)
@@ -180,6 +240,7 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
         RaisePropertyChanged(nameof(CurrentTitle));
         RaisePropertyChanged(nameof(CurrentSubtitle));
         RaisePropertyChanged(nameof(QueueTitle));
+        RaisePropertyChanged(nameof(QueueCount));
         RaisePropertyChanged(nameof(CanGoPrevious));
         RaisePropertyChanged(nameof(CanGoNext));
         RaisePropertyChanged(nameof(IsPlaying));
@@ -190,6 +251,80 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
         RaisePropertyChanged(nameof(Position));
         RaisePropertyChanged(nameof(Duration));
         RaisePropertyChanged(nameof(ProgressRatio));
+    }
+
+    private bool ContainsTrack(PublicAudioTrackDto track)
+    {
+        var identity = GetTrackIdentity(track);
+        if (!string.IsNullOrWhiteSpace(identity) &&
+            !string.IsNullOrWhiteSpace(GetTrackIdentity(CurrentTrack)) &&
+            string.Equals(identity, GetTrackIdentity(CurrentTrack), StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return _queue.Any(item => string.Equals(GetTrackIdentity(item.Track), identity, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static IReadOnlyList<PlaybackQueueItem> NormalizeQueueItems(IReadOnlyList<PlaybackQueueItem> items)
+    {
+        var result = new List<PlaybackQueueItem>(items.Count);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in items)
+        {
+            var identity = GetTrackIdentity(item.Track);
+            if (!seen.Add(identity))
+            {
+                continue;
+            }
+
+            result.Add(item);
+        }
+
+        return result;
+    }
+
+    private static int ResolveStartIndex(IReadOnlyList<PlaybackQueueItem> items, string selectedIdentity)
+    {
+        if (items.Count == 0)
+        {
+            return -1;
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedIdentity))
+        {
+            var identityIndex = items
+                .Select((item, index) => new { Identity = GetTrackIdentity(item.Track), Index = index })
+                .FirstOrDefault(item => string.Equals(item.Identity, selectedIdentity, StringComparison.OrdinalIgnoreCase));
+
+            if (identityIndex is not null)
+            {
+                return identityIndex.Index;
+            }
+        }
+
+        return 0;
+    }
+
+    private static string GetTrackIdentity(PublicAudioTrackDto? track)
+    {
+        if (track is null)
+        {
+            return string.Empty;
+        }
+
+        if (track.Id > 0)
+        {
+            return $"track:{track.Id}";
+        }
+
+        return string.Join(
+            "|",
+            track.LocationId,
+            track.Language ?? string.Empty,
+            track.SourceType ?? string.Empty,
+            track.Title ?? string.Empty).ToLowerInvariant();
     }
 
     private void RaisePropertyChanged([CallerMemberName] string? propertyName = null) =>

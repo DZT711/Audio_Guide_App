@@ -185,6 +185,7 @@ public partial class MainPage : ContentPage
         ThemeService.Instance.PropertyChanged += OnThemeServicePropertyChanged;
         AppDataModeService.Instance.PropertyChanged += OnAppDataModeChanged;
         AppSettingsService.Instance.PropertyChanged += OnAppSettingsChanged;
+        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
         AudioPlaybackService.Instance.PlaybackStateChanged += OnPlaybackStateChanged;
         UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
         Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
@@ -203,6 +204,7 @@ public partial class MainPage : ContentPage
         ThemeService.Instance.PropertyChanged -= OnThemeServicePropertyChanged;
         AppDataModeService.Instance.PropertyChanged -= OnAppDataModeChanged;
         AppSettingsService.Instance.PropertyChanged -= OnAppSettingsChanged;
+        AppSettingsService.Instance.SettingsSaved -= OnSettingsSaved;
         AudioPlaybackService.Instance.PlaybackStateChanged -= OnPlaybackStateChanged;
         UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
         Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
@@ -234,10 +236,28 @@ public partial class MainPage : ContentPage
 
     private void OnAppSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (!string.Equals(e.PropertyName, nameof(AppSettingsService.ApiModeEnabled), StringComparison.Ordinal))
+        if (!string.Equals(e.PropertyName, nameof(AppSettingsService.ApiModeEnabled), StringComparison.Ordinal) &&
+            !string.Equals(e.PropertyName, nameof(AppSettingsService.MiniPlayerEnabled), StringComparison.Ordinal))
             return;
 
-        MainThread.BeginInvokeOnMainThread(UpdateConnectionStatusChip);
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            UpdateConnectionStatusChip();
+        });
+    }
+
+    private void OnSettingsSaved(object? sender, AppSettingsSnapshot e)
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            ApplyTexts();
+            UpdateConnectionStatusChip();
+            UpdateFilterHeader();
+            ApplyFilter();
+            RefreshSelectedPlaceAudioTracks();
+            RefreshSelectedPlaceDistance();
+            await RefreshPlacesAndHandlePendingAsync();
+        });
     }
 
     private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e) =>
@@ -1092,6 +1112,33 @@ public partial class MainPage : ContentPage
             return;
 
         await PlaySelectedTrackAsync(track);
+    }
+
+    private async void OnAudioTrackQueueTapped(object sender, TappedEventArgs e)
+    {
+        if (sender is not Element element || element.BindingContext is not PlaceDetailAudioTrack track)
+            return;
+
+        if (SelectedPlace is null)
+        {
+            return;
+        }
+
+        var selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
+        if (selectedTrack is null)
+        {
+            await LoadSelectedPlaceAudioTracksAsync(SelectedPlace);
+            selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
+        }
+
+        if (selectedTrack is null)
+        {
+            await DisplayAlertAsync("Audio", "Không tìm thấy audio để thêm vào hàng đợi.", "OK");
+            return;
+        }
+
+        var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(selectedTrack);
+        PlaybackCoordinatorService.Instance.Enqueue(playableTrack, SelectedPlace.Name, track.Title);
     }
 
     private async void OnAudioTrackDownloadTapped(object sender, TappedEventArgs e)

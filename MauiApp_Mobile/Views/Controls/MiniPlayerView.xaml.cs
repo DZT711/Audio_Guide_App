@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using MauiApp_Mobile.Services;
+using MauiApp_Mobile.Views;
 
 namespace MauiApp_Mobile.Views.Controls;
 
@@ -66,6 +67,16 @@ public partial class MiniPlayerView : ContentView
 
     private async void OnStopTapped(object? sender, TappedEventArgs e) =>
         await PlaybackCoordinatorService.Instance.StopAsync();
+
+    private async void OnQueueTapped(object? sender, TappedEventArgs e)
+    {
+        if (Shell.Current is null)
+        {
+            return;
+        }
+
+        await Shell.Current.Navigation.PushModalAsync(new PlaybackQueuePage());
+    }
 
     private void OnPlaybackStateChanged(object? sender, PropertyChangedEventArgs e) =>
         MainThread.BeginInvokeOnMainThread(UpdateBindings);

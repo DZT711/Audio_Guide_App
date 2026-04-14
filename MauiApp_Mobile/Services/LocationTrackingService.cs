@@ -281,7 +281,7 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
                 _ => GeolocationAccuracy.High
             };
 
-        return new GeolocationRequest(accuracy, TimeSpan.FromSeconds(12));
+        return new GeolocationRequest(accuracy, TimeSpan.FromSeconds(15));
     }
 
     private TimeSpan ResolveTrackingInterval()

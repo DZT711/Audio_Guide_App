@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows.Input;
 using Microsoft.Maui.Networking;
+using Microsoft.Maui.Devices.Sensors;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
 
@@ -123,6 +124,8 @@ public partial class OfflinePage : ContentPage
         SyncCategoryFilters([]);
         ApplyFilter();
         ApplyFilterSummary();
+        UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
+        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
 
         LocalizationService.Instance.PropertyChanged += (_, _) =>
         {
@@ -166,16 +169,33 @@ public partial class OfflinePage : ContentPage
         _ = RefreshOfflinePacksSilentlyAsync();
     }
 
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
+        AppSettingsService.Instance.SettingsSaved -= OnSettingsSaved;
+        _loadingCts?.Cancel();
+    }
+
+    private void OnSettingsSaved(object? sender, AppSettingsSnapshot snapshot)
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            ApplyLocalizedText();
+            ApplyFilter();
+            ApplyFilterSummary();
+            OnPropertyChanged(nameof(DownloadedCountText));
+            OnPropertyChanged(nameof(DownloadedSizeText));
+            OnPropertyChanged(nameof(DownloadProgress));
+            OnPropertyChanged(nameof(DownloadProgressText));
+            await RefreshOfflinePacksSilentlyAsync();
+        });
+    }
+
     protected override void OnSizeAllocated(double width, double height)
     {
         base.OnSizeAllocated(width, height);
         UpdateOfflineDetailSheetLayout();
-    }
-
-    protected override void OnDisappearing()
-    {
-        base.OnDisappearing();
-        _loadingCts?.Cancel();
     }
 
     private async Task RunInitialLoadAsync()
@@ -322,6 +342,10 @@ public partial class OfflinePage : ContentPage
         _allItems.Clear();
         foreach (var item in mappedItems)
         {
+            if (UserLocationService.Instance.LastKnownLocation is Location currentLocation)
+            {
+                item.UpdateDistance(currentLocation);
+            }
             _allItems.Add(item);
         }
 
@@ -356,6 +380,8 @@ public partial class OfflinePage : ContentPage
             Image = string.IsNullOrWhiteSpace(place.PreferenceImage) ? place.Image : place.PreferenceImage,
             Description = place.Description,
             Address = place.Address,
+            Latitude = place.Latitude,
+            Longitude = place.Longitude,
             Phone = place.Phone,
             Email = place.Email,
             Website = place.Website,
@@ -370,6 +396,28 @@ public partial class OfflinePage : ContentPage
             AudioTracks = BuildAudioTracksForPlace(place, audioCount),
             LocalizedTitles = BuildMirroredLocalizedTitles(place.Name)
         };
+    }
+
+    private void OnUserLocationUpdated(object? sender, Location? location)
+    {
+        if (location is null)
+        {
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            foreach (var item in _allItems)
+            {
+                item.UpdateDistance(location);
+            }
+
+            if (SelectedPack is not null)
+            {
+                SelectedPack.UpdateDistance(location);
+                OnPropertyChanged(nameof(SelectedPack));
+            }
+        });
     }
 
     private void ApplyLocalizedText()
@@ -1183,6 +1231,8 @@ public class OfflinePackItem : INotifyPropertyChanged
     public string Image { get; set; } = "dotnet_bot.png";
     public string Description { get; set; } = "";
     public string Address { get; set; } = "";
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
     public string Phone { get; set; } = "";
     public string Email { get; set; } = "";
     public string Website { get; set; } = "";
@@ -1196,6 +1246,7 @@ public class OfflinePackItem : INotifyPropertyChanged
     public ObservableCollection<OfflineAudioTrack> AudioTracks { get; set; } = new();
     public ObservableCollection<OfflineAudioTrack> DownloadedTracks { get; } = new();
     public ObservableCollection<OfflineAudioTrack> PendingTracks { get; } = new();
+    private string _distanceText = "Bật định vị để xem khoảng cách";
 
     private bool _isDownloaded;
     private DateTime? _downloadedAt;
@@ -1203,6 +1254,7 @@ public class OfflinePackItem : INotifyPropertyChanged
 
     public string AudioCountText => $"{AudioCount} audio";
     public string LanguagesText => string.Join(" • ", AudioTracks.Select(track => track.LanguageCode));
+    public string DistanceText => _distanceText;
     public int DownloadableAudioCount => AudioTracks.Count(track => track.IsDownloadable);
     public int DownloadedAudioCount => AudioTracks.Count(track => track.IsDownloadable && track.IsDownloaded);
     public string DownloadedAudioSummaryText => $"{DownloadedAudioCount}/{Math.Max(DownloadableAudioCount, 0)} audio";
@@ -1313,6 +1365,23 @@ public class OfflinePackItem : INotifyPropertyChanged
         OnPropertyChanged(nameof(DownloadedAudioSummaryText));
         OnPropertyChanged(nameof(HasDownloadedTracks));
         OnPropertyChanged(nameof(HasPendingTracks));
+    }
+
+    public void UpdateDistance(Location location)
+    {
+        if (Latitude == 0d && Longitude == 0d)
+        {
+            _distanceText = "Chưa có tọa độ";
+            OnPropertyChanged(nameof(DistanceText));
+            return;
+        }
+
+        var distanceKm = Location.CalculateDistance(location.Latitude, location.Longitude, Latitude, Longitude, DistanceUnits.Kilometers);
+        var distanceMeters = Math.Max(0, distanceKm * 1000d);
+        _distanceText = distanceMeters < 1000d
+            ? $"{distanceMeters:0} m"
+            : $"{distanceKm:0.0} km";
+        OnPropertyChanged(nameof(DistanceText));
     }
 
     public void ApplyLanguage(string language)

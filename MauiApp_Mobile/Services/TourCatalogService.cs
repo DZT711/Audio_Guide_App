@@ -1,5 +1,7 @@
+using System.Net.Http.Json;
 using Microsoft.Maui.Devices.Sensors;
 using MauiApp_Mobile.Models;
+using Project_SharedClassLibrary.Constants;
 using Project_SharedClassLibrary.Contracts;
 
 namespace MauiApp_Mobile.Services;
@@ -7,6 +9,7 @@ namespace MauiApp_Mobile.Services;
 public sealed class TourCatalogService
 {
     public static TourCatalogService Instance { get; } = new();
+    private static readonly HttpClient HttpClient = MobileApiHttpClientFactory.Create(TimeSpan.FromSeconds(12), 4);
 
     private TourCatalogService()
     {
@@ -14,6 +17,25 @@ public sealed class TourCatalogService
 
     public async Task<IReadOnlyList<MobileTourDescriptor>> GetPublicToursAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
+        if (AppDataModeService.Instance.IsApiEnabled)
+        {
+            try
+            {
+                var tours = await HttpClient.GetFromJsonAsync<List<TourDto>>(ApiRoutes.PublicTours, cancellationToken) ?? [];
+                if (tours.Count > 0)
+                {
+                    return tours.Select(MapFromDto).ToList();
+                }
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                if (FriendlyMessageService.IsServerFailure(ex))
+                {
+                    AppDataModeService.Instance.SwitchToOfflineFallback();
+                }
+            }
+        }
+
         var places = await PlaceCatalogService.Instance.GetPlacesAsync(forceRefresh, cancellationToken);
         return BuildTours(places);
     }
@@ -112,7 +134,62 @@ public sealed class TourCatalogService
             StopCount = stops.Count,
             TotalDistanceKm = preview.TotalDistanceKm,
             EstimatedDurationMinutes = preview.EstimatedDurationMinutes,
+            WalkingSpeedKph = preview.WalkingSpeedKph,
+            StartTime = preview.StartTime,
+            FinishTime = preview.FinishTime,
             Stops = stops,
+            RoutePreview = preview
+        };
+    }
+
+    private static MobileTourDescriptor MapFromDto(TourDto tour)
+    {
+        var orderedStops = tour.Stops.OrderBy(item => item.SequenceOrder).ToList();
+        var preview = tour.RoutePreview ?? new TourRoutePreviewDto
+        {
+            TotalDistanceKm = tour.TotalDistanceKm,
+            EstimatedDurationMinutes = tour.EstimatedDurationMinutes,
+            WalkingSpeedKph = tour.WalkingSpeedKph,
+            StartTime = tour.StartTime,
+            FinishTime = tour.FinishTime,
+            UsesRoadRouting = true,
+            Segments = orderedStops.Select(stop => new TourRouteSegmentDto
+            {
+                SequenceOrder = stop.SequenceOrder,
+                LocationId = stop.LocationId,
+                DistanceKm = stop.SegmentDistanceKm
+            }).ToList(),
+            Path = orderedStops.Select(stop => new TourRoutePointDto
+            {
+                Latitude = stop.Latitude,
+                Longitude = stop.Longitude
+            }).ToList()
+        };
+
+        return new MobileTourDescriptor
+        {
+            Id = tour.Id,
+            OwnerId = tour.OwnerId,
+            OwnerName = tour.OwnerName,
+            Name = tour.Name,
+            Description = tour.Description ?? string.Empty,
+            StopCount = tour.StopCount,
+            TotalDistanceKm = tour.TotalDistanceKm,
+            EstimatedDurationMinutes = tour.EstimatedDurationMinutes,
+            WalkingSpeedKph = tour.WalkingSpeedKph,
+            StartTime = tour.StartTime,
+            FinishTime = tour.FinishTime,
+            Stops = orderedStops.Select(stop => new MobileTourStopDescriptor
+            {
+                PlaceId = stop.LocationId.ToString(),
+                Name = stop.LocationName,
+                Address = stop.Address,
+                Category = stop.Category,
+                Latitude = stop.Latitude,
+                Longitude = stop.Longitude,
+                SequenceOrder = stop.SequenceOrder,
+                ImageUrl = stop.PreferenceImageUrl ?? string.Empty
+            }).ToList(),
             RoutePreview = preview
         };
     }
@@ -132,11 +209,16 @@ public sealed class TourCatalogService
 public sealed class MobileTourDescriptor
 {
     public int Id { get; init; }
+    public int? OwnerId { get; init; }
+    public string? OwnerName { get; init; }
     public string Name { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public int StopCount { get; init; }
     public double TotalDistanceKm { get; init; }
     public int EstimatedDurationMinutes { get; init; }
+    public double WalkingSpeedKph { get; init; }
+    public string? StartTime { get; init; }
+    public string? FinishTime { get; init; }
     public IReadOnlyList<MobileTourStopDescriptor> Stops { get; init; } = Array.Empty<MobileTourStopDescriptor>();
     public TourRoutePreviewDto RoutePreview { get; init; } = new();
 }

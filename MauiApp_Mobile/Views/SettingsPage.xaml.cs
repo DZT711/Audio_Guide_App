@@ -68,6 +68,9 @@ public partial class SettingsPage : ContentPage
             TriggerRadiusLabel,
             AlertRadiusLabel,
             WaitTimeLabel,
+            ShowPoiRadiusLabel,
+            AutoFocusIdleLabel,
+            AutoFocusIdleHintLabel,
             AutoPlayLabel,
             NotifyNearLabel,
             BackgroundTrackingLabel,
@@ -125,6 +128,9 @@ public partial class SettingsPage : ContentPage
         TriggerRadiusLabel.Text = LocalizationService.Instance.T("Settings.TriggerRadius");
         AlertRadiusLabel.Text = LocalizationService.Instance.T("Settings.AlertRadius");
         WaitTimeLabel.Text = LocalizationService.Instance.T("Settings.WaitTime");
+        ShowPoiRadiusLabel.Text = "Hiện bán kính POI trên bản đồ";
+        AutoFocusIdleLabel.Text = "Tự focus POI sau khi không chạm bản đồ";
+        AutoFocusIdleHintLabel.Text = "s, -1 để tắt";
 
         AutoPlayLabel.Text = LocalizationService.Instance.T("Settings.AutoPlay");
         NotifyNearLabel.Text = LocalizationService.Instance.T("Settings.NotifyNear");
@@ -289,6 +295,8 @@ public partial class SettingsPage : ContentPage
         BatterySaverSwitch.IsToggled = settings.BatterySaverEnabled;
         DeveloperModeSwitch.IsToggled = settings.DeveloperModeEnabled;
         MiniPlayerSwitch.IsToggled = settings.MiniPlayerEnabled;
+        ShowPoiRadiusSwitch.IsToggled = settings.ShowPoiRadiusEnabled;
+        AutoFocusIdleEntry.Text = settings.AutoFocusIdleSeconds.ToString();
         _isSyncingGpsControls = true;
         GpsAccuracyPicker.SelectedIndex = (int)settings.GpsAccuracy;
         _isSyncingGpsControls = false;
@@ -397,8 +405,11 @@ public partial class SettingsPage : ContentPage
                 !ApiModeSwitch.IsToggled,
                 DeveloperModeSwitch.IsToggled,
                 GpsAccuracyPicker.SelectedIndex >= 0 ? (GpsAccuracyOption)GpsAccuracyPicker.SelectedIndex : GpsAccuracyOption.High,
-                MiniPlayerSwitch.IsToggled));
+                MiniPlayerSwitch.IsToggled,
+                ShowPoiRadiusSwitch.IsToggled,
+                ParseAutoFocusIdleSeconds()));
 
+            await AudioPlaybackService.Instance.ApplyRuntimeVolumeAsync();
             await LocationTrackingService.Instance.StartTrackingFromSettingsAsync(requestBackgroundUpgrade: BackgroundTrackingSwitch.IsToggled);
 
             await DisplayAlertAsync(
@@ -422,5 +433,15 @@ public partial class SettingsPage : ContentPage
     private void OnApiModeToggled(object sender, ToggledEventArgs e)
     {
         AppDataModeService.Instance.IsApiEnabled = !e.Value;
+    }
+
+    private int ParseAutoFocusIdleSeconds()
+    {
+        if (!int.TryParse(AutoFocusIdleEntry.Text?.Trim(), out var value))
+        {
+            return 60;
+        }
+
+        return Math.Clamp(value, -1, 3600);
     }
 }

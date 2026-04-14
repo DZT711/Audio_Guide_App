@@ -36,6 +36,7 @@ public partial class App : Application
         {
             await MobileDatabaseService.Instance.InitializeAsync();
             await AppSettingsService.Instance.InitializeAsync();
+            await MobileApiOptions.EnsureResolvedBaseUrlAsync();
             await LocationTrackingService.Instance.InitializeAsync();
             await HistoryService.Instance.InitializeAsync();
             BackgroundSyncService.Instance.Start();
@@ -54,23 +55,17 @@ public partial class App : Application
             await BackgroundSyncService.Instance.TriggerCatalogSyncAsync();
 
             var locationPermission = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
-            if (locationPermission == PermissionStatus.Granted)
+            if (locationPermission != PermissionStatus.Granted)
             {
-                if (AppSettingsService.Instance.BackgroundTrackingEnabled)
+                return;
+            }
+
+            if (AppSettingsService.Instance.BackgroundTrackingEnabled)
+            {
+                var backgroundPermission = await LocationTrackingService.Instance.GetBackgroundPermissionStatusAsync();
+                if (backgroundPermission == PermissionStatus.Granted)
                 {
-                    var backgroundPermission = await LocationTrackingService.Instance.GetBackgroundPermissionStatusAsync();
-                    if (backgroundPermission == PermissionStatus.Granted)
-                    {
-                        await LocationTrackingService.Instance.StartBackgroundTrackingAsync();
-                    }
-                    else
-                    {
-                        await LocationTrackingService.Instance.StartForegroundTrackingAsync();
-                    }
-                }
-                else
-                {
-                    await LocationTrackingService.Instance.StartForegroundTrackingAsync();
+                    await LocationTrackingService.Instance.StartBackgroundTrackingAsync();
                 }
             }
         }

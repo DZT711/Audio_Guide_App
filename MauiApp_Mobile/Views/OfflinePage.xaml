@@ -319,6 +319,9 @@
                                         <Label Text="{Binding DownloadedAudioSummaryText}"
                                                FontSize="13"
                                                TextColor="{DynamicResource MutedText}" />
+                                        <Label Text="{Binding DistanceText, StringFormat='📏 {0}'}"
+                                               FontSize="13"
+                                               TextColor="{DynamicResource MutedText}" />
                                         <Label Text="{Binding Duration}"
                                                FontSize="13"
                                                TextColor="{DynamicResource MutedText}" />
@@ -687,6 +690,9 @@
                                                FontSize="20"
                                                FontAttributes="Bold"
                                                TextColor="{DynamicResource TitleText}" />
+                                        <Label Text="{Binding SelectedPack.DistanceText, StringFormat='📏 {0}'}"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource InfoText}" />
                                         <Label Text="{Binding SelectedPack.LanguagesText}"
                                                FontSize="12"
                                                TextColor="{DynamicResource SuccessText}" />

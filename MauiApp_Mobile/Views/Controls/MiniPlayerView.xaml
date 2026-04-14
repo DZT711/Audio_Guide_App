@@ -13,7 +13,7 @@
             StrokeThickness="1"
             StrokeShape="RoundRectangle 22">
         <VerticalStackLayout Spacing="10">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                 <VerticalStackLayout Spacing="2">
                     <Label Text="{Binding TitleText, Source={x:Reference ThisControl}}"
                            FontAttributes="Bold"
@@ -27,6 +27,24 @@
                 </VerticalStackLayout>
 
                 <Border Grid.Column="1"
+                        WidthRequest="34"
+                        HeightRequest="34"
+                        BackgroundColor="{DynamicResource SurfaceAlt}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 17"
+                        VerticalOptions="Center">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnQueueTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="☰"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           TextColor="{DynamicResource BodyText}"
+                           VerticalOptions="Center" />
+                </Border>
+
+                <Border Grid.Column="2"
                         WidthRequest="34"
                         HeightRequest="34"
                         BackgroundColor="#FEECEC"

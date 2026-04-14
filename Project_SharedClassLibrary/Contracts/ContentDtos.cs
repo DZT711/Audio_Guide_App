@@ -141,6 +141,7 @@ public sealed class TourDto
     public int Status { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
+    public TourRoutePreviewDto? RoutePreview { get; init; }
     public IReadOnlyList<TourStopDto> Stops { get; init; } = [];
 }
 

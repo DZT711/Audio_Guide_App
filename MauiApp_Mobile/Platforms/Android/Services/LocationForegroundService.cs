@@ -11,6 +11,7 @@ public sealed class LocationForegroundService : Service
 {
     internal const string ChannelId = "smarttour-location-tracking";
     internal const int NotificationId = 3007;
+    internal const string ActionStopTracking = "smarttour.location.stop";
     private CancellationTokenSource? _serviceCts;
 
     public override void OnCreate()
@@ -21,11 +22,23 @@ public sealed class LocationForegroundService : Service
 
     public override StartCommandResult OnStartCommand(Intent? intent, StartCommandFlags flags, int startId)
     {
+        if (string.Equals(intent?.Action, ActionStopTracking, StringComparison.Ordinal))
+        {
+            _ = Task.Run(DisableBackgroundTrackingAsync);
+            StopForeground(StopForegroundFlags.Remove);
+            StopSelf();
+            return StartCommandResult.NotSticky;
+        }
+
         var notification = new NotificationCompat.Builder(this, ChannelId)
             .SetContentTitle("SmartTour GPS tracking")
             .SetContentText("Background location tracking is active.")
             .SetSmallIcon(Resource.Mipmap.appicon)
             .SetOngoing(true)
+            .AddAction(
+                Android.Resource.Drawable.IcMenuCloseClearCancel,
+                "Stop",
+                BuildStopTrackingPendingIntent())
             .Build();
 
         StartForeground(NotificationId, notification);
@@ -80,6 +93,34 @@ public sealed class LocationForegroundService : Service
                 Description = "Keeps location tracking active for SmartTour background guidance."
             };
             manager?.CreateNotificationChannel(channel);
+        }
+    }
+
+    private PendingIntent BuildStopTrackingPendingIntent()
+    {
+        var intent = new Intent(this, typeof(LocationForegroundService));
+        intent.SetAction(ActionStopTracking);
+        return PendingIntent.GetService(
+            this,
+            52,
+            intent,
+            PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable)!;
+    }
+
+    private static async Task DisableBackgroundTrackingAsync()
+    {
+        try
+        {
+            var snapshot = AppSettingsService.Instance.CreateSnapshot() with
+            {
+                BackgroundTrackingEnabled = false
+            };
+
+            await AppSettingsService.Instance.SaveAsync(snapshot);
+            await LocationTrackingService.Instance.StopAsync();
+        }
+        catch
+        {
         }
     }
 }

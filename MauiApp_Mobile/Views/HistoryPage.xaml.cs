@@ -107,6 +107,7 @@ public partial class HistoryPage : ContentPage
         }
 
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
+        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
         HistoryService.Instance.HistoryItems.CollectionChanged += OnHistoryItemsChanged;
         _subscriptionsAttached = true;
     }
@@ -119,6 +120,7 @@ public partial class HistoryPage : ContentPage
         }
 
         LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
+        AppSettingsService.Instance.SettingsSaved -= OnSettingsSaved;
         HistoryService.Instance.HistoryItems.CollectionChanged -= OnHistoryItemsChanged;
         _subscriptionsAttached = false;
     }
@@ -128,6 +130,14 @@ public partial class HistoryPage : ContentPage
 
     private void OnHistoryItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
         MainThread.BeginInvokeOnMainThread(UpdateCount);
+
+    private void OnSettingsSaved(object? sender, AppSettingsSnapshot snapshot) =>
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            ApplyTexts();
+            UpdateCount();
+            RefreshSelectedHistoryAudioTracks();
+        });
 
     private void UpdateCount()
     {

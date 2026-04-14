@@ -6,6 +6,7 @@ using Project_SharedClassLibrary.Security;
 using WebApplication_API.Data;
 using WebApplication_API.Model;
 using WebApplication_API.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WebApplication_API.Controller;
 
@@ -17,6 +18,71 @@ public class TourController(
     TourRoutePlanningService routePlanningService,
     ActivityLogService activityLogService) : ControllerBase
 {
+    [AllowAnonymous]
+    [HttpGet("public")]
+    public async Task<IActionResult> GetPublicTours(CancellationToken cancellationToken)
+    {
+        var tours = await context.Tours
+            .Include(item => item.Owner)
+            .Include(item => item.Stops)
+            .ThenInclude(item => item.Location)
+            .ThenInclude(item => item!.Owner)
+            .Include(item => item.Stops)
+            .ThenInclude(item => item.Location)
+            .ThenInclude(item => item!.Category)
+            .AsSplitQuery()
+            .Where(item => item.Status == 1)
+            .OrderBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+
+        var result = new List<TourDto>(tours.Count);
+        foreach (var tour in tours)
+        {
+            var dto = tour.ToDto();
+            var orderedStops = dto.Stops
+                .OrderBy(item => item.SequenceOrder)
+                .Select(item => new TourRoutePreviewStopRequest
+                {
+                    LocationId = item.LocationId,
+                    SequenceOrder = item.SequenceOrder,
+                    Latitude = item.Latitude,
+                    Longitude = item.Longitude
+                })
+                .ToList();
+
+            if (orderedStops.Count > 0)
+            {
+                dto = new TourDto
+                {
+                    Id = dto.Id,
+                    OwnerId = dto.OwnerId,
+                    OwnerName = dto.OwnerName,
+                    Name = dto.Name,
+                    Description = dto.Description,
+                    TotalDistanceKm = dto.TotalDistanceKm,
+                    EstimatedDurationMinutes = dto.EstimatedDurationMinutes,
+                    WalkingSpeedKph = dto.WalkingSpeedKph,
+                    StartTime = dto.StartTime,
+                    FinishTime = dto.FinishTime,
+                    StopCount = dto.StopCount,
+                    Status = dto.Status,
+                    CreatedAt = dto.CreatedAt,
+                    UpdatedAt = dto.UpdatedAt,
+                    Stops = dto.Stops,
+                    RoutePreview = await routePlanningService.CalculatePreviewAsync(
+                        orderedStops,
+                        dto.WalkingSpeedKph,
+                        dto.StartTime,
+                        cancellationToken)
+                };
+            }
+
+            result.Add(dto);
+        }
+
+        return Ok(result);
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetTours()
     {

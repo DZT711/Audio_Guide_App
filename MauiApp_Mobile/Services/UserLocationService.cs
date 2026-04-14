@@ -10,6 +10,8 @@ public sealed class UserLocationService : INotifyPropertyChanged
     public static UserLocationService Instance { get; } = new();
 
     private Location? _lastKnownLocation;
+    private double? _headingDegrees;
+    private bool _headingMonitoringStarted;
 
     private UserLocationService()
     {
@@ -17,6 +19,7 @@ public sealed class UserLocationService : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler<Location?>? LocationUpdated;
+    public event EventHandler<double?>? HeadingUpdated;
 
     public Location? LastKnownLocation
     {
@@ -30,6 +33,21 @@ public sealed class UserLocationService : INotifyPropertyChanged
     }
 
     public bool HasLocation => LastKnownLocation is not null;
+    public double? HeadingDegrees
+    {
+        get => _headingDegrees;
+        private set
+        {
+            if (_headingDegrees == value)
+            {
+                return;
+            }
+
+            _headingDegrees = value;
+            OnPropertyChanged();
+            HeadingUpdated?.Invoke(this, value);
+        }
+    }
 
     public async Task<Location?> RefreshLocationAsync(
         bool requestPermission = false,
@@ -55,7 +73,7 @@ public sealed class UserLocationService : INotifyPropertyChanged
 
         try
         {
-            var request = new GeolocationRequest(GeolocationAccuracy.Best, TimeSpan.FromSeconds(12));
+            var request = new GeolocationRequest(GeolocationAccuracy.Best, TimeSpan.FromSeconds(15));
             location = await Geolocation.Default.GetLocationAsync(request, cancellationToken);
         }
         catch (Exception ex) when (
@@ -81,6 +99,31 @@ public sealed class UserLocationService : INotifyPropertyChanged
     {
         LastKnownLocation = location;
         LocationUpdated?.Invoke(this, location);
+    }
+
+    public void EnsureHeadingTracking()
+    {
+        if (_headingMonitoringStarted)
+        {
+            return;
+        }
+
+        try
+        {
+            Compass.Default.ReadingChanged -= OnCompassReadingChanged;
+            Compass.Default.ReadingChanged += OnCompassReadingChanged;
+            Compass.Default.Start(SensorSpeed.UI);
+            _headingMonitoringStarted = true;
+        }
+        catch
+        {
+        }
+    }
+
+    private void OnCompassReadingChanged(object? sender, CompassChangedEventArgs e)
+    {
+        var normalized = e.Reading.HeadingMagneticNorth % 360d;
+        HeadingDegrees = normalized < 0 ? normalized + 360d : normalized;
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

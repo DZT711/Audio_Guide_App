@@ -89,25 +89,29 @@ let mobile connect to asp sever / reason can't connect now is required authentic
 
 merge new app ui
 
-fix all poi blank /deleted media data
+fix all poi blank /deleted media data category ✅
 
-fix preference img on maui map
+fix preference img on maui mapcategory✅
 
 fix button stop when click again while audio is playing
 
-fix refeshview dont working it always in status loading also instantly refesh data
+fix refeshview dont working it always in status loading also instantly refesh data✅
 
 fix notification content
 
 sync all text in one lang only except poi data
 
-dropdown content in offline tab
+dropdown content in offline tab in poi still have audio not downloaded
 
-add arrow position in map to show user direction
+add arrow position in map to show user direction map category✅
 
 decrease spacing each setting content
 
 ui/ux header
+
+tour app sync on api
+
+improve media player notificationmapcategory✅
 
 ## (extend task)-MVP
 
@@ -156,3 +160,5 @@ auto warn user cannt load preview vietnamese male tts when the browser/device do
 change sever's database into sql sever
 
 add mobile sqlite✅
+
+auto write audio length in second into duration field in audio table when user upload audio file

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 
 namespace MauiApp_Mobile.Services;
 
@@ -6,7 +7,7 @@ public class LocalizationService : INotifyPropertyChanged
 {
     public static LocalizationService Instance { get; } = new();
 
-    private string _language = "vi";
+    private string _language = DetectInitialLanguage();
 
     public string Language
     {
@@ -24,6 +25,35 @@ public class LocalizationService : INotifyPropertyChanged
     private LocalizationService()
     {
         SeedExtendedTranslations();
+    }
+
+    public static string DetectInitialLanguage()
+    {
+        try
+        {
+            var currentCulture = CultureInfo.CurrentUICulture;
+            var region = RegionInfo.CurrentRegion.TwoLetterISORegionName;
+            if (string.Equals(region, "VN", StringComparison.OrdinalIgnoreCase))
+            {
+                return "vi";
+            }
+
+            var languagePrefix = currentCulture.TwoLetterISOLanguageName.ToLowerInvariant();
+            return languagePrefix switch
+            {
+                "en" => "en",
+                "zh" => "cn",
+                "ja" => "jp",
+                "ko" => "kr",
+                "fr" => "fr",
+                "vi" => "vi",
+                _ => "vi"
+            };
+        }
+        catch
+        {
+            return "vi";
+        }
     }
 
     private readonly Dictionary<string, Dictionary<string, string>> _texts = new()

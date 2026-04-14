@@ -18,13 +18,13 @@
 
 ### 📍 GPS Tracking (PoC)
 
-- [ ] Implement foreground GPS tracking
-- [ ] Implement background GPS tracking
+- [✅] Implement foreground GPS tracking
+- [✅] Implement background GPS tracking
   - Android: `FusedLocationProviderClient` via Foreground Service
   - iOS: `CLLocationManager` with `Always` permission
 - [✅] Optimize for battery efficiency (adaptive polling interval)
 - [✅] Improve location accuracy as much as possible
-- [ ] Handle location permission requests (foreground & background)
+- [✅] Handle location permission requests (foreground & background)
 
 ---
 
@@ -54,8 +54,8 @@
 - [✅] Implement **Recorded Audio playback**:
   - [✅] Professional/natural voice quality
   - Note: higher memory usage vs TTS
-- [ ] Build **Audio Queue Manager**:
-  - [ ] Multi-process scheduling
+- [✅ ] Build **Audio Queue Manager**:
+  - [✅] Multi-process scheduling
   - [ ] No audio repetition logic
   - [ ] Auto-stop / pause when OS notification arrives
 - [✅] Decide per-POI: use TTS script or pre-recorded audio file
@@ -139,6 +139,7 @@
 ### 🏗️ Backend / Server
 
 - [ ] Set up **SQL Server** (online data source)
+- [✅] Set up **ASP.NET Core Server** (online data source)
 - [✅] Design schema: POIs, audio files, tours, playback history, translations
 - [] Build REST API endpoints for:
   - [✅] POI CRUD

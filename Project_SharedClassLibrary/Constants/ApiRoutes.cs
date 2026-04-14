@@ -9,6 +9,7 @@ public static class ApiRoutes
     public const string PublicLocations = "Location/public";
     public const string PublicCatalog = "Location/public/catalog";
     public const string Tours = "Tour";
+    public const string PublicTours = "Tour/public";
     public const string ToursPreview = "Tour/preview";
     public const string Audio = "Audio";
     public const string PublicLocationAudioTemplate = "Audio/public/location/{0}";

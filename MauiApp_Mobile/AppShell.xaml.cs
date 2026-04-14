@@ -7,6 +7,7 @@ public partial class AppShell : Shell
     public AppShell()
     {
         InitializeComponent();
+        Routing.RegisterRoute("playback-queue", typeof(Views.PlaybackQueuePage));
         ApplyTabTexts();
         LocalizationService.Instance.PropertyChanged += (_, _) => ApplyTabTexts();
     }

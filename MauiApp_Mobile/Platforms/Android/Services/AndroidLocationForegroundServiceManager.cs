@@ -8,32 +8,22 @@ public static partial class AndroidLocationForegroundServiceManager
 {
     public static partial void Start()
     {
-        var activity = Platform.CurrentActivity;
-        if (activity is null)
-        {
-            return;
-        }
-
-        var intent = new Intent(activity, typeof(LocationForegroundService));
+        var context = (Context?)Platform.CurrentActivity ?? Android.App.Application.Context;
+        var intent = new Intent(context, typeof(LocationForegroundService));
         if (OperatingSystem.IsAndroidVersionAtLeast(26))
         {
-            activity.StartForegroundService(intent);
+            context.StartForegroundService(intent);
             return;
         }
 
-        activity.StartService(intent);
+        context.StartService(intent);
     }
 
     public static partial void Stop()
     {
-        var activity = Platform.CurrentActivity;
-        if (activity is null)
-        {
-            return;
-        }
-
-        var intent = new Intent(activity, typeof(LocationForegroundService));
-        activity.StopService(intent);
+        var context = (Context?)Platform.CurrentActivity ?? Android.App.Application.Context;
+        var intent = new Intent(context, typeof(LocationForegroundService));
+        context.StopService(intent);
     }
 }
 #endif

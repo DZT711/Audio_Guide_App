@@ -849,7 +849,7 @@
                                                          Spacing="10">
                                         <BindableLayout.ItemTemplate>
                                             <DataTemplate x:DataType="local:PlaceDetailAudioTrack">
-                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto"
+                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto"
                                                       ColumnSpacing="10">
                                                     <Border BackgroundColor="{DynamicResource SurfaceAlt}"
                                                             Stroke="{DynamicResource BorderColor}"
@@ -930,6 +930,24 @@
                                                     </Border>
 
                                                     <Border Grid.Column="3"
+                                                            BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                            Stroke="{DynamicResource BorderColor}"
+                                                            StrokeThickness="1"
+                                                            StrokeShape="RoundRectangle 18"
+                                                            WidthRequest="36"
+                                                            HeightRequest="36"
+                                                            VerticalOptions="Center">
+                                                        <Border.GestureRecognizers>
+                                                            <TapGestureRecognizer Tapped="OnAudioTrackQueueTapped" />
+                                                        </Border.GestureRecognizers>
+                                                        <Label Text="+"
+                                                               TextColor="{DynamicResource BodyText}"
+                                                               FontSize="16"
+                                                               HorizontalTextAlignment="Center"
+                                                               VerticalTextAlignment="Center" />
+                                                    </Border>
+
+                                                    <Border Grid.Column="4"
                                                             BackgroundColor="{DynamicResource PrimaryGreen}"
                                                             StrokeThickness="0"
                                                             StrokeShape="RoundRectangle 18"

@@ -44,6 +44,7 @@ public partial class MapPage : ContentPage
     private MapTourStopViewModel? _nextTourStop;
     private CancellationTokenSource? _activeSearchCts;
     private CancellationTokenSource? _mapLoadingCts;
+    private Location? _lastMapLocationRendered;
     private int _searchRequestVersion;
 
     public ObservableCollection<MapTourViewModel> AvailableTours => _availableTours;
@@ -94,8 +95,10 @@ public partial class MapPage : ContentPage
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
         ThemeService.Instance.PropertyChanged += OnThemeChanged;
         AppSettingsService.Instance.PropertyChanged += OnAppSettingsChanged;
+        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
         Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
         UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
+        UserLocationService.Instance.HeadingUpdated += OnHeadingUpdated;
     }
 
     protected override void OnAppearing()
@@ -123,6 +126,8 @@ public partial class MapPage : ContentPage
             _ = TryFocusPendingPlaceAsync();
             _ = LoadToursAsync();
         }
+
+        UserLocationService.Instance.EnsureHeadingTracking();
     }
 
     protected override void OnDisappearing()
@@ -150,6 +155,7 @@ public partial class MapPage : ContentPage
             CancelPendingOperations();
             DetachEventHandlers();
             UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
+            UserLocationService.Instance.HeadingUpdated -= OnHeadingUpdated;
         }
 
         base.OnHandlerChanging(args);
@@ -232,6 +238,7 @@ public partial class MapPage : ContentPage
             if (_isMapReady)
             {
                 await ApplyMapThemeAsync();
+                await ApplyMapBehaviorAsync();
             }
         });
     }
@@ -239,20 +246,46 @@ public partial class MapPage : ContentPage
     private void OnAppSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (!string.Equals(e.PropertyName, nameof(AppSettingsService.DeveloperModeEnabled), StringComparison.Ordinal) &&
-            !string.Equals(e.PropertyName, nameof(AppSettingsService.ApiModeEnabled), StringComparison.Ordinal))
+            !string.Equals(e.PropertyName, nameof(AppSettingsService.ApiModeEnabled), StringComparison.Ordinal) &&
+            !string.Equals(e.PropertyName, nameof(AppSettingsService.ShowPoiRadiusEnabled), StringComparison.Ordinal) &&
+            !string.Equals(e.PropertyName, nameof(AppSettingsService.AutoFocusIdleSeconds), StringComparison.Ordinal) &&
+            !string.Equals(e.PropertyName, nameof(AppSettingsService.TriggerRadiusMeters), StringComparison.Ordinal))
         {
             return;
         }
 
-        MainThread.BeginInvokeOnMainThread(() =>
+        MainThread.BeginInvokeOnMainThread(async () =>
         {
             UpdateDeveloperModeAvailability();
             UpdateConnectionStatusChip();
+            if (_isMapReady)
+            {
+                await SyncPlacesToMapAsync();
+                await ApplyMapBehaviorAsync();
+            }
         });
     }
 
     private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e) =>
         MainThread.BeginInvokeOnMainThread(UpdateConnectionStatusChip);
+
+    private void OnSettingsSaved(object? sender, AppSettingsSnapshot snapshot)
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            UpdateDeveloperModeAvailability();
+            UpdateConnectionStatusChip();
+            if (_isMapReady)
+            {
+                await SyncPlacesToMapAsync();
+                await ApplyMapThemeAsync();
+                await ApplyMapStringsAsync();
+                await ApplyMapBehaviorAsync();
+                await ApplyDeveloperModeAsync();
+                await LoadToursAsync(forceRefresh: AppDataModeService.Instance.IsApiEnabled);
+            }
+        });
+    }
 
     private async void LoadMap()
     {
@@ -263,6 +296,18 @@ public partial class MapPage : ContentPage
             using var stream = await FileSystem.OpenAppPackageFileAsync("leaflet_map.html");
             using var reader = new StreamReader(stream);
             var htmlContent = await reader.ReadToEndAsync();
+
+            using var leafletCssStream = await FileSystem.OpenAppPackageFileAsync("vendor/leaflet/leaflet.css");
+            using var leafletCssReader = new StreamReader(leafletCssStream);
+            var leafletCss = await leafletCssReader.ReadToEndAsync();
+
+            using var leafletJsStream = await FileSystem.OpenAppPackageFileAsync("vendor/leaflet/leaflet.js");
+            using var leafletJsReader = new StreamReader(leafletJsStream);
+            var leafletJs = await leafletJsReader.ReadToEndAsync();
+
+            htmlContent = htmlContent
+                .Replace("__LEAFLET_CSS__", leafletCss, StringComparison.Ordinal)
+                .Replace("__LEAFLET_JS__", leafletJs, StringComparison.Ordinal);
 
 #if ANDROID
             WebViewHandler.Mapper.AppendToMapping("CustomUserAgent", (handler, view) =>
@@ -361,6 +406,7 @@ public partial class MapPage : ContentPage
             await SyncPlacesToMapAsync();
             await ApplyMapThemeAsync();
             await ApplyMapStringsAsync();
+            await ApplyMapBehaviorAsync();
             await ApplyDeveloperModeAsync();
             await CompleteMapLoadingStateAsync();
             await TryFocusPendingPlaceAsync();
@@ -463,6 +509,24 @@ public partial class MapPage : ContentPage
         }, JsonInteropOptions);
 
         await EvaluateMapScriptAsync($"window.setMapStrings && window.setMapStrings({stringsJson});");
+    }
+
+    private async Task ApplyMapBehaviorAsync()
+    {
+        if (!_isMapReady)
+        {
+            return;
+        }
+
+        var behaviorJson = JsonSerializer.Serialize(new MapBehaviorPayload
+        {
+            ShowPoiRadius = AppSettingsService.Instance.ShowPoiRadiusEnabled,
+            PoiRadiusMeters = AppSettingsService.Instance.TriggerRadiusMeters,
+            AutoFocusIdleSeconds = AppSettingsService.Instance.AutoFocusIdleSeconds,
+            CameraMoveThresholdMeters = 5
+        }, JsonInteropOptions);
+
+        await EvaluateMapScriptAsync($"window.applyMapBehavior && window.applyMapBehavior({behaviorJson});");
     }
 
     private async void OnSearchCompleted(object? sender, EventArgs e)
@@ -798,8 +862,10 @@ public partial class MapPage : ContentPage
 
             UserLocationService.Instance.UpdateLocation(location);
             await LocationTrackingService.Instance.StartTrackingFromSettingsAsync(requestBackgroundUpgrade: true);
+            UserLocationService.Instance.EnsureHeadingTracking();
             await ApplyMapThemeAsync();
             await ApplyMapStringsAsync();
+            await ApplyMapBehaviorAsync();
             await ShowCurrentLocationOnMapAsync(location, shouldUpdateStatus: true);
         }
         catch (FeatureNotEnabledException)
@@ -932,11 +998,45 @@ public partial class MapPage : ContentPage
         }
     }
 
+    private async void OnHeadingUpdated(object? sender, double? heading)
+    {
+        if (_isPageDisposing || !_isMapReady || heading is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                if (_isPageDisposing || !_isMapReady)
+                {
+                    return;
+                }
+
+                await EvaluateMapScriptAsync(
+                    $"window.updateCurrentLocationHeading && window.updateCurrentLocationHeading({heading.Value.ToString(CultureInfo.InvariantCulture)});");
+            });
+        }
+        catch
+        {
+        }
+    }
+
     private async Task ShowCurrentLocationOnMapAsync(Location location, bool shouldUpdateStatus)
     {
+        if (!shouldUpdateStatus &&
+            _lastMapLocationRendered is not null &&
+            Location.CalculateDistance(_lastMapLocationRendered, location, DistanceUnits.Kilometers) * 1000d < 2d)
+        {
+            return;
+        }
+
+        var heading = UserLocationService.Instance.HeadingDegrees ?? 0d;
         var script =
-            $"window.showCurrentLocation && window.showCurrentLocation({location.Latitude.ToString(CultureInfo.InvariantCulture)}, {location.Longitude.ToString(CultureInfo.InvariantCulture)});";
+            $"window.showCurrentLocation && window.showCurrentLocation({location.Latitude.ToString(CultureInfo.InvariantCulture)}, {location.Longitude.ToString(CultureInfo.InvariantCulture)}, {heading.ToString(CultureInfo.InvariantCulture)}, {(shouldUpdateStatus ? "true" : "false")});";
         var rawNearest = await EvaluateMapScriptAsync(script);
+        _lastMapLocationRendered = location;
         var focusResult = ParseFocusResult(rawNearest);
 
         if (!shouldUpdateStatus)
@@ -1008,6 +1108,7 @@ public partial class MapPage : ContentPage
                 Category = point.Category,
                 Latitude = point.Latitude,
                 Longitude = point.Longitude,
+                RadiusMeters = point.RadiusMeters,
                 Image = await ResolveMapImageSourceAsync(point.Image),
                 GalleryImages = await ResolveMapImageSourcesAsync(point.GalleryImages)
             });
@@ -1041,7 +1142,7 @@ public partial class MapPage : ContentPage
 
     private async Task LoadToursAsync(bool forceRefresh = false)
     {
-        if (IsTourBusy || !AppDataModeService.Instance.IsApiEnabled)
+        if (IsTourBusy)
         {
             return;
         }
@@ -1552,6 +1653,7 @@ public partial class MapPage : ContentPage
         LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
         ThemeService.Instance.PropertyChanged -= OnThemeChanged;
         AppSettingsService.Instance.PropertyChanged -= OnAppSettingsChanged;
+        AppSettingsService.Instance.SettingsSaved -= OnSettingsSaved;
         Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
     }
 
@@ -1650,6 +1752,7 @@ public partial class MapPage : ContentPage
         public string Category { get; init; } = string.Empty;
         public double Latitude { get; init; }
         public double Longitude { get; init; }
+        public double RadiusMeters { get; init; }
         public string Image { get; init; } = string.Empty;
         public IReadOnlyList<string> GalleryImages { get; init; } = Array.Empty<string>();
     }
@@ -1682,6 +1785,14 @@ public partial class MapPage : ContentPage
         public string CurrentLocationTitle { get; init; } = string.Empty;
         public string SearchResultTitle { get; init; } = string.Empty;
         public string NearestPrefix { get; init; } = string.Empty;
+    }
+
+    private sealed class MapBehaviorPayload
+    {
+        public bool ShowPoiRadius { get; init; }
+        public double PoiRadiusMeters { get; init; }
+        public int AutoFocusIdleSeconds { get; init; }
+        public double CameraMoveThresholdMeters { get; init; }
     }
 
     private sealed class NominatimResult

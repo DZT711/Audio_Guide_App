@@ -36,6 +36,10 @@ public sealed partial class AudioPlaybackService
 #if ANDROID
     private MediaPlayer? _androidPlayer;
     private AndroidTts? _androidTts;
+    private AudioManager? _androidAudioManager;
+    private PlaybackAudioFocusChangeListener? _androidAudioFocusChangeListener;
+    private AudioFocusRequestClass? _androidAudioFocusRequest;
+    private bool _pauseRequestedByAudioFocus;
 #endif
 
 #if WINDOWS
@@ -173,12 +177,14 @@ public sealed partial class AudioPlaybackService
         RaisePlaybackProgressChanged();
     }
 
-    public async Task PauseAsync()
+    public async Task PauseAsync(bool requestedByAudioFocus = false)
     {
         if (CurrentTrack is null || IsLoading || IsPaused)
         {
             return;
         }
+
+        _pauseRequestedByAudioFocus = requestedByAudioFocus;
 
         if (_ttsCancellationTokenSource is not null && !CanSeek)
         {
@@ -241,6 +247,8 @@ public sealed partial class AudioPlaybackService
             return;
         }
 
+        _pauseRequestedByAudioFocus = false;
+
 #if ANDROID
         if (_androidPlayer is not null)
         {
@@ -274,6 +282,23 @@ public sealed partial class AudioPlaybackService
 
     public Task TogglePauseResumeAsync(CancellationToken cancellationToken = default) =>
         IsPlaying ? PauseAsync() : ResumeAsync(cancellationToken);
+
+    public Task ApplyRuntimeVolumeAsync()
+    {
+#if ANDROID
+        if (_androidPlayer is not null)
+        {
+            var volume = AppSettingsService.Instance.PlaybackVolumeRatio;
+            _androidPlayer.SetVolume(volume, volume);
+        }
+#elif WINDOWS
+        if (_windowsPlayer is not null)
+        {
+            _windowsPlayer.Volume = AppSettingsService.Instance.PlaybackVolumeRatio;
+        }
+#endif
+        return Task.CompletedTask;
+    }
 
     public Task SeekByAsync(TimeSpan offset)
     {
@@ -353,6 +378,10 @@ public sealed partial class AudioPlaybackService
         {
             options.Locale = locale;
         }
+
+#if ANDROID
+        RequestAndroidAudioFocus();
+#endif
 
         MarkPlaybackStarted();
         await MauiTextToSpeech.Default.SpeakAsync(track.Script, options, _ttsCancellationTokenSource.Token);
@@ -533,6 +562,7 @@ public sealed partial class AudioPlaybackService
     {
 #if ANDROID
         var playbackSource = await PrepareAndroidPlaybackSourceAsync(source, cancellationToken);
+        RequestAndroidAudioFocus();
         _androidPlayer?.Release();
         _androidPlayer?.Dispose();
         _androidPlayer = new MediaPlayer();
@@ -638,6 +668,8 @@ public sealed partial class AudioPlaybackService
             _androidPlayer.Dispose();
             _androidPlayer = null;
         }
+
+        ReleaseAndroidAudioFocus();
 
         return Task.CompletedTask;
 #elif WINDOWS
@@ -847,6 +879,96 @@ public sealed partial class AudioPlaybackService
             ? TimeSpan.FromMilliseconds(_androidPlayer.Duration)
             : CurrentDuration;
         CanSeek = _androidPlayer.Duration > 0;
+    }
+
+    private void RequestAndroidAudioFocus()
+    {
+        try
+        {
+            var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+            _androidAudioManager ??= activity?.GetSystemService(Android.Content.Context.AudioService) as AudioManager
+                ?? Android.App.Application.Context.GetSystemService(Android.Content.Context.AudioService) as AudioManager;
+
+            if (_androidAudioManager is null)
+            {
+                return;
+            }
+
+            _androidAudioFocusChangeListener ??= new PlaybackAudioFocusChangeListener(this);
+            if (OperatingSystem.IsAndroidVersionAtLeast(26))
+            {
+                _androidAudioFocusRequest ??= new AudioFocusRequestClass.Builder(AudioFocus.Gain)
+                    .SetAudioAttributes(new AudioAttributes.Builder()
+                        .SetUsage(AudioUsageKind.Media)
+                        .SetContentType(AudioContentType.Speech)
+                        .Build())
+                    .SetWillPauseWhenDucked(true)
+                    .SetOnAudioFocusChangeListener(_androidAudioFocusChangeListener)
+                    .Build();
+
+                _androidAudioManager.RequestAudioFocus(_androidAudioFocusRequest);
+                return;
+            }
+
+            _androidAudioManager.RequestAudioFocus(_androidAudioFocusChangeListener, Android.Media.Stream.Music, AudioFocus.Gain);
+        }
+        catch
+        {
+        }
+    }
+
+    private void ReleaseAndroidAudioFocus()
+    {
+        try
+        {
+            if (_androidAudioManager is null || _androidAudioFocusChangeListener is null)
+            {
+                _pauseRequestedByAudioFocus = false;
+                return;
+            }
+
+            if (OperatingSystem.IsAndroidVersionAtLeast(26) && _androidAudioFocusRequest is not null)
+            {
+                _androidAudioManager.AbandonAudioFocusRequest(_androidAudioFocusRequest);
+            }
+            else
+            {
+                _androidAudioManager.AbandonAudioFocus(_androidAudioFocusChangeListener);
+            }
+        }
+        catch
+        {
+        }
+        finally
+        {
+            _pauseRequestedByAudioFocus = false;
+        }
+    }
+
+    private void HandleAndroidAudioFocusChange(AudioFocus focusChange)
+    {
+        switch (focusChange)
+        {
+            case AudioFocus.Loss:
+            case AudioFocus.LossTransient:
+            case AudioFocus.LossTransientCanDuck:
+                _ = MainThread.InvokeOnMainThreadAsync(async () => await PauseAsync(requestedByAudioFocus: true));
+                break;
+        }
+    }
+
+    private sealed class PlaybackAudioFocusChangeListener(AudioPlaybackService owner)
+        : Java.Lang.Object, AudioManager.IOnAudioFocusChangeListener
+    {
+        private readonly WeakReference<AudioPlaybackService> _owner = new(owner);
+
+        public void OnAudioFocusChange(AudioFocus focusChange)
+        {
+            if (_owner.TryGetTarget(out var target))
+            {
+                target.HandleAndroidAudioFocusChange(focusChange);
+            }
+        }
     }
 #endif
 }

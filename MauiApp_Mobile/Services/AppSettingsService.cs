@@ -22,6 +22,8 @@ public sealed class AppSettingsService : INotifyPropertyChanged
     private const string DeveloperModeKey = "app_settings.developer_mode";
     private const string GpsAccuracyKey = "app_settings.gps_accuracy";
     private const string MiniPlayerKey = "app_settings.mini_player";
+    private const string ShowPoiRadiusKey = "app_settings.show_poi_radius";
+    private const string AutoFocusIdleSecondsKey = "app_settings.auto_focus_idle_seconds";
     private const string InitializationMarkerKey = "app_settings.initialized";
 
     public static AppSettingsService Instance { get; } = new();
@@ -32,6 +34,7 @@ public sealed class AppSettingsService : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+    public event EventHandler<AppSettingsSnapshot>? SettingsSaved;
 
     public double ReadingSpeed { get; private set; }
     public double VolumePercent { get; private set; }
@@ -48,6 +51,8 @@ public sealed class AppSettingsService : INotifyPropertyChanged
     public bool DeveloperModeEnabled { get; private set; }
     public GpsAccuracyOption GpsAccuracy { get; private set; } = GpsAccuracyOption.High;
     public bool MiniPlayerEnabled { get; private set; } = true;
+    public bool ShowPoiRadiusEnabled { get; private set; } = true;
+    public int AutoFocusIdleSeconds { get; private set; } = 60;
     public float PlaybackVolumeRatio => (float)Math.Clamp(VolumePercent / 100d, 0d, 1d);
     public float AndroidSpeechRate => (float)Math.Clamp(ReadingSpeed, 0.5d, 2.0d);
 
@@ -78,7 +83,9 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             await ReadBoolAsync(ApiModeKey, ApiModeEnabled, cancellationToken),
             await ReadBoolAsync(DeveloperModeKey, DeveloperModeEnabled, cancellationToken),
             await ReadGpsAccuracyAsync(cancellationToken),
-            await ReadBoolAsync(MiniPlayerKey, MiniPlayerEnabled, cancellationToken));
+            await ReadBoolAsync(MiniPlayerKey, MiniPlayerEnabled, cancellationToken),
+            await ReadBoolAsync(ShowPoiRadiusKey, ShowPoiRadiusEnabled, cancellationToken),
+            await ReadIntAsync(AutoFocusIdleSecondsKey, AutoFocusIdleSeconds, cancellationToken));
 
         ApplySnapshot(snapshot, persistToLegacyPreferences: false);
     }
@@ -98,7 +105,9 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         ApiModeEnabled,
         DeveloperModeEnabled,
         GpsAccuracy,
-        MiniPlayerEnabled);
+        MiniPlayerEnabled,
+        ShowPoiRadiusEnabled,
+        AutoFocusIdleSeconds);
 
     public async Task SaveAsync(AppSettingsSnapshot snapshot, CancellationToken cancellationToken = default)
     {
@@ -119,7 +128,10 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         await MobileDatabaseService.Instance.SetSettingAsync(DeveloperModeKey, DeveloperModeEnabled.ToString(), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(GpsAccuracyKey, GpsAccuracy.ToString(), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(MiniPlayerKey, MiniPlayerEnabled.ToString(), cancellationToken);
+        await MobileDatabaseService.Instance.SetSettingAsync(ShowPoiRadiusKey, ShowPoiRadiusEnabled.ToString(), cancellationToken);
+        await MobileDatabaseService.Instance.SetSettingAsync(AutoFocusIdleSecondsKey, AutoFocusIdleSeconds.ToString(CultureInfo.InvariantCulture), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(InitializationMarkerKey, bool.TrueString, cancellationToken);
+        SettingsSaved?.Invoke(this, CreateSnapshot());
     }
 
     private void ApplySnapshot(AppSettingsSnapshot snapshot, bool persistToLegacyPreferences)
@@ -149,6 +161,8 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         DeveloperModeEnabled = snapshot.DeveloperModeEnabled;
         GpsAccuracy = gpsAccuracy;
         MiniPlayerEnabled = snapshot.MiniPlayerEnabled;
+        ShowPoiRadiusEnabled = snapshot.ShowPoiRadiusEnabled;
+        AutoFocusIdleSeconds = Math.Clamp(snapshot.AutoFocusIdleSeconds, -1, 3600);
 
         if (persistToLegacyPreferences)
         {
@@ -167,6 +181,8 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             Preferences.Default.Set(DeveloperModeKey, DeveloperModeEnabled);
             Preferences.Default.Set(GpsAccuracyKey, GpsAccuracy.ToString());
             Preferences.Default.Set(MiniPlayerKey, MiniPlayerEnabled);
+            Preferences.Default.Set(ShowPoiRadiusKey, ShowPoiRadiusEnabled);
+            Preferences.Default.Set(AutoFocusIdleSecondsKey, AutoFocusIdleSeconds);
         }
 
         LocalizationService.Instance.Language = LanguageCode;
@@ -188,6 +204,8 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         RaisePropertyChanged(nameof(DeveloperModeEnabled));
         RaisePropertyChanged(nameof(GpsAccuracy));
         RaisePropertyChanged(nameof(MiniPlayerEnabled));
+        RaisePropertyChanged(nameof(ShowPoiRadiusEnabled));
+        RaisePropertyChanged(nameof(AutoFocusIdleSeconds));
         RaisePropertyChanged(nameof(PlaybackVolumeRatio));
         RaisePropertyChanged(nameof(AndroidSpeechRate));
     }
@@ -221,7 +239,9 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             Preferences.Default.Get(ApiModeKey, true),
             Preferences.Default.Get(DeveloperModeKey, false),
             gpsAccuracy,
-            Preferences.Default.Get(MiniPlayerKey, true));
+            Preferences.Default.Get(MiniPlayerKey, true),
+            Preferences.Default.Get(ShowPoiRadiusKey, true),
+            Preferences.Default.Get(AutoFocusIdleSecondsKey, 60));
     }
 
     private async Task<double> ReadDoubleAsync(string key, double fallback, CancellationToken cancellationToken)
@@ -254,6 +274,12 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         return Enum.TryParse(value, true, out GpsAccuracyOption parsed) ? parsed : GpsAccuracy;
     }
 
+    private async Task<int> ReadIntAsync(string key, int fallback, CancellationToken cancellationToken)
+    {
+        var value = await MobileDatabaseService.Instance.GetSettingAsync(key, cancellationToken);
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
+    }
+
     private static double Clamp(double value, double min, double max) => Math.Clamp(value, min, max);
 
     private void RaisePropertyChanged([CallerMemberName] string? propertyName = null) =>
@@ -275,7 +301,9 @@ public readonly record struct AppSettingsSnapshot(
     bool ApiModeEnabled,
     bool DeveloperModeEnabled,
     GpsAccuracyOption GpsAccuracy,
-    bool MiniPlayerEnabled);
+    bool MiniPlayerEnabled,
+    bool ShowPoiRadiusEnabled,
+    int AutoFocusIdleSeconds);
 
 public enum GpsAccuracyOption
 {

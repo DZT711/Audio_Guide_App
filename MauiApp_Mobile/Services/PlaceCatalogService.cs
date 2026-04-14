@@ -195,6 +195,7 @@ public sealed class PlaceCatalogService
                 Category = item.Category,
                 Latitude = item.Latitude,
                 Longitude = item.Longitude,
+                RadiusMeters = AppSettingsService.Instance.TriggerRadiusMeters,
                 Image = string.IsNullOrWhiteSpace(item.PreferenceImage) ? item.Image : item.PreferenceImage,
                 GalleryImages = SelectMapGalleryImages(item)
             })
@@ -968,6 +969,7 @@ public sealed class PlaceCatalogService
         public string Category { get; init; } = string.Empty;
         public double Latitude { get; init; }
         public double Longitude { get; init; }
+        public double RadiusMeters { get; init; }
         public string Image { get; init; } = string.Empty;
         public IReadOnlyList<string> GalleryImages { get; init; } = Array.Empty<string>();
     }
