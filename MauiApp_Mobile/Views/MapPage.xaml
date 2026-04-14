@@ -3,10 +3,11 @@
     x:Class="MauiApp_Mobile.Views.MapPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:MauiApp_Mobile.Views.Controls"
     x:Name="ThisPage"
     BackgroundColor="{DynamicResource LightBg}">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*,Auto">
         <Grid Style="{StaticResource TopHeaderGridStyle}"
               MinimumHeightRequest="128">
             <VerticalStackLayout Spacing="8" VerticalOptions="Center">
@@ -326,6 +327,184 @@
                     <TapGestureRecognizer Tapped="OnDeveloperModeTapped" />
                 </Border.GestureRecognizers>
             </Border>
+
+            <Border x:Name="TourButton"
+                    BackgroundColor="{DynamicResource PopupBg}"
+                    HorizontalOptions="End"
+                    Margin="0,140,16,0"
+                    Padding="0"
+                    Stroke="{DynamicResource BorderColor}"
+                    StrokeShape="RoundRectangle 24"
+                    StrokeThickness="1.2"
+                    VerticalOptions="Start"
+                    WidthRequest="48"
+                    HeightRequest="48"
+                    ZIndex="21">
+                <Grid>
+                    <Label FontSize="18"
+                           HorizontalOptions="Center"
+                           Text="🗺"
+                           VerticalOptions="Center" />
+                </Grid>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnTourButtonTapped" />
+                </Border.GestureRecognizers>
+            </Border>
+
+            <Border IsVisible="{Binding IsTourPanelVisible}"
+                    BackgroundColor="{DynamicResource PopupBg}"
+                    Margin="16,110,16,16"
+                    Padding="14"
+                    Stroke="{DynamicResource BorderColor}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 22"
+                    VerticalOptions="End"
+                    ZIndex="22">
+                <Grid RowDefinitions="Auto,Auto,*"
+                      RowSpacing="12">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="8">
+                        <Label Text="🧭"
+                               FontSize="16"
+                               VerticalOptions="Center" />
+                        <VerticalStackLayout Grid.Column="1"
+                                             Spacing="2">
+                            <Label Text="{Binding TourPanelHeaderTitle}"
+                                   FontAttributes="Bold"
+                                   FontSize="16"
+                                   TextColor="{DynamicResource BodyText}" />
+                            <Label Text="{Binding TourPanelHeaderSubtitle}"
+                                   FontSize="12"
+                                   TextColor="{DynamicResource MutedText}" />
+                        </VerticalStackLayout>
+                        <Label Grid.Column="2"
+                               Text="✕"
+                               FontSize="16"
+                               TextColor="{DynamicResource MutedText}"
+                               VerticalOptions="Center">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnCloseTourPanelTapped" />
+                            </Label.GestureRecognizers>
+                        </Label>
+                    </Grid>
+
+                    <Grid Grid.Row="1"
+                          IsVisible="{Binding IsTourDetailVisible}"
+                          ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="8">
+                        <Label Text="‹"
+                               FontSize="18"
+                               TextColor="{DynamicResource BodyText}"
+                               VerticalOptions="Center">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnTourBackTapped" />
+                            </Label.GestureRecognizers>
+                        </Label>
+                        <VerticalStackLayout Grid.Column="1"
+                                             Spacing="2">
+                            <Label Text="{Binding SelectedTourSummaryText}"
+                                   FontSize="12"
+                                   TextColor="{DynamicResource BodyText}" />
+                            <Label Text="{Binding SelectedTourRoadHintText}"
+                                   FontSize="11"
+                                   TextColor="{DynamicResource MutedText}" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <Grid Grid.Row="2">
+                        <ScrollView IsVisible="{Binding IsTourListVisible}">
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding AvailableTours}"
+                                                 Spacing="10">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="12"
+                                                BackgroundColor="{DynamicResource CardBg}"
+                                                Stroke="{DynamicResource DividerColor}"
+                                                StrokeThickness="1"
+                                                StrokeShape="RoundRectangle 16">
+                                            <Grid ColumnDefinitions="*,Auto"
+                                                  ColumnSpacing="10">
+                                                <VerticalStackLayout Spacing="4">
+                                                    <Label Text="{Binding Name}"
+                                                           FontAttributes="Bold"
+                                                           FontSize="14"
+                                                           TextColor="{DynamicResource BodyText}" />
+                                                    <Label Text="{Binding Description}"
+                                                           FontSize="12"
+                                                           LineBreakMode="TailTruncation"
+                                                           MaxLines="2"
+                                                           TextColor="{DynamicResource MutedText}" />
+                                                    <Label Text="{Binding DistanceText}"
+                                                           FontSize="11"
+                                                           TextColor="{DynamicResource PrimaryGreen}" />
+                                                </VerticalStackLayout>
+                                                <Label Grid.Column="1"
+                                                       Text="›"
+                                                       FontSize="18"
+                                                       TextColor="{DynamicResource MutedText}"
+                                                       VerticalOptions="Center" />
+                                            </Grid>
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnTourItemTapped" />
+                                            </Border.GestureRecognizers>
+                                        </Border>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </ScrollView>
+
+                        <VerticalStackLayout IsVisible="{Binding IsTourDetailVisible}"
+                                             Spacing="10">
+                            <Border BackgroundColor="{DynamicResource CardBg}"
+                                    Stroke="{DynamicResource DividerColor}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 16"
+                                    Padding="12">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="{Binding ActiveTourStop.Name}"
+                                           FontAttributes="Bold"
+                                           FontSize="15"
+                                           TextColor="{DynamicResource BodyText}" />
+                                    <Label Text="{Binding ActiveTourStop.Address}"
+                                           FontSize="12"
+                                           TextColor="{DynamicResource MutedText}" />
+                                    <Label Text="{Binding ActiveTourProgressText}"
+                                           FontSize="12"
+                                           TextColor="{DynamicResource PrimaryGreen}" />
+                                    <Label Text="{Binding NextTourStopText}"
+                                           FontSize="12"
+                                           TextColor="{DynamicResource MutedText}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <Grid ColumnDefinitions="*,Auto,Auto"
+                                  ColumnSpacing="8">
+                                <Button Text="Nghe điểm này"
+                                        Clicked="OnTourListenTapped"
+                                        BackgroundColor="{DynamicResource PrimaryGreen}"
+                                        TextColor="White"
+                                        CornerRadius="14" />
+                                <Button Grid.Column="1"
+                                        Text="Chi tiết"
+                                        Clicked="OnTourDetailTapped"
+                                        BackgroundColor="{DynamicResource SurfaceAlt}"
+                                        TextColor="{DynamicResource BodyText}"
+                                        CornerRadius="14" />
+                                <Button Grid.Column="2"
+                                        Text="Tiếp"
+                                        Clicked="OnTourNextTapped"
+                                        IsEnabled="{Binding HasNextTourStop}"
+                                        BackgroundColor="{DynamicResource SurfaceAlt}"
+                                        TextColor="{DynamicResource BodyText}"
+                                        CornerRadius="14" />
+                            </Grid>
+                        </VerticalStackLayout>
+                    </Grid>
+                </Grid>
+            </Border>
         </Grid>
+
+        <controls:MiniPlayerView Grid.Row="2"
+                                 ZIndex="40" />
     </Grid>
 </ContentPage>

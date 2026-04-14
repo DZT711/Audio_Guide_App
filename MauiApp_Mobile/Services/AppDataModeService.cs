@@ -44,6 +44,11 @@ public sealed class AppDataModeService : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsApiEnabled));
     }
 
+    public void SwitchToOfflineFallback()
+    {
+        IsApiEnabled = false;
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

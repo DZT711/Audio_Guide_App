@@ -32,6 +32,7 @@ public class PlaceItem : INotifyPropertyChanged
     public string AudioCountText { get; set; } = "";
     public IReadOnlyList<PublicAudioTrackDto> AudioTracks { get; set; } = Array.Empty<PublicAudioTrackDto>();
     public IReadOnlyList<string> AvailableVoiceGenders { get; set; } = Array.Empty<string>();
+    public string LanguageBadgeSummaryText { get; set; } = "";
     public DateTimeOffset? HistoryAddedAt { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
@@ -84,6 +85,7 @@ public class PlaceItem : INotifyPropertyChanged
     }
 
     public string PlayIcon => (IsPlaying || IsPlayed) ? "❚❚" : "▶";
+    public bool HasLanguageBadges => !string.IsNullOrWhiteSpace(LanguageBadgeSummaryText);
 
     public string HistoryRelativeTimeText
     {

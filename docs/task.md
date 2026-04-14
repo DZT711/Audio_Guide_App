@@ -31,7 +31,7 @@ edit img file in  edit form while user add multiple img cant save✅
 
 seperate preference img for each poi by add new field in db and add new required img label upload for that field still create data into location image table but auto set that pic the sortOrder to 1 ✅
 
-when click play on audio poi ,show a list of audio file if have more than 1 file and play the one user choose than separate audio file by language and file/tts
+when click play on audio poi ,show a list of audio file if have more than 1 file and play the one user choose than separate audio file by language and file/tts✅
 
 real static for all information in dashboard page
 
@@ -41,7 +41,7 @@ add sever info/version,.. footer in admin site✅
 
 decorate /remove,.. blank section in admin site
 
-toggle admin navigation bar in or out smoothly ✅/ also add light left/right hightlight to know which page user is on
+toggle admin navigation bar in or out smoothly ✅/ also add light left/right hightlight to know which page user is on✅
 
 add motion effect for pages when user scroll down/up✅
 
@@ -97,11 +97,23 @@ fix button stop when click again while audio is playing
 
 fix refeshview dont working it always in status loading also instantly refesh data
 
-descrease refesh time to 10 or 30s
+fix notification content
+
+sync all text in one lang only except poi data
+
+dropdown content in offline tab
+
+add arrow position in map to show user direction
+
+decrease spacing each setting content
+
+ui/ux header
 
 ## (extend task)-MVP
 
 add automation audio to text autofill in script label and from scipt auto create audio file save in system when user not upload file
+
+auto translate tts script to other language when user add/edit script in one language
 
 add poi CRUD management when someone change any data need to review request and appored it or not✅
 
@@ -113,7 +125,7 @@ minisize the map and pin all poi in vietnam or in tphcm district 4✅
 
 rate system
 
-login/register for client
+<!-- login/register for client -->
 
 favorite POI
 
@@ -123,17 +135,17 @@ setting can change dashboard language
 
 pagination data set
 
-modernize UI/UX
+modernize UI/UX✅
 
-db for mobile setting/offline data
+db for mobile setting/offline data✅
 
 auto play audio have most priority in overlappiing audio area
 
-admin forgot /remmeber password feature
+admin forgot /remmeber password feature✅
 
 request reset password
 
-admin/dev can reset password for user
+admin/dev can reset password for user✅
 
 allow user watch details statistics of their own data✅
 
@@ -143,4 +155,4 @@ auto warn user cannt load preview vietnamese male tts when the browser/device do
 
 change sever's database into sql sever
 
-add mobile sqlite
+add mobile sqlite✅

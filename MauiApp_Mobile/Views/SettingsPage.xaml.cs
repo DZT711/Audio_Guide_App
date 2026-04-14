@@ -132,6 +132,7 @@ public partial class SettingsPage : ContentPage
         BatterySaverLabel.Text = LocalizationService.Instance.T("Settings.BatterySaver");
         ApiModeLabel.Text = LocalizationService.Instance.T("Settings.Offline");
         DeveloperModeLabel.Text = "Hiện nút dev trên bản đồ";
+        MiniPlayerLabel.Text = "Hiện thanh phát mini";
         SaveSettingsButton.Text = LocalizationService.Instance.T("Settings.Save");
 
         LanguagePopupTitleLabel.Text = LocalizationService.Instance.T("Settings.ChooseLanguage");
@@ -287,6 +288,7 @@ public partial class SettingsPage : ContentPage
         BackgroundTrackingSwitch.IsToggled = settings.BackgroundTrackingEnabled;
         BatterySaverSwitch.IsToggled = settings.BatterySaverEnabled;
         DeveloperModeSwitch.IsToggled = settings.DeveloperModeEnabled;
+        MiniPlayerSwitch.IsToggled = settings.MiniPlayerEnabled;
         _isSyncingGpsControls = true;
         GpsAccuracyPicker.SelectedIndex = (int)settings.GpsAccuracy;
         _isSyncingGpsControls = false;
@@ -325,8 +327,31 @@ public partial class SettingsPage : ContentPage
         }
 
         _isSyncingGpsControls = true;
+        BackgroundTrackingSwitch.IsToggled = false;
         GpsAccuracyPicker.SelectedIndex = (int)GpsAccuracyOption.VeryLow;
         _isSyncingGpsControls = false;
+    }
+
+    private async void OnBackgroundTrackingToggled(object sender, ToggledEventArgs e)
+    {
+        if (_isSyncingGpsControls || !e.Value)
+        {
+            return;
+        }
+
+        if (!BatterySaverSwitch.IsToggled)
+        {
+            return;
+        }
+
+        _isSyncingGpsControls = true;
+        BatterySaverSwitch.IsToggled = false;
+        _isSyncingGpsControls = false;
+
+        await DisplayAlertAsync(
+            "Theo dõi nền",
+            "Bật theo dõi nền sẽ tự tắt chế độ tiết kiệm pin để vị trí được cập nhật ổn định hơn.",
+            "OK");
     }
 
     private async void OnTestVoiceClicked(object sender, EventArgs e)
@@ -338,7 +363,7 @@ public partial class SettingsPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("Audio", ex.Message, "OK");
+            await DisplayAlertAsync("Audio", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
         }
         finally
         {
@@ -351,6 +376,11 @@ public partial class SettingsPage : ContentPage
         try
         {
             SaveSettingsButton.IsEnabled = false;
+
+            if (BackgroundTrackingSwitch.IsToggled && BatterySaverSwitch.IsToggled)
+            {
+                BatterySaverSwitch.IsToggled = false;
+            }
 
             await AppSettingsService.Instance.SaveAsync(new AppSettingsSnapshot(
                 ReadingSpeedSlider.Value,
@@ -366,16 +396,10 @@ public partial class SettingsPage : ContentPage
                 ThemeService.Instance.CurrentTheme,
                 !ApiModeSwitch.IsToggled,
                 DeveloperModeSwitch.IsToggled,
-                GpsAccuracyPicker.SelectedIndex >= 0 ? (GpsAccuracyOption)GpsAccuracyPicker.SelectedIndex : GpsAccuracyOption.High));
+                GpsAccuracyPicker.SelectedIndex >= 0 ? (GpsAccuracyOption)GpsAccuracyPicker.SelectedIndex : GpsAccuracyOption.High,
+                MiniPlayerSwitch.IsToggled));
 
-            if (BackgroundTrackingSwitch.IsToggled)
-            {
-                await LocationTrackingService.Instance.StartBackgroundTrackingAsync();
-            }
-            else
-            {
-                await LocationTrackingService.Instance.StartForegroundTrackingAsync();
-            }
+            await LocationTrackingService.Instance.StartTrackingFromSettingsAsync(requestBackgroundUpgrade: BackgroundTrackingSwitch.IsToggled);
 
             await DisplayAlertAsync(
                 LocalizationService.Instance.T("Settings.Title"),

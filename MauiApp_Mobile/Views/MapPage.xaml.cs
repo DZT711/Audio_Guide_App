@@ -9,6 +9,7 @@ using Microsoft.Maui.Networking;
 using Microsoft.Maui.Devices.Sensors;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
+using Project_SharedClassLibrary.Contracts;
 #if ANDROID
 using Microsoft.Maui.Handlers;
 #endif
@@ -26,6 +27,7 @@ public partial class MapPage : ContentPage
     private readonly SemaphoreSlim _locationSemaphore = new(1, 1);
     private readonly SemaphoreSlim _mapScriptSemaphore = new(1, 1);
     private readonly ObservableCollection<MapSearchSuggestion> _searchResults = new();
+    private readonly ObservableCollection<MapTourViewModel> _availableTours = new();
     private readonly Dictionary<string, IReadOnlyList<OnlineSearchResult>> _addressSearchCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _mapImageDataCache = new(StringComparer.OrdinalIgnoreCase);
     private bool _isMapLoaded;
@@ -33,16 +35,49 @@ public partial class MapPage : ContentPage
     private bool _hasAnimatedChrome;
     private bool _isDeveloperModeEnabled;
     private bool _isPageDisposing;
+    private bool _isTourPanelVisible;
+    private bool _isTourListVisible = true;
+    private bool _isTourBusy;
     private MapSearchMode _searchMode = MapSearchMode.Poi;
+    private MapTourViewModel? _selectedTour;
+    private MapTourStopViewModel? _activeTourStop;
+    private MapTourStopViewModel? _nextTourStop;
     private CancellationTokenSource? _activeSearchCts;
     private CancellationTokenSource? _mapLoadingCts;
     private int _searchRequestVersion;
 
+    public ObservableCollection<MapTourViewModel> AvailableTours => _availableTours;
+    public bool IsTourPanelVisible { get => _isTourPanelVisible; private set { if (_isTourPanelVisible == value) return; _isTourPanelVisible = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsTourDetailVisible)); } }
+    public bool IsTourListVisible { get => _isTourListVisible; private set { if (_isTourListVisible == value) return; _isTourListVisible = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsTourDetailVisible)); OnPropertyChanged(nameof(TourPanelHeaderTitle)); OnPropertyChanged(nameof(TourPanelHeaderSubtitle)); } }
+    public bool IsTourBusy { get => _isTourBusy; private set { if (_isTourBusy == value) return; _isTourBusy = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsTourEmptyVisible)); } }
+    public bool IsTourDetailVisible => IsTourPanelVisible && !IsTourListVisible && SelectedTour is not null;
+    public bool HasTours => AvailableTours.Count > 0;
+    public bool IsTourEmptyVisible => !IsTourBusy && AvailableTours.Count == 0;
+    public string TourPanelHeaderTitle => IsTourListVisible || SelectedTour is null ? "Tour Guide" : SelectedTour.Name;
+    public string TourPanelHeaderSubtitle => IsTourListVisible || SelectedTour is null ? "Chọn hành trình giữa các POI để khám phá theo tuyến." : SelectedTour.RouteStatusText;
+    public MapTourViewModel? SelectedTour { get => _selectedTour; private set { if (_selectedTour == value) return; _selectedTour = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsTourDetailVisible)); OnPropertyChanged(nameof(TourPanelHeaderTitle)); OnPropertyChanged(nameof(TourPanelHeaderSubtitle)); OnPropertyChanged(nameof(SelectedTourSummaryText)); OnPropertyChanged(nameof(SelectedTourRoadHintText)); } }
+    public MapTourStopViewModel? ActiveTourStop { get => _activeTourStop; private set { if (_activeTourStop == value) return; _activeTourStop = value; OnPropertyChanged(); OnPropertyChanged(nameof(ActiveTourProgressText)); OnPropertyChanged(nameof(HasNextTourStop)); } }
+    public MapTourStopViewModel? NextTourStop { get => _nextTourStop; private set { if (_nextTourStop == value) return; _nextTourStop = value; OnPropertyChanged(); OnPropertyChanged(nameof(NextTourStopText)); OnPropertyChanged(nameof(HasNextTourStop)); } }
+    public string SelectedTourSummaryText => SelectedTour is null ? string.Empty : $"{SelectedTour.StopCount} điểm dừng • {SelectedTour.DurationText} • {SelectedTour.DistanceText}";
+    public string SelectedTourRoadHintText => SelectedTour?.RouteStatusText ?? string.Empty;
+    public string ActiveTourProgressText => SelectedTour is null || ActiveTourStop is null ? string.Empty : $"Điểm {ActiveTourStop.SequenceOrder}/{SelectedTour.StopCount}";
+    public bool HasNextTourStop => NextTourStop is not null;
+    public string NextTourStopText => SelectedTour is null || ActiveTourStop is null ? string.Empty : NextTourStop is null ? "Bạn đã đến điểm cuối của hành trình này." : $"{NextTourStop.Name} • {SelectedTour.ResolveDistanceToStop(NextTourStop.SequenceOrder):0.0} km • {SelectedTour.ResolveDurationToStop(NextTourStop.SequenceOrder)} phút";
+
     public MapPage()
     {
         InitializeComponent();
+        BindingContext = this;
 
         SearchResultsView.ItemsSource = _searchResults;
+        AvailableTours.CollectionChanged += (_, _) =>
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                OnPropertyChanged(nameof(HasTours));
+                OnPropertyChanged(nameof(IsTourEmptyVisible));
+            });
+        };
 
         MapWebView.Navigated += OnMapWebViewNavigated;
         MapWebView.Navigating += OnMapWebViewNavigating;
@@ -60,6 +95,7 @@ public partial class MapPage : ContentPage
         ThemeService.Instance.PropertyChanged += OnThemeChanged;
         AppSettingsService.Instance.PropertyChanged += OnAppSettingsChanged;
         Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
+        UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
     }
 
     protected override void OnAppearing()
@@ -85,6 +121,7 @@ public partial class MapPage : ContentPage
         {
             _ = RefreshMapPlacesAsync();
             _ = TryFocusPendingPlaceAsync();
+            _ = LoadToursAsync();
         }
     }
 
@@ -112,6 +149,7 @@ public partial class MapPage : ContentPage
             _isPageDisposing = true;
             CancelPendingOperations();
             DetachEventHandlers();
+            UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
         }
 
         base.OnHandlerChanging(args);
@@ -245,7 +283,7 @@ public partial class MapPage : ContentPage
         {
             System.Diagnostics.Debug.WriteLine($"Error loading Leaflet map: {ex.Message}");
             UpdateSearchStatus("Không thể tải bản đồ lúc này.");
-            await DisplayAlertAsync("Lỗi", "Không thể tải bản đồ: " + ex.Message, "OK");
+            await DisplayAlertAsync("Lỗi", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
         }
     }
 
@@ -326,6 +364,7 @@ public partial class MapPage : ContentPage
             await ApplyDeveloperModeAsync();
             await CompleteMapLoadingStateAsync();
             await TryFocusPendingPlaceAsync();
+            await LoadToursAsync();
 
             if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
             {
@@ -758,23 +797,10 @@ public partial class MapPage : ContentPage
             }
 
             UserLocationService.Instance.UpdateLocation(location);
+            await LocationTrackingService.Instance.StartTrackingFromSettingsAsync(requestBackgroundUpgrade: true);
             await ApplyMapThemeAsync();
             await ApplyMapStringsAsync();
-
-            var script =
-                $"window.showCurrentLocation && window.showCurrentLocation({location.Latitude.ToString(CultureInfo.InvariantCulture)}, {location.Longitude.ToString(CultureInfo.InvariantCulture)});";
-            var rawNearest = await EvaluateMapScriptAsync(script);
-            var focusResult = ParseFocusResult(rawNearest);
-
-            if (focusResult.Found && !string.IsNullOrWhiteSpace(focusResult.Title) && focusResult.DistanceMeters > 0)
-            {
-                UpdateSearchStatus(
-                    $"Đã định vị vị trí hiện tại. Gần nhất: {focusResult.Title} ({focusResult.DistanceMeters:0}m).");
-            }
-            else
-            {
-                UpdateSearchStatus("Đã định vị vị trí hiện tại trên bản đồ.");
-            }
+            await ShowCurrentLocationOnMapAsync(location, shouldUpdateStatus: true);
         }
         catch (FeatureNotEnabledException)
         {
@@ -882,6 +908,52 @@ public partial class MapPage : ContentPage
         return false;
     }
 
+    private async void OnUserLocationUpdated(object? sender, Location? location)
+    {
+        if (_isPageDisposing || !_isMapReady || location is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                if (_isPageDisposing || !_isMapReady)
+                {
+                    return;
+                }
+
+                await ShowCurrentLocationOnMapAsync(location, shouldUpdateStatus: false);
+            });
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task ShowCurrentLocationOnMapAsync(Location location, bool shouldUpdateStatus)
+    {
+        var script =
+            $"window.showCurrentLocation && window.showCurrentLocation({location.Latitude.ToString(CultureInfo.InvariantCulture)}, {location.Longitude.ToString(CultureInfo.InvariantCulture)});";
+        var rawNearest = await EvaluateMapScriptAsync(script);
+        var focusResult = ParseFocusResult(rawNearest);
+
+        if (!shouldUpdateStatus)
+        {
+            return;
+        }
+
+        if (focusResult.Found && !string.IsNullOrWhiteSpace(focusResult.Title) && focusResult.DistanceMeters > 0)
+        {
+            UpdateSearchStatus(
+                $"Đã định vị vị trí hiện tại. Gần nhất: {focusResult.Title} ({focusResult.DistanceMeters:0}m).");
+            return;
+        }
+
+        UpdateSearchStatus("Đã định vị vị trí hiện tại trên bản đồ.");
+    }
+
     private static void OpenLocationSettings()
     {
 #if ANDROID
@@ -956,6 +1028,247 @@ public partial class MapPage : ContentPage
         {
         }
     }
+
+    private async void OnTourButtonTapped(object? sender, TappedEventArgs e)
+    {
+        IsTourPanelVisible = !IsTourPanelVisible;
+        if (IsTourPanelVisible)
+        {
+            IsTourListVisible = true;
+            await LoadToursAsync();
+        }
+    }
+
+    private async Task LoadToursAsync(bool forceRefresh = false)
+    {
+        if (IsTourBusy || !AppDataModeService.Instance.IsApiEnabled)
+        {
+            return;
+        }
+
+        try
+        {
+            IsTourBusy = true;
+            var tours = await TourCatalogService.Instance.GetPublicToursAsync(forceRefresh);
+            AvailableTours.Clear();
+            foreach (var tour in tours.Where(item => item.Stops.Count > 0).Select(CreateTourViewModel))
+            {
+                AvailableTours.Add(tour);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Tour load error: {ex.Message}");
+            UpdateSearchStatus("Không thể tải tour lúc này.");
+        }
+        finally
+        {
+            IsTourBusy = false;
+        }
+    }
+
+    private MapTourViewModel CreateTourViewModel(MobileTourDescriptor tour)
+    {
+        var orderedStops = tour.Stops
+            .OrderBy(item => item.SequenceOrder)
+            .Select(stop => new MapTourStopViewModel
+            {
+                PlaceId = stop.PlaceId,
+                Name = stop.Name,
+                Address = stop.Address ?? "Chưa có địa chỉ",
+                Category = stop.Category,
+                Latitude = stop.Latitude,
+                Longitude = stop.Longitude,
+                SequenceOrder = stop.SequenceOrder,
+                ImageUrl = TourCatalogService.Instance.ResolveImageUrl(stop.ImageUrl) ?? "location.png"
+            })
+            .ToList();
+
+        var routePreview = tour.RoutePreview;
+        return new MapTourViewModel
+        {
+            Id = tour.Id,
+            Name = tour.Name,
+            Description = string.IsNullOrWhiteSpace(tour.Description) ? "Hành trình tham quan nhiều điểm nổi bật." : tour.Description.Trim(),
+            StopCount = tour.StopCount > 0 ? tour.StopCount : orderedStops.Count,
+            DistanceKm = routePreview.TotalDistanceKm,
+            EstimatedDurationMinutes = routePreview.EstimatedDurationMinutes,
+            UsesRoadRouting = routePreview.UsesRoadRouting,
+            Stops = orderedStops,
+            RoutePreview = routePreview,
+            CoverImageUrl = orderedStops.FirstOrDefault()?.ImageUrl ?? "location.png"
+        };
+    }
+
+    private async void OnTourItemTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is not Border border || border.BindingContext is not MapTourViewModel tour)
+        {
+            return;
+        }
+
+        await SelectTourAsync(tour);
+    }
+
+    private async Task SelectTourAsync(MapTourViewModel tour)
+    {
+        SelectedTour = tour;
+        IsTourPanelVisible = true;
+        IsTourListVisible = false;
+        ActiveTourStop = tour.Stops.OrderBy(item => item.SequenceOrder).FirstOrDefault();
+        NextTourStop = ResolveNextTourStop(tour, ActiveTourStop);
+        await ShowSelectedTourRouteAsync();
+    }
+
+    private async Task ShowSelectedTourRouteAsync()
+    {
+        if (!_isMapReady || SelectedTour is null)
+        {
+            return;
+        }
+
+        var routeState = await BuildTourInteropStateAsync(SelectedTour, ActiveTourStop?.SequenceOrder ?? 1);
+        var routeJson = JsonSerializer.Serialize(routeState, JsonInteropOptions);
+        await EvaluateMapScriptAsync($"window.showTourRoute && window.showTourRoute({routeJson});");
+    }
+
+    private async Task<MapTourInteropState> BuildTourInteropStateAsync(MapTourViewModel tour, int activeSequenceOrder)
+    {
+        var stops = new List<MapTourInteropStop>(tour.Stops.Count);
+        foreach (var stop in tour.Stops)
+        {
+            stops.Add(new MapTourInteropStop
+            {
+                PlaceId = stop.PlaceId,
+                Title = stop.Name,
+                Category = stop.Category,
+                Address = stop.Address,
+                Latitude = stop.Latitude,
+                Longitude = stop.Longitude,
+                SequenceOrder = stop.SequenceOrder,
+                Image = await ResolveMapImageSourceAsync(stop.ImageUrl)
+            });
+        }
+
+        return new MapTourInteropState
+        {
+            TourId = tour.Id,
+            ActiveSequenceOrder = activeSequenceOrder,
+            UsesRoadRouting = tour.UsesRoadRouting,
+            Stops = stops,
+            Path = tour.RoutePreview?.Path ?? []
+        };
+    }
+
+    private async Task ClearTourRouteAsync()
+    {
+        if (_isMapReady)
+        {
+            await EvaluateMapScriptAsync("window.clearTourRoute && window.clearTourRoute();");
+        }
+    }
+
+    private async void OnCloseTourPanelTapped(object? sender, TappedEventArgs e)
+    {
+        IsTourPanelVisible = false;
+        IsTourListVisible = true;
+        SelectedTour = null;
+        ActiveTourStop = null;
+        NextTourStop = null;
+        await ClearTourRouteAsync();
+    }
+
+    private async void OnTourBackTapped(object? sender, TappedEventArgs e)
+    {
+        IsTourListVisible = true;
+        SelectedTour = null;
+        ActiveTourStop = null;
+        NextTourStop = null;
+        await ClearTourRouteAsync();
+    }
+
+    private async void OnTourNextTapped(object? sender, EventArgs e)
+    {
+        if (SelectedTour is null || NextTourStop is null)
+        {
+            return;
+        }
+
+        ActiveTourStop = NextTourStop;
+        NextTourStop = ResolveNextTourStop(SelectedTour, ActiveTourStop);
+        await FocusActiveTourStopAsync();
+    }
+
+    private async Task FocusActiveTourStopAsync()
+    {
+        if (!_isMapReady || ActiveTourStop is null)
+        {
+            return;
+        }
+
+        await EvaluateMapScriptAsync($"window.focusTourStop && window.focusTourStop({ActiveTourStop.SequenceOrder.ToString(CultureInfo.InvariantCulture)});");
+    }
+
+    private async void OnTourListenTapped(object? sender, EventArgs e)
+    {
+        if (SelectedTour is null || ActiveTourStop is null)
+        {
+            return;
+        }
+
+        await PlayTourAsync(SelectedTour, ActiveTourStop.SequenceOrder);
+    }
+
+    private async Task PlayTourAsync(MapTourViewModel tour, int activeSequenceOrder)
+    {
+        try
+        {
+            var queueItems = new List<PlaybackQueueItem>();
+            foreach (var stop in tour.Stops.OrderBy(item => item.SequenceOrder))
+            {
+                var track = await PlaceCatalogService.Instance.GetDefaultAudioTrackAsync(stop.PlaceId);
+                if (track is null && AppDataModeService.Instance.IsApiEnabled)
+                {
+                    track = await PlaceCatalogService.Instance.GetDefaultAudioTrackAsync(stop.PlaceId, forceRefresh: true);
+                }
+
+                if (track is null)
+                {
+                    continue;
+                }
+
+                var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(track);
+                queueItems.Add(new PlaybackQueueItem(playableTrack, tour.Name, stop.Name));
+            }
+
+            if (queueItems.Count == 0)
+            {
+                await DisplayAlertAsync("Audio", "Tour này chưa có audio khả dụng.", "OK");
+                return;
+            }
+
+            var queueIndex = Math.Max(0, tour.Stops.OrderBy(item => item.SequenceOrder).TakeWhile(item => item.SequenceOrder < activeSequenceOrder).Count());
+            await PlaybackCoordinatorService.Instance.PlayQueueAsync(queueItems, Math.Min(queueIndex, queueItems.Count - 1));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Tour audio play error: {ex.Message}");
+            await DisplayAlertAsync("Audio", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
+        }
+    }
+
+    private async void OnTourDetailTapped(object? sender, EventArgs e)
+    {
+        if (ActiveTourStop is not null)
+        {
+            await OpenPlaceDetailAsync(ActiveTourStop.PlaceId);
+        }
+    }
+
+    private static MapTourStopViewModel? ResolveNextTourStop(MapTourViewModel tour, MapTourStopViewModel? currentStop) =>
+        currentStop is null
+            ? null
+            : tour.Stops.OrderBy(item => item.SequenceOrder).FirstOrDefault(item => item.SequenceOrder == currentStop.SequenceOrder + 1);
 
     private async Task<IReadOnlyList<string>> ResolveMapImageSourcesAsync(IReadOnlyList<string> imageSources)
     {
@@ -1341,6 +1654,27 @@ public partial class MapPage : ContentPage
         public IReadOnlyList<string> GalleryImages { get; init; } = Array.Empty<string>();
     }
 
+    private sealed class MapTourInteropState
+    {
+        public int TourId { get; init; }
+        public int ActiveSequenceOrder { get; init; }
+        public bool UsesRoadRouting { get; init; }
+        public IReadOnlyList<MapTourInteropStop> Stops { get; init; } = Array.Empty<MapTourInteropStop>();
+        public IReadOnlyList<TourRoutePointDto> Path { get; init; } = Array.Empty<TourRoutePointDto>();
+    }
+
+    private sealed class MapTourInteropStop
+    {
+        public string PlaceId { get; init; } = string.Empty;
+        public string Title { get; init; } = string.Empty;
+        public string Category { get; init; } = string.Empty;
+        public string Address { get; init; } = string.Empty;
+        public double Latitude { get; init; }
+        public double Longitude { get; init; }
+        public int SequenceOrder { get; init; }
+        public string Image { get; init; } = string.Empty;
+    }
+
     private sealed class MapStringPayload
     {
         public string ViewDetails { get; init; } = string.Empty;
@@ -1365,5 +1699,51 @@ public partial class MapPage : ContentPage
         public string? Name { get; set; }
 
         public string NameOrTitle => Name ?? DisplayName;
+    }
+
+    public sealed class MapTourViewModel
+    {
+        public int Id { get; init; }
+        public string Name { get; init; } = string.Empty;
+        public string Description { get; init; } = string.Empty;
+        public int StopCount { get; init; }
+        public double DistanceKm { get; init; }
+        public int EstimatedDurationMinutes { get; init; }
+        public bool UsesRoadRouting { get; init; }
+        public TourRoutePreviewDto? RoutePreview { get; init; }
+        public string CoverImageUrl { get; init; } = string.Empty;
+        public IReadOnlyList<MapTourStopViewModel> Stops { get; init; } = Array.Empty<MapTourStopViewModel>();
+        public string DistanceText => $"{DistanceKm:0.0} km";
+        public string DurationText => $"{Math.Max(EstimatedDurationMinutes, 1)} phút";
+        public string RouteStatusText => UsesRoadRouting ? "Có tuyến đường đi bộ giữa các điểm" : "Tuyến tham quan theo POI";
+
+        public double ResolveDistanceToStop(int sequenceOrder)
+        {
+            var segment = RoutePreview?.Segments.FirstOrDefault(item => item.SequenceOrder == sequenceOrder);
+            return segment?.DistanceKm ?? 0d;
+        }
+
+        public int ResolveDurationToStop(int sequenceOrder)
+        {
+            var distanceKm = ResolveDistanceToStop(sequenceOrder);
+            if (distanceKm <= 0 || RoutePreview?.WalkingSpeedKph is not > 0)
+            {
+                return 0;
+            }
+
+            return (int)Math.Ceiling(distanceKm / RoutePreview.WalkingSpeedKph * 60d);
+        }
+    }
+
+    public sealed class MapTourStopViewModel
+    {
+        public string PlaceId { get; init; } = string.Empty;
+        public string Name { get; init; } = string.Empty;
+        public string Address { get; init; } = string.Empty;
+        public string Category { get; init; } = string.Empty;
+        public double Latitude { get; init; }
+        public double Longitude { get; init; }
+        public int SequenceOrder { get; init; }
+        public string ImageUrl { get; init; } = string.Empty;
     }
 }

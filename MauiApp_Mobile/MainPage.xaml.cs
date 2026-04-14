@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Windows.Input;
+using Microsoft.Maui.Devices.Sensors;
 using Microsoft.Maui.Dispatching;
 using Microsoft.Maui.Networking;
 using MauiApp_Mobile.Models;
@@ -32,6 +33,7 @@ public partial class MainPage : ContentPage
     private bool _isAudioListExpanded;
     private bool _isSilentRefreshing;
     private bool _subscriptionsAttached;
+    private string _selectedPlaceDistanceText = "Bật định vị để xem khoảng cách";
     private CancellationTokenSource? _placesLoadingCts;
     private IDispatcherTimer? _placeGalleryTimer;
     private IDispatcherTimer? _liveReloadTimer;
@@ -45,6 +47,20 @@ public partial class MainPage : ContentPage
     public ObservableCollection<CategoryFilterOption> LanguageFilters => ViewModel.LanguageFilters;
     public ObservableCollection<PlaceGallerySlide> SelectedPlaceGallery { get; } = new();
     public ObservableCollection<PlaceDetailAudioTrack> SelectedPlaceAudioTracks { get; } = new();
+    public string SelectedPlaceDistanceText
+    {
+        get => _selectedPlaceDistanceText;
+        set
+        {
+            if (string.Equals(_selectedPlaceDistanceText, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _selectedPlaceDistanceText = value;
+            OnPropertyChanged();
+        }
+    }
 
     public bool IsPlaceDetailVisible
     {
@@ -65,6 +81,7 @@ public partial class MainPage : ContentPage
             OnPropertyChanged();
             OnPropertyChanged(nameof(DetailPriorityText));
             RefreshSelectedPlaceGallery(resetPosition: true);
+            RefreshSelectedPlaceDistance();
         }
     }
 
@@ -169,6 +186,7 @@ public partial class MainPage : ContentPage
         AppDataModeService.Instance.PropertyChanged += OnAppDataModeChanged;
         AppSettingsService.Instance.PropertyChanged += OnAppSettingsChanged;
         AudioPlaybackService.Instance.PlaybackStateChanged += OnPlaybackStateChanged;
+        UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
         Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
         _subscriptionsAttached = true;
         UpdateConnectionStatusChip();
@@ -186,6 +204,7 @@ public partial class MainPage : ContentPage
         AppDataModeService.Instance.PropertyChanged -= OnAppDataModeChanged;
         AppSettingsService.Instance.PropertyChanged -= OnAppSettingsChanged;
         AudioPlaybackService.Instance.PlaybackStateChanged -= OnPlaybackStateChanged;
+        UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
         Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
         _subscriptionsAttached = false;
     }
@@ -231,6 +250,9 @@ public partial class MainPage : ContentPage
             UpdatePlaybackIndicators(currentTrack, AudioPlaybackService.Instance.IsLoading);
         });
     }
+
+    private void OnUserLocationUpdated(object? sender, Location? location) =>
+        MainThread.BeginInvokeOnMainThread(RefreshSelectedPlaceDistance);
 
     private Task ShowPlaceFromViewModelAsync(PlaceItem place) => ShowPlaceDetailAsync(place);
 
@@ -493,6 +515,7 @@ public partial class MainPage : ContentPage
             {
                 Id = item.Id,
                 LanguageCode = item.Language,
+                LanguageBadgeText = LanguageBadgeService.BuildSingleBadge(item.Language),
                 LanguageName = item.LanguageName ?? item.Language,
                 Title = item.Title,
                 Duration = FormatDuration(item.Duration),
@@ -1001,6 +1024,7 @@ public partial class MainPage : ContentPage
             .Cast<string>()
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        place.LanguageBadgeSummaryText = LanguageBadgeService.BuildSummary(audioTracks);
         RefreshSelectedPlaceAudioTracks();
         ApplyFilter();
     }
@@ -1114,7 +1138,7 @@ public partial class MainPage : ContentPage
 
         if (place.IsPlaying)
         {
-            await AudioPlaybackService.Instance.StopAsync();
+            await PlaybackCoordinatorService.Instance.StopAsync();
             return;
         }
 
@@ -1143,9 +1167,11 @@ public partial class MainPage : ContentPage
             }
 
             MarkPendingPlayback(place.Id, preferredTrack.Id);
-            var playbackTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(preferredTrack);
+            var queueItems = await BuildPlaybackQueueItemsAsync(place, audioTracks, preferredTrack.Id);
             await MainThread.InvokeOnMainThreadAsync(() => HistoryService.Instance.AddToHistory(place));
-            await AudioPlaybackService.Instance.PlayAsync(playbackTrack);
+            await PlaybackCoordinatorService.Instance.PlayQueueAsync(
+                queueItems,
+                FindQueueIndex(queueItems, preferredTrack.Id));
         }
         catch (OperationCanceledException)
         {
@@ -1154,7 +1180,7 @@ public partial class MainPage : ContentPage
         catch (Exception ex)
         {
             MarkPendingPlayback(null, null);
-            await DisplayAlertAsync("Audio", ex.Message, "OK");
+            await DisplayAlertAsync("Audio", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
         }
     }
 
@@ -1169,7 +1195,7 @@ public partial class MainPage : ContentPage
 
             if (track.IsPlaying)
             {
-                await AudioPlaybackService.Instance.StopAsync();
+                await PlaybackCoordinatorService.Instance.StopAsync();
                 MarkPlayingTrack(null, isLoading: false);
                 return;
             }
@@ -1195,9 +1221,11 @@ public partial class MainPage : ContentPage
                 return;
             }
 
-            var playbackTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(selectedTrack);
+            var queueItems = await BuildPlaybackQueueItemsAsync(SelectedPlace, SelectedPlace.AudioTracks, selectedTrack.Id);
             HistoryService.Instance.AddToHistory(SelectedPlace);
-            await AudioPlaybackService.Instance.PlayAsync(playbackTrack);
+            await PlaybackCoordinatorService.Instance.PlayQueueAsync(
+                queueItems,
+                FindQueueIndex(queueItems, selectedTrack.Id));
         }
         catch (OperationCanceledException)
         {
@@ -1206,7 +1234,7 @@ public partial class MainPage : ContentPage
         catch (Exception ex)
         {
             MarkPendingPlayback(null, null);
-            await DisplayAlertAsync("Audio", ex.Message, "OK");
+            await DisplayAlertAsync("Audio", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
         }
     }
 
@@ -1265,9 +1293,47 @@ public partial class MainPage : ContentPage
         }
         catch (Exception ex)
         {
-            track.ApplyDownloadFailure(ex.Message);
+            track.ApplyDownloadFailure(FriendlyMessageService.Resolve(ex, "Server connect failure"));
             System.Diagnostics.Debug.WriteLine($"Audio download failed for track {track.Id}: {ex}");
         }
+    }
+
+    private async Task<IReadOnlyList<PlaybackQueueItem>> BuildPlaybackQueueItemsAsync(
+        PlaceItem place,
+        IReadOnlyList<PublicAudioTrackDto> audioTracks,
+        int preferredTrackId)
+    {
+        var orderedTracks = audioTracks
+            .OrderByDescending(item => item.Id == preferredTrackId)
+            .ThenByDescending(item => item.Priority)
+            .ThenBy(item => ResolveSourceTypeOrder(item.SourceType))
+            .ThenBy(item => item.Id)
+            .ToList();
+
+        var queueItems = new List<PlaybackQueueItem>(orderedTracks.Count);
+        foreach (var sourceTrack in orderedTracks)
+        {
+            var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(sourceTrack);
+            queueItems.Add(new PlaybackQueueItem(
+                playableTrack,
+                place.Name,
+                $"{sourceTrack.LanguageName ?? sourceTrack.Language} • {sourceTrack.SourceType}"));
+        }
+
+        return queueItems;
+    }
+
+    private static int FindQueueIndex(IReadOnlyList<PlaybackQueueItem> queueItems, int trackId)
+    {
+        for (var index = 0; index < queueItems.Count; index++)
+        {
+            if (queueItems[index].Track.Id == trackId)
+            {
+                return index;
+            }
+        }
+
+        return 0;
     }
 
     private void UpdatePlaybackIndicators(PublicAudioTrackDto? currentTrack, bool isLoading)
@@ -1515,6 +1581,40 @@ public partial class MainPage : ContentPage
                     item.IsDefault)));
     }
 
+    private void RefreshSelectedPlaceDistance()
+    {
+        if (SelectedPlace is null)
+        {
+            SelectedPlaceDistanceText = ResolveMissingDistanceText();
+            return;
+        }
+
+        var currentLocation = UserLocationService.Instance.LastKnownLocation;
+        if (currentLocation is null)
+        {
+            SelectedPlaceDistanceText = ResolveMissingDistanceText();
+            return;
+        }
+
+        var distanceInKilometers = Location.CalculateDistance(
+            currentLocation.Latitude,
+            currentLocation.Longitude,
+            SelectedPlace.Latitude,
+            SelectedPlace.Longitude,
+            DistanceUnits.Kilometers);
+
+        var distanceInMeters = Math.Max(0, distanceInKilometers * 1000d);
+        SelectedPlaceDistanceText = distanceInMeters switch
+        {
+            < 30d => "Bạn đang ở rất gần POI này",
+            < 1000d => $"Cách bạn {distanceInMeters:0} m",
+            _ when distanceInKilometers < 10d => $"Cách bạn {distanceInKilometers:0.0} km",
+            _ => $"Cách bạn {distanceInKilometers:0} km"
+        };
+    }
+
+    private static string ResolveMissingDistanceText() => "Bật định vị để xem khoảng cách";
+
     private static string NormalizeVoiceGender(string? voiceGender)
     {
         if (string.IsNullOrWhiteSpace(voiceGender))
@@ -1538,6 +1638,7 @@ public class PlaceDetailAudioTrack : BindableObject
 {
     public int Id { get; set; }
     public string LanguageCode { get; set; } = string.Empty;
+    public string LanguageBadgeText { get; set; } = string.Empty;
     public string LanguageName { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Duration { get; set; } = string.Empty;

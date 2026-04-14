@@ -398,6 +398,9 @@
         var popupCarouselTimerId = 0;
         var activePopupGalleryId = "";
         var developerModeEnabled = false;
+        var tourRouteLine = null;
+        var tourStopOrder = [];
+        var activeTourSequenceOrder = 0;
 
         function normalizeText(value) {
             return (value || "")
@@ -836,6 +839,22 @@
             });
         }
 
+        function clearTourRouteState() {
+            tourStopOrder = [];
+            activeTourSequenceOrder = 0;
+            if (tourRouteLine) {
+                map.removeLayer(tourRouteLine);
+                tourRouteLine = null;
+            }
+        }
+
+        function findMarkerByPlaceId(placeId) {
+            var normalizedId = String(placeId || "").trim().toLowerCase();
+            return mapMarkers.find(function(item) {
+                return String(item.place.id || "").trim().toLowerCase() === normalizedId;
+            });
+        }
+
         function refreshSearchMarkerStyles() {
             if (searchMarker) {
                 searchMarker.setStyle(buildSearchMarkerStyle());
@@ -1106,6 +1125,78 @@
         window.setDeveloperMode = function(enabled) {
             developerModeEnabled = !!enabled;
             return developerModeEnabled;
+        };
+
+        window.showTourRoute = function(tourState) {
+            clearTourRouteState();
+
+            if (!tourState || !tourState.stops || !tourState.stops.length) {
+                return false;
+            }
+
+            activeTourSequenceOrder = Number(tourState.activeSequenceOrder || 0);
+            tourStopOrder = tourState.stops.slice();
+
+            var path = (tourState.path || []).map(function(point) {
+                return [Number(point.latitude || point.Latitude), Number(point.longitude || point.Longitude)];
+            }).filter(function(point) {
+                return Number.isFinite(point[0]) && Number.isFinite(point[1]);
+            });
+
+            if (!path.length) {
+                path = tourStopOrder.map(function(stop) {
+                    return [Number(stop.latitude || stop.Latitude), Number(stop.longitude || stop.Longitude)];
+                });
+            }
+
+            if (path.length >= 2) {
+                tourRouteLine = L.polyline(path, {
+                    color: "#16A34A",
+                    weight: 5,
+                    opacity: 0.82,
+                    dashArray: tourState.usesRoadRouting ? null : "8 8"
+                }).addTo(map);
+                map.fitBounds(tourRouteLine.getBounds(), { padding: [40, 40] });
+            }
+
+            if (activeTourSequenceOrder > 0) {
+                window.focusTourStop(activeTourSequenceOrder);
+            }
+
+            return true;
+        };
+
+        window.clearTourRoute = function() {
+            clearTourRouteState();
+            return true;
+        };
+
+        window.focusTourStop = function(sequenceOrder) {
+            if (!tourStopOrder.length) {
+                return false;
+            }
+
+            activeTourSequenceOrder = Number(sequenceOrder || 0);
+            var stop = tourStopOrder.find(function(item) {
+                return Number(item.sequenceOrder || item.SequenceOrder) === activeTourSequenceOrder;
+            });
+
+            if (!stop) {
+                return false;
+            }
+
+            var markerItem = findMarkerByPlaceId(stop.placeId || stop.PlaceId);
+            if (markerItem) {
+                flyToPosition(markerItem.place.lat, markerItem.place.lon, 16, 0.72);
+                markerItem.marker.openPopup();
+                window.setTimeout(function() {
+                    startPopupGalleryForPopup(markerItem.marker.getPopup());
+                }, 0);
+                return true;
+            }
+
+            flyToPosition(Number(stop.latitude || stop.Latitude), Number(stop.longitude || stop.Longitude), 16, 0.72);
+            return true;
         };
 
         window.applyMapTheme = function(themeKey) {

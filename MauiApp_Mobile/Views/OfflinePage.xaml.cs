@@ -666,7 +666,7 @@ public partial class OfflinePage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("Offline", ex.Message, "OK");
+            await DisplayAlertAsync("Offline", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
         }
     }
 
@@ -699,7 +699,7 @@ public partial class OfflinePage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("Offline", ex.Message, "OK");
+            await DisplayAlertAsync("Offline", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
         }
     }
 

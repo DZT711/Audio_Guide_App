@@ -41,7 +41,7 @@ public sealed class LocationForegroundService : Service
                 try
                 {
                     await LocationTrackingService.Instance.RunSingleBackgroundTickAsync(localToken);
-                    await Task.Delay(TimeSpan.FromSeconds(25), localToken);
+                    await Task.Delay(LocationTrackingService.Instance.GetRecommendedTrackingInterval(), localToken);
                 }
                 catch (System.OperationCanceledException)
                 {

@@ -154,6 +154,29 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
         await StartPollingAsync(isForeground: false, cancellationToken);
     }
 
+    public async Task StartTrackingFromSettingsAsync(bool requestBackgroundUpgrade = false, CancellationToken cancellationToken = default)
+    {
+        if (AppSettingsService.Instance.BatterySaverEnabled || !AppSettingsService.Instance.BackgroundTrackingEnabled)
+        {
+            await StartForegroundTrackingAsync(cancellationToken);
+            return;
+        }
+
+        if (requestBackgroundUpgrade)
+        {
+            await EnsureLocationPermissionsAsync(requestBackgroundIfEnabled: true, cancellationToken);
+        }
+
+        var backgroundStatus = await GetBackgroundPermissionStatusAsync();
+        if (backgroundStatus == PermissionStatus.Granted)
+        {
+            await StartBackgroundTrackingAsync(cancellationToken);
+            return;
+        }
+
+        await StartForegroundTrackingAsync(cancellationToken);
+    }
+
     public Task StopAsync()
     {
         _trackingCts?.Cancel();
@@ -169,6 +192,8 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
     {
         await GetCurrentLocationAsync(forForegroundMap: false, cancellationToken);
     }
+
+    public TimeSpan GetRecommendedTrackingInterval() => ResolveTrackingInterval();
 
     private async Task StartPollingAsync(bool isForeground, CancellationToken cancellationToken)
     {
@@ -219,6 +244,7 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
     private async Task PublishLocationAsync(Location location, bool isForeground, CancellationToken cancellationToken)
     {
         LastKnownLocation = location;
+        UserLocationService.Instance.UpdateLocation(location);
 
         var battery = Battery.Default.ChargeLevel;
         var batteryPercent = battery > 0 ? (int)Math.Round(battery * 100d) : (int?)null;

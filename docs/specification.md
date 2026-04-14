@@ -23,7 +23,7 @@
   - Android: `FusedLocationProviderClient` via Foreground Service
   - iOS: `CLLocationManager` with `Always` permission
 - [✅] Optimize for battery efficiency (adaptive polling interval)
-- [] Improve location accuracy as much as possible
+- [✅] Improve location accuracy as much as possible
 - [ ] Handle location permission requests (foreground & background)
 
 ---

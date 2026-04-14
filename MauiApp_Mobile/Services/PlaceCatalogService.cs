@@ -115,22 +115,28 @@ public sealed class PlaceCatalogService
             await SaveAudioTrackCacheAsync(cancellationToken);
 
             var place = _places.FirstOrDefault(item => string.Equals(item.Id, normalizedPlaceId, StringComparison.OrdinalIgnoreCase));
-            if (place is not null)
-            {
-                place.AudioTracks = audioTracks;
-                place.AudioCountText = $"{audioTracks.Count} audio";
-                place.AvailableVoiceGenders = audioTracks
+                if (place is not null)
+                {
+                    place.AudioTracks = audioTracks;
+                    place.AudioCountText = $"{audioTracks.Count} audio";
+                    place.AvailableVoiceGenders = audioTracks
                     .Select(item => NormalizeVoiceGender(item.VoiceGender))
-                    .Where(item => !string.IsNullOrWhiteSpace(item))
-                    .Cast<string>()
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
+                        .Where(item => !string.IsNullOrWhiteSpace(item))
+                        .Cast<string>()
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    place.LanguageBadgeSummaryText = LanguageBadgeService.BuildSummary(audioTracks);
+                }
 
             return audioTracks.ToList();
         }
-        catch when (!cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
+            if (FriendlyMessageService.IsServerFailure(ex))
+            {
+                AppDataModeService.Instance.SwitchToOfflineFallback();
+            }
+
             await EnsureAudioTrackCacheLoadedAsync(cancellationToken);
             return _audioTracksByPlaceId.TryGetValue(normalizedPlaceId, out var fallbackTracks)
                 ? fallbackTracks.ToList()
@@ -277,6 +283,7 @@ public sealed class PlaceCatalogService
                 .Cast<string>()
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList(),
+            LanguageBadgeSummaryText = LanguageBadgeService.BuildSummary(audioTracks),
             Latitude = location.Latitude,
             Longitude = location.Longitude,
             CategoryColor = categoryColors.Background,
@@ -507,8 +514,13 @@ public sealed class PlaceCatalogService
 
             return new CachedCatalogData(snapshot.Locations, snapshot.Categories, audioTracksByPlaceId);
         }
-        catch when (!cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
+            if (FriendlyMessageService.IsServerFailure(ex))
+            {
+                AppDataModeService.Instance.SwitchToOfflineFallback();
+            }
+
             var cachedCatalog = await LoadCatalogFromCacheAsync(cancellationToken);
             if (cachedCatalog.HasContent)
             {

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView
+    x:Class="MauiApp_Mobile.Views.Controls.MiniPlayerView"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Name="ThisControl"
+    IsVisible="{Binding IsMiniPlayerVisible, Source={x:Reference ThisControl}}">
+
+    <Border Margin="16,0,16,12"
+            Padding="14,12"
+            BackgroundColor="{DynamicResource PopupBg}"
+            Stroke="{DynamicResource BorderColor}"
+            StrokeThickness="1"
+            StrokeShape="RoundRectangle 22">
+        <VerticalStackLayout Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="{Binding TitleText, Source={x:Reference ThisControl}}"
+                           FontAttributes="Bold"
+                           FontSize="15"
+                           LineBreakMode="TailTruncation"
+                           TextColor="{DynamicResource BodyText}" />
+                    <Label Text="{Binding SubtitleText, Source={x:Reference ThisControl}}"
+                           FontSize="12"
+                           LineBreakMode="TailTruncation"
+                           TextColor="{DynamicResource MutedText}" />
+                </VerticalStackLayout>
+
+                <Border Grid.Column="1"
+                        WidthRequest="34"
+                        HeightRequest="34"
+                        BackgroundColor="#FEECEC"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 17"
+                        VerticalOptions="Center">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnStopTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="■"
+                           FontSize="12"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           TextColor="#C62828"
+                           VerticalOptions="Center" />
+                </Border>
+            </Grid>
+
+            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto"
+                  ColumnSpacing="8"
+                  HorizontalOptions="Center">
+                <Border WidthRequest="40" HeightRequest="40" BackgroundColor="{DynamicResource SurfaceAlt}" StrokeThickness="0" StrokeShape="RoundRectangle 20" Opacity="{Binding PreviousOpacity, Source={x:Reference ThisControl}}">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnPreviousTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="⏮"
+                           FontSize="16"
+                           HorizontalOptions="Center"
+                           TextColor="{DynamicResource BodyText}"
+                           VerticalOptions="Center" />
+                </Border>
+
+                <Border Grid.Column="1" WidthRequest="40" HeightRequest="40" BackgroundColor="{DynamicResource SurfaceAlt}" StrokeThickness="0" StrokeShape="RoundRectangle 20" Opacity="{Binding SeekOpacity, Source={x:Reference ThisControl}}">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSeekBackwardTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="-5s"
+                           FontSize="12"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           TextColor="{DynamicResource BodyText}"
+                           VerticalOptions="Center" />
+                </Border>
+
+                <Border Grid.Column="2" WidthRequest="52" HeightRequest="52" BackgroundColor="{DynamicResource PrimaryGreen}" StrokeThickness="0" StrokeShape="RoundRectangle 26">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnPlayPauseTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="{Binding PlayPauseGlyph, Source={x:Reference ThisControl}}"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           TextColor="White"
+                           VerticalOptions="Center" />
+                </Border>
+
+                <Border Grid.Column="3" WidthRequest="40" HeightRequest="40" BackgroundColor="{DynamicResource SurfaceAlt}" StrokeThickness="0" StrokeShape="RoundRectangle 20" Opacity="{Binding SeekOpacity, Source={x:Reference ThisControl}}">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSeekForwardTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="+5s"
+                           FontSize="12"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           TextColor="{DynamicResource BodyText}"
+                           VerticalOptions="Center" />
+                </Border>
+
+                <Border Grid.Column="4" WidthRequest="40" HeightRequest="40" BackgroundColor="{DynamicResource SurfaceAlt}" StrokeThickness="0" StrokeShape="RoundRectangle 20" Opacity="{Binding NextOpacity, Source={x:Reference ThisControl}}">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnNextTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="⏭"
+                           FontSize="16"
+                           HorizontalOptions="Center"
+                           TextColor="{DynamicResource BodyText}"
+                           VerticalOptions="Center" />
+                </Border>
+            </Grid>
+
+            <VerticalStackLayout Spacing="4">
+                <ProgressBar Progress="{Binding ProgressRatio, Source={x:Reference ThisControl}}"
+                             HeightRequest="6"
+                             BackgroundColor="{DynamicResource DividerColor}"
+                             ProgressColor="{DynamicResource PrimaryGreen}" />
+                <Grid ColumnDefinitions="Auto,* ,Auto">
+                    <Label Text="{Binding PositionText, Source={x:Reference ThisControl}}"
+                           FontSize="11"
+                           TextColor="{DynamicResource MutedText}" />
+                    <Label Grid.Column="2"
+                           Text="{Binding DurationText, Source={x:Reference ThisControl}}"
+                           FontSize="11"
+                           TextColor="{DynamicResource MutedText}" />
+                </Grid>
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+    </Border>
+</ContentView>

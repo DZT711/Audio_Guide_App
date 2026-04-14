@@ -5,12 +5,13 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:MauiApp_Mobile"
     xmlns:models="clr-namespace:MauiApp_Mobile.Models"
+    xmlns:controls="clr-namespace:MauiApp_Mobile.Views.Controls"
     x:DataType="local:MainPage"
     Shell.NavBarIsVisible="False"
     Padding="0"
     BackgroundColor="{DynamicResource LightBg}">
 
-    <Grid RowDefinitions="Auto,*" RowSpacing="0">
+    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="0">
 
         <Grid Style="{StaticResource TopHeaderGridStyle}"
               MinimumHeightRequest="122">
@@ -227,6 +228,11 @@
                                                    TextColor="#667085"
                                                    VerticalOptions="Center" />
                                         </HorizontalStackLayout>
+
+                                        <Label Text="{Binding LanguageBadgeSummaryText}"
+                                               FontSize="12"
+                                               IsVisible="{Binding HasLanguageBadges}"
+                                               TextColor="{DynamicResource MutedText}" />
                                     </VerticalStackLayout>
 
                                     <Frame Grid.Column="2"
@@ -508,7 +514,7 @@
             </Border>
         </Grid>
 
-        <Grid Grid.RowSpan="2"
+        <Grid Grid.RowSpan="3"
               IsVisible="{Binding IsPlaceDetailVisible}"
               BackgroundColor="{DynamicResource OverlayColor}"
               RowDefinitions="*,Auto"
@@ -707,6 +713,7 @@
                                     StrokeShape="RoundRectangle 14"
                                     Padding="12">
                                 <VerticalStackLayout Spacing="6">
+                                    <Label Text="{Binding SelectedPlaceDistanceText, StringFormat='📏 {0}'}" FontSize="14" TextColor="#334155" />
                                     <Label Text="{Binding SelectedPlace.Address, StringFormat='📍 {0}'}" FontSize="14" TextColor="#334155" />
                                     <Label Text="{Binding SelectedPlace.Phone, StringFormat='📞 {0}'}" FontSize="14" TextColor="#16A34A" />
                                     <Label Text="{Binding SelectedPlace.Email, StringFormat='✉ {0}'}" FontSize="14" TextColor="#16A34A" />
@@ -850,7 +857,7 @@
                                                             StrokeShape="RoundRectangle 10"
                                                             Padding="8,4"
                                                             VerticalOptions="Center">
-                                                        <Label Text="{Binding LanguageCode}"
+                                                        <Label Text="{Binding LanguageBadgeText}"
                                                                FontSize="11"
                                                                FontAttributes="Bold"
                                                                TextColor="{DynamicResource BodyText}"
@@ -967,5 +974,8 @@
                 </Grid>
             </Border>
         </Grid>
+
+        <controls:MiniPlayerView Grid.Row="2"
+                                 ZIndex="40" />
     </Grid>
 </ContentPage>

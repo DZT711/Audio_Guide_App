@@ -475,9 +475,10 @@
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
                                 <Switch x:Name="BackgroundTrackingSwitch"
-                                        Grid.Column="1"
-                                        IsToggled="True"
-                                        OnColor="{DynamicResource PrimaryGreen}" />
+                                         Grid.Column="1"
+                                         IsToggled="True"
+                                         Toggled="OnBackgroundTrackingToggled"
+                                         OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
@@ -512,6 +513,17 @@
                                 <Switch x:Name="DeveloperModeSwitch"
                                         Grid.Column="1"
                                         IsToggled="False"
+                                        OnColor="{DynamicResource PrimaryGreen}" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="MiniPlayerLabel"
+                                       Text="Hiện thanh phát mini"
+                                       FontSize="16"
+                                       TextColor="{DynamicResource BodyText}" />
+                                <Switch x:Name="MiniPlayerSwitch"
+                                        Grid.Column="1"
+                                        IsToggled="True"
                                         OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
                         </VerticalStackLayout>
