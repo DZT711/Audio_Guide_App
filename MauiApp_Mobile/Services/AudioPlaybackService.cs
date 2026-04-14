@@ -40,6 +40,7 @@ public sealed partial class AudioPlaybackService
     private PlaybackAudioFocusChangeListener? _androidAudioFocusChangeListener;
     private AudioFocusRequestClass? _androidAudioFocusRequest;
     private bool _pauseRequestedByAudioFocus;
+    private bool _androidPlaybackDucked;
 #endif
 
 #if WINDOWS
@@ -166,7 +167,6 @@ public sealed partial class AudioPlaybackService
         activePlaybackCompletionSource?.TrySetCanceled();
 
         StopProgressLoop();
-        await PlatformStopAudioAsync();
 
         CurrentTrack = null;
         IsLoading = false;
@@ -175,6 +175,8 @@ public sealed partial class AudioPlaybackService
         ResetProgressState();
         RaisePlaybackStateChanged();
         RaisePlaybackProgressChanged();
+
+        await PlatformStopAudioAsync();
     }
 
     public async Task PauseAsync(bool requestedByAudioFocus = false)
@@ -286,11 +288,7 @@ public sealed partial class AudioPlaybackService
     public Task ApplyRuntimeVolumeAsync()
     {
 #if ANDROID
-        if (_androidPlayer is not null)
-        {
-            var volume = AppSettingsService.Instance.PlaybackVolumeRatio;
-            _androidPlayer.SetVolume(volume, volume);
-        }
+        ApplyAndroidPlayerVolume();
 #elif WINDOWS
         if (_windowsPlayer is not null)
         {
@@ -571,8 +569,7 @@ public sealed partial class AudioPlaybackService
             .SetUsage(AudioUsageKind.Media)
             .Build());
 
-        var playbackVolume = AppSettingsService.Instance.PlaybackVolumeRatio;
-        _androidPlayer.SetVolume(playbackVolume, playbackVolume);
+        ApplyAndroidPlayerVolume();
         _androidPlayer.SetDataSource(playbackSource);
 
         var completionSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -881,6 +878,21 @@ public sealed partial class AudioPlaybackService
         CanSeek = _androidPlayer.Duration > 0;
     }
 
+    private void ApplyAndroidPlayerVolume(float? overrideVolume = null)
+    {
+        if (_androidPlayer is null)
+        {
+            return;
+        }
+
+        var baseVolume = overrideVolume ?? AppSettingsService.Instance.PlaybackVolumeRatio;
+        var effectiveVolume = _androidPlaybackDucked
+            ? Math.Clamp(baseVolume * 0.3f, 0f, 1f)
+            : Math.Clamp(baseVolume, 0f, 1f);
+
+        _androidPlayer.SetVolume(effectiveVolume, effectiveVolume);
+    }
+
     private void RequestAndroidAudioFocus()
     {
         try
@@ -902,7 +914,7 @@ public sealed partial class AudioPlaybackService
                         .SetUsage(AudioUsageKind.Media)
                         .SetContentType(AudioContentType.Speech)
                         .Build())
-                    .SetWillPauseWhenDucked(true)
+                    .SetWillPauseWhenDucked(false)
                     .SetOnAudioFocusChangeListener(_androidAudioFocusChangeListener)
                     .Build();
 
@@ -942,6 +954,7 @@ public sealed partial class AudioPlaybackService
         finally
         {
             _pauseRequestedByAudioFocus = false;
+            _androidPlaybackDucked = false;
         }
     }
 
@@ -951,8 +964,28 @@ public sealed partial class AudioPlaybackService
         {
             case AudioFocus.Loss:
             case AudioFocus.LossTransient:
-            case AudioFocus.LossTransientCanDuck:
+                _androidPlaybackDucked = false;
                 _ = MainThread.InvokeOnMainThreadAsync(async () => await PauseAsync(requestedByAudioFocus: true));
+                break;
+            case AudioFocus.LossTransientCanDuck:
+                if (_androidPlayer is not null)
+                {
+                    _androidPlaybackDucked = true;
+                    ApplyAndroidPlayerVolume();
+                    RaisePlaybackProgressChanged();
+                }
+                else
+                {
+                    _ = MainThread.InvokeOnMainThreadAsync(async () => await PauseAsync(requestedByAudioFocus: true));
+                }
+                break;
+            case AudioFocus.Gain:
+                if (_androidPlaybackDucked)
+                {
+                    _androidPlaybackDucked = false;
+                    ApplyAndroidPlayerVolume();
+                    RaisePlaybackProgressChanged();
+                }
                 break;
         }
     }

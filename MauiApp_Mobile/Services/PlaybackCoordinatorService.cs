@@ -100,6 +100,8 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
 
     public Task SeekByAsync(TimeSpan offset) => AudioPlaybackService.Instance.SeekByAsync(offset);
 
+    public Task SeekToAsync(TimeSpan targetPosition) => AudioPlaybackService.Instance.SeekToAsync(targetPosition);
+
     public async Task PlayPreviousAsync(CancellationToken cancellationToken = default)
     {
         if (!CanGoPrevious)

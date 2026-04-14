@@ -84,7 +84,7 @@ public class PlaceItem : INotifyPropertyChanged
         }
     }
 
-    public string PlayIcon => (IsPlaying || IsPlayed) ? "❚❚" : "▶";
+    public string PlayIcon => IsPlaying ? "❚❚" : "▶";
     public bool HasLanguageBadges => !string.IsNullOrWhiteSpace(LanguageBadgeSummaryText);
 
     public string HistoryRelativeTimeText

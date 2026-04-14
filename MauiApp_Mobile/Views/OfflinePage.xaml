@@ -735,9 +735,6 @@
                                     <Label Text="{Binding SelectedPack.GpsText, StringFormat='🛰 {0}'}"
                                            FontSize="14"
                                            TextColor="{DynamicResource BodyText}" />
-                                    <Label Text="{Binding SelectedPack.RadiusText, StringFormat='📡 Bán kính kích hoạt: {0}'}"
-                                           FontSize="14"
-                                           TextColor="{DynamicResource BodyText}" />
                                     <Label Text="{Binding SelectedPack.DownloadedDateText}"
                                            FontSize="14"
                                            TextColor="{DynamicResource SuccessText}" />

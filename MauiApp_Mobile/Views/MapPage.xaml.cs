@@ -44,8 +44,11 @@ public partial class MapPage : ContentPage
     private MapTourStopViewModel? _nextTourStop;
     private CancellationTokenSource? _activeSearchCts;
     private CancellationTokenSource? _mapLoadingCts;
+    private CancellationTokenSource? _mapTimeoutCts;
     private Location? _lastMapLocationRendered;
     private int _searchRequestVersion;
+    private bool _isRefreshingMap;
+    private const int MapLoadTimeoutSeconds = 25;
 
     public ObservableCollection<MapTourViewModel> AvailableTours => _availableTours;
     public bool IsTourPanelVisible { get => _isTourPanelVisible; private set { if (_isTourPanelVisible == value) return; _isTourPanelVisible = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsTourDetailVisible)); } }
@@ -328,7 +331,7 @@ public partial class MapPage : ContentPage
         {
             System.Diagnostics.Debug.WriteLine($"Error loading Leaflet map: {ex.Message}");
             UpdateSearchStatus("Không thể tải bản đồ lúc này.");
-            await DisplayAlertAsync("Lỗi", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
+            ShowMapRetryPanel("Không thể tải bản đồ.", FriendlyMessageService.Resolve(ex, "Server connect failure"));
         }
     }
 
@@ -337,6 +340,8 @@ public partial class MapPage : ContentPage
         if (_isPageDisposing)
             return;
 
+        MapRetryPanel.IsVisible = false;
+        MapSkeletonRows.IsVisible = true;
         MapLoadingOverlay.IsVisible = true;
         MapLoadingOverlay.Opacity = 1;
         MapWebView.Opacity = 0;
@@ -353,11 +358,40 @@ public partial class MapPage : ContentPage
             MapActionSkeleton,
             MapRowSkeleton1,
             MapRowSkeleton2);
+
+        _mapTimeoutCts?.Cancel();
+        _mapTimeoutCts?.Dispose();
+        _mapTimeoutCts = new CancellationTokenSource();
+        var timeoutToken = _mapTimeoutCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(MapLoadTimeoutSeconds), timeoutToken);
+                if (timeoutToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    if (!_isMapReady && !_isPageDisposing)
+                    {
+                        ShowMapRetryPanel("Tải bản đồ quá lâu.", "Kéo xuống để làm mới hoặc nhấn Tải lại.");
+                    }
+                });
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }, timeoutToken);
     }
 
     private async Task CompleteMapLoadingStateAsync()
     {
         _mapLoadingCts?.Cancel();
+        _mapTimeoutCts?.Cancel();
 
         if (!MapLoadingOverlay.IsVisible)
             return;
@@ -400,6 +434,7 @@ public partial class MapPage : ContentPage
             if (!_isMapReady)
             {
                 UpdateSearchStatus("Bản đồ chưa sẵn sàng. Hãy thử tải lại trang.");
+                ShowMapRetryPanel("Bản đồ chưa tải được.", "Kéo xuống để làm mới hoặc thử tải lại.");
                 return;
             }
 
@@ -1130,6 +1165,18 @@ public partial class MapPage : ContentPage
         }
     }
 
+    private async void OnMapRefreshRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            await RefreshMapAsync(forceReloadWebView: !_isMapReady || MapRetryPanel.IsVisible);
+        }
+        finally
+        {
+            MapRefreshView.IsRefreshing = false;
+        }
+    }
+
     private async void OnTourButtonTapped(object? sender, TappedEventArgs e)
     {
         IsTourPanelVisible = !IsTourPanelVisible;
@@ -1166,6 +1213,58 @@ public partial class MapPage : ContentPage
         {
             IsTourBusy = false;
         }
+    }
+
+    private async Task RefreshMapAsync(bool forceReloadWebView)
+    {
+        if (_isRefreshingMap || _isPageDisposing)
+        {
+            return;
+        }
+
+        try
+        {
+            _isRefreshingMap = true;
+            UpdateSearchStatus("Đang làm mới bản đồ...");
+
+            if (forceReloadWebView)
+            {
+                await ReloadMapAsync();
+                return;
+            }
+
+            await RefreshMapPlacesAsync();
+            await LoadToursAsync(forceRefresh: AppDataModeService.Instance.IsApiEnabled);
+
+            if (UserLocationService.Instance.LastKnownLocation is { } lastKnownLocation)
+            {
+                await ShowCurrentLocationOnMapAsync(lastKnownLocation, shouldUpdateStatus: false);
+            }
+
+            UpdateSearchStatus("Đã làm mới dữ liệu bản đồ.");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Map refresh error: {ex.Message}");
+            ShowMapRetryPanel("Không thể làm mới bản đồ.", FriendlyMessageService.Resolve(ex, "Server connect failure"));
+            UpdateSearchStatus("Làm mới bản đồ thất bại.");
+        }
+        finally
+        {
+            _isRefreshingMap = false;
+        }
+    }
+
+    private Task ReloadMapAsync()
+    {
+        _isMapReady = false;
+        _isMapLoaded = false;
+        _lastMapLocationRendered = null;
+        MapRetryPanel.IsVisible = false;
+        MapSkeletonRows.IsVisible = true;
+        LoadMap();
+        _isMapLoaded = true;
+        return Task.CompletedTask;
     }
 
     private MapTourViewModel CreateTourViewModel(MobileTourDescriptor tour)
@@ -1641,6 +1740,7 @@ public partial class MapPage : ContentPage
     {
         _activeSearchCts?.Cancel();
         _mapLoadingCts?.Cancel();
+        _mapTimeoutCts?.Cancel();
         _isMapReady = false;
     }
 
@@ -1664,6 +1764,32 @@ public partial class MapPage : ContentPage
                Window is not null &&
                MapWebView.Handler is not null &&
                MapLoadingOverlay.Handler is not null;
+    }
+
+    private void ShowMapRetryPanel(string title, string subtitle)
+    {
+        _mapLoadingCts?.Cancel();
+        _mapTimeoutCts?.Cancel();
+
+        MapSkeletonRows.IsVisible = false;
+        MapRetryMessageLabel.Text = title;
+        MapRetrySubLabel.Text = subtitle;
+        MapRetryPanel.IsVisible = true;
+
+        MapLoadingOverlay.IsVisible = true;
+        MapLoadingOverlay.Opacity = 1;
+        SetLocateButtonState(isBusy: false, isEnabled: false);
+    }
+
+    private async void OnRetryMapTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is VisualElement element)
+        {
+            await element.ScaleTo(0.92, 60, Easing.CubicIn);
+            await element.ScaleTo(1d, 120, Easing.CubicOut);
+        }
+
+        await ReloadMapAsync();
     }
 
     private void FinishMapLoadingStateWithoutAnimation()

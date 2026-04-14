@@ -111,7 +111,19 @@ ui/ux header
 
 tour app sync on api
 
-improve media player notificationmapcategory✅
+improve media player notification map category✅
+
+fix audio play button cant stop immediately when user want to stop after play
+
+sync whenever audio stop(leaving app/stop on notification/stop by press stop on media container/...) the button immediately change to play button and stop audio without delay
+
+dont show poi information property like:active radius,standby radius and debouce sec
+
+reuse real tour guide between poi from web
+
+stop play while someone calling
+
+auto low volume down about 70% while user have other notification and turn back to normal volume after notification end
 
 ## (extend task)-MVP
 

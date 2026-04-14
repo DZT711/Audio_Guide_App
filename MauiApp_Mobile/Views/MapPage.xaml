@@ -120,8 +120,10 @@
             </VerticalStackLayout>
         </Grid>
 
-        <Grid Grid.Row="1"
-              x:Name="MapContainer">
+        <RefreshView Grid.Row="1"
+                     x:Name="MapRefreshView"
+                     Refreshing="OnMapRefreshRequested">
+        <Grid x:Name="MapContainer">
             <WebView x:Name="MapWebView"
                      Opacity="0" />
 
@@ -153,15 +155,54 @@
                             Style="{StaticResource SkeletonBoneStyle}" />
                 </Grid>
 
-                <VerticalStackLayout Grid.Row="3"
-                                     Spacing="12">
-                    <Border x:Name="MapRowSkeleton1"
-                            HeightRequest="52"
-                            Style="{StaticResource SkeletonBoneStyle}" />
-                    <Border x:Name="MapRowSkeleton2"
-                            HeightRequest="52"
-                            Style="{StaticResource SkeletonBoneStyle}" />
-                </VerticalStackLayout>
+                <Grid Grid.Row="3">
+                    <VerticalStackLayout x:Name="MapSkeletonRows"
+                                         Spacing="12">
+                        <Border x:Name="MapRowSkeleton1"
+                                HeightRequest="52"
+                                Style="{StaticResource SkeletonBoneStyle}" />
+                        <Border x:Name="MapRowSkeleton2"
+                                HeightRequest="52"
+                                Style="{StaticResource SkeletonBoneStyle}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout x:Name="MapRetryPanel"
+                                         IsVisible="False"
+                                         HorizontalOptions="Center"
+                                         VerticalOptions="Center"
+                                         Spacing="16"
+                                         Padding="24">
+                        <Label Text="🗺️"
+                               FontSize="48"
+                               HorizontalOptions="Center" />
+                        <Label x:Name="MapRetryMessageLabel"
+                               Text="Bản đồ chưa tải được."
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center"
+                               TextColor="{DynamicResource BodyText}" />
+                        <Label x:Name="MapRetrySubLabel"
+                               Text="Hãy kiểm tra kết nối mạng rồi thử lại."
+                               FontSize="13"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center"
+                               TextColor="{DynamicResource MutedText}" />
+                        <Border BackgroundColor="{DynamicResource PrimaryGreen}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 18"
+                                Padding="28,14"
+                                HorizontalOptions="Center">
+                            <Label Text="🔄  Tải lại bản đồ"
+                                   FontAttributes="Bold"
+                                   FontSize="14"
+                                   TextColor="White" />
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnRetryMapTapped" />
+                            </Border.GestureRecognizers>
+                        </Border>
+                    </VerticalStackLayout>
+                </Grid>
             </Grid>
 
             <Border x:Name="SearchResultsPanel"
@@ -503,6 +544,7 @@
                 </Grid>
             </Border>
         </Grid>
+        </RefreshView>
 
         <controls:MiniPlayerView Grid.Row="2"
                                  ZIndex="40" />

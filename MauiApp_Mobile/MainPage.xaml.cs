@@ -629,7 +629,7 @@ public partial class MainPage : ContentPage
                     "GPS",
                     LocalizationService.Instance.T("Places.GalleryVisit"),
                     place.Address,
-                    $"{place.RadiusText} • {place.GpsText}",
+                    place.GpsText,
                     place.Phone,
                     infoText,
                     bodyText,
@@ -1089,9 +1089,6 @@ public partial class MainPage : ContentPage
         if (sender is not Element element || element.BindingContext is not PlaceItem item)
             return;
 
-        if (item.IsAudioLoading)
-            return;
-
         await PlayDefaultAudioAsync(item);
     }
 
@@ -1106,9 +1103,6 @@ public partial class MainPage : ContentPage
     private async void OnAudioTrackPlayTapped(object sender, TappedEventArgs e)
     {
         if (sender is not Element element || element.BindingContext is not PlaceDetailAudioTrack track)
-            return;
-
-        if (track.IsLoading)
             return;
 
         await PlaySelectedTrackAsync(track);
@@ -1178,12 +1172,7 @@ public partial class MainPage : ContentPage
 
     private async Task PlayDefaultAudioAsync(PlaceItem place)
     {
-        if (place.IsAudioLoading)
-        {
-            return;
-        }
-
-        if (place.IsPlaying)
+        if (place.IsPlaying || place.IsAudioLoading)
         {
             await PlaybackCoordinatorService.Instance.StopAsync();
             return;
@@ -1241,6 +1230,13 @@ public partial class MainPage : ContentPage
             }
 
             if (track.IsPlaying)
+            {
+                await PlaybackCoordinatorService.Instance.StopAsync();
+                MarkPlayingTrack(null, isLoading: false);
+                return;
+            }
+
+            if (track.IsLoading)
             {
                 await PlaybackCoordinatorService.Instance.StopAsync();
                 MarkPlayingTrack(null, isLoading: false);
@@ -1386,6 +1382,7 @@ public partial class MainPage : ContentPage
     private void UpdatePlaybackIndicators(PublicAudioTrackDto? currentTrack, bool isLoading)
     {
         var playingPlaceId = currentTrack?.LocationId.ToString(CultureInfo.InvariantCulture);
+        var isActivePlaybackRunning = AudioPlaybackService.Instance.IsPlaying;
 
         foreach (var place in ViewModel.AllPlaces)
         {
@@ -1393,10 +1390,10 @@ public partial class MainPage : ContentPage
                 && string.Equals(place.Id, playingPlaceId, StringComparison.OrdinalIgnoreCase);
 
             place.IsAudioLoading = isActivePlace && isLoading;
-            place.IsPlaying = isActivePlace && !isLoading;
+            place.IsPlaying = isActivePlace && !isLoading && isActivePlaybackRunning;
         }
 
-        MarkPlayingTrack(currentTrack?.Id, isLoading);
+        MarkPlayingTrack(currentTrack?.Id, isLoading, isActivePlaybackRunning);
     }
 
     private void UpdateConnectionStatusChip()
@@ -1435,13 +1432,13 @@ public partial class MainPage : ContentPage
         }
     }
 
-    private void MarkPlayingTrack(int? trackId, bool isLoading)
+    private void MarkPlayingTrack(int? trackId, bool isLoading, bool isPlaying = false)
     {
         foreach (var item in SelectedPlaceAudioTracks)
         {
             var isActiveTrack = trackId.HasValue && item.Id == trackId.Value;
             item.IsLoading = isActiveTrack && isLoading;
-            item.IsPlaying = isActiveTrack && !isLoading;
+            item.IsPlaying = isActiveTrack && !isLoading && isPlaying;
         }
     }
 

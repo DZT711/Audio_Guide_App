@@ -54,7 +54,7 @@
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Tapped="OnStopTapped" />
                     </Border.GestureRecognizers>
-                    <Label Text="■"
+                    <Label Text="X"
                            FontSize="12"
                            FontAttributes="Bold"
                            HorizontalOptions="Center"

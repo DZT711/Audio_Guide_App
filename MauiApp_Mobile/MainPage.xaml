@@ -681,8 +681,8 @@
                                         StrokeShape="RoundRectangle 12"
                                         Padding="10">
                                     <VerticalStackLayout Spacing="2">
-                                        <Label Text="Bán kính kích hoạt" FontSize="12" TextColor="#64748B" />
-                                        <Label Text="{Binding SelectedPlace.RadiusText}" FontSize="20" FontAttributes="Bold" TextColor="#0F172A" />
+                                        <Label Text="Khoảng cách" FontSize="12" TextColor="#64748B" />
+                                        <Label Text="{Binding SelectedPlaceDistanceText}" FontSize="16" FontAttributes="Bold" TextColor="#0F172A" />
                                     </VerticalStackLayout>
                                 </Border>
 
@@ -784,28 +784,6 @@
                                     </VerticalStackLayout>
                                 </Border>
 
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                                    <Border BackgroundColor="#FFF7ED"
-                                            StrokeThickness="0"
-                                            StrokeShape="RoundRectangle 12"
-                                            Padding="10">
-                                        <VerticalStackLayout Spacing="2">
-                                            <Label Text="Standby Radius" FontSize="12" TextColor="#9A3412" />
-                                            <Label Text="{Binding SelectedPlace.StandbyRadiusText}" FontSize="18" FontAttributes="Bold" TextColor="#7C2D12" />
-                                        </VerticalStackLayout>
-                                    </Border>
-
-                                    <Border Grid.Column="1"
-                                            BackgroundColor="#F5F3FF"
-                                            StrokeThickness="0"
-                                            StrokeShape="RoundRectangle 12"
-                                            Padding="10">
-                                        <VerticalStackLayout Spacing="2">
-                                            <Label Text="Cooldown" FontSize="12" TextColor="#6D28D9" />
-                                            <Label Text="{Binding SelectedPlace.DebounceText}" FontSize="18" FontAttributes="Bold" TextColor="#5B21B6" />
-                                        </VerticalStackLayout>
-                                    </Border>
-                                </Grid>
                             </VerticalStackLayout>
 
                             <Border BackgroundColor="{DynamicResource CardBg}"

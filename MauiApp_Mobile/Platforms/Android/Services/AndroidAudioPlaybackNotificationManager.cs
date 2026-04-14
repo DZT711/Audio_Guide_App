@@ -24,6 +24,7 @@ internal sealed class AndroidAudioPlaybackNotificationManager
     {
         var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
         var context = activity ?? Android.App.Application.Context;
+        var playbackCoordinator = PlaybackCoordinatorService.Instance;
         EnsureChannel(context);
 
         if (playbackService.CurrentTrack is null && !playbackService.IsPaused)
@@ -34,9 +35,9 @@ internal sealed class AndroidAudioPlaybackNotificationManager
 
         var builder = new NotificationCompat.Builder(context, ChannelId)
             .SetSmallIcon(Resource.Mipmap.appicon)
-            .SetContentTitle(playbackService.CurrentTrack?.Title ?? "SmartTour")
-            .SetContentText(BuildContentText(playbackService))
-            .SetSubText(playbackService.CurrentTrack?.LanguageName ?? playbackService.CurrentTrack?.Language ?? "Audio guide")
+            .SetContentTitle(BuildTitle(playbackService, playbackCoordinator))
+            .SetContentText(BuildSubtitle(playbackService, playbackCoordinator))
+            .SetSubText(BuildContentText(playbackService))
             .SetOnlyAlertOnce(true)
             .SetOngoing(playbackService.IsPlaying || playbackService.IsLoading)
             .SetVisibility(NotificationCompat.VisibilityPublic)
@@ -45,6 +46,12 @@ internal sealed class AndroidAudioPlaybackNotificationManager
             .SetColor(Android.Graphics.Color.ParseColor("#0F4E8A"))
             .SetColorized(true)
             .SetShowWhen(false)
+            .SetPriority((int)NotificationPriority.Low)
+            .SetDeleteIntent(BuildActionIntent(context, ActionStop, 90))
+            .SetLargeIcon(BuildLargeIcon(context))
+            .SetStyle(new NotificationCompat.BigTextStyle()
+                .BigText(BuildSubtitle(playbackService, playbackCoordinator))
+                .SetSummaryText(BuildContentText(playbackService)))
             .SetContentIntent(BuildLaunchIntent(context));
 
         if (playbackService.CanSeek)
@@ -53,18 +60,60 @@ internal sealed class AndroidAudioPlaybackNotificationManager
         }
 
         builder
-            .AddAction(Android.Resource.Drawable.IcMediaPrevious, "Prev", BuildActionIntent(context, ActionPrevious, 1))
-            .AddAction(Android.Resource.Drawable.IcMediaRew, "-5s", BuildActionIntent(context, ActionSeekBackward, 2))
-            .AddAction(playbackService.IsPlaying ? Android.Resource.Drawable.IcMediaPause : Android.Resource.Drawable.IcMediaPlay, playbackService.IsPlaying ? "Pause" : "Play", BuildActionIntent(context, ActionToggle, 3))
-            .AddAction(Android.Resource.Drawable.IcMediaFf, "+5s", BuildActionIntent(context, ActionSeekForward, 4))
-            .AddAction(Android.Resource.Drawable.IcMenuCloseClearCancel, "Stop", BuildActionIntent(context, ActionStop, 5));
+            .AddAction(Android.Resource.Drawable.IcMediaPrevious, "Trước", BuildActionIntent(context, ActionPrevious, 1))
+            .AddAction(
+                playbackService.IsPlaying ? Android.Resource.Drawable.IcMediaPause : Android.Resource.Drawable.IcMediaPlay,
+                playbackService.IsPlaying ? "Tạm dừng" : "Phát",
+                BuildActionIntent(context, ActionToggle, 2))
+            .AddAction(Android.Resource.Drawable.IcMediaNext, "Tiếp", BuildActionIntent(context, ActionNext, 3));
 
-        if (PlaybackCoordinatorService.Instance.CanGoNext)
+        if (playbackService.CanSeek)
         {
-            builder.AddAction(Android.Resource.Drawable.IcMediaNext, "Next", BuildActionIntent(context, ActionNext, 6));
+            builder
+                .AddAction(Android.Resource.Drawable.IcMediaRew, "-5 giây", BuildActionIntent(context, ActionSeekBackward, 4))
+                .AddAction(Android.Resource.Drawable.IcMediaFf, "+5 giây", BuildActionIntent(context, ActionSeekForward, 5));
         }
 
+        builder.AddAction(Android.Resource.Drawable.IcMenuCloseClearCancel, "Dừng", BuildActionIntent(context, ActionStop, 6));
+
         NotificationManagerCompat.From(context).Notify(NotificationId, builder.Build());
+    }
+
+    private static string BuildTitle(AudioPlaybackService playbackService, PlaybackCoordinatorService playbackCoordinator)
+    {
+        if (!string.IsNullOrWhiteSpace(playbackService.CurrentTrack?.Title))
+        {
+            return playbackService.CurrentTrack.Title;
+        }
+
+        if (!string.IsNullOrWhiteSpace(playbackCoordinator.CurrentTitle))
+        {
+            return playbackCoordinator.CurrentTitle;
+        }
+
+        return "SmartTour";
+    }
+
+    private static string BuildSubtitle(AudioPlaybackService playbackService, PlaybackCoordinatorService playbackCoordinator)
+    {
+        if (!string.IsNullOrWhiteSpace(playbackCoordinator.CurrentSubtitle))
+        {
+            return playbackCoordinator.CurrentSubtitle;
+        }
+
+        if (!string.IsNullOrWhiteSpace(playbackCoordinator.QueueTitle))
+        {
+            return playbackCoordinator.QueueTitle;
+        }
+
+        if (!string.IsNullOrWhiteSpace(playbackService.CurrentTrack?.LocationName))
+        {
+            return playbackService.CurrentTrack.LocationName;
+        }
+
+        return playbackService.CurrentTrack?.LanguageName
+            ?? playbackService.CurrentTrack?.Language
+            ?? "Audio guide";
     }
 
     private static string BuildContentText(AudioPlaybackService playbackService)
@@ -73,6 +122,18 @@ internal sealed class AndroidAudioPlaybackNotificationManager
         var position = playbackService.CurrentPosition.TotalSeconds > 0 ? playbackService.CurrentPosition.ToString(@"mm\:ss") : "00:00";
         var duration = playbackService.CurrentDuration.TotalSeconds > 0 ? playbackService.CurrentDuration.ToString(@"mm\:ss") : "--:--";
         return $"{state} • {position}/{duration}";
+    }
+
+    private static Bitmap? BuildLargeIcon(Context context)
+    {
+        try
+        {
+            return BitmapFactory.DecodeResource(context.Resources, Resource.Mipmap.appicon);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static PendingIntent BuildActionIntent(Context context, string action, int requestCode)

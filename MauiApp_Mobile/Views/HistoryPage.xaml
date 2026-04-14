@@ -332,9 +332,6 @@
                                     <Label Text="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.GpsText, StringFormat='🛰 {0}'}"
                                            FontSize="14"
                                            TextColor="{DynamicResource BodyText}" />
-                                    <Label Text="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.RadiusText, StringFormat='📡 Bán kính kích hoạt: {0}'}"
-                                           FontSize="14"
-                                           TextColor="{DynamicResource BodyText}" />
                                     <Label Text="Đã lưu trong lịch sử nghe"
                                            FontSize="14"
                                            TextColor="{DynamicResource SuccessText}" />
