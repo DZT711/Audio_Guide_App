@@ -412,6 +412,15 @@ public partial class MainPage : ContentPage
     {
         try
         {
+            if (!CanRefreshOnlineCatalog())
+            {
+                await DisplayAlertAsync(
+                    "Offline",
+                    "Cannt connect to sever due to internet connection or offline mode",
+                    "OK");
+                return;
+            }
+
             IsRefreshing = true;
             PullToRefreshLabel.Text = "Đang cập nhật dữ liệu...";
             await LoadPlacesAsync(forceRefresh: true);
@@ -433,6 +442,10 @@ public partial class MainPage : ContentPage
             PullToRefreshLabel.Text = "Kéo xuống để cập nhật";
         }
     }
+
+    private static bool CanRefreshOnlineCatalog() =>
+        AppDataModeService.Instance.IsApiEnabled &&
+        Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
 
     private async void OnPlacesRefreshing(object? sender, EventArgs e)
     {

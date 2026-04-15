@@ -75,7 +75,12 @@ public partial class MiniPlayerView : ContentView
             return;
         }
 
-        await Shell.Current.Navigation.PushModalAsync(new PlaybackQueuePage());
+        if (Shell.Current.CurrentPage is PlaybackQueuePage)
+        {
+            return;
+        }
+
+        await Shell.Current.GoToAsync("playback-queue");
     }
 
     private void OnPlaybackStateChanged(object? sender, PropertyChangedEventArgs e) =>

@@ -86,10 +86,10 @@
                                 <Border.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnHistoryItemTapped" />
                                 </Border.GestureRecognizers>
-                                <Grid ColumnDefinitions="74,*,Auto"
+                                <Grid ColumnDefinitions="86,*,Auto"
                                       ColumnSpacing="12">
-                                    <Grid WidthRequest="74"
-                                          HeightRequest="74">
+                                    <Grid WidthRequest="86"
+                                          HeightRequest="86">
                                         <Border StrokeThickness="0"
                                                 StrokeShape="RoundRectangle 18"
                                                 BackgroundColor="{DynamicResource SurfaceAlt}">
@@ -130,7 +130,8 @@
                                             <Border Padding="10,4"
                                                     BackgroundColor="{Binding CategoryColor}"
                                                     StrokeThickness="0"
-                                                    StrokeShape="RoundRectangle 10">
+                                                    StrokeShape="RoundRectangle 10"
+                                                    IsVisible="{Binding HasCategory}">
                                                 <Label Text="{Binding Category}"
                                                        FontSize="12"
                                                        TextColor="{Binding CategoryTextColor}" />
@@ -140,6 +141,12 @@
                                                    TextColor="{DynamicResource MutedText}"
                                                    VerticalOptions="Center" />
                                         </HorizontalStackLayout>
+                                        <Label Text="{Binding LanguageBadgeSummaryText}"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource MutedText}"
+                                               IsVisible="{Binding HasLanguageBadges}"
+                                               LineBreakMode="TailTruncation"
+                                               MaxLines="1" />
                                     </VerticalStackLayout>
 
                                     <VerticalStackLayout Grid.Column="2"

@@ -49,7 +49,7 @@
   - [✅] Android: Android TTS engine
   - [ ] iOS: `AVSpeechSynthesizer`
   <!-- - [ ] Optional: Azure Cognitive Services (natural voice, online/offline notice) -->
-  - [ ] Auto-detect device locale → default Vietnamese if region is VN
+  - [✅] Auto-detect device locale → default Vietnamese if region is VN  (LocalizationService.cs-CultureInfo.CurrentUICulture,RegionInfo.CurrentRegion.TwoLetterISORegionName)
   - [✅] Support multiple languages (flexible, low memory footprint)
 - [✅] Implement **Recorded Audio playback**:
   - [✅] Professional/natural voice quality
@@ -57,7 +57,7 @@
 - [✅ ] Build **Audio Queue Manager**:
   - [✅] Multi-process scheduling
   - [ ] No audio repetition logic
-  - [ ] Auto-stop / pause when OS notification arrives
+  - [✅] Auto-stop / pause when OS notification arrives
 - [✅] Decide per-POI: use TTS script or pre-recorded audio file
 
 ---

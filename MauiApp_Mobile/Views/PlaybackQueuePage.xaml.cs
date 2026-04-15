@@ -29,7 +29,16 @@ public partial class PlaybackQueuePage : ContentPage
         _volumeApplyCts = null;
     }
 
-    private async void OnBackTapped(object? sender, TappedEventArgs e) => await Navigation.PopModalAsync();
+    private async void OnBackTapped(object? sender, TappedEventArgs e)
+    {
+        if (Shell.Current is not null)
+        {
+            await Shell.Current.GoToAsync("..");
+            return;
+        }
+
+        await Navigation.PopModalAsync();
+    }
 
     private void OnRemoveTapped(object? sender, TappedEventArgs e)
     {

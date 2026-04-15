@@ -429,10 +429,10 @@
                         </Label>
                     </Grid>
 
-                    <Grid Grid.Row="1"
-                          IsVisible="{Binding IsTourDetailVisible}"
-                          ColumnDefinitions="Auto,*,Auto"
-                          ColumnSpacing="8">
+                        <Grid Grid.Row="1"
+                              IsVisible="{Binding IsTourDetailVisible}"
+                              ColumnDefinitions="Auto,*,Auto"
+                              ColumnSpacing="8">
                         <Label Text="‹"
                                FontSize="18"
                                TextColor="{DynamicResource BodyText}"
@@ -449,6 +449,11 @@
                             <Label Text="{Binding SelectedTourRoadHintText}"
                                    FontSize="11"
                                    TextColor="{DynamicResource MutedText}" />
+                            <Label Text="{Binding SelectedTourStopsText}"
+                                   FontSize="11"
+                                   LineBreakMode="WordWrap"
+                                   MaxLines="2"
+                                   TextColor="{DynamicResource MutedText}" />
                         </VerticalStackLayout>
                     </Grid>
 
@@ -463,9 +468,21 @@
                                                 Stroke="{DynamicResource DividerColor}"
                                                 StrokeThickness="1"
                                                 StrokeShape="RoundRectangle 16">
-                                            <Grid ColumnDefinitions="*,Auto"
-                                                  ColumnSpacing="10">
-                                                <VerticalStackLayout Spacing="4">
+                                            <VerticalStackLayout Spacing="10">
+                                                <Grid ColumnDefinitions="64,*,Auto"
+                                                      ColumnSpacing="10">
+                                                <Border WidthRequest="64"
+                                                        HeightRequest="64"
+                                                        BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 16"
+                                                        Padding="0">
+                                                    <Image Source="{Binding CoverImageUrl}"
+                                                           Aspect="AspectFill" />
+                                                </Border>
+
+                                                <VerticalStackLayout Grid.Column="1"
+                                                                     Spacing="5">
                                                     <Label Text="{Binding Name}"
                                                            FontAttributes="Bold"
                                                            FontSize="14"
@@ -475,16 +492,52 @@
                                                            LineBreakMode="TailTruncation"
                                                            MaxLines="2"
                                                            TextColor="{DynamicResource MutedText}" />
-                                                    <Label Text="{Binding DistanceText}"
+                                                    <Label Text="{Binding JourneyText}"
                                                            FontSize="11"
-                                                           TextColor="{DynamicResource PrimaryGreen}" />
+                                                           LineBreakMode="TailTruncation"
+                                                           MaxLines="1"
+                                                           TextColor="{DynamicResource MutedText}" />
                                                 </VerticalStackLayout>
-                                                <Label Grid.Column="1"
+                                                <Label Grid.Column="2"
                                                        Text="›"
                                                        FontSize="18"
                                                        TextColor="{DynamicResource MutedText}"
                                                        VerticalOptions="Center" />
-                                            </Grid>
+                                                </Grid>
+
+                                                <HorizontalStackLayout Spacing="8">
+                                                    <Border Padding="8,4"
+                                                            BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 10">
+                                                        <Label Text="{Binding StopCount, StringFormat='📍 {0} điểm'}"
+                                                               FontSize="11"
+                                                               TextColor="{DynamicResource BodyText}" />
+                                                    </Border>
+                                                    <Border Padding="8,4"
+                                                            BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 10">
+                                                        <Label Text="{Binding DurationText}"
+                                                               FontSize="11"
+                                                               TextColor="{DynamicResource BodyText}" />
+                                                    </Border>
+                                                    <Border Padding="8,4"
+                                                            BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 10">
+                                                        <Label Text="{Binding DistanceText}"
+                                                               FontSize="11"
+                                                               TextColor="{DynamicResource PrimaryGreen}" />
+                                                    </Border>
+                                                </HorizontalStackLayout>
+
+                                                <Label Text="{Binding StopsPreviewText}"
+                                                       FontSize="11"
+                                                       MaxLines="2"
+                                                       LineBreakMode="TailTruncation"
+                                                       TextColor="{DynamicResource MutedText}" />
+                                            </VerticalStackLayout>
                                             <Border.GestureRecognizers>
                                                 <TapGestureRecognizer Tapped="OnTourItemTapped" />
                                             </Border.GestureRecognizers>
@@ -501,20 +554,117 @@
                                     StrokeThickness="1"
                                     StrokeShape="RoundRectangle 16"
                                     Padding="12">
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="{Binding ActiveTourStop.Name}"
-                                           FontAttributes="Bold"
-                                           FontSize="15"
-                                           TextColor="{DynamicResource BodyText}" />
-                                    <Label Text="{Binding ActiveTourStop.Address}"
-                                           FontSize="12"
-                                           TextColor="{DynamicResource MutedText}" />
+                                <VerticalStackLayout Spacing="12">
+                                    <Grid ColumnDefinitions="72,*"
+                                          ColumnSpacing="12">
+                                    <Border WidthRequest="72"
+                                            HeightRequest="72"
+                                            BackgroundColor="{DynamicResource SurfaceAlt}"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 18"
+                                            Padding="0">
+                                        <Image Source="{Binding SelectedTour.CoverImageUrl}"
+                                               Aspect="AspectFill" />
+                                    </Border>
+
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="4">
+                                        <Label Text="{Binding SelectedTour.Name}"
+                                               FontAttributes="Bold"
+                                               FontSize="15"
+                                               TextColor="{DynamicResource BodyText}" />
+                                        <Label Text="{Binding SelectedTourJourneyText}"
+                                               FontSize="12"
+                                               MaxLines="2"
+                                               LineBreakMode="TailTruncation"
+                                               TextColor="{DynamicResource MutedText}" />
+                                        <Label Text="{Binding SelectedTourTimingText}"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource PrimaryGreen}" />
+                                        <Label Text="{Binding SelectedTourRoadHintText}"
+                                               FontSize="12"
+                                               MaxLines="2"
+                                               LineBreakMode="TailTruncation"
+                                               TextColor="{DynamicResource MutedText}" />
+                                    </VerticalStackLayout>
+                                    </Grid>
+
+                                    <HorizontalStackLayout Spacing="8">
+                                        <Border Padding="8,4"
+                                                BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 10">
+                                            <Label Text="{Binding SelectedTour.StopCount, StringFormat='📍 {0} điểm'}"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource BodyText}" />
+                                        </Border>
+                                        <Border Padding="8,4"
+                                                BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 10">
+                                            <Label Text="{Binding SelectedTour.DurationText}"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource BodyText}" />
+                                        </Border>
+                                        <Border Padding="8,4"
+                                                BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 10">
+                                            <Label Text="{Binding SelectedTour.DistanceText}"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource PrimaryGreen}" />
+                                        </Border>
+                                    </HorizontalStackLayout>
+
                                     <Label Text="{Binding ActiveTourProgressText}"
                                            FontSize="12"
                                            TextColor="{DynamicResource PrimaryGreen}" />
                                     <Label Text="{Binding NextTourStopText}"
                                            FontSize="12"
+                                           MaxLines="2"
+                                           LineBreakMode="TailTruncation"
                                            TextColor="{DynamicResource MutedText}" />
+                                    <Label Text="Các điểm sẽ đi qua"
+                                           FontSize="13"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource BodyText}" />
+
+                                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding SelectedTour.Stops}"
+                                                         Spacing="8">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid ColumnDefinitions="Auto,*"
+                                                      ColumnSpacing="10">
+                                                    <Border WidthRequest="24"
+                                                            HeightRequest="24"
+                                                            BackgroundColor="{DynamicResource SoftGreen}"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 12"
+                                                            VerticalOptions="Start">
+                                                        <Label Text="{Binding SequenceBadgeText}"
+                                                               FontSize="11"
+                                                               FontAttributes="Bold"
+                                                               HorizontalTextAlignment="Center"
+                                                               VerticalTextAlignment="Center"
+                                                               TextColor="{DynamicResource PrimaryGreen}" />
+                                                    </Border>
+
+                                                    <VerticalStackLayout Grid.Column="1"
+                                                                         Spacing="1">
+                                                        <Label Text="{Binding Name}"
+                                                               FontSize="12"
+                                                               FontAttributes="Bold"
+                                                               TextColor="{DynamicResource BodyText}" />
+                                                        <Label Text="{Binding Address}"
+                                                               FontSize="11"
+                                                               MaxLines="1"
+                                                               LineBreakMode="TailTruncation"
+                                                               TextColor="{DynamicResource MutedText}" />
+                                                    </VerticalStackLayout>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </VerticalStackLayout>
                                 </VerticalStackLayout>
                             </Border>
 

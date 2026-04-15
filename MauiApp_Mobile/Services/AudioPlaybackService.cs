@@ -32,6 +32,7 @@ public sealed partial class AudioPlaybackService
     private CancellationTokenSource? _ttsCancellationTokenSource;
     private TaskCompletionSource<bool>? _activePlaybackCompletionSource;
     private CancellationTokenSource? _progressLoopCts;
+    private int _playbackSessionVersion;
 
 #if ANDROID
     private MediaPlayer? _androidPlayer;
@@ -65,6 +66,7 @@ public sealed partial class AudioPlaybackService
     public async Task PlayAsync(PublicAudioTrackDto track, CancellationToken cancellationToken = default)
     {
         await StopAsync();
+        var playbackSession = Interlocked.Increment(ref _playbackSessionVersion);
 
         CurrentTrack = track;
         IsLoading = true;
@@ -94,7 +96,7 @@ public sealed partial class AudioPlaybackService
             {
                 try
                 {
-                    await PlayTtsAsync(track, cancellationToken);
+                    await PlayTtsAsync(track, cancellationToken, playbackSession);
                     return;
                 }
                 catch (OperationCanceledException)
@@ -111,7 +113,7 @@ public sealed partial class AudioPlaybackService
             {
                 try
                 {
-                    await PlatformPlayAudioAsync(ResolveAudioUrl(track.AudioURL), cancellationToken);
+                    await PlatformPlayAudioAsync(ResolveAudioUrl(track.AudioURL), cancellationToken, playbackSession);
                     return;
                 }
                 catch (OperationCanceledException)
@@ -121,7 +123,7 @@ public sealed partial class AudioPlaybackService
                 catch (Exception ex) when (!string.IsNullOrWhiteSpace(track.Script))
                 {
                     System.Diagnostics.Debug.WriteLine($"Recorded playback failed for track {track.Id}. Falling back to TTS. {ex.Message}");
-                    await PlayTtsAsync(track, cancellationToken);
+                    await PlayTtsAsync(track, cancellationToken, playbackSession);
                     return;
                 }
             }
@@ -159,6 +161,7 @@ public sealed partial class AudioPlaybackService
 
     public async Task StopAsync()
     {
+        Interlocked.Increment(ref _playbackSessionVersion);
         _ttsCancellationTokenSource?.Cancel();
         _ttsCancellationTokenSource?.Dispose();
         _ttsCancellationTokenSource = null;
@@ -362,7 +365,7 @@ public sealed partial class AudioPlaybackService
         return Task.CompletedTask;
     }
 
-    private async Task PlayTtsAsync(PublicAudioTrackDto track, CancellationToken cancellationToken)
+    private async Task PlayTtsAsync(PublicAudioTrackDto track, CancellationToken cancellationToken, int playbackSession)
     {
         if (string.IsNullOrWhiteSpace(track.Script))
         {
@@ -383,7 +386,7 @@ public sealed partial class AudioPlaybackService
 
         MarkPlaybackStarted();
         await MauiTextToSpeech.Default.SpeakAsync(track.Script, options, _ttsCancellationTokenSource.Token);
-        await OnPlaybackCompletedAsync();
+        await OnPlaybackCompletedAsync(playbackSession);
     }
 
     private async Task PlayTranslatedCloudTtsAsync(PublicAudioTrackDto track, CancellationToken cancellationToken)
@@ -421,7 +424,7 @@ public sealed partial class AudioPlaybackService
 
         try
         {
-            await PlatformPlayAudioAsync(tempFilePath, cancellationToken);
+            await PlatformPlayAudioAsync(tempFilePath, cancellationToken, Interlocked.CompareExchange(ref _playbackSessionVersion, 0, 0));
         }
         finally
         {
@@ -556,43 +559,62 @@ public sealed partial class AudioPlaybackService
             _ => "Xin chao, day la ban thu giong doc."
         };
 
-    private async Task PlatformPlayAudioAsync(string source, CancellationToken cancellationToken)
+    private async Task PlatformPlayAudioAsync(string source, CancellationToken cancellationToken, int playbackSession)
     {
 #if ANDROID
         var playbackSource = await PrepareAndroidPlaybackSourceAsync(source, cancellationToken);
         RequestAndroidAudioFocus();
-        _androidPlayer?.Release();
-        _androidPlayer?.Dispose();
-        _androidPlayer = new MediaPlayer();
-        _androidPlayer.SetAudioAttributes(new AudioAttributes.Builder()
+        SafeStopAndDisposeAndroidPlayer(Interlocked.Exchange(ref _androidPlayer, null));
+        var player = new MediaPlayer();
+        _androidPlayer = player;
+        player.SetAudioAttributes(new AudioAttributes.Builder()
             .SetContentType(AudioContentType.Music)
             .SetUsage(AudioUsageKind.Media)
             .Build());
 
         ApplyAndroidPlayerVolume();
-        _androidPlayer.SetDataSource(playbackSource);
+        player.SetDataSource(playbackSource);
 
         var completionSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         Interlocked.Exchange(ref _activePlaybackCompletionSource, completionSource);
 
-        _androidPlayer.Completion += (_, _) =>
+        player.Completion += (_, _) =>
         {
+            if (playbackSession != Interlocked.CompareExchange(ref _playbackSessionVersion, 0, 0))
+            {
+                completionSource.TrySetCanceled();
+                return;
+            }
+
             completionSource.TrySetResult(true);
-            MainThread.BeginInvokeOnMainThread(async () => await OnPlaybackCompletedAsync());
+            MainThread.BeginInvokeOnMainThread(async () => await OnPlaybackCompletedAsync(playbackSession));
         };
-        _androidPlayer.Prepared += (_, _) =>
+        player.Prepared += (_, _) =>
         {
-            _androidPlayer?.Start();
+            if (playbackSession != Interlocked.CompareExchange(ref _playbackSessionVersion, 0, 0))
+            {
+                SafeStopAndDisposeAndroidPlayer(player);
+                return;
+            }
+
+            player.Start();
             UpdateAndroidProgressSnapshot();
             MarkPlaybackStarted();
         };
-        _androidPlayer.Error += (_, args) =>
+        player.Error += (_, args) =>
         {
+            if (playbackSession != Interlocked.CompareExchange(ref _playbackSessionVersion, 0, 0))
+            {
+                args.Handled = true;
+                completionSource.TrySetCanceled();
+                return;
+            }
+
             completionSource.TrySetException(new InvalidOperationException("Android audio playback failed."));
             args.Handled = true;
         };
 
-        _androidPlayer.PrepareAsync();
+        player.PrepareAsync();
         using var registration = cancellationToken.Register(() => MainThread.BeginInvokeOnMainThread(async () => await StopAsync()));
         try
         {
@@ -649,22 +671,18 @@ public sealed partial class AudioPlaybackService
     private Task PlatformStopAudioAsync()
     {
 #if ANDROID
-        _androidTts?.Stop();
-        _androidTts?.Shutdown();
-        _androidTts?.Dispose();
+        try
+        {
+            _androidTts?.Stop();
+            _androidTts?.Shutdown();
+            _androidTts?.Dispose();
+        }
+        catch
+        {
+        }
         _androidTts = null;
 
-        if (_androidPlayer is not null)
-        {
-            if (_androidPlayer.IsPlaying)
-            {
-                _androidPlayer.Stop();
-            }
-
-            _androidPlayer.Release();
-            _androidPlayer.Dispose();
-            _androidPlayer = null;
-        }
+        SafeStopAndDisposeAndroidPlayer(Interlocked.Exchange(ref _androidPlayer, null));
 
         ReleaseAndroidAudioFocus();
 
@@ -679,8 +697,13 @@ public sealed partial class AudioPlaybackService
 #endif
     }
 
-    private async Task OnPlaybackCompletedAsync()
+    private async Task OnPlaybackCompletedAsync(int playbackSession)
     {
+        if (playbackSession != Interlocked.CompareExchange(ref _playbackSessionVersion, 0, 0))
+        {
+            return;
+        }
+
         StopProgressLoop();
         await PlatformStopAudioAsync();
         CurrentTrack = null;
@@ -871,11 +894,19 @@ public sealed partial class AudioPlaybackService
             return;
         }
 
-        CurrentPosition = TimeSpan.FromMilliseconds(Math.Max(overridePositionMs ?? _androidPlayer.CurrentPosition, 0));
-        CurrentDuration = _androidPlayer.Duration > 0
-            ? TimeSpan.FromMilliseconds(_androidPlayer.Duration)
-            : CurrentDuration;
-        CanSeek = _androidPlayer.Duration > 0;
+        try
+        {
+            CurrentPosition = TimeSpan.FromMilliseconds(Math.Max(overridePositionMs ?? _androidPlayer.CurrentPosition, 0));
+            CurrentDuration = _androidPlayer.Duration > 0
+                ? TimeSpan.FromMilliseconds(_androidPlayer.Duration)
+                : CurrentDuration;
+            CanSeek = _androidPlayer.Duration > 0;
+        }
+        catch (Java.Lang.IllegalStateException)
+        {
+            CurrentPosition = TimeSpan.Zero;
+            CanSeek = false;
+        }
     }
 
     private void ApplyAndroidPlayerVolume(float? overrideVolume = null)
@@ -890,7 +921,57 @@ public sealed partial class AudioPlaybackService
             ? Math.Clamp(baseVolume * 0.3f, 0f, 1f)
             : Math.Clamp(baseVolume, 0f, 1f);
 
-        _androidPlayer.SetVolume(effectiveVolume, effectiveVolume);
+        try
+        {
+            _androidPlayer.SetVolume(effectiveVolume, effectiveVolume);
+        }
+        catch (Java.Lang.IllegalStateException)
+        {
+        }
+    }
+
+    private static void SafeStopAndDisposeAndroidPlayer(MediaPlayer? player)
+    {
+        if (player is null)
+        {
+            return;
+        }
+
+        try
+        {
+            try
+            {
+                if (player.IsPlaying)
+                {
+                    player.Stop();
+                }
+                else
+                {
+                    player.Reset();
+                }
+            }
+            catch (Java.Lang.IllegalStateException)
+            {
+            }
+
+            try
+            {
+                player.Release();
+            }
+            catch
+            {
+            }
+        }
+        finally
+        {
+            try
+            {
+                player.Dispose();
+            }
+            catch
+            {
+            }
+        }
     }
 
     private void RequestAndroidAudioFocus()

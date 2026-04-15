@@ -19,6 +19,7 @@ namespace MauiApp_Mobile.Views;
 public partial class MapPage : ContentPage
 {
     private static readonly HttpClient SearchHttpClient = CreateSearchHttpClient();
+    private static readonly HttpClient MapImageHttpClient = MobileApiHttpClientFactory.Create(TimeSpan.FromSeconds(18), 4);
     private static readonly JsonSerializerOptions JsonInteropOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -59,11 +60,14 @@ public partial class MapPage : ContentPage
     public bool IsTourEmptyVisible => !IsTourBusy && AvailableTours.Count == 0;
     public string TourPanelHeaderTitle => IsTourListVisible || SelectedTour is null ? "Tour Guide" : SelectedTour.Name;
     public string TourPanelHeaderSubtitle => IsTourListVisible || SelectedTour is null ? "Chọn hành trình giữa các POI để khám phá theo tuyến." : SelectedTour.RouteStatusText;
-    public MapTourViewModel? SelectedTour { get => _selectedTour; private set { if (_selectedTour == value) return; _selectedTour = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsTourDetailVisible)); OnPropertyChanged(nameof(TourPanelHeaderTitle)); OnPropertyChanged(nameof(TourPanelHeaderSubtitle)); OnPropertyChanged(nameof(SelectedTourSummaryText)); OnPropertyChanged(nameof(SelectedTourRoadHintText)); } }
+    public MapTourViewModel? SelectedTour { get => _selectedTour; private set { if (_selectedTour == value) return; _selectedTour = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsTourDetailVisible)); OnPropertyChanged(nameof(TourPanelHeaderTitle)); OnPropertyChanged(nameof(TourPanelHeaderSubtitle)); OnPropertyChanged(nameof(SelectedTourSummaryText)); OnPropertyChanged(nameof(SelectedTourRoadHintText)); OnPropertyChanged(nameof(SelectedTourStopsText)); OnPropertyChanged(nameof(SelectedTourTimingText)); OnPropertyChanged(nameof(SelectedTourJourneyText)); } }
     public MapTourStopViewModel? ActiveTourStop { get => _activeTourStop; private set { if (_activeTourStop == value) return; _activeTourStop = value; OnPropertyChanged(); OnPropertyChanged(nameof(ActiveTourProgressText)); OnPropertyChanged(nameof(HasNextTourStop)); } }
     public MapTourStopViewModel? NextTourStop { get => _nextTourStop; private set { if (_nextTourStop == value) return; _nextTourStop = value; OnPropertyChanged(); OnPropertyChanged(nameof(NextTourStopText)); OnPropertyChanged(nameof(HasNextTourStop)); } }
     public string SelectedTourSummaryText => SelectedTour is null ? string.Empty : $"{SelectedTour.StopCount} điểm dừng • {SelectedTour.DurationText} • {SelectedTour.DistanceText}";
     public string SelectedTourRoadHintText => SelectedTour?.RouteStatusText ?? string.Empty;
+    public string SelectedTourStopsText => SelectedTour?.StopsPreviewText ?? string.Empty;
+    public string SelectedTourTimingText => SelectedTour?.TimingText ?? string.Empty;
+    public string SelectedTourJourneyText => SelectedTour?.JourneyText ?? string.Empty;
     public string ActiveTourProgressText => SelectedTour is null || ActiveTourStop is null ? string.Empty : $"Điểm {ActiveTourStop.SequenceOrder}/{SelectedTour.StopCount}";
     public bool HasNextTourStop => NextTourStop is not null;
     public string NextTourStopText => SelectedTour is null || ActiveTourStop is null ? string.Empty : NextTourStop is null ? "Bạn đã đến điểm cuối của hành trình này." : $"{NextTourStop.Name} • {SelectedTour.ResolveDistanceToStop(NextTourStop.SequenceOrder):0.0} km • {SelectedTour.ResolveDurationToStop(NextTourStop.SequenceOrder)} phút";
@@ -1224,6 +1228,16 @@ public partial class MapPage : ContentPage
 
         try
         {
+            if (!forceReloadWebView && !CanRefreshOnlineMapData())
+            {
+                await DisplayAlertAsync(
+                    "Offline",
+                    "Cannt connect to sever due to internet connection or offline mode",
+                    "OK");
+                UpdateSearchStatus("Không thể làm mới khi ứng dụng đang offline.");
+                return;
+            }
+
             _isRefreshingMap = true;
             UpdateSearchStatus("Đang làm mới bản đồ...");
 
@@ -1267,6 +1281,10 @@ public partial class MapPage : ContentPage
         return Task.CompletedTask;
     }
 
+    private static bool CanRefreshOnlineMapData() =>
+        AppDataModeService.Instance.IsApiEnabled &&
+        Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
+
     private MapTourViewModel CreateTourViewModel(MobileTourDescriptor tour)
     {
         var orderedStops = tour.Stops
@@ -1285,15 +1303,23 @@ public partial class MapPage : ContentPage
             .ToList();
 
         var routePreview = tour.RoutePreview;
+        var distanceKm = routePreview.TotalDistanceKm > 0
+            ? routePreview.TotalDistanceKm
+            : (tour.TotalDistanceKm > 0 ? tour.TotalDistanceKm : routePreview.Segments.Sum(item => item.DistanceKm));
+        var estimatedDurationMinutes = routePreview.EstimatedDurationMinutes > 0
+            ? routePreview.EstimatedDurationMinutes
+            : Math.Max(tour.EstimatedDurationMinutes, Math.Max(orderedStops.Count * 12, 12));
         return new MapTourViewModel
         {
             Id = tour.Id,
             Name = tour.Name,
             Description = string.IsNullOrWhiteSpace(tour.Description) ? "Hành trình tham quan nhiều điểm nổi bật." : tour.Description.Trim(),
             StopCount = tour.StopCount > 0 ? tour.StopCount : orderedStops.Count,
-            DistanceKm = routePreview.TotalDistanceKm,
-            EstimatedDurationMinutes = routePreview.EstimatedDurationMinutes,
+            DistanceKm = distanceKm,
+            EstimatedDurationMinutes = estimatedDurationMinutes,
             UsesRoadRouting = routePreview.UsesRoadRouting,
+            StartTime = tour.StartTime ?? routePreview.StartTime ?? string.Empty,
+            FinishTime = tour.FinishTime ?? routePreview.FinishTime ?? string.Empty,
             Stops = orderedStops,
             RoutePreview = routePreview,
             CoverImageUrl = orderedStops.FirstOrDefault()?.ImageUrl ?? "location.png"
@@ -1493,6 +1519,8 @@ public partial class MapPage : ContentPage
         if (string.IsNullOrWhiteSpace(imageSource))
             return string.Empty;
 
+        imageSource = MobileApiOptions.ResolveImageUrl(imageSource);
+
         if (Path.IsPathRooted(imageSource) && File.Exists(imageSource))
         {
             return new Uri(imageSource).AbsoluteUri;
@@ -1500,8 +1528,7 @@ public partial class MapPage : ContentPage
 
         if (imageSource.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
             imageSource.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
-            imageSource.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-            imageSource.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            imageSource.StartsWith("content://", StringComparison.OrdinalIgnoreCase))
         {
             return imageSource;
         }
@@ -1511,6 +1538,24 @@ public partial class MapPage : ContentPage
 
         try
         {
+            if (Uri.TryCreate(imageSource, UriKind.Absolute, out var remoteUri) &&
+                (string.Equals(remoteUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(remoteUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+            {
+                var bytes = await MapImageHttpClient.GetByteArrayAsync(remoteUri);
+                var remoteMimeType = Path.GetExtension(remoteUri.AbsolutePath).ToLowerInvariant() switch
+                {
+                    ".jpg" or ".jpeg" => "image/jpeg",
+                    ".webp" => "image/webp",
+                    ".svg" => "image/svg+xml",
+                    _ => "image/png"
+                };
+
+                var remoteDataUri = $"data:{remoteMimeType};base64,{Convert.ToBase64String(bytes)}";
+                _mapImageDataCache[imageSource] = remoteDataUri;
+                return remoteDataUri;
+            }
+
             using var stream = await FileSystem.OpenAppPackageFileAsync(imageSource);
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream);
@@ -1530,7 +1575,10 @@ public partial class MapPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Map image fallback for {imageSource}: {ex.Message}");
-            return string.Empty;
+            return imageSource.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                   imageSource.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                ? imageSource
+                : string.Empty;
         }
     }
 
@@ -1947,12 +1995,23 @@ public partial class MapPage : ContentPage
         public double DistanceKm { get; init; }
         public int EstimatedDurationMinutes { get; init; }
         public bool UsesRoadRouting { get; init; }
+        public string StartTime { get; init; } = string.Empty;
+        public string FinishTime { get; init; } = string.Empty;
         public TourRoutePreviewDto? RoutePreview { get; init; }
         public string CoverImageUrl { get; init; } = string.Empty;
         public IReadOnlyList<MapTourStopViewModel> Stops { get; init; } = Array.Empty<MapTourStopViewModel>();
         public string DistanceText => $"{DistanceKm:0.0} km";
         public string DurationText => $"{Math.Max(EstimatedDurationMinutes, 1)} phút";
         public string RouteStatusText => UsesRoadRouting ? "Có tuyến đường đi bộ giữa các điểm" : "Tuyến tham quan theo POI";
+        public string StopsPreviewText => string.Join("  •  ", Stops.OrderBy(item => item.SequenceOrder).Select(item => item.Name));
+        public string TimingText => string.IsNullOrWhiteSpace(StartTime) && string.IsNullOrWhiteSpace(FinishTime)
+            ? "Khởi hành linh hoạt"
+            : $"{(string.IsNullOrWhiteSpace(StartTime) ? "--:--" : StartTime)} → {(string.IsNullOrWhiteSpace(FinishTime) ? "--:--" : FinishTime)}";
+        public string JourneyText => Stops.Count == 0
+            ? string.Empty
+            : Stops.Count == 1
+                ? Stops[0].Name
+                : $"{Stops.OrderBy(item => item.SequenceOrder).First().Name} → {Stops.OrderBy(item => item.SequenceOrder).Last().Name}";
 
         public double ResolveDistanceToStop(int sequenceOrder)
         {
@@ -1982,5 +2041,6 @@ public partial class MapPage : ContentPage
         public double Longitude { get; init; }
         public int SequenceOrder { get; init; }
         public string ImageUrl { get; init; } = string.Empty;
+        public string SequenceBadgeText => SequenceOrder.ToString(CultureInfo.InvariantCulture);
     }
 }

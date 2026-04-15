@@ -1,6 +1,7 @@
 #if ANDROID
 using Android.App;
 using Android.Content;
+using Microsoft.Maui.ApplicationModel;
 
 namespace MauiApp_Mobile.Services;
 
@@ -23,7 +24,7 @@ public sealed class AudioPlaybackActionReceiver : BroadcastReceiver
             return;
         }
 
-        _ = Task.Run(async () =>
+        _ = MainThread.InvokeOnMainThreadAsync(async () =>
         {
             switch (action)
             {

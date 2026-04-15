@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <style name="Maui.MainTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <item name="android:statusBarColor">@color/colorPrimaryDark</item>
+    <item name="android:navigationBarColor">@color/colorPrimaryDark</item>
+    <item name="android:windowBackground">@android:color/white</item>
+  </style>
+
+  <style name="Maui.MainTheme.NoActionBar" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <item name="android:statusBarColor">@color/colorPrimaryDark</item>
+    <item name="android:navigationBarColor">@color/colorPrimaryDark</item>
+    <item name="android:windowBackground">@android:color/white</item>
+  </style>
+
+  <style name="Maui.SplashTheme" parent="Maui.MainTheme.NoActionBar">
+    <item name="android:windowBackground">@android:color/white</item>
+    <item name="android:statusBarColor">@color/colorPrimaryDark</item>
+    <item name="android:navigationBarColor">@color/colorPrimaryDark</item>
+  </style>
+</resources>

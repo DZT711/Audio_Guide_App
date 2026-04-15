@@ -112,6 +112,7 @@ public class HistoryService
             AudioCountText = item.AudioCountText,
             AudioTracks = item.AudioTracks.ToList(),
             AvailableVoiceGenders = item.AvailableVoiceGenders.Take(3).ToList(),
+            LanguageBadgeSummaryText = item.LanguageBadgeSummaryText,
             Latitude = item.Latitude,
             Longitude = item.Longitude,
             CategoryColor = item.CategoryColor,

@@ -191,49 +191,66 @@
                                     ItemsLayout="VerticalList">
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:PlaceItem">
-                            <Frame Style="{StaticResource CardFrameStyle}">
+                            <Frame Style="{StaticResource CardFrameStyle}"
+                                   Padding="0">
                                 <Frame.GestureRecognizers>
                                     <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type local:MainPage}}, Path=ViewModel.OpenPlaceCommand}"
                                                           CommandParameter="{Binding .}" />
                                 </Frame.GestureRecognizers>
-                                <Grid ColumnDefinitions="88,*,Auto" ColumnSpacing="14">
-                                    <Image Source="{Binding Image, Converter={StaticResource PlaceImageSourceConverter}}"
-                                           WidthRequest="88"
-                                           HeightRequest="88"
-                                           Aspect="AspectFill" />
+                                <Grid ColumnDefinitions="126,*,Auto"
+                                      ColumnSpacing="0"
+                                      MinimumHeightRequest="148">
+                                    <Border StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 22"
+                                            Padding="0"
+                                            Margin="-1,-1,0,-1"
+                                            HorizontalOptions="Fill"
+                                            VerticalOptions="Fill">
+                                        <Image Source="{Binding Image, Converter={StaticResource PlaceImageSourceConverter}}"
+                                               Aspect="AspectFill"
+                                               HorizontalOptions="Fill"
+                                               VerticalOptions="Fill" />
+                                    </Border>
 
-                                    <VerticalStackLayout Grid.Column="1" Spacing="4">
-                                        <Label Text="{Binding Name}"
-                                               FontSize="18"
-                                               FontAttributes="Bold"
-                                               TextColor="{DynamicResource BodyText}" />
+                                    <Grid Grid.Column="1"
+                                          Padding="16,16,12,16">
+                                        <VerticalStackLayout Spacing="4">
+                                            <Label Text="{Binding Name}"
+                                                   FontSize="18"
+                                                   FontAttributes="Bold"
+                                                   TextColor="{DynamicResource BodyText}"
+                                                   MaxLines="2"
+                                                   LineBreakMode="TailTruncation" />
 
-                                        <Label Text="{Binding Description}"
-                                               FontSize="13"
-                                               TextColor="#667085" />
-
-                                        <HorizontalStackLayout Spacing="8" Margin="0,6,0,0">
-                                            <Frame Padding="10,4"
-                                                   CornerRadius="10"
-                                                   HasShadow="False"
-                                                   BackgroundColor="{Binding CategoryColor}"
-                                                   BorderColor="Transparent">
-                                                <Label Text="{Binding Category}"
-                                                       FontSize="12"
-                                                       TextColor="{Binding CategoryTextColor}" />
-                                            </Frame>
-
-                                            <Label Text="{Binding Rating, StringFormat='⭐ {0}'}"
+                                            <Label Text="{Binding Description}"
                                                    FontSize="13"
                                                    TextColor="#667085"
-                                                   VerticalOptions="Center" />
-                                        </HorizontalStackLayout>
+                                                   MaxLines="3"
+                                                   LineBreakMode="TailTruncation" />
 
-                                        <Label Text="{Binding LanguageBadgeSummaryText}"
-                                               FontSize="12"
-                                               IsVisible="{Binding HasLanguageBadges}"
-                                               TextColor="{DynamicResource MutedText}" />
-                                    </VerticalStackLayout>
+                                            <HorizontalStackLayout Spacing="8" Margin="0,6,0,0">
+                                                <Frame Padding="10,4"
+                                                       CornerRadius="10"
+                                                       HasShadow="False"
+                                                       BackgroundColor="{Binding CategoryColor}"
+                                                       BorderColor="Transparent">
+                                                    <Label Text="{Binding Category}"
+                                                           FontSize="12"
+                                                           TextColor="{Binding CategoryTextColor}" />
+                                                </Frame>
+
+                                                <Label Text="{Binding Rating, StringFormat='⭐ {0}'}"
+                                                       FontSize="13"
+                                                       TextColor="#667085"
+                                                       VerticalOptions="Center" />
+                                            </HorizontalStackLayout>
+
+                                            <Label Text="{Binding LanguageBadgeSummaryText}"
+                                                   FontSize="12"
+                                                   IsVisible="{Binding HasLanguageBadges}"
+                                                   TextColor="{DynamicResource MutedText}" />
+                                        </VerticalStackLayout>
+                                    </Grid>
 
                                     <Frame Grid.Column="2"
                                            WidthRequest="44"
@@ -241,6 +258,7 @@
                                            CornerRadius="22"
                                            Padding="0"
                                            BackgroundColor="{DynamicResource PrimaryGreen}"
+                                           Margin="0,0,16,0"
                                            HorizontalOptions="End"
                                            VerticalOptions="Center">
                                         <Grid>

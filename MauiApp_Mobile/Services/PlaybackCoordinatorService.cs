@@ -25,8 +25,8 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
 
     public IReadOnlyList<PlaybackQueueItem> Queue => _queue;
     public PlaybackQueueItem? CurrentQueueItem => _currentIndex >= 0 && _currentIndex < _queue.Count ? _queue[_currentIndex] : null;
-    public PublicAudioTrackDto? CurrentTrack => AudioPlaybackService.Instance.CurrentTrack;
-    public string CurrentTitle => CurrentTrack?.Title ?? string.Empty;
+    public PublicAudioTrackDto? CurrentTrack => AudioPlaybackService.Instance.CurrentTrack ?? CurrentQueueItem?.Track;
+    public string CurrentTitle => CurrentQueueItem?.Track.Title ?? AudioPlaybackService.Instance.CurrentTrack?.Title ?? string.Empty;
     public string CurrentSubtitle => CurrentQueueItem?.Subtitle ?? string.Empty;
     public string QueueTitle => CurrentQueueItem?.QueueTitle ?? string.Empty;
     public int QueueCount => _queue.Count;

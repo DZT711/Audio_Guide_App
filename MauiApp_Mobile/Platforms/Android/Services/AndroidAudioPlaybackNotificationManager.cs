@@ -22,61 +22,70 @@ internal sealed class AndroidAudioPlaybackNotificationManager
 
     public void Refresh(AudioPlaybackService playbackService)
     {
-        var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-        var context = activity ?? Android.App.Application.Context;
-        var playbackCoordinator = PlaybackCoordinatorService.Instance;
-        EnsureChannel(context);
-
-        if (playbackService.CurrentTrack is null && !playbackService.IsPaused)
+        try
         {
-            NotificationManagerCompat.From(context).Cancel(NotificationId);
-            return;
-        }
+            var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+            var context = activity ?? Android.App.Application.Context;
+            var playbackCoordinator = PlaybackCoordinatorService.Instance;
+            EnsureChannel(context);
 
-        var builder = new NotificationCompat.Builder(context, ChannelId)
-            .SetSmallIcon(Resource.Mipmap.appicon)
-            .SetContentTitle(BuildTitle(playbackService, playbackCoordinator))
-            .SetContentText(BuildSubtitle(playbackService, playbackCoordinator))
-            .SetSubText(BuildContentText(playbackService))
-            .SetOnlyAlertOnce(true)
-            .SetOngoing(playbackService.IsPlaying || playbackService.IsLoading)
-            .SetVisibility(NotificationCompat.VisibilityPublic)
-            .SetCategory(NotificationCompat.CategoryTransport)
-            .SetSilent(true)
-            .SetColor(Android.Graphics.Color.ParseColor("#0F4E8A"))
-            .SetColorized(true)
-            .SetShowWhen(false)
-            .SetPriority((int)NotificationPriority.Low)
-            .SetDeleteIntent(BuildActionIntent(context, ActionStop, 90))
-            .SetLargeIcon(BuildLargeIcon(context))
-            .SetStyle(new NotificationCompat.BigTextStyle()
-                .BigText(BuildSubtitle(playbackService, playbackCoordinator))
-                .SetSummaryText(BuildContentText(playbackService)))
-            .SetContentIntent(BuildLaunchIntent(context));
+            if (playbackService.CurrentTrack is null && !playbackService.IsPaused)
+            {
+                NotificationManagerCompat.From(context).Cancel(NotificationId);
+                return;
+            }
 
-        if (playbackService.CanSeek)
-        {
-            builder.SetProgress((int)Math.Max(playbackService.CurrentDuration.TotalSeconds, 1), (int)Math.Max(playbackService.CurrentPosition.TotalSeconds, 0), false);
-        }
+            var subtitle = BuildSubtitle(playbackService, playbackCoordinator);
+            var contentText = BuildContentText(playbackService);
+            var builder = new NotificationCompat.Builder(context, ChannelId)
+                .SetSmallIcon(Resource.Mipmap.appicon)
+                .SetContentTitle(BuildTitle(playbackService, playbackCoordinator))
+                .SetContentText(subtitle)
+                .SetSubText(contentText)
+                .SetOnlyAlertOnce(true)
+                .SetOngoing(playbackService.IsPlaying || playbackService.IsLoading)
+                .SetVisibility(NotificationCompat.VisibilityPublic)
+                .SetCategory(NotificationCompat.CategoryTransport)
+                .SetSilent(true)
+                .SetColor(Android.Graphics.Color.ParseColor("#0F4E8A"))
+                .SetColorized(true)
+                .SetShowWhen(false)
+                .SetPriority((int)NotificationPriority.Low)
+                .SetDeleteIntent(BuildActionIntent(context, ActionStop, 90))
+                .SetLargeIcon(BuildLargeIcon(context))
+                .SetStyle(new NotificationCompat.BigTextStyle()
+                    .BigText(subtitle)
+                    .SetSummaryText(contentText))
+                .SetContentIntent(BuildLaunchIntent(context));
 
-        builder
-            .AddAction(Android.Resource.Drawable.IcMediaPrevious, "Trước", BuildActionIntent(context, ActionPrevious, 1))
-            .AddAction(
-                playbackService.IsPlaying ? Android.Resource.Drawable.IcMediaPause : Android.Resource.Drawable.IcMediaPlay,
-                playbackService.IsPlaying ? "Tạm dừng" : "Phát",
-                BuildActionIntent(context, ActionToggle, 2))
-            .AddAction(Android.Resource.Drawable.IcMediaNext, "Tiếp", BuildActionIntent(context, ActionNext, 3));
+            if (playbackService.CanSeek)
+            {
+                builder.SetProgress((int)Math.Max(playbackService.CurrentDuration.TotalSeconds, 1), (int)Math.Max(playbackService.CurrentPosition.TotalSeconds, 0), false);
+            }
 
-        if (playbackService.CanSeek)
-        {
             builder
-                .AddAction(Android.Resource.Drawable.IcMediaRew, "-5 giây", BuildActionIntent(context, ActionSeekBackward, 4))
-                .AddAction(Android.Resource.Drawable.IcMediaFf, "+5 giây", BuildActionIntent(context, ActionSeekForward, 5));
+                .AddAction(Android.Resource.Drawable.IcMediaPrevious, "Trước", BuildActionIntent(context, ActionPrevious, 1))
+                .AddAction(
+                    playbackService.IsPlaying ? Android.Resource.Drawable.IcMediaPause : Android.Resource.Drawable.IcMediaPlay,
+                    playbackService.IsPlaying ? "Tạm dừng" : "Phát",
+                    BuildActionIntent(context, ActionToggle, 2))
+                .AddAction(Android.Resource.Drawable.IcMediaNext, "Tiếp", BuildActionIntent(context, ActionNext, 3));
+
+            if (playbackService.CanSeek)
+            {
+                builder
+                    .AddAction(Android.Resource.Drawable.IcMediaRew, "-5 giây", BuildActionIntent(context, ActionSeekBackward, 4))
+                    .AddAction(Android.Resource.Drawable.IcMediaFf, "+5 giây", BuildActionIntent(context, ActionSeekForward, 5));
+            }
+
+            builder.AddAction(Android.Resource.Drawable.IcMenuCloseClearCancel, "Dừng", BuildActionIntent(context, ActionStop, 6));
+
+            NotificationManagerCompat.From(context).Notify(NotificationId, builder.Build());
         }
-
-        builder.AddAction(Android.Resource.Drawable.IcMenuCloseClearCancel, "Dừng", BuildActionIntent(context, ActionStop, 6));
-
-        NotificationManagerCompat.From(context).Notify(NotificationId, builder.Build());
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Playback notification refresh skipped: {ex.Message}");
+        }
     }
 
     private static string BuildTitle(AudioPlaybackService playbackService, PlaybackCoordinatorService playbackCoordinator)

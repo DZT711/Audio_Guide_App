@@ -42,7 +42,10 @@ public sealed class TourCatalogService
             .ToList();
     }
 
-    public string? ResolveImageUrl(string? imagePath) => imagePath;
+    public string? ResolveImageUrl(string? imagePath) =>
+        string.IsNullOrWhiteSpace(imagePath)
+            ? imagePath
+            : MobileApiOptions.ResolveImageUrl(imagePath);
 
     private static MobileTourDescriptor MapFromDto(TourDto tour)
     {

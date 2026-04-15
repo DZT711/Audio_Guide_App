@@ -743,9 +743,9 @@ __LEAFLET_JS__
 
         function createPoiMarkerIcon(place) {
             var palette = getThemePalette();
-            var imageSource = place.image || (place.galleryImages && place.galleryImages.length
+            var imageSource = getResolvedPlaceImage(place.image || (place.galleryImages && place.galleryImages.length
                 ? place.galleryImages[0]
-                : "");
+                : ""), place.title);
             var borderColor = place.isNearest ? palette.nearestStroke : palette.poiStroke;
             var badgeColor = place.isNearest ? palette.nearestFill : palette.poiFill;
             var haloStyle = place.isNearest
@@ -753,12 +753,13 @@ __LEAFLET_JS__
                 : "";
             var markerClass = place.isNearest ? "poi-marker poi-marker--nearest" : "poi-marker";
             var badgeText = escapeHtml(getMarkerBadgeText(place));
+            var fallbackImage = createPoiThumbnail(place.title);
             var html =
                 '<div class="poi-marker-shell">' +
                 '<div class="poi-marker__halo"' + haloStyle + "></div>" +
                 '<div class="' + markerClass + '" style="border-color:' + borderColor + ';">' +
                 '<div class="poi-marker__frame">' +
-                '<img class="poi-marker__image" src="' + escapeHtml(imageSource) + '" alt="' + escapeHtml(place.title) + '">' +
+                '<img class="poi-marker__image" src="' + escapeHtml(imageSource) + '" alt="' + escapeHtml(place.title) + '" onerror="this.onerror=null;this.src=\'' + escapeHtml(fallbackImage) + '\';">' +
                 "</div>" +
                 "</div>" +
                 '<div class="poi-marker__badge" style="background:' + badgeColor + ';">' + badgeText + "</div>" +
@@ -897,6 +898,7 @@ __LEAFLET_JS__
         };
 
         function buildPoiPopup(place) {
+            var fallbackImage = createPoiThumbnail(place.title);
             var categoryChip = place.category
                 ? '<div class="poi-popup-chip">' + escapeHtml(place.category) + "</div>"
                 : "";
@@ -909,15 +911,21 @@ __LEAFLET_JS__
             var detailAction = place.id
                 ? '<a class="poi-popup-action" href="smarttour://place/' + encodeURIComponent(place.id) + '">' + escapeHtml(mapStrings.viewDetails) + "</a>"
                 : "";
-            var galleryImages = place.galleryImages && place.galleryImages.length
+            var galleryImages = (place.galleryImages && place.galleryImages.length
                 ? place.galleryImages
-                : [place.image];
+                : [place.image])
+                .filter(function(image) {
+                    return typeof image === "string" && image.trim().length > 0;
+                });
+            if (!galleryImages.length) {
+                galleryImages = [fallbackImage];
+            }
             var galleryId = encodeURIComponent(place.id || place.title || "poi");
             var gallerySlides = galleryImages.map(function(image, index) {
                 var activeClass = index === 0 ? " is-active" : "";
                 return (
                     '<div class="poi-popup-slide' + activeClass + '">' +
-                    '<img src="' + escapeHtml(image) + '" alt="' + escapeHtml(place.title) + '">' +
+                    '<img src="' + escapeHtml(image) + '" alt="' + escapeHtml(place.title) + '" onerror="this.onerror=null;this.src=\'' + escapeHtml(fallbackImage) + '\';">' +
                     "</div>"
                 );
             }).join("");
