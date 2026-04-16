@@ -38,85 +38,214 @@
                     </Border>
                 </Grid>
 
-                <Frame Style="{StaticResource TopHeaderSearchFrameStyle}">
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                        <Label Text="🔍"
-                               Style="{StaticResource TopHeaderSearchIconStyle}">
-                            <Label.GestureRecognizers>
+                <VerticalStackLayout x:Name="SearchChromePanel"
+                                     Spacing="8">
+                    <Frame Style="{StaticResource TopHeaderSearchFrameStyle}">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <Label Text="🔍"
+                                   Style="{StaticResource TopHeaderSearchIconStyle}">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnSearchIconTapped" />
+                                </Label.GestureRecognizers>
+                            </Label>
+
+                            <Entry x:Name="SearchEntry"
+                                   Grid.Column="1"
+                                   BackgroundColor="Transparent"
+                                   ClearButtonVisibility="WhileEditing"
+                                   Completed="OnSearchCompleted"
+                                   Placeholder="Tìm kiếm địa điểm..."
+                                   PlaceholderColor="{DynamicResource MutedText}"
+                                   ReturnType="Search"
+                                   TextChanged="OnSearchTextChanged"
+                                   TextColor="{DynamicResource BodyText}" />
+                        </Grid>
+                    </Frame>
+
+                    <HorizontalStackLayout HorizontalOptions="End"
+                                           Spacing="10">
+                        <Border BackgroundColor="{DynamicResource MapButtonBg}"
+                                Padding="0"
+                                Stroke="{DynamicResource MapButtonRing}"
+                                StrokeShape="RoundRectangle 24"
+                                StrokeThickness="1.2"
+                                VerticalOptions="Center"
+                                WidthRequest="48"
+                                HeightRequest="48">
+                            <Label Text="🔎"
+                                   FontSize="18"
+                                   HorizontalOptions="Center"
+                                   TextColor="{DynamicResource PrimaryGreen}"
+                                   VerticalOptions="Center" />
+                            <Border.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnSearchIconTapped" />
-                            </Label.GestureRecognizers>
-                        </Label>
+                            </Border.GestureRecognizers>
+                        </Border>
 
-                        <Entry x:Name="SearchEntry"
-                               Grid.Column="1"
-                               BackgroundColor="Transparent"
-                               ClearButtonVisibility="WhileEditing"
-                               Completed="OnSearchCompleted"
-                               Placeholder="Tìm kiếm địa điểm..."
-                               PlaceholderColor="{DynamicResource MutedText}"
-                               ReturnType="Search"
-                               TextChanged="OnSearchTextChanged"
-                               TextColor="{DynamicResource BodyText}" />
+                        <Border BackgroundColor="{DynamicResource MapButtonBg}"
+                                Padding="0"
+                                Stroke="{DynamicResource MapButtonRing}"
+                                StrokeShape="RoundRectangle 24"
+                                StrokeThickness="1.2"
+                                VerticalOptions="Center"
+                                WidthRequest="48"
+                                HeightRequest="48">
+                            <Label Text="↻"
+                                   FontAttributes="Bold"
+                                   FontSize="18"
+                                   HorizontalOptions="Center"
+                                   TextColor="{DynamicResource PrimaryGreen}"
+                                   VerticalOptions="Center" />
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnRefreshButtonTapped" />
+                            </Border.GestureRecognizers>
+                        </Border>
+
+                        <Border x:Name="DeveloperModeButton"
+                                BackgroundColor="{DynamicResource MapButtonBg}"
+                                IsVisible="False"
+                                Padding="0"
+                                Stroke="{DynamicResource MapButtonRing}"
+                                StrokeShape="RoundRectangle 24"
+                                StrokeThickness="1.2"
+                                VerticalOptions="Center"
+                                WidthRequest="48"
+                                HeightRequest="48">
+                            <Grid>
+                                <Label x:Name="DeveloperModeLabel"
+                                       FontAttributes="Bold"
+                                       FontSize="16"
+                                       HorizontalOptions="Center"
+                                       Text="&lt;&gt;"
+                                       TextColor="{DynamicResource BodyText}"
+                                       VerticalOptions="Center" />
+                            </Grid>
+
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnDeveloperModeTapped" />
+                            </Border.GestureRecognizers>
+                        </Border>
+
+                        <Border x:Name="TourButton"
+                                BackgroundColor="{DynamicResource MapButtonBg}"
+                                Padding="0"
+                                Stroke="{DynamicResource MapButtonRing}"
+                                StrokeShape="RoundRectangle 24"
+                                StrokeThickness="1.2"
+                                VerticalOptions="Center"
+                                WidthRequest="48"
+                                HeightRequest="48">
+                            <Grid>
+                                <Label FontSize="18"
+                                       HorizontalOptions="Center"
+                                       Text="🗺"
+                                       TextColor="{DynamicResource PrimaryGreen}"
+                                       VerticalOptions="Center" />
+                            </Grid>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnTourButtonTapped" />
+                            </Border.GestureRecognizers>
+                        </Border>
+
+                        <Border x:Name="CurrentLocationButton"
+                                BackgroundColor="{DynamicResource MapButtonBg}"
+                                Padding="0"
+                                Stroke="{DynamicResource MapButtonRing}"
+                                StrokeShape="RoundRectangle 24"
+                                StrokeThickness="1.2"
+                                VerticalOptions="Center"
+                                WidthRequest="48"
+                                HeightRequest="48">
+                            <Grid>
+                                <Label x:Name="CurrentLocationIcon"
+                                       FontSize="20"
+                                       HorizontalOptions="Center"
+                                       Text="🧭"
+                                       TextColor="{DynamicResource PrimaryGreen}"
+                                       VerticalOptions="Center" />
+
+                                <ActivityIndicator x:Name="CurrentLocationSpinner"
+                                                   Color="{DynamicResource PrimaryGreen}"
+                                                   HorizontalOptions="Center"
+                                                   IsRunning="False"
+                                                   IsVisible="False"
+                                                   VerticalOptions="Center"
+                                                   WidthRequest="22"
+                                                   HeightRequest="22" />
+                            </Grid>
+
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnCurrentLocationTapped" />
+                            </Border.GestureRecognizers>
+                        </Border>
+                    </HorizontalStackLayout>
+
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="10">
+                        <Border x:Name="PoiSearchModeChip"
+                                BackgroundColor="{DynamicResource InputBg}"
+                                Padding="12,9"
+                                Stroke="{DynamicResource BorderColor}"
+                                StrokeShape="RoundRectangle 16"
+                                StrokeThickness="1">
+                            <HorizontalStackLayout HorizontalOptions="Center"
+                                                   Spacing="8">
+                                <Label Text="📍"
+                                       FontSize="14"
+                                       VerticalOptions="Center" />
+                                <Label x:Name="PoiSearchModeLabel"
+                                       FontAttributes="Bold"
+                                       FontSize="13"
+                                       Text="Tên POI"
+                                       TextColor="{DynamicResource BodyText}"
+                                       VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnPoiSearchModeTapped" />
+                            </Border.GestureRecognizers>
+                        </Border>
+
+                        <Border x:Name="AddressSearchModeChip"
+                                Grid.Column="1"
+                                BackgroundColor="{DynamicResource InputBg}"
+                                Padding="12,9"
+                                Stroke="{DynamicResource BorderColor}"
+                                StrokeShape="RoundRectangle 16"
+                                StrokeThickness="1">
+                            <HorizontalStackLayout HorizontalOptions="Center"
+                                                   Spacing="8">
+                                <Label Text="🗺"
+                                       FontSize="14"
+                                       VerticalOptions="Center" />
+                                <Label x:Name="AddressSearchModeLabel"
+                                       FontAttributes="Bold"
+                                       FontSize="13"
+                                       Text="Địa chỉ"
+                                       TextColor="{DynamicResource BodyText}"
+                                       VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnAddressSearchModeTapped" />
+                            </Border.GestureRecognizers>
+                        </Border>
                     </Grid>
-                </Frame>
 
-                <Grid ColumnDefinitions="*,*"
-                      ColumnSpacing="10">
-                    <Border x:Name="PoiSearchModeChip"
-                            BackgroundColor="{DynamicResource InputBg}"
-                            Padding="12,9"
+                    <Border x:Name="SearchStatusChip"
+                            BackgroundColor="{DynamicResource PopupBg}"
+                            IsVisible="False"
+                            Padding="10,8"
                             Stroke="{DynamicResource BorderColor}"
-                            StrokeShape="RoundRectangle 16"
+                            StrokeShape="RoundRectangle 14"
                             StrokeThickness="1">
-                        <HorizontalStackLayout HorizontalOptions="Center"
-                                               Spacing="8">
-                            <Label Text="📍"
-                                   FontSize="14"
-                                   VerticalOptions="Center" />
-                            <Label x:Name="PoiSearchModeLabel"
-                                   FontAttributes="Bold"
-                                   FontSize="13"
-                                   Text="Tên POI"
-                                   TextColor="{DynamicResource BodyText}"
-                                   VerticalOptions="Center" />
-                        </HorizontalStackLayout>
-
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnPoiSearchModeTapped" />
-                        </Border.GestureRecognizers>
+                        <Label x:Name="SearchStatusLabel"
+                               FontSize="12"
+                               IsVisible="False"
+                               Text=""
+                               TextColor="{DynamicResource HeaderSupportText}" />
                     </Border>
-
-                    <Border x:Name="AddressSearchModeChip"
-                            Grid.Column="1"
-                            BackgroundColor="{DynamicResource InputBg}"
-                            Padding="12,9"
-                            Stroke="{DynamicResource BorderColor}"
-                            StrokeShape="RoundRectangle 16"
-                            StrokeThickness="1">
-                        <HorizontalStackLayout HorizontalOptions="Center"
-                                               Spacing="8">
-                            <Label Text="🗺"
-                                   FontSize="14"
-                                   VerticalOptions="Center" />
-                            <Label x:Name="AddressSearchModeLabel"
-                                   FontAttributes="Bold"
-                                   FontSize="13"
-                                   Text="Địa chỉ"
-                                   TextColor="{DynamicResource BodyText}"
-                                   VerticalOptions="Center" />
-                        </HorizontalStackLayout>
-
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnAddressSearchModeTapped" />
-                        </Border.GestureRecognizers>
-                    </Border>
-                </Grid>
-
-                <Label x:Name="SearchStatusLabel"
-                       FontSize="12"
-                       IsVisible="False"
-                       Text=""
-                       TextColor="{DynamicResource HeaderSupportText}" />
+                </VerticalStackLayout>
             </VerticalStackLayout>
         </Grid>
 
@@ -173,7 +302,7 @@
                                          Spacing="16"
                                          Padding="24">
                         <Label Text="🗺️"
-                               FontSize="48"
+                               FontSize="30"
                                HorizontalOptions="Center" />
                         <Label x:Name="MapRetryMessageLabel"
                                Text="Bản đồ chưa tải được."
@@ -304,92 +433,6 @@
                            TextColor="{DynamicResource BodyText}"
                            VerticalOptions="Center" />
                 </HorizontalStackLayout>
-            </Border>
-
-            <Border x:Name="CurrentLocationButton"
-                    BackgroundColor="{DynamicResource MapButtonBg}"
-                    HorizontalOptions="End"
-                    Margin="0,16,16,0"
-                    Padding="0"
-                    Stroke="{DynamicResource MapButtonRing}"
-                    StrokeShape="RoundRectangle 29"
-                    StrokeThickness="1.5"
-                    VerticalOptions="Start"
-                    WidthRequest="58"
-                    HeightRequest="58"
-                    ZIndex="21">
-                <Grid>
-                    <Label x:Name="CurrentLocationIcon"
-                           FontSize="23"
-                           HorizontalOptions="Center"
-                           Text="🧭"
-                           TextColor="{DynamicResource PrimaryGreen}"
-                           VerticalOptions="Center" />
-
-                    <ActivityIndicator x:Name="CurrentLocationSpinner"
-                                       Color="{DynamicResource PrimaryGreen}"
-                                       HorizontalOptions="Center"
-                                       IsRunning="False"
-                                       IsVisible="False"
-                                       VerticalOptions="Center"
-                                       WidthRequest="24"
-                                       HeightRequest="24" />
-                </Grid>
-
-                <Border.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnCurrentLocationTapped" />
-                </Border.GestureRecognizers>
-            </Border>
-
-            <Border x:Name="DeveloperModeButton"
-                    BackgroundColor="{DynamicResource PopupBg}"
-                    HorizontalOptions="End"
-                    IsVisible="False"
-                    Margin="0,84,16,0"
-                    Padding="0"
-                    Stroke="{DynamicResource BorderColor}"
-                    StrokeShape="RoundRectangle 24"
-                    StrokeThickness="1.2"
-                    VerticalOptions="Start"
-                    WidthRequest="48"
-                    HeightRequest="48"
-                    ZIndex="21">
-                <Grid>
-                    <Label x:Name="DeveloperModeLabel"
-                           FontAttributes="Bold"
-                           FontSize="16"
-                           HorizontalOptions="Center"
-                           Text="&lt;&gt;"
-                           TextColor="{DynamicResource BodyText}"
-                           VerticalOptions="Center" />
-                </Grid>
-
-                <Border.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnDeveloperModeTapped" />
-                </Border.GestureRecognizers>
-            </Border>
-
-            <Border x:Name="TourButton"
-                    BackgroundColor="{DynamicResource PopupBg}"
-                    HorizontalOptions="End"
-                    Margin="0,140,16,0"
-                    Padding="0"
-                    Stroke="{DynamicResource BorderColor}"
-                    StrokeShape="RoundRectangle 24"
-                    StrokeThickness="1.2"
-                    VerticalOptions="Start"
-                    WidthRequest="48"
-                    HeightRequest="48"
-                    ZIndex="21">
-                <Grid>
-                    <Label FontSize="18"
-                           HorizontalOptions="Center"
-                           Text="🗺"
-                           VerticalOptions="Center" />
-                </Grid>
-                <Border.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnTourButtonTapped" />
-                </Border.GestureRecognizers>
             </Border>
 
             <Border IsVisible="{Binding IsTourPanelVisible}"
