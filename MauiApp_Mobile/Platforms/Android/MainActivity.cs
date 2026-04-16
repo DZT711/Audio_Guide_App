@@ -5,7 +5,7 @@ using Android.OS;
 namespace MauiApp_Mobile;
 
 [Activity(
-    Theme = "@style/Maui.SplashTheme",
+    Theme = "@style/SmartTour.SplashTheme",
     MainLauncher = true,
     LaunchMode = LaunchMode.SingleTop,
     ConfigurationChanges = ConfigChanges.ScreenSize

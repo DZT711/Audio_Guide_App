@@ -160,7 +160,9 @@ public partial class MapPage : ContentPage
             FireAndForgetMapTask("LoadToursOnAppearing", () => LoadToursAsync());
         }
 
-        UserLocationService.Instance.EnsureHeadingTracking();
+        FireAndForgetMapTask(
+            "EnsureHeadingTrackingOnAppearing",
+            () => UserLocationService.Instance.EnsureHeadingTrackingAsync());
     }
 
     protected override void OnDisappearing()
@@ -1067,7 +1069,7 @@ public partial class MapPage : ContentPage
 
             UserLocationService.Instance.UpdateLocation(location);
             await LocationTrackingService.Instance.StartTrackingFromSettingsAsync(requestBackgroundUpgrade: true);
-            UserLocationService.Instance.EnsureHeadingTracking();
+            await UserLocationService.Instance.EnsureHeadingTrackingAsync();
             await ApplyMapThemeAsync();
             await ApplyMapStringsAsync();
             await ApplyMapBehaviorAsync();

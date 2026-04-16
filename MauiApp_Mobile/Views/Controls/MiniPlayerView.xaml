@@ -54,12 +54,19 @@
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Tapped="OnCollapseTapped" />
                     </Border.GestureRecognizers>
-                    <Label Text="{Binding CollapseGlyph, Source={x:Reference ThisControl}}"
-                           FontSize="14"
-                           FontAttributes="Bold"
+                    <Image Source="triangle_down_filled.svg"
+                           WidthRequest="14"
+                           HeightRequest="10"
                            HorizontalOptions="Center"
-                           TextColor="{DynamicResource BodyText}"
-                           VerticalOptions="Center" />
+                           VerticalOptions="Center">
+                        <Image.Triggers>
+                            <DataTrigger TargetType="Image"
+                                         Binding="{Binding IsExpanded, Source={x:Reference ThisControl}}"
+                                         Value="True">
+                                <Setter Property="Source" Value="triangle_up_filled.svg" />
+                            </DataTrigger>
+                        </Image.Triggers>
+                    </Image>
                 </Border>
 
                 <Border Grid.Column="3"

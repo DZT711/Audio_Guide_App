@@ -34,8 +34,18 @@ public class PlaceItem : INotifyPropertyChanged
     public IReadOnlyList<string> AvailableVoiceGenders { get; set; } = Array.Empty<string>();
     public string LanguageBadgeSummaryText { get; set; } = "";
     public DateTimeOffset? HistoryAddedAt { get; set; }
+    public DateTimeOffset? LastPlaybackTriggeredAt { get; set; }
+    public double? LastTriggerDistanceMeters { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
+    public double ActivationRadiusMeters { get; set; }
+    public double NearRadiusMeters { get; set; }
+    public int Priority { get; set; }
+    public int DebounceSeconds { get; set; }
+    public int Status { get; set; }
+    public bool IsGpsTriggerEnabled { get; set; }
+    public string LastPlaybackSource { get; set; } = "";
+    public string LastPlaybackTrigger { get; set; } = "";
     public Color CategoryColor { get; set; } = Colors.LightGray;
     public Color CategoryTextColor { get; set; } = Colors.Black;
 

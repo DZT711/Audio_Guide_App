@@ -45,6 +45,7 @@ public partial class MiniPlayerView : ContentView
     public double SeekOpacity => PlaybackCoordinatorService.Instance.CanSeek ? 1d : 0.45d;
     public bool IsExpanded => !MiniPlayerPresentationService.Instance.IsCollapsed;
     public string CollapseGlyph => IsExpanded ? "⌄" : "⌃";
+    public string CollapseIconSource => IsExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
     public Color ChromeBackgroundColor => UseTransparentChrome
         ? Color.FromArgb("#B8FFFFFF")
         : Color.FromArgb("#E8FFFFFF");
@@ -154,6 +155,7 @@ public partial class MiniPlayerView : ContentView
         OnPropertyChanged(nameof(SeekOpacity));
         OnPropertyChanged(nameof(IsExpanded));
         OnPropertyChanged(nameof(CollapseGlyph));
+        OnPropertyChanged(nameof(CollapseIconSource));
         OnPropertyChanged(nameof(ChromeBackgroundColor));
         OnPropertyChanged(nameof(ChromeStrokeColor));
     }

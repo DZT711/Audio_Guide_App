@@ -332,7 +332,10 @@ public sealed class ThemeService : INotifyPropertyChanged
         var decorView = window.DecorView;
         if (decorView is not null)
         {
-            decorView.SystemUiVisibility &= ~((StatusBarVisibility)SystemUiFlags.LightStatusBar);
+#pragma warning disable CS0618
+            var visibility = decorView.SystemUiVisibility;
+            decorView.SystemUiVisibility = visibility & ~((StatusBarVisibility)SystemUiFlags.LightStatusBar);
+#pragma warning restore CS0618
         }
     }
 

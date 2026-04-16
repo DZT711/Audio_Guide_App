@@ -135,6 +135,16 @@ QR manage for admin
 
 main function for QR if user dont have app auto install apk and setup app to auto open poi detail and auto play audio
 
+sua bam k focus vao poi sau khi bam show poi on map
+
+sua loc theo ngon ngu
+
+sua app lag
+
+k the nhap -1 cho viec tat tu dong focus tren map
+
+sua mau cua thanh dieu huong
+
 ## (extend task)-MVP
 
 add automation audio to text autofill in script label and from scipt auto create audio file save in system when user not upload file

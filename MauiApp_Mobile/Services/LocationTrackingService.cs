@@ -50,6 +50,9 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
         }
     }
 
+    public string DeviceId => _deviceId;
+    public string SessionId => _sessionId;
+
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await MobileDatabaseService.Instance.InitializeAsync(cancellationToken);
@@ -101,6 +104,12 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
 
     public async Task<Location?> GetCurrentLocationAsync(bool forForegroundMap = true, CancellationToken cancellationToken = default)
     {
+        var foregroundStatus = await GetForegroundPermissionStatusAsync();
+        if (foregroundStatus != PermissionStatus.Granted)
+        {
+            return LastKnownLocation;
+        }
+
         var request = CreateRequest();
 
         try
@@ -116,7 +125,18 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
         {
         }
 
-        var lastKnown = await Geolocation.Default.GetLastKnownLocationAsync();
+        Location? lastKnown = null;
+        try
+        {
+            lastKnown = await Geolocation.Default.GetLastKnownLocationAsync();
+        }
+        catch (Exception ex) when (
+            ex is FeatureNotEnabledException or
+            FeatureNotSupportedException or
+            PermissionException)
+        {
+        }
+
         if (lastKnown is not null)
         {
             await PublishLocationAsync(lastKnown, isForeground: forForegroundMap, cancellationToken);

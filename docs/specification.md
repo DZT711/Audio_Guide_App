@@ -36,7 +36,7 @@
   - [x] Priority level
 - [ ] Implement geofence engine:
   - [ ] Native geofencing API (Android / iOS region monitoring), **OR**
-  - [ ] Manual distance calculation using **Haversine formula**
+  - [x] Manual distance calculation using **Haversine formula**
 - [ ] Trigger audio playback when user **enters** a POI radius
 - [ ] Trigger audio playback when user **stands near** a POI point
 - [ ] Implement **debounce / cooldown** mechanism to prevent audio spam

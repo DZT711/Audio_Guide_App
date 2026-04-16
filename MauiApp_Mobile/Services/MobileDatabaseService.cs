@@ -274,6 +274,27 @@ public sealed class MobileDatabaseService
         return ParseDateTimeOffset(value);
     }
 
+    public async Task<IReadOnlyDictionary<int, DateTimeOffset>> GetPlaybackCooldownsAsync(
+        string deviceId,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = await GetConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<PlaybackCooldownRow>(
+            "SELECT LocationId, CooldownUntilUtc FROM PlaybackCooldown WHERE DeviceId = ?;",
+            deviceId);
+
+        return rows
+            .Select(row => new
+            {
+                row.LocationId,
+                CooldownUntilUtc = ParseDateTimeOffset(row.CooldownUntilUtc)
+            })
+            .Where(item => item.CooldownUntilUtc.HasValue)
+            .ToDictionary(
+                item => item.LocationId,
+                item => item.CooldownUntilUtc!.Value);
+    }
+
     public async Task SetSyncStateAsync(string scope, DateTimeOffset lastFullSyncAtUtc, string? deltaToken, CancellationToken cancellationToken = default)
     {
         var connection = await GetConnectionAsync(cancellationToken);
@@ -595,6 +616,12 @@ public sealed class MobileDatabaseService
         public string PlaceId { get; set; } = string.Empty;
         public string PlacePayloadJson { get; set; } = string.Empty;
         public string PlayedAtUtc { get; set; } = string.Empty;
+    }
+
+    private sealed class PlaybackCooldownRow
+    {
+        public int LocationId { get; set; }
+        public string CooldownUntilUtc { get; set; } = string.Empty;
     }
 
 }
