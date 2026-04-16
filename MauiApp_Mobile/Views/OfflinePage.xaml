@@ -3,6 +3,7 @@
     x:Class="MauiApp_Mobile.Views.OfflinePage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:MauiApp_Mobile.Views.Controls"
     xmlns:local="clr-namespace:MauiApp_Mobile.Views"
     xmlns:models="clr-namespace:MauiApp_Mobile.Models"
     x:Name="ThisPage"
@@ -191,7 +192,8 @@
         </HorizontalStackLayout>
 
         <!-- List -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="3"
+              Padding="0,0,0,140">
             <Grid RowDefinitions="Auto,*">
                 <Grid Grid.Row="0"
                       ColumnDefinitions="*,Auto"
@@ -1014,5 +1016,9 @@
                 </VerticalStackLayout>
             </Border>
         </Grid>
+
+        <controls:MiniPlayerView Grid.RowSpan="4"
+                                 VerticalOptions="End"
+                                 ZIndex="40" />
     </Grid>
 </ContentPage>

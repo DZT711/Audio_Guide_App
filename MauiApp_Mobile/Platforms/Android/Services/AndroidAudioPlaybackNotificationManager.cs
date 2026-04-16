@@ -20,6 +20,20 @@ internal sealed class AndroidAudioPlaybackNotificationManager
 
     public static AndroidAudioPlaybackNotificationManager Instance { get; } = new();
 
+    public void Cancel()
+    {
+        try
+        {
+            var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+            var context = activity ?? Android.App.Application.Context;
+            NotificationManagerCompat.From(context).Cancel(NotificationId);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Playback notification cancel skipped: {ex.Message}");
+        }
+    }
+
     public void Refresh(AudioPlaybackService playbackService)
     {
         try
@@ -31,7 +45,7 @@ internal sealed class AndroidAudioPlaybackNotificationManager
 
             if (playbackService.CurrentTrack is null && !playbackService.IsPaused)
             {
-                NotificationManagerCompat.From(context).Cancel(NotificationId);
+                Cancel();
                 return;
             }
 

@@ -74,3 +74,6 @@ scripts/tempCodeRunnerFile.ps1
 api-build-diagnostic.txt
 .oldzip/
 .oldzip-selected/
+BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj.lscache
+WebApplication_API/WebApplication_API.csproj.lscache
+Project_SharedClassLibrary/Shared_ClassLibrary.csproj.lscache

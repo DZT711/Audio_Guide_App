@@ -132,15 +132,19 @@ public sealed partial class AudioPlaybackService
         }
         catch
         {
-            await PlatformStopAudioAsync();
-            StopProgressLoop();
-            CurrentTrack = null;
-            IsLoading = false;
-            IsPlaying = false;
-            IsPaused = false;
-            ResetProgressState();
-            RaisePlaybackStateChanged();
-            RaisePlaybackProgressChanged();
+            if (IsPlaybackSessionCurrent(playbackSession))
+            {
+                await PlatformStopAudioAsync();
+                StopProgressLoop();
+                CurrentTrack = null;
+                IsLoading = false;
+                IsPlaying = false;
+                IsPaused = false;
+                ResetProgressState();
+                RaisePlaybackStateChanged();
+                RaisePlaybackProgressChanged();
+            }
+
             throw;
         }
     }
@@ -737,6 +741,9 @@ public sealed partial class AudioPlaybackService
         AndroidAudioPlaybackNotificationManager.Instance.Refresh(this);
 #endif
     }
+
+    private bool IsPlaybackSessionCurrent(int playbackSession) =>
+        playbackSession == Interlocked.CompareExchange(ref _playbackSessionVersion, 0, 0);
 
     private void MarkPlaybackStarted()
     {

@@ -7,33 +7,33 @@
 ### 🔧 Setup & Infrastructure
 
 - [ ] Generate QR code for app installation link (deep link / store link)
-- [✅] Configure app for online/offline mode detection
+- [x] Configure app for online/offline mode detection
   - [ ] Online → connect to SQL Server
-  - [✅] Online → connect to sqlite asp server
-  - [✅] Offline → use local SQLite database
-- [✅] Set up `.NET MAUI` project (Android + iOS targets)
+  - [x] Online → connect to sqlite asp server
+  - [x] Offline → use local SQLite database
+- [x] Set up `.NET MAUI` project (Android + iOS targets)
 - [ ] Configure dependency injection and platform services
 
 ---
 
 ### 📍 GPS Tracking (PoC)
 
-- [✅] Implement foreground GPS tracking
-- [✅] Implement background GPS tracking
+- [x] Implement foreground GPS tracking
+- [x] Implement background GPS tracking
   - Android: `FusedLocationProviderClient` via Foreground Service
   - iOS: `CLLocationManager` with `Always` permission
-- [✅] Optimize for battery efficiency (adaptive polling interval)
-- [✅] Improve location accuracy as much as possible
-- [✅] Handle location permission requests (foreground & background)
+- [x] Optimize for battery efficiency (adaptive polling interval)
+- [x] Improve location accuracy as much as possible
+- [x] Handle location permission requests (foreground & background)
 
 ---
 
 ### 🗺️ Geofencing & Auto Audio Playback (PoC)
 
-- [✅] Define POI data model:
-  - [✅] Coordinate (Longitude, Latitude)
-  - [✅] Activation Radius
-  - [✅] Priority level
+- [x] Define POI data model:
+  - [x] Coordinate (Longitude, Latitude)
+  - [x] Activation Radius
+  - [x] Priority level
 - [ ] Implement geofence engine:
   - [ ] Native geofencing API (Android / iOS region monitoring), **OR**
   - [ ] Manual distance calculation using **Haversine formula**
@@ -45,40 +45,40 @@
 
 ### 🔊 Narration Engine (PoC)
 
-- [✅] Implement **Text-to-Speech (TTS)**:
-  - [✅] Android: Android TTS engine
+- [x] Implement **Text-to-Speech (TTS)**:
+  - [x] Android: Android TTS engine
   - [ ] iOS: `AVSpeechSynthesizer`
   <!-- - [ ] Optional: Azure Cognitive Services (natural voice, online/offline notice) -->
-  - [✅] Auto-detect device locale → default Vietnamese if region is VN  (LocalizationService.cs-CultureInfo.CurrentUICulture,RegionInfo.CurrentRegion.TwoLetterISORegionName)
-  - [✅] Support multiple languages (flexible, low memory footprint)
-- [✅] Implement **Recorded Audio playback**:
-  - [✅] Professional/natural voice quality
+  - [x] Auto-detect device locale → default Vietnamese if region is VN  (LocalizationService.cs-CultureInfo.CurrentUICulture,RegionInfo.CurrentRegion.TwoLetterISORegionName)
+  - [x] Support multiple languages (flexible, low memory footprint)
+- [x] Implement **Recorded Audio playback**:
+  - [x] Professional/natural voice quality
   - Note: higher memory usage vs TTS
-- [✅ ] Build **Audio Queue Manager**:
-  - [✅] Multi-process scheduling
-  - [ ] No audio repetition logic
-  - [✅] Auto-stop / pause when OS notification arrives
-- [✅] Decide per-POI: use TTS script or pre-recorded audio file
+- [x ] Build **Audio Queue Manager**:
+  - [x] Multi-process scheduling
+  - [x] No audio repetition logic
+  - [x] Auto-stop / pause when OS notification arrives
+- [x] Decide per-POI: use TTS script or pre-recorded audio file
 
 ---
 
 ### 🗂️ POI Management (PoC)
 
-- [✅] Build POI list screen:
-  - [✅] Place name & description
-  - [✅] Illustration / image of the place
-  - [✅] Link to map
-  - [✅] Audio file or TTS script field
-- [✅] Suggest Figma AI for UI/UX design of POI screens
+- [x] Build POI list screen:
+  - [x] Place name & description
+  - [x] Illustration / image of the place
+  - [x] Link to map
+  - [x] Audio file or TTS script field
+- [x] Suggest Figma AI for UI/UX design of POI screens
 
 ---
 
 ### 🗺️ Map View (PoC)
 
-- [✅] Display current user location on map
-- [✅] Show all POIs on map
-- [✅] Highlight nearest POI
-- [✅] Choose map library: Leaflet-OpenStreetMap
+- [x] Display current user location on map
+- [x] Show all POIs on map
+- [x] Highlight nearest POI
+- [x] Choose map library: Leaflet-OpenStreetMap
   <!-- - [ ] `Microsoft.Maui.Controls.Maps` (basic)
   - [ ] Google Maps SDK / MapKit binding (advanced)
   - [ ] Mapbox or HERE SDK (offline map caching) -->
@@ -87,12 +87,12 @@
 
 ### 📦 Offline Data & Sync (PoC)
 
-- [✅] Set up **SQLite** database (via EF Core or sqlite-net)
-- [✅] Store POI data locally for offline use
-- [✅] Pre-load audio files for offline playback
+- [x] Set up **SQLite** database (via EF Core or sqlite-net)
+- [x] Store POI data locally for offline use
+- [x] Pre-load audio files for offline playback
 - [] Implement background sync from SQL Server when connection is available
-- [✅] Implement background sync from sqlite asp server when connection is available
-- [✅] Handle conflict resolution (server wins / last-write-wins policy)
+- [x] Implement background sync from sqlite asp server when connection is available
+- [x] Handle conflict resolution (server wins / last-write-wins policy)
 
 ---
 
@@ -108,19 +108,19 @@
 
 ### 🛠️ Core Admin Features (MVP)
 
-- [✅] **POI Management**
-  - [✅] Create / Edit / Delete POI
-  - [✅] Set coordinates, radius, priority
-- [✅] **Audio Management**
-  - [✅] Upload pre-recorded audio files
-  - [✅] Manage TTS scripts
-- [✅] **Translation Management**
-  - [✅] Add/edit multilingual content per POI
-- [✅] **Tour Management**
-  - [✅] Group POIs into tours
-  - [✅] Set tour order / sequence
-- [✅] **Usage History**
-  - [✅] View playback logs per POI
+- [x] **POI Management**
+  - [x] Create / Edit / Delete POI
+  - [x] Set coordinates, radius, priority
+- [x] **Audio Management**
+  - [x] Upload pre-recorded audio files
+  - [x] Manage TTS scripts
+- [x] **Translation Management**
+  - [x] Add/edit multilingual content per POI
+- [x] **Tour Management**
+  - [x] Group POIs into tours
+  - [x] Set tour order / sequence
+- [x] **Usage History**
+  - [x] View playback logs per POI
 
 ---
 
@@ -139,12 +139,12 @@
 ### 🏗️ Backend / Server
 
 - [ ] Set up **SQL Server** (online data source)
-- [✅] Set up **ASP.NET Core Server** (online data source)
-- [✅] Design schema: POIs, audio files, tours, playback history, translations
+- [x] Set up **ASP.NET Core Server** (online data source)
+- [x] Design schema: POIs, audio files, tours, playback history, translations
 - [] Build REST API endpoints for:
-  - [✅] POI CRUD
-  - [✅] Audio file upload/download
-  - [✅] Sync endpoint for mobile client
+  - [x] POI CRUD
+  - [x] Audio file upload/download
+  - [x] Sync endpoint for mobile client
   - [ ] Analytics ingestion
 - [ ] Implement anonymous telemetry collection (route history, heatmap data)
 
@@ -153,7 +153,7 @@
 ### 📐 Recommended Architecture Layers
 
 | Layer | Responsibility | Tech |
-|---|---|---|
+| --- |--- | --- |
 | **GPS & Location** | Track position, foreground/background | FusedLocationProvider / CLLocationManager |
 | **Geofence Engine** | Detect POI entry, trigger events | Native API / Haversine |
 | **Narration Engine** | Choose TTS or audio, queue management, anti-repeat | Android TTS / AVSpeech / Azure |
@@ -165,21 +165,21 @@
 
 ## IV. Extended Features (MVP, Post-PoC)
 
-- [✅] Settings screen:
-  - [✅] GPS / radius sensitivity tuning
-  - [✅] Choose TTS voice
-  - [✅] Download offline language pack
-- [✅] Multi-language UI (Vietnamese default)
+- [x] Settings screen:
+  - [x] GPS / radius sensitivity tuning
+  - [x] Choose TTS voice
+  - [x] Download offline language pack
+- [x] Multi-language UI (Vietnamese default)
 - [ ] Notification integration (auto-stop audio on incoming call/notification)
-- [✅] POI owner web portal (non-admin role, manages own POI content)
+- [x] POI owner web portal (non-admin role, manages own POI content)
 - [ ] App distribution via QR code (install link)
 
 ---
 
-## ✅ Milestone Summary
+## x Milestone Summary
 
 | Phase | Deliverable |
-|---|---|
+| --- | --- |
 | **PoC** | GPS tracking, geofence trigger, audio playback, offline POI data, QR scan |
 | **MVP** | CMS dashboard, analytics, tour management, multilingual TTS, offline sync |
 | **Extended** | Heatmap, route history, voice pack download, POI owner portal |

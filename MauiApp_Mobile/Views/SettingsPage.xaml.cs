@@ -22,6 +22,7 @@ public partial class SettingsPage : ContentPage
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
         ThemeService.Instance.PropertyChanged += OnThemeChanged;
         AppDataModeService.Instance.PropertyChanged += OnAppDataModeChanged;
+        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
     }
 
     protected override void OnAppearing()
@@ -97,6 +98,16 @@ public partial class SettingsPage : ContentPage
         }
 
         MainThread.BeginInvokeOnMainThread(UpdateApiModeUI);
+    }
+
+    private void OnSettingsSaved(object? sender, AppSettingsSnapshot snapshot)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            LoadSavedSettings();
+            UpdateApiModeUI();
+            UpdateSliderLabels();
+        });
     }
 
     private void ApplyTexts()

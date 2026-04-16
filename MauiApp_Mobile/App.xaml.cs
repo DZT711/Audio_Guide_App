@@ -17,6 +17,7 @@ public partial class App : Application
     {
         var window = new Window(new AppShell());
         window.Created += OnWindowCreated;
+        window.Destroying += OnWindowDestroying;
         return window;
     }
 
@@ -28,6 +29,25 @@ public partial class App : Application
         }
 
         _ = InitializeApplicationAsync();
+    }
+
+    private void OnWindowDestroying(object? sender, EventArgs e)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await PlaybackCoordinatorService.Instance.StopAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"App shutdown playback cleanup failed: {ex.Message}");
+            }
+
+#if ANDROID
+            AndroidAudioPlaybackNotificationManager.Instance.Cancel();
+#endif
+        });
     }
 
     private static async Task InitializeApplicationAsync()

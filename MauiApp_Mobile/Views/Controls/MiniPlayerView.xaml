@@ -8,12 +8,12 @@
 
     <Border Margin="16,0,16,12"
             Padding="14,12"
-            BackgroundColor="{DynamicResource PopupBg}"
-            Stroke="{DynamicResource BorderColor}"
+            BackgroundColor="{Binding ChromeBackgroundColor, Source={x:Reference ThisControl}}"
+            Stroke="{Binding ChromeStrokeColor, Source={x:Reference ThisControl}}"
             StrokeThickness="1"
             StrokeShape="RoundRectangle 22">
         <VerticalStackLayout Spacing="10">
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
                 <VerticalStackLayout Spacing="2">
                     <Label Text="{Binding TitleText, Source={x:Reference ThisControl}}"
                            FontAttributes="Bold"
@@ -40,11 +40,29 @@
                            FontSize="14"
                            FontAttributes="Bold"
                            HorizontalOptions="Center"
+                            TextColor="{DynamicResource BodyText}"
+                            VerticalOptions="Center" />
+                </Border>
+
+                <Border Grid.Column="2"
+                        WidthRequest="34"
+                        HeightRequest="34"
+                        BackgroundColor="{DynamicResource SurfaceAlt}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 17"
+                        VerticalOptions="Center">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCollapseTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="{Binding CollapseGlyph, Source={x:Reference ThisControl}}"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
                            TextColor="{DynamicResource BodyText}"
                            VerticalOptions="Center" />
                 </Border>
 
-                <Border Grid.Column="2"
+                <Border Grid.Column="3"
                         WidthRequest="34"
                         HeightRequest="34"
                         BackgroundColor="#FEECEC"
@@ -58,14 +76,15 @@
                            FontSize="12"
                            FontAttributes="Bold"
                            HorizontalOptions="Center"
-                           TextColor="#C62828"
-                           VerticalOptions="Center" />
+                            TextColor="#C62828"
+                            VerticalOptions="Center" />
                 </Border>
             </Grid>
 
             <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto"
                   ColumnSpacing="8"
-                  HorizontalOptions="Center">
+                  HorizontalOptions="Center"
+                  IsVisible="{Binding IsExpanded, Source={x:Reference ThisControl}}">
                 <Border WidthRequest="40" HeightRequest="40" BackgroundColor="{DynamicResource SurfaceAlt}" StrokeThickness="0" StrokeShape="RoundRectangle 20" Opacity="{Binding PreviousOpacity, Source={x:Reference ThisControl}}">
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Tapped="OnPreviousTapped" />
@@ -125,7 +144,8 @@
                 </Border>
             </Grid>
 
-            <VerticalStackLayout Spacing="4">
+            <VerticalStackLayout Spacing="4"
+                                 IsVisible="{Binding IsExpanded, Source={x:Reference ThisControl}}">
                 <ProgressBar Progress="{Binding ProgressRatio, Source={x:Reference ThisControl}}"
                              HeightRequest="6"
                              BackgroundColor="{DynamicResource DividerColor}"

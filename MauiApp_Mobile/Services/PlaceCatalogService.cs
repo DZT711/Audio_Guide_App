@@ -404,19 +404,23 @@ public sealed class PlaceCatalogService
 
     private static int GetSearchScore(PlaceItem item, string keyword)
     {
-        if (item.Name.Equals(keyword, StringComparison.OrdinalIgnoreCase))
+        var name = item.Name ?? string.Empty;
+        var category = item.Category ?? string.Empty;
+        var description = item.Description ?? string.Empty;
+
+        if (name.Equals(keyword, StringComparison.OrdinalIgnoreCase))
             return 300;
 
-        if (item.Name.StartsWith(keyword, StringComparison.OrdinalIgnoreCase))
+        if (name.StartsWith(keyword, StringComparison.OrdinalIgnoreCase))
             return 220;
 
-        if (item.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        if (name.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             return 180;
 
-        if (item.Category.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        if (category.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             return 120;
 
-        if (item.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        if (description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             return 90;
 
         return 0;

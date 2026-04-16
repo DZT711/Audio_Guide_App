@@ -188,6 +188,11 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
             await AppNotificationService.EnsurePermissionAsync();
             await AudioPlaybackService.Instance.PlayAsync(item.Track, cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            System.Diagnostics.Debug.WriteLine($"Playback transition canceled for track {item.Track.Id}.");
+            return;
+        }
         finally
         {
             _isTransitioning = false;

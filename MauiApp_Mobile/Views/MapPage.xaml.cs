@@ -39,6 +39,7 @@ public partial class MapPage : ContentPage
     private bool _isTourPanelVisible;
     private bool _isTourListVisible = true;
     private bool _isTourBusy;
+    private bool _isSearchChromeExpanded;
     private MapSearchMode _searchMode = MapSearchMode.Poi;
     private MapTourViewModel? _selectedTour;
     private MapTourStopViewModel? _activeTourStop;
@@ -58,6 +59,24 @@ public partial class MapPage : ContentPage
     public bool IsTourDetailVisible => IsTourPanelVisible && !IsTourListVisible && SelectedTour is not null;
     public bool HasTours => AvailableTours.Count > 0;
     public bool IsTourEmptyVisible => !IsTourBusy && AvailableTours.Count == 0;
+    public bool IsSearchChromeExpanded
+    {
+        get => _isSearchChromeExpanded;
+        private set
+        {
+            if (_isSearchChromeExpanded == value)
+            {
+                return;
+            }
+
+            _isSearchChromeExpanded = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsSearchChromeCollapsed));
+            OnPropertyChanged(nameof(SearchToggleGlyph));
+        }
+    }
+    public bool IsSearchChromeCollapsed => !IsSearchChromeExpanded;
+    public string SearchToggleGlyph => IsSearchChromeExpanded ? "✕" : "🔎";
     public string TourPanelHeaderTitle => IsTourListVisible || SelectedTour is null ? "Tour Guide" : SelectedTour.Name;
     public string TourPanelHeaderSubtitle => IsTourListVisible || SelectedTour is null ? "Chọn hành trình giữa các POI để khám phá theo tuyến." : SelectedTour.RouteStatusText;
     public MapTourViewModel? SelectedTour { get => _selectedTour; private set { if (_selectedTour == value) return; _selectedTour = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsTourDetailVisible)); OnPropertyChanged(nameof(TourPanelHeaderTitle)); OnPropertyChanged(nameof(TourPanelHeaderSubtitle)); OnPropertyChanged(nameof(SelectedTourSummaryText)); OnPropertyChanged(nameof(SelectedTourRoadHintText)); OnPropertyChanged(nameof(SelectedTourStopsText)); OnPropertyChanged(nameof(SelectedTourTimingText)); OnPropertyChanged(nameof(SelectedTourJourneyText)); } }
@@ -382,7 +401,7 @@ public partial class MapPage : ContentPage
                 {
                     if (!_isMapReady && !_isPageDisposing)
                     {
-                        ShowMapRetryPanel("Tải bản đồ quá lâu.", "Kéo xuống để làm mới hoặc nhấn Tải lại.");
+                        ShowMapRetryPanel("Tải bản đồ quá lâu.", "Hãy nhấn nút làm mới hoặc chọn Tải lại.");
                     }
                 });
             }
@@ -438,7 +457,7 @@ public partial class MapPage : ContentPage
             if (!_isMapReady)
             {
                 UpdateSearchStatus("Bản đồ chưa sẵn sàng. Hãy thử tải lại trang.");
-                ShowMapRetryPanel("Bản đồ chưa tải được.", "Kéo xuống để làm mới hoặc thử tải lại.");
+                ShowMapRetryPanel("Bản đồ chưa tải được.", "Hãy nhấn nút làm mới hoặc thử tải lại.");
                 return;
             }
 
@@ -602,6 +621,46 @@ public partial class MapPage : ContentPage
         UpdateTypingHint(e.NewTextValue);
     }
 
+    private async void OnToggleSearchChromeTapped(object? sender, TappedEventArgs e)
+    {
+        try
+        {
+            if (IsSearchChromeExpanded)
+            {
+                SearchEntry.Unfocus();
+                ClearSearchResults();
+                UpdateSearchStatus(string.Empty);
+                if (SearchChromePanel.IsVisible)
+                {
+                    await SearchChromePanel.FadeToAsync(0, 120, Easing.CubicIn);
+                }
+
+                IsSearchChromeExpanded = false;
+                SearchChromePanel.Opacity = 1;
+                return;
+            }
+
+            IsSearchChromeExpanded = true;
+            SearchChromePanel.Opacity = 0;
+            await SearchChromePanel.FadeToAsync(1, 160, Easing.CubicOut);
+            SearchEntry.Focus();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Search chrome toggle error: {ex.Message}");
+        }
+    }
+
+    private void OnRefreshButtonTapped(object? sender, TappedEventArgs e)
+    {
+        if (_isRefreshingMap)
+        {
+            return;
+        }
+
+        _ = RefreshMapAsync(forceReloadWebView: !_isMapReady || MapRetryPanel.IsVisible);
+    }
+
     private async Task SearchMapAsync(string? keyword, SearchTrigger trigger, int requestId, CancellationToken cancellationToken)
     {
         keyword = keyword?.Trim() ?? string.Empty;
@@ -724,12 +783,15 @@ public partial class MapPage : ContentPage
 
     private MapSearchSuggestion CreatePoiSuggestion(PlaceItem place)
     {
+        var category = string.IsNullOrWhiteSpace(place.Category) ? "POI" : place.Category.Trim();
+        var address = string.IsNullOrWhiteSpace(place.Address) ? "Chưa có địa chỉ" : place.Address.Trim();
+
         return new MapSearchSuggestion
         {
             Kind = MapSearchSuggestionKind.Poi,
             PlaceId = place.Id,
-            Title = place.Name,
-            Subtitle = $"{place.Category} • {place.Address}",
+            Title = string.IsNullOrWhiteSpace(place.Name) ? "POI" : place.Name,
+            Subtitle = $"{category} • {address}",
             Latitude = place.Latitude,
             Longitude = place.Longitude,
             BadgeText = "POI",
@@ -1169,18 +1231,6 @@ public partial class MapPage : ContentPage
         }
     }
 
-    private async void OnMapRefreshRequested(object? sender, EventArgs e)
-    {
-        try
-        {
-            await RefreshMapAsync(forceReloadWebView: !_isMapReady || MapRetryPanel.IsVisible);
-        }
-        finally
-        {
-            MapRefreshView.IsRefreshing = false;
-        }
-    }
-
     private async void OnTourButtonTapped(object? sender, TappedEventArgs e)
     {
         IsTourPanelVisible = !IsTourPanelVisible;
@@ -1595,12 +1645,13 @@ public partial class MapPage : ContentPage
     {
         DeveloperModeButton.IsVisible = AppSettingsService.Instance.DeveloperModeEnabled;
         DeveloperModeButton.BackgroundColor = _isDeveloperModeEnabled
-            ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
-            : Color.FromArgb("#FFFFFF");
+            ? Color.FromArgb("#CC18A94B")
+            : Color.FromArgb("#B834495A");
         DeveloperModeButton.Stroke = new SolidColorBrush(
             _isDeveloperModeEnabled
-                ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
-                : ThemeService.Instance.GetColor("MapButtonRing", "#D6FAE3"));
+                ? Color.FromArgb("#99E8F7EE")
+                : Color.FromArgb("#66FFFFFF"));
+        DeveloperModeLabel.TextColor = Colors.White;
         DeveloperModeButton.Opacity = _isMapReady ? 1 : 0.68;
         DeveloperModeButton.InputTransparent = !_isMapReady;
     }
@@ -1628,11 +1679,14 @@ public partial class MapPage : ContentPage
     private void UpdateSearchStatus(string message)
     {
         var isVisible = !string.IsNullOrWhiteSpace(message);
-        if (SearchStatusLabel.Text == message && SearchStatusLabel.IsVisible == isVisible)
+        if (SearchStatusLabel.Text == message &&
+            SearchStatusLabel.IsVisible == isVisible &&
+            SearchStatusChip.IsVisible == isVisible)
             return;
 
         SearchStatusLabel.Text = message;
         SearchStatusLabel.IsVisible = isVisible;
+        SearchStatusChip.IsVisible = isVisible;
     }
 
     private void UpdateConnectionStatusChip()

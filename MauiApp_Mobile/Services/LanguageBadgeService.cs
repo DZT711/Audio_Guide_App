@@ -1,22 +1,42 @@
+using MauiApp_Mobile.Models;
 using Project_SharedClassLibrary.Contracts;
 
 namespace MauiApp_Mobile.Services;
 
 public static class LanguageBadgeService
 {
-    public static string BuildSummary(IEnumerable<PublicAudioTrackDto>? tracks)
+    public static IReadOnlyList<LanguageBadgeChip> BuildItems(IEnumerable<PublicAudioTrackDto>? tracks, string? summaryText = null)
     {
-        if (tracks is null)
+        var normalizedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (tracks is not null)
         {
-            return string.Empty;
+            foreach (var code in tracks
+                         .Select(track => NormalizeCode(track.Language))
+                         .Where(code => !string.IsNullOrWhiteSpace(code)))
+            {
+                normalizedCodes.Add(code);
+            }
         }
 
-        var badges = tracks
-            .Select(track => NormalizeCode(track.Language))
-            .Where(code => !string.IsNullOrWhiteSpace(code))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        if (normalizedCodes.Count == 0 && !string.IsNullOrWhiteSpace(summaryText))
+        {
+            foreach (var code in ParseCodesFromSummary(summaryText))
+            {
+                normalizedCodes.Add(code);
+            }
+        }
+
+        return normalizedCodes
             .OrderBy(code => code, StringComparer.OrdinalIgnoreCase)
-            .Select(FormatBadge)
+            .Select(CreateChip)
+            .ToList();
+    }
+
+    public static string BuildSummary(IEnumerable<PublicAudioTrackDto>? tracks)
+    {
+        var badges = BuildItems(tracks)
+            .Select(chip => chip.Label)
             .ToList();
 
         return badges.Count == 0 ? string.Empty : string.Join("  ", badges);
@@ -57,4 +77,54 @@ public static class LanguageBadgeService
         "cn" => "🇨🇳 CN",
         _ => $"🌐 {normalizedCode.ToUpperInvariant()}"
     };
+
+    private static IEnumerable<string> ParseCodesFromSummary(string summaryText)
+    {
+        var tokens = summaryText
+            .Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => token.Trim().ToLowerInvariant());
+
+        foreach (var token in tokens)
+        {
+            var normalized = token switch
+            {
+                "vn" => "vn",
+                "en" => "en",
+                "fr" => "fr",
+                "jp" => "jp",
+                "ja" => "jp",
+                "kr" => "kr",
+                "ko" => "kr",
+                "cn" => "cn",
+                "zh" => "cn",
+                _ => string.Empty
+            };
+
+            if (!string.IsNullOrWhiteSpace(normalized))
+            {
+                yield return normalized;
+            }
+        }
+    }
+
+    private static LanguageBadgeChip CreateChip(string normalizedCode)
+    {
+        var (background, foreground) = normalizedCode switch
+        {
+            "vn" => (Color.FromArgb("#FFF1F1"), Color.FromArgb("#C62828")),
+            "en" => (Color.FromArgb("#EEF4FF"), Color.FromArgb("#2563EB")),
+            "fr" => (Color.FromArgb("#ECFDF3"), Color.FromArgb("#15803D")),
+            "jp" => (Color.FromArgb("#FFF7ED"), Color.FromArgb("#C2410C")),
+            "kr" => (Color.FromArgb("#F5F3FF"), Color.FromArgb("#7C3AED")),
+            "cn" => (Color.FromArgb("#FEF3C7"), Color.FromArgb("#B45309")),
+            _ => (Color.FromArgb("#F3F4F6"), Color.FromArgb("#374151"))
+        };
+
+        return new LanguageBadgeChip
+        {
+            Label = FormatBadge(normalizedCode),
+            BackgroundColor = background,
+            TextColor = foreground
+        };
+    }
 }
