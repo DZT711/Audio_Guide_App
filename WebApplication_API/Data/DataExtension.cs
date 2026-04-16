@@ -26,19 +26,7 @@ public static class DataExtension
 
     private static async Task SeedAsync(DBContext context, string contentRootPath)
     {
-        if (!await context.Categories.AnyAsync())
-        {
-            context.Categories.AddRange(
-                // new Category { Name = "Historical Site", Description = "Places with cultural and historical value." },
-                new Category { Name = "Food", Description = "Restaurants, cafes, and local specialties." },
-                new Category { Name = "Drinks", Description = "Bustling markets and curated food halls." },
-                new Category { Name = "Markets & Food Halls", Description = "Bustling markets and curated food halls." }
-                // new Category { Name = "Bus Stop", Description = "Transit locations prepared for QR and GPS guidance." },
-                // new Category { Name = "Landmark", Description = "High-priority tourist landmarks and city icons." }
-                );
-
-            await context.SaveChangesAsync();
-        }
+        await EnsureSeedCategoriesAsync(context);
 
         if (!await context.Languages.AnyAsync())
         {
@@ -88,14 +76,20 @@ public static class DataExtension
 
         if (!await context.Locations.AnyAsync())
         {
-            var categories = await context.Categories.ToDictionaryAsync(item => item.Name);
+            var categories = await context.Categories.ToDictionaryAsync(item => item.Name, StringComparer.OrdinalIgnoreCase);
             var owner = await context.DashboardUsers.FirstAsync(item => item.Username == "owner");
+            var defaultCategoryId = await context.Categories
+                .OrderBy(item => item.CategoryId)
+                .Select(item => item.CategoryId)
+                .FirstAsync();
+            var foodCategoryId = ResolveCategoryId(categories, defaultCategoryId, "Food", "Markets & Food Halls");
+            var landmarkCategoryId = ResolveCategoryId(categories, foodCategoryId, "Landmark", "Historical Site");
 
             context.Locations.AddRange(
                 new Location
                 {
                     Name = "Vinh Khanh Food Street",
-                    CategoryId = categories["Food"].CategoryId,
+                    CategoryId = foodCategoryId,
                     OwnerId = owner.UserId,
                     Description = "Night food corridor in Vinh Khanh used to demo clustered POIs, walking refresh, and media playback.",
                     Latitude = 10.759148,
@@ -115,7 +109,7 @@ public static class DataExtension
                 new Location
                 {
                     Name = "Oc Dao Vinh Khanh",
-                    CategoryId = categories["Food"].CategoryId,
+                    CategoryId = foodCategoryId,
                     OwnerId = owner.UserId,
                     Description = "Seafood-focused stop used to test food-category filtering and multi-audio playback.",
                     Latitude = 10.759576,
@@ -132,7 +126,7 @@ public static class DataExtension
                 new Location
                 {
                     Name = "Xom Chieu Market Gate",
-                    CategoryId = categories["Landmark"].CategoryId,
+                    CategoryId = landmarkCategoryId,
                     OwnerId = owner.UserId,
                     Description = "Busy local market gateway for QR scan, nearby trigger, and anonymous route analytics.",
                     Latitude = 10.761205,
@@ -273,6 +267,45 @@ public static class DataExtension
 
         await EnsureAnalyticsSamplesAsync(context, contentRootPath);
         await NormalizeManagedMediaPathsAsync(context);
+    }
+
+    private static async Task EnsureSeedCategoriesAsync(DBContext context)
+    {
+        var existingCategories = await context.Categories
+            .ToDictionaryAsync(item => item.Name, StringComparer.OrdinalIgnoreCase);
+
+        var requiredCategories = new[]
+        {
+            new Category { Name = "Historical Site", Description = "Places with cultural and historical value." },
+            new Category { Name = "Food", Description = "Restaurants, cafes, and local specialties." },
+            new Category { Name = "Drinks", Description = "Bustling markets and curated food halls." },
+            new Category { Name = "Markets & Food Halls", Description = "Bustling markets and curated food halls." },
+            new Category { Name = "Landmark", Description = "High-priority tourist landmarks and city icons." }
+        };
+
+        var hasChanges = false;
+        foreach (var requiredCategory in requiredCategories)
+        {
+            if (existingCategories.TryGetValue(requiredCategory.Name, out var existingCategory))
+            {
+                if (!string.Equals(existingCategory.Description, requiredCategory.Description, StringComparison.Ordinal))
+                {
+                    existingCategory.Description = requiredCategory.Description;
+                    hasChanges = true;
+                }
+
+                continue;
+            }
+
+            context.Categories.Add(requiredCategory);
+            existingCategories[requiredCategory.Name] = requiredCategory;
+            hasChanges = true;
+        }
+
+        if (hasChanges)
+        {
+            await context.SaveChangesAsync();
+        }
     }
 
     private static async Task EnsureAnalyticsSamplesAsync(DBContext context, string contentRootPath)

@@ -1006,7 +1006,9 @@
             </Border>
         </Grid>
 
-        <controls:MiniPlayerView Grid.Row="2"
+        <controls:MiniPlayerView Grid.Row="1"
+                                 UseTransparentChrome="True"
+                                 VerticalOptions="End"
                                  ZIndex="40" />
     </Grid>
 </ContentPage>

@@ -1265,7 +1265,7 @@ Nguồn: OpenStreetMap / MapTiler
 
 2. **Admin Web:**
    - Mở `BlazorApp_AdminWeb` trong Visual Studio.
-   - Cấu hình `appsettings.json` để trỏ đến API.
+   - Cấu hình `appsettings.json` để trỏ đến API. Mặc định project đang dùng `https://localhost:5123/`.
    - Chạy ứng dụng → Đăng nhập bằng tài khoản admin đã seed sẵn.
 
    ```cmd
@@ -1299,6 +1299,11 @@ Nguồn: OpenStreetMap / MapTiler
     - Bật Wifi Debug trên android : lấy thông tin ip và cổng kết nối
     - Chỉnh mạng máy sever thanh private
     - Đảm bảo sử dụng chung 1 mạng
+    - Thêm ip sever vào file cấu hình mạng của android trong MauiApp_Mobile/Platforms/Android/Resources/xml/network_security_config.xml
+
+    ```xml
+            <domain includeSubdomains="false">yourSeverIP</domain>
+    ```
 
     ```cmd
         adb connect ip:port (kết nối qua wifi, ví dụ adb connect 192.168.x.x:44444)

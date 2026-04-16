@@ -35,8 +35,8 @@
             <Color x:Key="SkeletonHighlightColor">#F4F6F8</Color>
             <Color x:Key="HeroBubbleColor">#49D16F</Color>
             <Color x:Key="HeroBubbleAltColor">#A7F3C5</Color>
-            <Color x:Key="MapButtonBg">#FFFFFF</Color>
-            <Color x:Key="MapButtonRing">#D6FAE3</Color>
+            <Color x:Key="MapButtonBg">#20FFFFFF</Color>
+            <Color x:Key="MapButtonRing">#CCFFFFFF</Color>
             <Color x:Key="TabBarBackgroundColor">#FFFFFF</Color>
             <Color x:Key="TabBarUnselectedColor">#98A2B3</Color>
             <Color x:Key="HeaderGradientStart">#109245</Color>

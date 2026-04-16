@@ -19,7 +19,9 @@ namespace MauiApp_Mobile.Views;
 public partial class MapPage : ContentPage
 {
     private static readonly HttpClient SearchHttpClient = CreateSearchHttpClient();
-    private static readonly HttpClient MapImageHttpClient = MobileApiHttpClientFactory.Create(TimeSpan.FromSeconds(18), 4);
+#if ANDROID
+    private static int _androidUserAgentMappingConfigured;
+#endif
     private static readonly JsonSerializerOptions JsonInteropOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -32,10 +34,13 @@ public partial class MapPage : ContentPage
     private readonly Dictionary<string, IReadOnlyList<OnlineSearchResult>> _addressSearchCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _mapImageDataCache = new(StringComparer.OrdinalIgnoreCase);
     private bool _isMapLoaded;
+    private bool _isMapLoadInProgress;
     private bool _isMapReady;
+    private bool _isPageActive;
     private bool _hasAnimatedChrome;
     private bool _isDeveloperModeEnabled;
     private bool _isPageDisposing;
+    private bool _eventsAttached;
     private bool _isTourPanelVisible;
     private bool _isTourListVisible = true;
     private bool _isTourBusy;
@@ -95,6 +100,9 @@ public partial class MapPage : ContentPage
     {
         InitializeComponent();
         BindingContext = this;
+        IsSearchChromeExpanded = true;
+        SearchChromePanel.IsVisible = true;
+        SearchChromePanel.Opacity = 1;
 
         SearchResultsView.ItemsSource = _searchResults;
         AvailableTours.CollectionChanged += (_, _) =>
@@ -106,10 +114,7 @@ public partial class MapPage : ContentPage
             });
         };
 
-        MapWebView.Navigated += OnMapWebViewNavigated;
-        MapWebView.Navigating += OnMapWebViewNavigating;
-        SearchEntry.Completed += OnSearchCompleted;
-        SearchEntry.TextChanged += OnSearchTextChanged;
+        AttachEventHandlers();
 
         ApplyTexts();
         UpdateSearchModeVisuals();
@@ -118,24 +123,21 @@ public partial class MapPage : ContentPage
         UpdateConnectionStatusChip();
         SetLocateButtonState(isBusy: false, isEnabled: false);
 
-        LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
-        ThemeService.Instance.PropertyChanged += OnThemeChanged;
-        AppSettingsService.Instance.PropertyChanged += OnAppSettingsChanged;
-        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
-        Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
-        UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
-        UserLocationService.Instance.HeadingUpdated += OnHeadingUpdated;
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        _isPageActive = true;
         _isPageDisposing = false;
+        AttachEventHandlers();
 
         if (!_hasAnimatedChrome)
         {
             _hasAnimatedChrome = true;
-            _ = UiEffectsService.AnimateEntranceAsync(MapTipChip, CurrentLocationButton, DeveloperModeButton);
+            FireAndForgetMapTask(
+                "AnimateEntrance",
+                () => UiEffectsService.AnimateEntranceAsync(MapTipChip, CurrentLocationButton, DeveloperModeButton));
         }
 
         UpdateDeveloperModeAvailability();
@@ -143,14 +145,19 @@ public partial class MapPage : ContentPage
 
         if (!_isMapLoaded)
         {
-            LoadMap();
-            _isMapLoaded = true;
+            FireAndForgetMapTask("LoadMapOnAppearing", () => LoadMapAsync());
         }
         else
         {
-            _ = RefreshMapPlacesAsync();
-            _ = TryFocusPendingPlaceAsync();
-            _ = LoadToursAsync();
+            SetLocateButtonState(isBusy: false, isEnabled: _isMapReady);
+            if (_isMapReady && MapLoadingOverlay.IsVisible)
+            {
+                FireAndForgetMapTask("CompleteMapLoadingOnAppearing", CompleteMapLoadingStateAsync);
+            }
+
+            FireAndForgetMapTask("RefreshMapPlacesOnAppearing", RefreshMapPlacesAsync);
+            FireAndForgetMapTask("TryFocusPendingPlaceOnAppearing", TryFocusPendingPlaceAsync);
+            FireAndForgetMapTask("LoadToursOnAppearing", () => LoadToursAsync());
         }
 
         UserLocationService.Instance.EnsureHeadingTracking();
@@ -159,32 +166,46 @@ public partial class MapPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        _isPageDisposing = true;
-        CancelPendingOperations();
+        _isPageActive = false;
+        CancelPendingOperations(resetMapReady: false);
     }
 
     protected override void OnHandlerChanged()
     {
         base.OnHandlerChanged();
-
-        SearchEntry.Completed -= OnSearchCompleted;
-        SearchEntry.Completed += OnSearchCompleted;
-        SearchEntry.TextChanged -= OnSearchTextChanged;
-        SearchEntry.TextChanged += OnSearchTextChanged;
+        AttachEventHandlers();
     }
 
     protected override void OnHandlerChanging(HandlerChangingEventArgs args)
     {
         if (args.NewHandler is null)
         {
+            _isPageActive = false;
             _isPageDisposing = true;
-            CancelPendingOperations();
+            CancelPendingOperations(resetMapReady: true);
             DetachEventHandlers();
-            UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
-            UserLocationService.Instance.HeadingUpdated -= OnHeadingUpdated;
         }
 
         base.OnHandlerChanging(args);
+    }
+
+    private void AttachEventHandlers()
+    {
+        if (_eventsAttached)
+        {
+            return;
+        }
+
+        MapWebView.Navigated += OnMapWebViewNavigated;
+        MapWebView.Navigating += OnMapWebViewNavigating;
+        LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
+        ThemeService.Instance.PropertyChanged += OnThemeChanged;
+        AppSettingsService.Instance.PropertyChanged += OnAppSettingsChanged;
+        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
+        Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
+        UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
+        UserLocationService.Instance.HeadingUpdated += OnHeadingUpdated;
+        _eventsAttached = true;
     }
 
     private void ApplyTexts()
@@ -235,38 +256,36 @@ public partial class MapPage : ContentPage
 
     private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (_isPageDisposing)
+        if (!CanUsePageUi())
             return;
 
         ApplyTexts();
         _addressSearchCache.Clear();
 
-        _ = MainThread.InvokeOnMainThreadAsync(async () =>
-        {
-            if (_isMapReady)
-            {
-                await ApplyMapStringsAsync();
-            }
-        });
+        FireAndForgetMapTask(
+            "ApplyMapStringsOnLocalizationChanged",
+            async () => await MainThread.InvokeOnMainThreadAsync(ApplyMapStringsAsync));
     }
 
     private void OnThemeChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (_isPageDisposing)
+        if (!CanUsePageUi())
             return;
 
         UpdateSearchModeVisuals();
         UpdateDeveloperModeVisuals();
         UpdateConnectionStatusChip();
 
-        _ = MainThread.InvokeOnMainThreadAsync(async () =>
-        {
-            if (_isMapReady)
+        FireAndForgetMapTask(
+            "ApplyThemeOnThemeChanged",
+            async () =>
             {
-                await ApplyMapThemeAsync();
-                await ApplyMapBehaviorAsync();
-            }
-        });
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    await ApplyMapThemeAsync();
+                    await ApplyMapBehaviorAsync();
+                });
+            });
     }
 
     private void OnAppSettingsChanged(object? sender, PropertyChangedEventArgs e)
@@ -280,41 +299,56 @@ public partial class MapPage : ContentPage
             return;
         }
 
-        MainThread.BeginInvokeOnMainThread(async () =>
-        {
-            UpdateDeveloperModeAvailability();
-            UpdateConnectionStatusChip();
-            if (_isMapReady)
+        FireAndForgetMapTask(
+            "ApplySettingsOnAppSettingsChanged",
+            async () =>
             {
-                await SyncPlacesToMapAsync();
-                await ApplyMapBehaviorAsync();
-            }
-        });
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    UpdateDeveloperModeAvailability();
+                    UpdateConnectionStatusChip();
+                    await SyncPlacesToMapAsync();
+                    await ApplyMapBehaviorAsync();
+                });
+            });
     }
 
-    private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e) =>
-        MainThread.BeginInvokeOnMainThread(UpdateConnectionStatusChip);
+    private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
+    {
+        FireAndForgetMapTask(
+            "UpdateConnectionStatusOnConnectivityChanged",
+            async () => await MainThread.InvokeOnMainThreadAsync(() => UpdateConnectionStatusChip()));
+    }
 
     private void OnSettingsSaved(object? sender, AppSettingsSnapshot snapshot)
     {
-        MainThread.BeginInvokeOnMainThread(async () =>
-        {
-            UpdateDeveloperModeAvailability();
-            UpdateConnectionStatusChip();
-            if (_isMapReady)
+        FireAndForgetMapTask(
+            "ApplySettingsOnSettingsSaved",
+            async () =>
             {
-                await SyncPlacesToMapAsync();
-                await ApplyMapThemeAsync();
-                await ApplyMapStringsAsync();
-                await ApplyMapBehaviorAsync();
-                await ApplyDeveloperModeAsync();
-                await LoadToursAsync(forceRefresh: AppDataModeService.Instance.IsApiEnabled);
-            }
-        });
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    UpdateDeveloperModeAvailability();
+                    UpdateConnectionStatusChip();
+                    await SyncPlacesToMapAsync();
+                    await ApplyMapThemeAsync();
+                    await ApplyMapStringsAsync();
+                    await ApplyMapBehaviorAsync();
+                    await ApplyDeveloperModeAsync();
+                    await LoadToursAsync(forceRefresh: AppDataModeService.Instance.IsApiEnabled);
+                });
+            });
     }
 
-    private async void LoadMap()
+    private async Task LoadMapAsync(bool forceReload = false)
     {
+        if ((_isMapLoadInProgress && !forceReload) || _isPageDisposing)
+        {
+            return;
+        }
+
+        _isMapLoadInProgress = true;
+
         try
         {
             StartMapLoadingState();
@@ -335,24 +369,32 @@ public partial class MapPage : ContentPage
                 .Replace("__LEAFLET_CSS__", leafletCss, StringComparison.Ordinal)
                 .Replace("__LEAFLET_JS__", leafletJs, StringComparison.Ordinal);
 
-#if ANDROID
-            WebViewHandler.Mapper.AppendToMapping("CustomUserAgent", (handler, view) =>
-            {
-                if (handler.PlatformView is Android.Webkit.WebView webView)
-                {
-                    webView.Settings.UserAgentString = "SmartTourismMaui/1.0";
-                }
-            });
-#endif
+            ConfigureAndroidWebViewUserAgent();
 
-            MapWebView.Source = new HtmlWebViewSource
+            if (!CanAccessVisualTree())
             {
-                Html = htmlContent
-            };
+                return;
+            }
+
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                if (!CanAccessVisualTree())
+                {
+                    return;
+                }
+
+                MapWebView.Source = new HtmlWebViewSource
+                {
+                    Html = htmlContent
+                };
+                _isMapLoaded = true;
+            });
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error loading Leaflet map: {ex.Message}");
+            _isMapLoadInProgress = false;
+            _isMapLoaded = false;
+            LogMapFailure("LoadMap", ex);
             UpdateSearchStatus("Không thể tải bản đồ lúc này.");
             ShowMapRetryPanel("Không thể tải bản đồ.", FriendlyMessageService.Resolve(ex, "Server connect failure"));
         }
@@ -360,7 +402,7 @@ public partial class MapPage : ContentPage
 
     private void StartMapLoadingState()
     {
-        if (_isPageDisposing)
+        if (!CanAccessVisualTree())
             return;
 
         MapRetryPanel.IsVisible = false;
@@ -373,14 +415,16 @@ public partial class MapPage : ContentPage
         _mapLoadingCts?.Dispose();
         _mapLoadingCts = new CancellationTokenSource();
 
-        _ = UiEffectsService.RunSkeletonPulseAsync(
-            _mapLoadingCts.Token,
-            MapHeaderSkeleton,
-            MapCanvasSkeleton,
-            MapInfoSkeleton,
-            MapActionSkeleton,
-            MapRowSkeleton1,
-            MapRowSkeleton2);
+        FireAndForgetMapTask(
+            "RunSkeletonPulse",
+            () => UiEffectsService.RunSkeletonPulseAsync(
+                _mapLoadingCts.Token,
+                MapHeaderSkeleton,
+                MapCanvasSkeleton,
+                MapInfoSkeleton,
+                MapActionSkeleton,
+                MapRowSkeleton1,
+                MapRowSkeleton2));
 
         _mapTimeoutCts?.Cancel();
         _mapTimeoutCts?.Dispose();
@@ -399,7 +443,7 @@ public partial class MapPage : ContentPage
 
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    if (!_isMapReady && !_isPageDisposing)
+                    if (!_isMapReady && CanUsePageUi())
                     {
                         ShowMapRetryPanel("Tải bản đồ quá lâu.", "Hãy nhấn nút làm mới hoặc chọn Tải lại.");
                     }
@@ -416,7 +460,7 @@ public partial class MapPage : ContentPage
         _mapLoadingCts?.Cancel();
         _mapTimeoutCts?.Cancel();
 
-        if (!MapLoadingOverlay.IsVisible)
+        if (!CanAccessVisualTree() || !MapLoadingOverlay.IsVisible)
             return;
 
         if (!CanAnimateMapLoadingChrome())
@@ -433,11 +477,11 @@ public partial class MapPage : ContentPage
         }
         catch (ObjectDisposedException ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Map loading animation skipped: {ex.Message}");
+            LogMapFailure("CompleteMapLoadingStateDisposed", ex);
         }
         catch (InvalidOperationException ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Map loading animation unavailable: {ex.Message}");
+            LogMapFailure("CompleteMapLoadingStateInvalidState", ex);
         }
 
         FinishMapLoadingStateWithoutAnimation();
@@ -447,17 +491,23 @@ public partial class MapPage : ContentPage
     {
         try
         {
-            if (_isPageDisposing)
-                return;
-
+            _isMapLoadInProgress = false;
             _isMapReady = e.Result == WebNavigationResult.Success;
-            SetLocateButtonState(isBusy: false, isEnabled: _isMapReady);
-            UpdateDeveloperModeVisuals();
+            if (CanUsePageUi())
+            {
+                SetLocateButtonState(isBusy: false, isEnabled: _isMapReady);
+                UpdateDeveloperModeVisuals();
+            }
 
             if (!_isMapReady)
             {
                 UpdateSearchStatus("Bản đồ chưa sẵn sàng. Hãy thử tải lại trang.");
                 ShowMapRetryPanel("Bản đồ chưa tải được.", "Hãy nhấn nút làm mới hoặc thử tải lại.");
+                return;
+            }
+
+            if (!CanUsePageUi())
+            {
                 return;
             }
 
@@ -477,34 +527,50 @@ public partial class MapPage : ContentPage
         }
         catch (ObjectDisposedException ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Map page navigation ignored after dispose: {ex.Message}");
+            LogMapFailure("OnMapWebViewNavigatedDisposed", ex);
         }
         catch (InvalidOperationException ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Map page navigation halted: {ex.Message}");
+            LogMapFailure("OnMapWebViewNavigatedInvalidState", ex);
+        }
+        catch (Exception ex)
+        {
+            LogMapFailure("OnMapWebViewNavigated", ex);
+            ShowMapRetryPanel("Bản đồ gặp lỗi khi khởi tạo.", FriendlyMessageService.Resolve(ex, "Server connect failure"));
+        }
+        finally
+        {
+            _isMapLoadInProgress = false;
         }
     }
 
     private async void OnMapWebViewNavigating(object? sender, WebNavigatingEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(e.Url))
-            return;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(e.Url))
+                return;
 
-        if (!e.Url.StartsWith("smarttour://place/", StringComparison.OrdinalIgnoreCase))
-            return;
+            if (!e.Url.StartsWith("smarttour://place/", StringComparison.OrdinalIgnoreCase))
+                return;
 
-        e.Cancel = true;
+            e.Cancel = true;
 
-        var placeId = e.Url["smarttour://place/".Length..];
-        if (string.IsNullOrWhiteSpace(placeId))
-            return;
+            var placeId = e.Url["smarttour://place/".Length..];
+            if (string.IsNullOrWhiteSpace(placeId) || !CanUsePageUi())
+                return;
 
-        await OpenPlaceDetailAsync(Uri.UnescapeDataString(placeId));
+            await OpenPlaceDetailAsync(Uri.UnescapeDataString(placeId));
+        }
+        catch (Exception ex)
+        {
+            LogMapFailure("OnMapWebViewNavigating", ex);
+        }
     }
 
     private async Task SyncPlacesToMapAsync()
     {
-        if (!_isMapReady)
+        if (!CanExecuteMapScript())
             return;
 
         var mapPlacesJson = JsonSerializer.Serialize(await BuildMapInteropPointsAsync(), JsonInteropOptions);
@@ -513,7 +579,7 @@ public partial class MapPage : ContentPage
 
     private async Task TryFocusPendingPlaceAsync()
     {
-        if (!_isMapReady)
+        if (!CanExecuteMapScript())
             return;
 
         var pendingPlaceId = PlaceNavigationService.Instance.ConsumePendingMapPlaceId();
@@ -538,14 +604,14 @@ public partial class MapPage : ContentPage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Pending map focus error: {ex.Message}");
+            LogMapFailure("TryFocusPendingPlace", ex);
             UpdateSearchStatus("Đã mở tab bản đồ nhưng không thể focus POI lúc này.");
         }
     }
 
     private async Task ApplyMapThemeAsync()
     {
-        if (!_isMapReady)
+        if (!CanExecuteMapScript())
             return;
 
         var themeJson = JsonSerializer.Serialize(ThemeService.Instance.MapThemeKey);
@@ -554,7 +620,7 @@ public partial class MapPage : ContentPage
 
     private async Task ApplyMapStringsAsync()
     {
-        if (!_isMapReady)
+        if (!CanExecuteMapScript())
             return;
 
         var stringsJson = JsonSerializer.Serialize(new MapStringPayload
@@ -571,7 +637,7 @@ public partial class MapPage : ContentPage
 
     private async Task ApplyMapBehaviorAsync()
     {
-        if (!_isMapReady)
+        if (!CanExecuteMapScript())
         {
             return;
         }
@@ -625,29 +691,32 @@ public partial class MapPage : ContentPage
     {
         try
         {
+            if (!CanAccessVisualTree())
+            {
+                return;
+            }
+
             if (IsSearchChromeExpanded)
             {
-                SearchEntry.Unfocus();
-                ClearSearchResults();
-                UpdateSearchStatus(string.Empty);
                 if (SearchChromePanel.IsVisible)
                 {
                     await SearchChromePanel.FadeToAsync(0, 120, Easing.CubicIn);
                 }
 
+                SearchChromePanel.IsVisible = false;
                 IsSearchChromeExpanded = false;
                 SearchChromePanel.Opacity = 1;
                 return;
             }
 
+            SearchChromePanel.IsVisible = true;
             IsSearchChromeExpanded = true;
             SearchChromePanel.Opacity = 0;
             await SearchChromePanel.FadeToAsync(1, 160, Easing.CubicOut);
-            SearchEntry.Focus();
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Search chrome toggle error: {ex.Message}");
+            LogMapFailure("ToggleSearchChrome", ex);
         }
     }
 
@@ -658,11 +727,18 @@ public partial class MapPage : ContentPage
             return;
         }
 
-        _ = RefreshMapAsync(forceReloadWebView: !_isMapReady || MapRetryPanel.IsVisible);
+        FireAndForgetMapTask(
+            "RefreshMapButton",
+            () => RefreshMapAsync(forceReloadWebView: !_isMapReady || MapRetryPanel.IsVisible));
     }
 
     private async Task SearchMapAsync(string? keyword, SearchTrigger trigger, int requestId, CancellationToken cancellationToken)
     {
+        if (!CanUsePageUi())
+        {
+            return;
+        }
+
         keyword = keyword?.Trim() ?? string.Empty;
         var showNotFoundMessage = trigger == SearchTrigger.ManualSubmit;
         var autoFocusSingle = trigger == SearchTrigger.ManualSubmit;
@@ -776,7 +852,7 @@ public partial class MapPage : ContentPage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Map search error: {ex.Message}");
+            LogMapFailure("SearchMap", ex);
             UpdateSearchStatus("Không thể thực hiện tìm kiếm lúc này.");
         }
     }
@@ -832,45 +908,68 @@ public partial class MapPage : ContentPage
         SearchResultsPanel.IsVisible = false;
     }
 
-    private async void OnSearchResultTapped(object? sender, TappedEventArgs e)
+    private void OnSearchResultTapped(object? sender, TappedEventArgs e)
     {
         if (sender is not Border border || border.BindingContext is not MapSearchSuggestion result)
             return;
 
         SearchEntry.Unfocus();
-        await SelectSearchResultAsync(result);
+        FireAndForgetMapTask("SearchResultTapped", () => SelectSearchResultAsync(result));
     }
 
     private async Task SelectSearchResultAsync(MapSearchSuggestion result, CancellationToken cancellationToken = default)
     {
-        if (!_isMapReady)
+        if (!CanUsePageUi() || !_isMapReady)
             return;
 
-        ClearSearchResults();
-        SearchEntry.Unfocus();
-
-        if (result.Kind == MapSearchSuggestionKind.Poi)
+        try
         {
-            var placeIdJson = JsonSerializer.Serialize(result.PlaceId);
-            var rawResult = await EvaluateMapScriptAsync(
-                $"window.focusPlaceById && window.focusPlaceById({placeIdJson});",
-                cancellationToken);
+            ClearSearchResults();
+            SearchEntry.Unfocus();
 
-            var focusResult = ParseFocusResult(rawResult);
-            if (focusResult.Found)
+            if (result.Kind == MapSearchSuggestionKind.Poi)
             {
-                UpdateSearchStatus($"Đang mở POI: {focusResult.Title}");
+                if (string.IsNullOrWhiteSpace(result.PlaceId))
+                {
+                    UpdateSearchStatus($"POI \"{result.Title}\" chưa sẵn sàng để mở trên bản đồ.");
+                    return;
+                }
+
+                var placeIdJson = JsonSerializer.Serialize(result.PlaceId);
+                var rawResult = await EvaluateMapScriptAsync(
+                    $"window.focusPlaceById && window.focusPlaceById({placeIdJson});",
+                    cancellationToken);
+
+                var focusResult = ParseFocusResult(rawResult);
+                if (focusResult.Found)
+                {
+                    UpdateSearchStatus($"Đang mở POI: {focusResult.Title}");
+                }
+                else
+                {
+                    UpdateSearchStatus($"Không thể định vị POI: {result.Title}");
+                }
+
+                return;
             }
 
-            return;
+            var titleJson = JsonSerializer.Serialize(result.Title);
+            var descriptionJson = JsonSerializer.Serialize(result.Subtitle);
+            var script =
+                $"window.showSearchResult && window.showSearchResult({result.Latitude.ToString(CultureInfo.InvariantCulture)}, {result.Longitude.ToString(CultureInfo.InvariantCulture)}, {titleJson}, {descriptionJson});";
+            await EvaluateMapScriptAsync(script, cancellationToken);
+            UpdateSearchStatus($"Đã định vị địa chỉ: {result.Title}");
         }
-
-        var titleJson = JsonSerializer.Serialize(result.Title);
-        var descriptionJson = JsonSerializer.Serialize(result.Subtitle);
-        var script =
-            $"window.showSearchResult && window.showSearchResult({result.Latitude.ToString(CultureInfo.InvariantCulture)}, {result.Longitude.ToString(CultureInfo.InvariantCulture)}, {titleJson}, {descriptionJson});";
-        await EvaluateMapScriptAsync(script, cancellationToken);
-        UpdateSearchStatus($"Đã định vị địa chỉ: {result.Title}");
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            LogMapFailure("SelectSearchResult", ex);
+            UpdateSearchStatus(result.Kind == MapSearchSuggestionKind.Poi
+                ? $"Không thể mở POI: {result.Title}"
+                : $"Không thể định vị địa chỉ: {result.Title}");
+        }
     }
 
     private void OnPoiSearchModeTapped(object? sender, TappedEventArgs e)
@@ -911,7 +1010,7 @@ public partial class MapPage : ContentPage
 
     private async void OnDeveloperModeTapped(object? sender, TappedEventArgs e)
     {
-        if (!AppSettingsService.Instance.DeveloperModeEnabled)
+        if (!CanUsePageUi() || !AppSettingsService.Instance.DeveloperModeEnabled)
             return;
 
         if (!_isMapReady)
@@ -928,6 +1027,11 @@ public partial class MapPage : ContentPage
 
     private async Task FocusCurrentLocationAsync()
     {
+        if (!CanUsePageUi())
+        {
+            return;
+        }
+
         if (!_isMapReady)
         {
             UpdateSearchStatus("Bản đồ đang tải, vui lòng thử lại sau.");
@@ -987,7 +1091,7 @@ public partial class MapPage : ContentPage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Current location error: {ex.Message}");
+            LogMapFailure("FocusCurrentLocation", ex);
             UpdateSearchStatus("Không thể lấy vị trí hiện tại lúc này.");
         }
         finally
@@ -1077,7 +1181,7 @@ public partial class MapPage : ContentPage
 
     private async void OnUserLocationUpdated(object? sender, Location? location)
     {
-        if (_isPageDisposing || !_isMapReady || location is null)
+        if (!CanUsePageUi() || !_isMapReady || location is null)
         {
             return;
         }
@@ -1086,7 +1190,7 @@ public partial class MapPage : ContentPage
         {
             await MainThread.InvokeOnMainThreadAsync(async () =>
             {
-                if (_isPageDisposing || !_isMapReady)
+                if (!CanUsePageUi() || !_isMapReady)
                 {
                     return;
                 }
@@ -1101,7 +1205,7 @@ public partial class MapPage : ContentPage
 
     private async void OnHeadingUpdated(object? sender, double? heading)
     {
-        if (_isPageDisposing || !_isMapReady || heading is null)
+        if (!CanUsePageUi() || !_isMapReady || heading is null)
         {
             return;
         }
@@ -1110,7 +1214,7 @@ public partial class MapPage : ContentPage
         {
             await MainThread.InvokeOnMainThreadAsync(async () =>
             {
-                if (_isPageDisposing || !_isMapReady)
+                if (!CanUsePageUi() || !_isMapReady)
                 {
                     return;
                 }
@@ -1126,6 +1230,11 @@ public partial class MapPage : ContentPage
 
     private async Task ShowCurrentLocationOnMapAsync(Location location, bool shouldUpdateStatus)
     {
+        if (!CanExecuteMapScript())
+        {
+            return;
+        }
+
         if (!shouldUpdateStatus &&
             _lastMapLocationRendered is not null &&
             Location.CalculateDistance(_lastMapLocationRendered, location, DistanceUnits.Kilometers) * 1000d < 2d)
@@ -1211,7 +1320,10 @@ public partial class MapPage : ContentPage
                 Longitude = point.Longitude,
                 RadiusMeters = point.RadiusMeters,
                 Image = await ResolveMapImageSourceAsync(point.Image),
-                GalleryImages = await ResolveMapImageSourcesAsync(point.GalleryImages)
+                // Keep the map payload intentionally small on Android WebView.
+                // Popup content can use the primary image only to avoid loading
+                // a full gallery for every POI during initial map render.
+                GalleryImages = Array.Empty<string>()
             });
         }
 
@@ -1260,7 +1372,7 @@ public partial class MapPage : ContentPage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Tour load error: {ex.Message}");
+            LogMapFailure("LoadTours", ex);
             UpdateSearchStatus("Không thể tải tour lúc này.");
         }
         finally
@@ -1271,7 +1383,7 @@ public partial class MapPage : ContentPage
 
     private async Task RefreshMapAsync(bool forceReloadWebView)
     {
-        if (_isRefreshingMap || _isPageDisposing)
+        if (_isRefreshingMap || _isPageDisposing || !CanUsePageUi())
         {
             return;
         }
@@ -1309,7 +1421,7 @@ public partial class MapPage : ContentPage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Map refresh error: {ex.Message}");
+            LogMapFailure("RefreshMap", ex);
             ShowMapRetryPanel("Không thể làm mới bản đồ.", FriendlyMessageService.Resolve(ex, "Server connect failure"));
             UpdateSearchStatus("Làm mới bản đồ thất bại.");
         }
@@ -1319,16 +1431,20 @@ public partial class MapPage : ContentPage
         }
     }
 
-    private Task ReloadMapAsync()
+    private async Task ReloadMapAsync()
     {
         _isMapReady = false;
         _isMapLoaded = false;
         _lastMapLocationRendered = null;
-        MapRetryPanel.IsVisible = false;
-        MapSkeletonRows.IsVisible = true;
-        LoadMap();
-        _isMapLoaded = true;
-        return Task.CompletedTask;
+        _isMapLoadInProgress = false;
+        if (CanAccessVisualTree())
+        {
+            MapRetryPanel.IsVisible = false;
+            MapSkeletonRows.IsVisible = true;
+            MapWebView.Source = null;
+        }
+
+        await LoadMapAsync(forceReload: true);
     }
 
     private static bool CanRefreshOnlineMapData() =>
@@ -1398,7 +1514,7 @@ public partial class MapPage : ContentPage
 
     private async Task ShowSelectedTourRouteAsync()
     {
-        if (!_isMapReady || SelectedTour is null)
+        if (!CanExecuteMapScript() || SelectedTour is null)
         {
             return;
         }
@@ -1438,7 +1554,7 @@ public partial class MapPage : ContentPage
 
     private async Task ClearTourRouteAsync()
     {
-        if (_isMapReady)
+        if (CanExecuteMapScript())
         {
             await EvaluateMapScriptAsync("window.clearTourRoute && window.clearTourRoute();");
         }
@@ -1477,7 +1593,7 @@ public partial class MapPage : ContentPage
 
     private async Task FocusActiveTourStopAsync()
     {
-        if (!_isMapReady || ActiveTourStop is null)
+        if (!CanExecuteMapScript() || ActiveTourStop is null)
         {
             return;
         }
@@ -1528,7 +1644,7 @@ public partial class MapPage : ContentPage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Tour audio play error: {ex.Message}");
+            LogMapFailure("PlayTour", ex);
             await DisplayAlertAsync("Audio", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
         }
     }
@@ -1546,24 +1662,6 @@ public partial class MapPage : ContentPage
             ? null
             : tour.Stops.OrderBy(item => item.SequenceOrder).FirstOrDefault(item => item.SequenceOrder == currentStop.SequenceOrder + 1);
 
-    private async Task<IReadOnlyList<string>> ResolveMapImageSourcesAsync(IReadOnlyList<string> imageSources)
-    {
-        if (imageSources.Count == 0)
-            return Array.Empty<string>();
-
-        var resolvedSources = new List<string>(imageSources.Count);
-        foreach (var imageSource in imageSources)
-        {
-            var resolvedSource = await ResolveMapImageSourceAsync(imageSource);
-            if (!string.IsNullOrWhiteSpace(resolvedSource))
-            {
-                resolvedSources.Add(resolvedSource);
-            }
-        }
-
-        return resolvedSources;
-    }
-
     private async Task<string> ResolveMapImageSourceAsync(string imageSource)
     {
         if (string.IsNullOrWhiteSpace(imageSource))
@@ -1578,7 +1676,9 @@ public partial class MapPage : ContentPage
 
         if (imageSource.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
             imageSource.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
-            imageSource.StartsWith("content://", StringComparison.OrdinalIgnoreCase))
+            imageSource.StartsWith("content://", StringComparison.OrdinalIgnoreCase) ||
+            imageSource.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            imageSource.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
             return imageSource;
         }
@@ -1588,22 +1688,14 @@ public partial class MapPage : ContentPage
 
         try
         {
-            if (Uri.TryCreate(imageSource, UriKind.Absolute, out var remoteUri) &&
-                (string.Equals(remoteUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(remoteUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+            if (Uri.TryCreate(imageSource, UriKind.Absolute, out var absoluteUri))
             {
-                var bytes = await MapImageHttpClient.GetByteArrayAsync(remoteUri);
-                var remoteMimeType = Path.GetExtension(remoteUri.AbsolutePath).ToLowerInvariant() switch
+                if (string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(absoluteUri.Scheme, Uri.UriSchemeFile, StringComparison.OrdinalIgnoreCase))
                 {
-                    ".jpg" or ".jpeg" => "image/jpeg",
-                    ".webp" => "image/webp",
-                    ".svg" => "image/svg+xml",
-                    _ => "image/png"
-                };
-
-                var remoteDataUri = $"data:{remoteMimeType};base64,{Convert.ToBase64String(bytes)}";
-                _mapImageDataCache[imageSource] = remoteDataUri;
-                return remoteDataUri;
+                    return absoluteUri.AbsoluteUri;
+                }
             }
 
             using var stream = await FileSystem.OpenAppPackageFileAsync(imageSource);
@@ -1624,7 +1716,7 @@ public partial class MapPage : ContentPage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Map image fallback for {imageSource}: {ex.Message}");
+            LogMapFailure("ResolveMapImageSource", ex);
             return imageSource.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                    imageSource.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
                 ? imageSource
@@ -1634,6 +1726,11 @@ public partial class MapPage : ContentPage
 
     private void SetLocateButtonState(bool isBusy, bool isEnabled)
     {
+        if (!CanAccessVisualTree())
+        {
+            return;
+        }
+
         CurrentLocationSpinner.IsVisible = isBusy;
         CurrentLocationSpinner.IsRunning = isBusy;
         CurrentLocationIcon.IsVisible = !isBusy;
@@ -1643,15 +1740,22 @@ public partial class MapPage : ContentPage
 
     private void UpdateDeveloperModeVisuals()
     {
+        if (!CanAccessVisualTree())
+        {
+            return;
+        }
+
         DeveloperModeButton.IsVisible = AppSettingsService.Instance.DeveloperModeEnabled;
         DeveloperModeButton.BackgroundColor = _isDeveloperModeEnabled
-            ? Color.FromArgb("#CC18A94B")
-            : Color.FromArgb("#B834495A");
+            ? Color.FromArgb("#2618A94B")
+            : Color.FromArgb("#20FFFFFF");
         DeveloperModeButton.Stroke = new SolidColorBrush(
             _isDeveloperModeEnabled
-                ? Color.FromArgb("#99E8F7EE")
-                : Color.FromArgb("#66FFFFFF"));
-        DeveloperModeLabel.TextColor = Colors.White;
+                ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+                : ThemeService.Instance.GetColor("MapButtonRing", "#CCFFFFFF"));
+        DeveloperModeLabel.TextColor = _isDeveloperModeEnabled
+            ? ThemeService.Instance.GetColor("PrimaryGreen", "#18A94B")
+            : Colors.White;
         DeveloperModeButton.Opacity = _isMapReady ? 1 : 0.68;
         DeveloperModeButton.InputTransparent = !_isMapReady;
     }
@@ -1664,7 +1768,7 @@ public partial class MapPage : ContentPage
         }
 
         UpdateDeveloperModeVisuals();
-        _ = ApplyDeveloperModeAsync();
+        FireAndForgetMapTask("ApplyDeveloperModeAvailability", ApplyDeveloperModeAsync);
     }
 
     private async Task ApplyDeveloperModeAsync()
@@ -1678,6 +1782,11 @@ public partial class MapPage : ContentPage
 
     private void UpdateSearchStatus(string message)
     {
+        if (!CanAccessVisualTree())
+        {
+            return;
+        }
+
         var isVisible = !string.IsNullOrWhiteSpace(message);
         if (SearchStatusLabel.Text == message &&
             SearchStatusLabel.IsVisible == isVisible &&
@@ -1691,6 +1800,11 @@ public partial class MapPage : ContentPage
 
     private void UpdateConnectionStatusChip()
     {
+        if (!CanAccessVisualTree())
+        {
+            return;
+        }
+
         var hasInternet = Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
         var isOnline = AppDataModeService.Instance.IsApiEnabled && hasInternet;
 
@@ -1711,16 +1825,48 @@ public partial class MapPage : ContentPage
         if (string.IsNullOrWhiteSpace(rawResult))
             return new MapFocusResult();
 
-        var normalized = rawResult.Trim();
-        if (normalized.Length >= 2 && normalized[0] == '"' && normalized[^1] == '"')
+        try
         {
-            normalized = JsonSerializer.Deserialize<string>(normalized) ?? string.Empty;
+            var normalized = rawResult.Trim();
+            if (normalized.Length >= 2 && normalized[0] == '"' && normalized[^1] == '"')
+            {
+                normalized = JsonSerializer.Deserialize<string>(normalized) ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(normalized) ||
+                string.Equals(normalized, "null", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalized, "undefined", StringComparison.OrdinalIgnoreCase))
+            {
+                return new MapFocusResult();
+            }
+
+            using var jsonDocument = JsonDocument.Parse(normalized);
+            var root = jsonDocument.RootElement;
+            if (root.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                return new MapFocusResult
+                {
+                    Found = root.GetBoolean()
+                };
+            }
+
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return new MapFocusResult();
+            }
+
+            return new MapFocusResult
+            {
+                Found = TryReadBoolean(root, "found"),
+                MatchCount = TryReadInt32(root, "matchCount"),
+                Title = TryReadString(root, "title"),
+                DistanceMeters = TryReadDouble(root, "distanceMeters")
+            };
         }
-
-        if (string.IsNullOrWhiteSpace(normalized))
+        catch (Exception)
+        {
             return new MapFocusResult();
-
-        return JsonSerializer.Deserialize<MapFocusResult>(normalized, JsonInteropOptions) ?? new MapFocusResult();
+        }
     }
 
     private static async Task<IReadOnlyList<OnlineSearchResult>> SearchOnlineAsync(string keyword, int limit, string acceptLanguage, CancellationToken cancellationToken)
@@ -1807,7 +1953,7 @@ public partial class MapPage : ContentPage
 
     private async Task<string?> EvaluateMapScriptAsync(string script, CancellationToken cancellationToken = default)
     {
-        if (!_isMapReady || _isPageDisposing || MapWebView.Handler is null)
+        if (string.IsNullOrWhiteSpace(script) || !CanExecuteMapScript())
             return null;
 
         var lockTaken = false;
@@ -1818,7 +1964,15 @@ public partial class MapPage : ContentPage
             lockTaken = true;
 
             cancellationToken.ThrowIfCancellationRequested();
-            return await MainThread.InvokeOnMainThreadAsync(() => MapWebView.EvaluateJavaScriptAsync(script));
+            return await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                if (!CanExecuteMapScript())
+                {
+                    return Task.FromResult<string?>(null);
+                }
+
+                return MapWebView.EvaluateJavaScriptAsync(script);
+            });
         }
         catch (OperationCanceledException)
         {
@@ -1826,7 +1980,7 @@ public partial class MapPage : ContentPage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Map script error: {ex.Message}");
+            LogMapFailure("EvaluateMapScript", ex);
             return null;
         }
         finally
@@ -1838,30 +1992,40 @@ public partial class MapPage : ContentPage
         }
     }
 
-    private void CancelPendingOperations()
+    private void CancelPendingOperations(bool resetMapReady)
     {
-        _activeSearchCts?.Cancel();
+        CancelActiveSearchOperation();
         _mapLoadingCts?.Cancel();
         _mapTimeoutCts?.Cancel();
-        _isMapReady = false;
+        if (resetMapReady)
+        {
+            _isMapReady = false;
+            _isMapLoadInProgress = false;
+        }
     }
 
     private void DetachEventHandlers()
     {
+        if (!_eventsAttached)
+        {
+            return;
+        }
+
         MapWebView.Navigated -= OnMapWebViewNavigated;
         MapWebView.Navigating -= OnMapWebViewNavigating;
-        SearchEntry.Completed -= OnSearchCompleted;
-        SearchEntry.TextChanged -= OnSearchTextChanged;
         LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
         ThemeService.Instance.PropertyChanged -= OnThemeChanged;
         AppSettingsService.Instance.PropertyChanged -= OnAppSettingsChanged;
         AppSettingsService.Instance.SettingsSaved -= OnSettingsSaved;
         Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
+        UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
+        UserLocationService.Instance.HeadingUpdated -= OnHeadingUpdated;
+        _eventsAttached = false;
     }
 
     private bool CanAnimateMapLoadingChrome()
     {
-        return !_isPageDisposing &&
+        return CanUsePageUi() &&
                Handler is not null &&
                Window is not null &&
                MapWebView.Handler is not null &&
@@ -1870,6 +2034,11 @@ public partial class MapPage : ContentPage
 
     private void ShowMapRetryPanel(string title, string subtitle)
     {
+        if (!CanAccessVisualTree())
+        {
+            return;
+        }
+
         _mapLoadingCts?.Cancel();
         _mapTimeoutCts?.Cancel();
 
@@ -1885,13 +2054,20 @@ public partial class MapPage : ContentPage
 
     private async void OnRetryMapTapped(object? sender, TappedEventArgs e)
     {
-        if (sender is VisualElement element)
+        try
         {
-            await element.ScaleTo(0.92, 60, Easing.CubicIn);
-            await element.ScaleTo(1d, 120, Easing.CubicOut);
-        }
+            if (sender is VisualElement element)
+            {
+                await element.ScaleToAsync(0.92, 60, Easing.CubicIn);
+                await element.ScaleToAsync(1d, 120, Easing.CubicOut);
+            }
 
-        await ReloadMapAsync();
+            await ReloadMapAsync();
+        }
+        catch (Exception ex)
+        {
+            LogMapFailure("OnRetryMapTapped", ex);
+        }
     }
 
     private void FinishMapLoadingStateWithoutAnimation()
@@ -1908,8 +2084,137 @@ public partial class MapPage : ContentPage
         }
         catch (ObjectDisposedException ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Map loading state cleanup skipped: {ex.Message}");
+            LogMapFailure("FinishMapLoadingStateDisposed", ex);
         }
+    }
+
+    private void FireAndForgetMapTask(string operation, Func<Task> work) =>
+        _ = RunMapTaskAsync(operation, work);
+
+    private async Task RunMapTaskAsync(string operation, Func<Task> work)
+    {
+        try
+        {
+            await work();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException ex)
+        {
+            LogMapFailure(operation, ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            LogMapFailure(operation, ex);
+        }
+        catch (Exception ex)
+        {
+            LogMapFailure(operation, ex);
+        }
+    }
+
+    private bool CanUsePageUi() =>
+        !_isPageDisposing &&
+        _isPageActive &&
+        Handler is not null;
+
+    private bool CanAccessVisualTree() =>
+        !_isPageDisposing &&
+        Handler is not null;
+
+    private bool CanExecuteMapScript() =>
+        CanUsePageUi() &&
+        _isMapReady &&
+        MapWebView.Handler is not null;
+
+    private void LogMapFailure(string operation, Exception ex)
+    {
+        System.Diagnostics.Debug.WriteLine(
+            $"[MapPage] op={operation}; active={_isPageActive}; disposing={_isPageDisposing}; loaded={_isMapLoaded}; ready={_isMapReady}; {ex}");
+    }
+
+    private static bool TryReadBoolean(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var property))
+        {
+            return false;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.String when bool.TryParse(property.GetString(), out var value) => value,
+            JsonValueKind.Number when property.TryGetInt32(out var numericValue) => numericValue != 0,
+            _ => false
+        };
+    }
+
+    private static int TryReadInt32(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var property))
+        {
+            return 0;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out var number))
+        {
+            return number;
+        }
+
+        return property.ValueKind == JsonValueKind.String &&
+               int.TryParse(property.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : 0;
+    }
+
+    private static double TryReadDouble(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var property))
+        {
+            return 0d;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var number))
+        {
+            return number;
+        }
+
+        return property.ValueKind == JsonValueKind.String &&
+               double.TryParse(property.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : 0d;
+    }
+
+    private static string TryReadString(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var property))
+        {
+            return string.Empty;
+        }
+
+        return property.ValueKind == JsonValueKind.String
+            ? property.GetString() ?? string.Empty
+            : string.Empty;
+    }
+
+    private static void ConfigureAndroidWebViewUserAgent()
+    {
+#if ANDROID
+        if (Interlocked.CompareExchange(ref _androidUserAgentMappingConfigured, 1, 0) == 1)
+        {
+            return;
+        }
+
+        WebViewHandler.Mapper.AppendToMapping("SmartTourismUserAgent", (handler, view) =>
+        {
+            if (handler.PlatformView is Android.Webkit.WebView webView)
+            {
+                webView.Settings.UserAgentString = "SmartTourismMaui/1.0";
+            }
+        });
+#endif
     }
 
     private static string GetPreferredSearchLanguageTag()

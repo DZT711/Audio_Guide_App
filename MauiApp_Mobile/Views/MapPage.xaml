@@ -7,39 +7,99 @@
     x:Name="ThisPage"
     BackgroundColor="{DynamicResource LightBg}">
 
-    <Grid RowDefinitions="Auto,*,Auto">
-        <Grid Style="{StaticResource TopHeaderGridStyle}"
-              MinimumHeightRequest="128">
-            <VerticalStackLayout Spacing="8" VerticalOptions="Center">
-                <Grid ColumnDefinitions="*,Auto"
-                      ColumnSpacing="12">
-                    <Label x:Name="TitleLabel"
-                           Text="Bản đồ"
-                           Style="{StaticResource TopHeaderTitleStyle}" />
+    <Grid>
+        <Grid x:Name="MapContainer">
+            <WebView x:Name="MapWebView"
+                     Opacity="0" />
 
-                    <Border x:Name="ConnectionStatusChip"
+            <Grid x:Name="MapLoadingOverlay"
+                  BackgroundColor="{DynamicResource LightBg}"
+                  Padding="16,18,16,24"
+                  RowDefinitions="Auto,Auto,Auto,*"
+                  RowSpacing="14"
+                  ZIndex="10">
+                <Border x:Name="MapHeaderSkeleton"
+                        HeightRequest="72"
+                        Style="{StaticResource SkeletonBoneStyle}" />
+
+                <Border x:Name="MapCanvasSkeleton"
+                        Grid.Row="1"
+                        HeightRequest="228"
+                        Style="{StaticResource SkeletonBoneStyle}" />
+
+                <Grid Grid.Row="2"
+                      ColumnDefinitions="*,*"
+                      ColumnSpacing="12">
+                    <Border x:Name="MapInfoSkeleton"
+                            HeightRequest="84"
+                            Style="{StaticResource SkeletonBoneStyle}" />
+
+                    <Border x:Name="MapActionSkeleton"
                             Grid.Column="1"
-                            BackgroundColor="#E8F7EE"
-                            Padding="10,6"
-                            StrokeThickness="0"
-                            StrokeShape="RoundRectangle 14"
-                            VerticalOptions="Center">
-                        <HorizontalStackLayout Spacing="6">
-                            <Label x:Name="ConnectionStatusDot"
-                                   FontSize="12"
-                                   Text="●"
-                                   VerticalOptions="Center" />
-                            <Label x:Name="ConnectionStatusLabel"
-                                   FontAttributes="Bold"
-                                   FontSize="12"
-                                   Text="Online"
-                                   VerticalOptions="Center" />
-                        </HorizontalStackLayout>
-                    </Border>
+                            HeightRequest="84"
+                            Style="{StaticResource SkeletonBoneStyle}" />
                 </Grid>
 
-                <VerticalStackLayout x:Name="SearchChromePanel"
-                                     Spacing="8">
+                <Grid Grid.Row="3">
+                    <VerticalStackLayout x:Name="MapSkeletonRows"
+                                         Spacing="12">
+                        <Border x:Name="MapRowSkeleton1"
+                                HeightRequest="52"
+                                Style="{StaticResource SkeletonBoneStyle}" />
+                        <Border x:Name="MapRowSkeleton2"
+                                HeightRequest="52"
+                                Style="{StaticResource SkeletonBoneStyle}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout x:Name="MapRetryPanel"
+                                         IsVisible="False"
+                                         HorizontalOptions="Center"
+                                         VerticalOptions="Center"
+                                         Spacing="16"
+                                         Padding="24">
+                        <Label Text="🗺️"
+                               FontSize="30"
+                               HorizontalOptions="Center" />
+                        <Label x:Name="MapRetryMessageLabel"
+                               Text="Bản đồ chưa tải được."
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center"
+                               TextColor="{DynamicResource BodyText}" />
+                        <Label x:Name="MapRetrySubLabel"
+                               Text="Hãy kiểm tra kết nối mạng rồi thử lại."
+                               FontSize="13"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center"
+                               TextColor="{DynamicResource MutedText}" />
+                        <Border BackgroundColor="{DynamicResource PrimaryGreen}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 18"
+                                Padding="28,14"
+                                HorizontalOptions="Center">
+                            <Label Text="🔄  Tải lại bản đồ"
+                                   FontAttributes="Bold"
+                                   FontSize="14"
+                                   TextColor="White" />
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnRetryMapTapped" />
+                            </Border.GestureRecognizers>
+                        </Border>
+                    </VerticalStackLayout>
+                </Grid>
+            </Grid>
+
+            <VerticalStackLayout Padding="{OnPlatform Android='16,18,16,0', iOS='16,54,16,0', Default='16,18,16,0'}"
+                                 Spacing="10"
+                                 VerticalOptions="Start"
+                                 ZIndex="18">
+                <Label x:Name="TitleLabel"
+                       IsVisible="False"
+                       Text="Bản đồ" />
+
+                <Grid ColumnDefinitions="*,Auto,Auto"
+                      ColumnSpacing="10">
                     <Frame Style="{StaticResource TopHeaderSearchFrameStyle}">
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
                             <Label Text="🔍"
@@ -62,8 +122,53 @@
                         </Grid>
                     </Frame>
 
-                    <HorizontalStackLayout HorizontalOptions="End"
-                                           Spacing="10">
+                    <Border x:Name="ConnectionStatusChip"
+                            Grid.Column="1"
+                            BackgroundColor="#E8F7EE"
+                            Padding="10,6"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 14"
+                            VerticalOptions="Center">
+                        <HorizontalStackLayout Spacing="6">
+                            <Label x:Name="ConnectionStatusDot"
+                                   FontSize="12"
+                                   Text="●"
+                                   VerticalOptions="Center" />
+                            <Label x:Name="ConnectionStatusLabel"
+                                   FontAttributes="Bold"
+                                   FontSize="12"
+                                   Text="Online"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Border>
+
+                    <Border Grid.Column="2"
+                            BackgroundColor="{DynamicResource MapButtonBg}"
+                            Padding="0"
+                            Stroke="{DynamicResource MapButtonRing}"
+                            StrokeShape="RoundRectangle 24"
+                            StrokeThickness="1.2"
+                            VerticalOptions="Center"
+                            WidthRequest="48"
+                            HeightRequest="48">
+                        <Label Text="{Binding SearchToggleGlyph}"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               HorizontalOptions="Center"
+                               TextColor="White"
+                               VerticalOptions="Center" />
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnToggleSearchChromeTapped" />
+                        </Border.GestureRecognizers>
+                    </Border>
+                </Grid>
+
+                <VerticalStackLayout x:Name="SearchChromePanel"
+                                     Spacing="10">
+                    <ScrollView Orientation="Horizontal"
+                                HorizontalOptions="Fill"
+                                HorizontalScrollBarVisibility="Never">
+                        <HorizontalStackLayout Spacing="10">
                         <Border BackgroundColor="{DynamicResource MapButtonBg}"
                                 Padding="0"
                                 Stroke="{DynamicResource MapButtonRing}"
@@ -178,7 +283,8 @@
                                 <TapGestureRecognizer Tapped="OnCurrentLocationTapped" />
                             </Border.GestureRecognizers>
                         </Border>
-                    </HorizontalStackLayout>
+                        </HorizontalStackLayout>
+                    </ScrollView>
 
                     <Grid ColumnDefinitions="*,*"
                           ColumnSpacing="10">
@@ -231,121 +337,32 @@
                             </Border.GestureRecognizers>
                         </Border>
                     </Grid>
-
-                    <Border x:Name="SearchStatusChip"
-                            BackgroundColor="{DynamicResource PopupBg}"
-                            IsVisible="False"
-                            Padding="10,8"
-                            Stroke="{DynamicResource BorderColor}"
-                            StrokeShape="RoundRectangle 14"
-                            StrokeThickness="1">
-                        <Label x:Name="SearchStatusLabel"
-                               FontSize="12"
-                               IsVisible="False"
-                               Text=""
-                               TextColor="{DynamicResource HeaderSupportText}" />
-                    </Border>
                 </VerticalStackLayout>
-            </VerticalStackLayout>
-        </Grid>
 
-        <RefreshView Grid.Row="1"
-                     x:Name="MapRefreshView"
-                     Refreshing="OnMapRefreshRequested">
-        <Grid x:Name="MapContainer">
-            <WebView x:Name="MapWebView"
-                     Opacity="0" />
+                <Border x:Name="SearchStatusChip"
+                        BackgroundColor="{DynamicResource PopupBg}"
+                        IsVisible="False"
+                        Padding="10,8"
+                        Stroke="{DynamicResource BorderColor}"
+                        StrokeShape="RoundRectangle 14"
+                        StrokeThickness="1">
+                    <Label x:Name="SearchStatusLabel"
+                           FontSize="12"
+                           IsVisible="False"
+                           Text=""
+                           TextColor="{DynamicResource BodyText}" />
+                </Border>
 
-            <Grid x:Name="MapLoadingOverlay"
-                  BackgroundColor="{DynamicResource LightBg}"
-                  Padding="16,18,16,24"
-                  RowDefinitions="Auto,Auto,Auto,*"
-                  RowSpacing="14"
-                  ZIndex="10">
-                <Border x:Name="MapHeaderSkeleton"
-                        HeightRequest="72"
-                        Style="{StaticResource SkeletonBoneStyle}" />
-
-                <Border x:Name="MapCanvasSkeleton"
-                        Grid.Row="1"
-                        HeightRequest="228"
-                        Style="{StaticResource SkeletonBoneStyle}" />
-
-                <Grid Grid.Row="2"
-                      ColumnDefinitions="*,*"
-                      ColumnSpacing="12">
-                    <Border x:Name="MapInfoSkeleton"
-                            HeightRequest="84"
-                            Style="{StaticResource SkeletonBoneStyle}" />
-
-                    <Border x:Name="MapActionSkeleton"
-                            Grid.Column="1"
-                            HeightRequest="84"
-                            Style="{StaticResource SkeletonBoneStyle}" />
-                </Grid>
-
-                <Grid Grid.Row="3">
-                    <VerticalStackLayout x:Name="MapSkeletonRows"
-                                         Spacing="12">
-                        <Border x:Name="MapRowSkeleton1"
-                                HeightRequest="52"
-                                Style="{StaticResource SkeletonBoneStyle}" />
-                        <Border x:Name="MapRowSkeleton2"
-                                HeightRequest="52"
-                                Style="{StaticResource SkeletonBoneStyle}" />
-                    </VerticalStackLayout>
-
-                    <VerticalStackLayout x:Name="MapRetryPanel"
-                                         IsVisible="False"
-                                         HorizontalOptions="Center"
-                                         VerticalOptions="Center"
-                                         Spacing="16"
-                                         Padding="24">
-                        <Label Text="🗺️"
-                               FontSize="30"
-                               HorizontalOptions="Center" />
-                        <Label x:Name="MapRetryMessageLabel"
-                               Text="Bản đồ chưa tải được."
-                               FontSize="15"
-                               FontAttributes="Bold"
-                               HorizontalOptions="Center"
-                               HorizontalTextAlignment="Center"
-                               TextColor="{DynamicResource BodyText}" />
-                        <Label x:Name="MapRetrySubLabel"
-                               Text="Hãy kiểm tra kết nối mạng rồi thử lại."
-                               FontSize="13"
-                               HorizontalOptions="Center"
-                               HorizontalTextAlignment="Center"
-                               TextColor="{DynamicResource MutedText}" />
-                        <Border BackgroundColor="{DynamicResource PrimaryGreen}"
-                                StrokeThickness="0"
-                                StrokeShape="RoundRectangle 18"
-                                Padding="28,14"
-                                HorizontalOptions="Center">
-                            <Label Text="🔄  Tải lại bản đồ"
-                                   FontAttributes="Bold"
-                                   FontSize="14"
-                                   TextColor="White" />
-                            <Border.GestureRecognizers>
-                                <TapGestureRecognizer Tapped="OnRetryMapTapped" />
-                            </Border.GestureRecognizers>
-                        </Border>
-                    </VerticalStackLayout>
-                </Grid>
-            </Grid>
-
-            <Border x:Name="SearchResultsPanel"
-                    BackgroundColor="{DynamicResource PopupBg}"
-                    HorizontalOptions="Fill"
-                    IsVisible="False"
-                    Margin="16,92,16,0"
-                    MaximumHeightRequest="252"
-                    Padding="12"
-                    Stroke="{DynamicResource BorderColor}"
-                    StrokeShape="RoundRectangle 18"
-                    StrokeThickness="1"
-                    VerticalOptions="Start"
-                    ZIndex="19">
+                <Border x:Name="SearchResultsPanel"
+                        BackgroundColor="{DynamicResource PopupBg}"
+                        HorizontalOptions="Fill"
+                        IsVisible="False"
+                        MaximumHeightRequest="252"
+                        Padding="12"
+                        Stroke="{DynamicResource BorderColor}"
+                        StrokeShape="RoundRectangle 18"
+                        StrokeThickness="1"
+                        ZIndex="19">
                 <Grid RowDefinitions="Auto,*"
                       RowSpacing="8">
                     <Label x:Name="SearchResultsTitleLabel"
@@ -410,34 +427,34 @@
                         </CollectionView.ItemTemplate>
                     </CollectionView>
                 </Grid>
-            </Border>
+                </Border>
 
-            <Border x:Name="MapTipChip"
-                    BackgroundColor="{DynamicResource PopupBg}"
-                    HorizontalOptions="Start"
-                    Margin="16,16,86,0"
-                    Padding="12,10"
-                    Stroke="{DynamicResource BorderColor}"
-                    StrokeShape="RoundRectangle 16"
-                    StrokeThickness="1"
-                    VerticalOptions="Start"
-                    ZIndex="20">
-                <HorizontalStackLayout Spacing="8">
-                    <Label FontSize="15"
-                           Text="🛰"
-                           VerticalOptions="Center" />
-                    <Label x:Name="MapTipLabel"
-                           FontSize="12"
-                           LineBreakMode="WordWrap"
-                           Text="Chạm la bàn để lấy vị trí hiện tại"
-                           TextColor="{DynamicResource BodyText}"
-                           VerticalOptions="Center" />
-                </HorizontalStackLayout>
-            </Border>
+                <Border x:Name="MapTipChip"
+                        BackgroundColor="{DynamicResource PopupBg}"
+                        HorizontalOptions="Start"
+                        Margin="0,0,86,0"
+                        Padding="12,10"
+                        Stroke="{DynamicResource BorderColor}"
+                        StrokeShape="RoundRectangle 16"
+                        StrokeThickness="1"
+                        ZIndex="20">
+                    <HorizontalStackLayout Spacing="8">
+                        <Label FontSize="15"
+                               Text="🛰"
+                               VerticalOptions="Center" />
+                        <Label x:Name="MapTipLabel"
+                               FontSize="12"
+                               LineBreakMode="WordWrap"
+                               Text="Chạm la bàn để lấy vị trí hiện tại"
+                               TextColor="{DynamicResource BodyText}"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Border>
+            </VerticalStackLayout>
 
             <Border IsVisible="{Binding IsTourPanelVisible}"
                     BackgroundColor="{DynamicResource PopupBg}"
-                    Margin="16,110,16,16"
+                    Margin="16,120,16,92"
                     Padding="14"
                     Stroke="{DynamicResource BorderColor}"
                     StrokeThickness="1"
@@ -737,9 +754,9 @@
                 </Grid>
             </Border>
         </Grid>
-        </RefreshView>
 
-        <controls:MiniPlayerView Grid.Row="2"
+        <controls:MiniPlayerView UseTransparentChrome="True"
+                                 VerticalOptions="End"
                                  ZIndex="40" />
     </Grid>
 </ContentPage>
