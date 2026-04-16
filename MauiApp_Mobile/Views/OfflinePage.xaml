@@ -1017,7 +1017,7 @@
             </Border>
         </Grid>
 
-        <controls:MiniPlayerView Grid.Row="3"
+        <controls:MiniPlayerView Grid.Row="1"
                                  UseTransparentChrome="True"
                                  VerticalOptions="End"
                                  ZIndex="40" />
