@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using MauiApp_Mobile.Services.Geofencing;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Devices;
 using Microsoft.Maui.Devices.Sensors;
@@ -179,6 +180,7 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
         if (AppSettingsService.Instance.BatterySaverEnabled || !AppSettingsService.Instance.BackgroundTrackingEnabled)
         {
             await StartForegroundTrackingAsync(cancellationToken);
+            await RefreshGeofencingAsync(cancellationToken);
             return;
         }
 
@@ -191,10 +193,12 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
         if (backgroundStatus == PermissionStatus.Granted)
         {
             await StartBackgroundTrackingAsync(cancellationToken);
+            await RefreshGeofencingAsync(cancellationToken);
             return;
         }
 
         await StartForegroundTrackingAsync(cancellationToken);
+        await RefreshGeofencingAsync(cancellationToken);
     }
 
     public Task StopAsync()
@@ -336,6 +340,17 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private static async Task RefreshGeofencingAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await GeofenceOrchestratorService.Instance.WarmStartAsync(cancellationToken);
+        }
+        catch
+        {
+        }
     }
 }
 

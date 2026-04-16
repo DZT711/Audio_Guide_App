@@ -53,15 +53,16 @@ public sealed class GeofenceEngineTests
         _ = engine.Evaluate(CreateSample(0.002d, 0d, 0), spatialIndex, states, null);
         _ = engine.Evaluate(CreateSample(0.0004d, 0d, 1), spatialIndex, states, null);
         _ = engine.Evaluate(CreateSample(0.0001d, 0d, 2), spatialIndex, states, null);
-        var result = engine.Evaluate(CreateSample(0.0001d, 0d, 8), spatialIndex, states, null);
+        var result = engine.Evaluate(CreateSample(0.0001d, 0d, 10), spatialIndex, states, null);
 
         var trigger = Assert.Single(result.AcceptedTriggers);
         Assert.Equal(GeofenceTriggerEvent.NearStay, trigger.EventType);
     }
 
     [Fact]
-    public void Evaluate_ShouldSkipReentry_DuringPoiCooldown()
+    public void Evaluate_ShouldSkipEnteredRadius_WhenPoiCooldownIsActive()
     {
+        var nowUtc = DateTimeOffset.UtcNow;
         var options = new GeofenceEngineOptions(
             DefaultPoiCooldown: TimeSpan.FromSeconds(20),
             GlobalCooldown: TimeSpan.Zero,
@@ -77,16 +78,63 @@ public sealed class GeofenceEngineTests
         var definition = new PoiGeofenceDefinition("1", 0d, 0d, 100d, 20d, 1, 0, true);
         var spatialIndex = GeofenceSpatialIndex.Build([definition], options);
         var engine = new GeofenceEvaluationEngine(options);
-        var states = new Dictionary<string, GeofencePoiRuntimeState>(StringComparer.OrdinalIgnoreCase);
+        var states = new Dictionary<string, GeofencePoiRuntimeState>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["1"] = new GeofencePoiRuntimeState
+            {
+                HasEstablishedState = true,
+                State = GeofenceState.Outside,
+                CooldownUntilUtc = nowUtc.AddSeconds(30)
+            }
+        };
 
-        _ = engine.Evaluate(CreateSample(0.002d, 0d, 0), spatialIndex, states, null);
-        _ = engine.Evaluate(CreateSample(0.0005d, 0d, 2), spatialIndex, states, null);
-        _ = engine.Evaluate(CreateSample(0.002d, 0d, 4), spatialIndex, states, null);
-        var result = engine.Evaluate(CreateSample(0.0005d, 0d, 8), spatialIndex, states, null);
+        var result = engine.Evaluate(
+            new GeofenceLocationSample(0.0005d, 0d, 5d, 0d, nowUtc, true),
+            spatialIndex,
+            states,
+            globalCooldownUntilUtc: null);
 
         Assert.Empty(result.AcceptedTriggers);
         var skipped = Assert.Single(result.SkippedTriggers);
         Assert.Equal("poi-cooldown", skipped.Reason);
+    }
+
+    [Fact]
+    public void Evaluate_ShouldSkipTrigger_DuringGlobalCooldown()
+    {
+        var nowUtc = DateTimeOffset.UtcNow;
+        var options = new GeofenceEngineOptions(
+            DefaultPoiCooldown: TimeSpan.FromSeconds(20),
+            GlobalCooldown: TimeSpan.FromSeconds(60),
+            NearDwellWindow: TimeSpan.FromSeconds(5),
+            MinimumEvaluationInterval: TimeSpan.Zero,
+            MinimumMovementMeters: 0d,
+            SpatialPaddingMeters: 20d,
+            CandidateLimit: 10,
+            NativeCircuitBreakerDuration: TimeSpan.FromMinutes(5),
+            NativeFailureThreshold: 3,
+            WatchdogThreshold: TimeSpan.FromMinutes(1));
+
+        var definition = new PoiGeofenceDefinition("1", 0d, 0d, 100d, 20d, 1, 0, true);
+        var spatialIndex = GeofenceSpatialIndex.Build([definition], options);
+        var engine = new GeofenceEvaluationEngine(options);
+        var states = new Dictionary<string, GeofencePoiRuntimeState>(StringComparer.OrdinalIgnoreCase);
+
+        _ = engine.Evaluate(
+            new GeofenceLocationSample(0.002d, 0d, 5d, 0d, nowUtc, true),
+            spatialIndex,
+            states,
+            globalCooldownUntilUtc: null);
+
+        var result = engine.Evaluate(
+            new GeofenceLocationSample(0.0005d, 0d, 5d, 0d, nowUtc.AddSeconds(5), true),
+            spatialIndex,
+            states,
+            globalCooldownUntilUtc: nowUtc.AddSeconds(30));
+
+        Assert.Empty(result.AcceptedTriggers);
+        var skipped = Assert.Single(result.SkippedTriggers);
+        Assert.Equal("global-cooldown", skipped.Reason);
     }
 
     [Fact]

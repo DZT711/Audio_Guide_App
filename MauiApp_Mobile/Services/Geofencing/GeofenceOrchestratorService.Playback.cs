@@ -52,36 +52,33 @@ public sealed partial class GeofenceOrchestratorService
             using var lookupCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             lookupCts.CancelAfter(TrackLookupTimeout);
 
-            var sourceTrack = await PlaceCatalogService.Instance.GetDefaultAudioTrackAsync(
-                place.Id,
-                cancellationToken: lookupCts.Token);
-
-            if (sourceTrack is null && AppDataModeService.Instance.IsApiEnabled)
-            {
-                sourceTrack = await PlaceCatalogService.Instance.GetDefaultAudioTrackAsync(
-                    place.Id,
-                    forceRefresh: true,
-                    cancellationToken: lookupCts.Token);
-            }
-
-            if (sourceTrack is null)
+            var audioTracks = await LoadAudioTracksAsync(place.Id, lookupCts.Token);
+            var sourceTrack = SelectDefaultTrack(audioTracks);
+            if (sourceTrack is null || audioTracks.Count == 0)
             {
                 Log("trigger-ignored", ("reason", "audio-track-not-found"), ("poiId", place.Id));
                 return;
             }
 
-            var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(sourceTrack);
+            var queueItems = await BuildPlaybackQueueItemsAsync(place, audioTracks, sourceTrack.Id, lookupCts.Token);
+            if (queueItems.Count == 0)
+            {
+                Log("trigger-ignored", ("reason", "audio-queue-empty"), ("poiId", place.Id));
+                return;
+            }
+
             var historyItem = CreateHistoryItem(place, trigger);
             var playbackSource = trigger.EventType == GeofenceTriggerEvent.EnteredRadius ? EnterPlaybackSource : NearPlaybackSource;
             var startedAtUtc = DateTimeOffset.UtcNow;
+            var queueStartIndex = FindQueueIndex(queueItems, sourceTrack.Id);
 
             await MainThread.InvokeOnMainThreadAsync(async () =>
             {
                 HistoryService.Instance.AddToHistory(historyItem);
-                await PlaybackCoordinatorService.Instance.PlaySingleAsync(
-                    playableTrack,
-                    place.Name,
-                    $"{sourceTrack.LanguageName ?? sourceTrack.Language} • {playbackSource}");
+                await PlaybackCoordinatorService.Instance.PlayQueueAsync(
+                    queueItems,
+                    queueStartIndex,
+                    cancellationToken);
             });
 
             if (int.TryParse(place.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var locationId) &&
@@ -220,6 +217,74 @@ public sealed partial class GeofenceOrchestratorService
         return PlaceCatalogService.Instance.FindById(placeId);
     }
 
+    private static async Task<IReadOnlyList<PublicAudioTrackDto>> LoadAudioTracksAsync(
+        string placeId,
+        CancellationToken cancellationToken)
+    {
+        var audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(
+            placeId,
+            cancellationToken: cancellationToken);
+
+        if (audioTracks.Count == 0 && AppDataModeService.Instance.IsApiEnabled)
+        {
+            audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(
+                placeId,
+                forceRefresh: true,
+                cancellationToken: cancellationToken);
+        }
+
+        return audioTracks;
+    }
+
+    private static PublicAudioTrackDto? SelectDefaultTrack(IReadOnlyList<PublicAudioTrackDto> audioTracks) =>
+        audioTracks.FirstOrDefault(item => item.IsDefault)
+        ?? audioTracks
+            .OrderByDescending(item => item.Priority)
+            .ThenBy(item => ResolveSourceTypeOrder(item.SourceType))
+            .ThenBy(item => item.Id)
+            .FirstOrDefault();
+
+    private static async Task<IReadOnlyList<PlaybackQueueItem>> BuildPlaybackQueueItemsAsync(
+        PlaceItem place,
+        IReadOnlyList<PublicAudioTrackDto> audioTracks,
+        int preferredTrackId,
+        CancellationToken cancellationToken)
+    {
+        var orderedTracks = audioTracks
+            .OrderByDescending(item => item.Id == preferredTrackId)
+            .ThenByDescending(item => item.Priority)
+            .ThenBy(item => ResolveSourceTypeOrder(item.SourceType))
+            .ThenBy(item => item.Id)
+            .ToList();
+
+        var queueItems = new List<PlaybackQueueItem>(orderedTracks.Count);
+        foreach (var sourceTrack in orderedTracks)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(sourceTrack, cancellationToken);
+            queueItems.Add(new PlaybackQueueItem(
+                playableTrack,
+                place.Name,
+                $"{sourceTrack.LanguageName ?? sourceTrack.Language} • {sourceTrack.SourceType}"));
+        }
+
+        return queueItems;
+    }
+
+    private static int FindQueueIndex(IReadOnlyList<PlaybackQueueItem> queueItems, int trackId)
+    {
+        for (var index = 0; index < queueItems.Count; index++)
+        {
+            if (queueItems[index].Track.Id == trackId)
+            {
+                return index;
+            }
+        }
+
+        return 0;
+    }
+
     private static PlaceItem CreateHistoryItem(PlaceItem place, GeofenceTriggeredEvent trigger)
     {
         var playbackSource = trigger.EventType == GeofenceTriggerEvent.EnteredRadius ? EnterPlaybackSource : NearPlaybackSource;
@@ -295,6 +360,14 @@ public sealed partial class GeofenceOrchestratorService
 
     private static bool IsFinite(double value) =>
         !double.IsNaN(value) && !double.IsInfinity(value);
+
+    private static int ResolveSourceTypeOrder(string? sourceType) =>
+        sourceType?.Trim().ToUpperInvariant() switch
+        {
+            "RECORDED" => 0,
+            "HYBRID" => 1,
+            _ => 2
+        };
 
     private static void Log(string eventName, params (string Key, object? Value)[] properties)
     {

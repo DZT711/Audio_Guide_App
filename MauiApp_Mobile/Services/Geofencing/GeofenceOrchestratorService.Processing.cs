@@ -124,7 +124,7 @@ public sealed partial class GeofenceOrchestratorService
             lock (_stateGate)
             {
                 _definitions = definitions.ToList();
-                _engineOptions = GeofenceEngineOptions.Create(PerformanceTier);
+                _engineOptions = CreateEngineOptions(PerformanceTier);
                 _evaluationEngine = new GeofenceEvaluationEngine(_engineOptions);
                 _spatialIndex = GeofenceSpatialIndex.Build(_definitions, _engineOptions);
 
@@ -221,11 +221,13 @@ public sealed partial class GeofenceOrchestratorService
             {
                 _nativeFailureCount = 0;
                 _nativeCircuitBrokenUntilUtc = null;
+                SetRunState(GeofenceRunState.Running, "Automatic audio guidance is watching nearby POIs.");
                 Log("native-register-success", ("reason", reason), ("count", registrationResult.RegisteredCount), ("mode", registrationResult.Mode));
                 return;
             }
 
             _nativeFailureCount++;
+            SetRunState(GeofenceRunState.FallbackOnly, "Native region monitoring is unavailable right now. Using distance fallback.");
             Log("native-register-failed", ("reason", reason), ("failure", registrationResult.FailureReason ?? string.Empty), ("count", _nativeFailureCount));
 
             if (_nativeFailureCount >= _engineOptions.NativeFailureThreshold)
@@ -237,6 +239,7 @@ public sealed partial class GeofenceOrchestratorService
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _nativeFailureCount++;
+            SetRunState(GeofenceRunState.FallbackOnly, "Native region monitoring is unavailable right now. Using distance fallback.");
             Log("native-register-exception", ("reason", reason), ("error", ex.Message));
 
             if (_nativeFailureCount >= _engineOptions.NativeFailureThreshold)
@@ -342,10 +345,7 @@ public sealed partial class GeofenceOrchestratorService
 
     private void OnAppSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (!string.Equals(e.PropertyName, nameof(AppSettingsService.BatterySaverEnabled), StringComparison.Ordinal) &&
-            !string.Equals(e.PropertyName, nameof(AppSettingsService.BackgroundTrackingEnabled), StringComparison.Ordinal) &&
-            !string.Equals(e.PropertyName, nameof(AppSettingsService.AutoPlayEnabled), StringComparison.Ordinal) &&
-            !string.Equals(e.PropertyName, nameof(AppSettingsService.NotifyNearEnabled), StringComparison.Ordinal))
+        if (!ShouldRefreshForSetting(e.PropertyName))
         {
             return;
         }
@@ -418,4 +418,28 @@ public sealed partial class GeofenceOrchestratorService
             Interlocked.Exchange(ref _queueDepth, 0);
         }
     }
+
+    private static GeofenceEngineOptions CreateEngineOptions(GeofencePerformanceTier tier)
+    {
+        var defaults = GeofenceEngineOptions.Create(tier);
+        var configuredCooldown = TimeSpan.FromSeconds(Math.Max(0d, AppSettingsService.Instance.WaitTimeSeconds));
+
+        return configuredCooldown > TimeSpan.Zero
+            ? defaults with
+            {
+                DefaultPoiCooldown = configuredCooldown,
+                GlobalCooldown = configuredCooldown
+            }
+            : defaults;
+    }
+
+    private static bool ShouldRefreshForSetting(string? propertyName) =>
+        string.Equals(propertyName, nameof(AppSettingsService.BatterySaverEnabled), StringComparison.Ordinal) ||
+        string.Equals(propertyName, nameof(AppSettingsService.BackgroundTrackingEnabled), StringComparison.Ordinal) ||
+        string.Equals(propertyName, nameof(AppSettingsService.AutoPlayEnabled), StringComparison.Ordinal) ||
+        string.Equals(propertyName, nameof(AppSettingsService.NotifyNearEnabled), StringComparison.Ordinal) ||
+        string.Equals(propertyName, nameof(AppSettingsService.TriggerRadiusMeters), StringComparison.Ordinal) ||
+        string.Equals(propertyName, nameof(AppSettingsService.AlertRadiusMeters), StringComparison.Ordinal) ||
+        string.Equals(propertyName, nameof(AppSettingsService.WaitTimeSeconds), StringComparison.Ordinal) ||
+        string.Equals(propertyName, nameof(AppSettingsService.GpsAccuracy), StringComparison.Ordinal);
 }
