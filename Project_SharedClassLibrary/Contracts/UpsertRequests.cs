@@ -97,6 +97,17 @@ public class LocationUpsertRequest
 
     [Range(0, 1)]
     public int Status { get; set; } = 1;
+
+    [Range(128, 2048)]
+    public int QrSize { get; set; } = 512;
+
+    [RegularExpression("^(png|jpg|jpeg|svg)$", ErrorMessage = "QR format must be png, jpg, jpeg, or svg.")]
+    public string QrFormat { get; set; } = QrCodeFormats.Png;
+
+    public bool QrAutoplay { get; set; } = true;
+
+    [Range(1, int.MaxValue)]
+    public int? QrAudioTrackId { get; set; }
 }
 
 public class AudioUpsertRequest

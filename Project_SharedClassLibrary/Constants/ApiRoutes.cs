@@ -31,10 +31,89 @@ public static class ApiRoutes
     public const string Inbox = "Inbox";
     public const string Statistics = "Statistics";
     public const string ActivityLogs = "ActivityLog";
+    public const string LocationQr = "LocationQr";
+    public const string PublicLocationQrDownloadPage = "LocationQr/public/download";
+    public const string PublicAndroidApkDownload = "LocationQr/public/android-apk";
+    public const string PublicAndroidApkQr = "LocationQr/public/android-apk/qr";
 
     public static string GetPublicLocationAudio(int locationId) =>
         $"Audio/public/location/{locationId}";
 
     public static string GetPublicLocationDefaultAudio(int locationId) =>
         $"Audio/public/location/{locationId}/default";
+
+    public static string GetLocationQrStatus(int locationId) =>
+        $"{LocationQr}/location/{locationId}/status";
+
+    public static string GetLocationQrGenerate(int locationId) =>
+        $"{LocationQr}/location/{locationId}/generate";
+
+    public static string GetLocationQrBulkGenerate() =>
+        $"{LocationQr}/bulk/generate";
+
+    public static string GetPublicLocationQrLanding(int locationId) =>
+        $"{LocationQr}/public/location/{locationId}";
+
+    public static string GetPublicLocationQrDownloadPage(
+        int? locationId = null,
+        bool autoplay = true,
+        int? audioTrackId = null)
+    {
+        var querySegments = new List<string>();
+        if (locationId is > 0)
+        {
+            querySegments.Add($"locationId={locationId.Value}");
+        }
+
+        if (autoplay)
+        {
+            querySegments.Add("autoplay=true");
+        }
+
+        if (audioTrackId is > 0)
+        {
+            querySegments.Add($"audioTrackId={audioTrackId.Value}");
+        }
+
+        return querySegments.Count == 0
+            ? PublicLocationQrDownloadPage
+            : $"{PublicLocationQrDownloadPage}?{string.Join("&", querySegments)}";
+    }
+
+    public static bool TryParsePublicLocationQrLandingPath(string? path, out int locationId)
+    {
+        locationId = 0;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var segments = path
+            .Trim()
+            .Trim('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (segments.Length < 4)
+        {
+            return false;
+        }
+
+        for (var index = 0; index <= segments.Length - 4; index++)
+        {
+            if (!string.Equals(segments[index], LocationQr, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(segments[index + 1], "public", StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(segments[index + 2], "location", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (int.TryParse(segments[index + 3], out locationId) && locationId > 0)
+            {
+                return true;
+            }
+        }
+
+        locationId = 0;
+        return false;
+    }
 }

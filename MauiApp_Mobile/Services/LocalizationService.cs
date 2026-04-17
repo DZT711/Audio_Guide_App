@@ -530,7 +530,22 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.SearchingPoi"] = "Đang tìm POI...",
             ["Map.SearchingAddress"] = "Đang tìm địa chỉ...",
             ["Map.TypeMorePoi"] = "Nhập ít nhất 2 ký tự để tìm POI.",
-            ["Map.TypeMoreAddress"] = "Nhập ít nhất 3 ký tự để tìm địa chỉ."
+            ["Map.TypeMoreAddress"] = "Nhập ít nhất 3 ký tự để tìm địa chỉ.",
+            ["Settings.ScanQr"] = "Quét mã QR",
+            ["QrScanner.Title"] = "Quét mã QR",
+            ["QrScanner.Subtitle"] = "Hướng camera vào mã SmartTour để mở nhanh địa điểm.",
+            ["QrScanner.Hint"] = "Hỗ trợ smarttour://play/location/{id} và cả QR web trung gian của Smart Tourism.",
+            ["QrScanner.Ready"] = "Đưa mã QR vào khung quét",
+            ["QrScanner.Processing"] = "Đang xử lý mã QR...",
+            ["QrScanner.InvalidCode"] = "Không nhận ra mã QR SmartTour hợp lệ.",
+            ["QrScanner.CameraUnavailable"] = "Không thể sử dụng camera",
+            ["QrScanner.CameraUnavailableMessage"] = "App cần quyền camera để quét QR và mở deep link.",
+            ["QrScanner.PermissionTitle"] = "Cần quyền camera",
+            ["QrScanner.PermissionMessage"] = "Hãy cấp quyền camera để quét mã QR trên Android.",
+            ["QrScanner.OpenSettings"] = "Mở cài đặt",
+            ["QrScanner.Cancel"] = "Để sau",
+            ["QrScanner.OpenFailed"] = "Không thể mở trình quét QR lúc này.",
+            ["QrScanner.AndroidOnly"] = "Tính năng quét QR hiện chỉ bật trên Android."
         });
 
         UpsertTexts("en", new Dictionary<string, string>
@@ -562,7 +577,22 @@ public class LocalizationService : INotifyPropertyChanged
             ["Map.SearchingPoi"] = "Searching POIs...",
             ["Map.SearchingAddress"] = "Searching addresses...",
             ["Map.TypeMorePoi"] = "Type at least 2 characters to search POIs.",
-            ["Map.TypeMoreAddress"] = "Type at least 3 characters to search addresses."
+            ["Map.TypeMoreAddress"] = "Type at least 3 characters to search addresses.",
+            ["Settings.ScanQr"] = "Scan QR code",
+            ["QrScanner.Title"] = "Scan QR code",
+            ["QrScanner.Subtitle"] = "Point the camera at a SmartTour code to open a place quickly.",
+            ["QrScanner.Hint"] = "Supports smarttour://play/location/{id} and Smart Tourism landing QR links.",
+            ["QrScanner.Ready"] = "Align the QR code inside the frame",
+            ["QrScanner.Processing"] = "Processing QR code...",
+            ["QrScanner.InvalidCode"] = "This QR code is not a supported SmartTour link.",
+            ["QrScanner.CameraUnavailable"] = "Camera unavailable",
+            ["QrScanner.CameraUnavailableMessage"] = "Camera permission is required to scan QR codes.",
+            ["QrScanner.PermissionTitle"] = "Camera access required",
+            ["QrScanner.PermissionMessage"] = "Grant camera permission to scan QR codes on Android.",
+            ["QrScanner.OpenSettings"] = "Open settings",
+            ["QrScanner.Cancel"] = "Not now",
+            ["QrScanner.OpenFailed"] = "The QR scanner could not be opened right now.",
+            ["QrScanner.AndroidOnly"] = "QR scanning is currently enabled on Android only."
         });
 
         UpsertTexts("cn", new Dictionary<string, string>

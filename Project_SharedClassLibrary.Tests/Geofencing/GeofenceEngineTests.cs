@@ -140,22 +140,26 @@ public sealed class GeofenceEngineTests
     [Fact]
     public void TriggerSelector_ShouldPickHighestPriority_ThenNearest()
     {
+        var occurredAtUtc = DateTimeOffset.UtcNow;
         var lowPriority = new GeofenceTriggeredEvent(
             new PoiGeofenceDefinition("low", 0d, 0d, 100d, 20d, 1, 0, true),
             GeofenceTriggerEvent.EnteredRadius,
             10d,
+            occurredAtUtc,
             TimeSpan.FromSeconds(10));
 
         var samePriorityFarther = new GeofenceTriggeredEvent(
             new PoiGeofenceDefinition("far", 0d, 0d, 100d, 20d, 5, 0, true),
             GeofenceTriggerEvent.EnteredRadius,
             30d,
+            occurredAtUtc,
             TimeSpan.FromSeconds(10));
 
         var samePriorityNearer = new GeofenceTriggeredEvent(
             new PoiGeofenceDefinition("near", 0d, 0d, 100d, 20d, 5, 0, true),
             GeofenceTriggerEvent.NearStay,
             12d,
+            occurredAtUtc,
             TimeSpan.FromSeconds(10));
 
         var selected = GeofenceTriggerSelector.SelectBest([lowPriority, samePriorityFarther, samePriorityNearer]);

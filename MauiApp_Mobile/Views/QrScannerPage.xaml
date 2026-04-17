@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MauiApp_Mobile.Views.QrScannerPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:zxing="clr-namespace:ZXing.Net.Maui.Controls;assembly=ZXing.Net.MAUI.Controls"
+    Shell.TabBarIsVisible="False"
+    BackgroundColor="#050505">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Grid Padding="18,16,18,12"
+              Background="{DynamicResource HeaderGradientBrush}">
+            <Grid ColumnDefinitions="Auto,*"
+                  ColumnSpacing="14">
+                <Border WidthRequest="42"
+                        HeightRequest="42"
+                        BackgroundColor="#26FFFFFF"
+                        Padding="0"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 16">
+                    <Label Text="←"
+                           FontSize="20"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           TextColor="White">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnCancelTapped" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </Border>
+
+                <VerticalStackLayout Grid.Column="1"
+                                     Spacing="2"
+                                     VerticalOptions="Center">
+                    <Label x:Name="TitleLabel"
+                           FontSize="22"
+                           FontAttributes="Bold"
+                           TextColor="White" />
+                    <Label x:Name="SubtitleLabel"
+                           FontSize="13"
+                           TextColor="{DynamicResource HeaderSupportText}" />
+                </VerticalStackLayout>
+            </Grid>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <zxing:CameraBarcodeReaderView x:Name="CameraView"
+                                           BarcodesDetected="OnBarcodesDetected"
+                                           IsDetecting="False" />
+
+            <Grid x:Name="CameraOverlay"
+                  InputTransparent="True"
+                  ColumnDefinitions="*,240,*"
+                  RowDefinitions="*,240,*">
+                <BoxView Grid.Row="0"
+                         Grid.Column="0"
+                         Grid.ColumnSpan="3"
+                         Color="#88000000" />
+                <BoxView Grid.Row="1"
+                         Grid.Column="0"
+                         Color="#88000000" />
+                <BoxView Grid.Row="1"
+                         Grid.Column="2"
+                         Color="#88000000" />
+                <BoxView Grid.Row="2"
+                         Grid.Column="0"
+                         Grid.ColumnSpan="3"
+                         Color="#88000000" />
+
+                <Border Grid.Row="1"
+                        Grid.Column="1"
+                        BackgroundColor="Transparent"
+                        Stroke="{DynamicResource PrimaryGreen}"
+                        StrokeThickness="3"
+                        StrokeShape="RoundRectangle 26" />
+            </Grid>
+
+            <VerticalStackLayout x:Name="FallbackPanel"
+                                 IsVisible="False"
+                                 Padding="24"
+                                 Spacing="14"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center">
+                <Label x:Name="FallbackTitleLabel"
+                       FontSize="24"
+                       FontAttributes="Bold"
+                       HorizontalTextAlignment="Center"
+                       TextColor="White" />
+                <Label x:Name="FallbackMessageLabel"
+                       FontSize="14"
+                       HorizontalTextAlignment="Center"
+                       TextColor="#D0D5DD" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <Border Grid.Row="2"
+                Margin="18,0,18,18"
+                Padding="16,14"
+                BackgroundColor="#E60B1220"
+                Stroke="#4026FFFFFF"
+                StrokeShape="RoundRectangle 22"
+                StrokeThickness="1">
+            <VerticalStackLayout Spacing="6">
+                <Label x:Name="StatusLabel"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       HorizontalTextAlignment="Center"
+                       TextColor="White" />
+                <Label x:Name="HintLabel"
+                       FontSize="13"
+                       HorizontalTextAlignment="Center"
+                       TextColor="#D0D5DD" />
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>

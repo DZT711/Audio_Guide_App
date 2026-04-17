@@ -111,6 +111,10 @@ public static class AdminMappings
             Email = location.Email,
             Phone = location.PhoneContact,
             EstablishedYear = location.EstablishedYear ?? DateTime.UtcNow.Year,
+            QrSize = location.QrSize,
+            QrFormat = string.IsNullOrWhiteSpace(location.QrFormat) ? QrCodeFormats.Png : location.QrFormat,
+            QrAutoplay = location.QrAutoplay,
+            QrAudioTrackId = location.QrAudioTrackId,
             AudioCount = location.AudioContents.Count(item => item.Status == 1),
             AvailableVoiceGenders = location.AudioContents
                 .Where(item => item.Status == 1 && !string.IsNullOrWhiteSpace(item.VoiceGender))

@@ -72,10 +72,20 @@ public partial class AppShell : Shell
         Items.Add(mainTabs);
 
         Routing.RegisterRoute("playback-queue", typeof(Views.PlaybackQueuePage));
+        Routing.RegisterRoute("qr-scanner", typeof(Views.QrScannerPage));
+
+        Loaded += OnLoaded;
         ApplyTabTexts();
         LocalizationService.Instance.PropertyChanged += (_, _) => ApplyTabTexts();
     }
 
+    // Resolve: Giữ OnLoaded để xử lý mã QR khi App vừa khởi động xong
+    private void OnLoaded(object? sender, EventArgs e)
+    {
+        _ = QrDeepLinkService.Instance.TryHandlePendingAsync();
+    }
+
+    // Resolve: Sử dụng tên biến có gạch dưới (_placesTab) để khớp với khai báo private readonly phía trên
     private void ApplyTabTexts()
     {
         _placesTab.Title = LocalizationService.Instance.T("Places.Title");

@@ -1,5 +1,6 @@
 @implements IAsyncDisposable
 @inject AdminSessionState SessionState
+@inject AdminUiLanguageService Language
 @inject InboxState InboxState
 @inject ModerationState ModerationState
 @using Project_SharedClassLibrary.Security
@@ -11,38 +12,38 @@
         </span>
         <span class="sidebar-brand__copy">
             <strong>Smart Tourism</strong>
-            <small>Admin Console</small>
+            <small>@Language.T("header.brand", "Admin Console")</small>
         </span>
     </a>
 
     <div class="sidebar-group">
-        <span class="sidebar-group__label">Overview</span>
+        <span class="sidebar-group__label">@Language.T("sidebar.overview", "Overview")</span>
         @if (SessionState.HasPermission(AdminPermissions.DashboardView))
         {
-            <NavLink class="sidebar-link" href="/dashboard" Match="NavLinkMatch.All" title="Dashboard" aria-label="Dashboard" @attributes="GetDismissAttributes()">
+            <NavLink class="sidebar-link" href="/dashboard" Match="NavLinkMatch.All" title="@(Language.T("sidebar.dashboard", "Dashboard"))" aria-label="@(Language.T("sidebar.dashboard", "Dashboard"))" @attributes="GetDismissAttributes()">
                 <i class="bi bi-grid-1x2-fill"></i>
-                <span class="sidebar-link__text">Dashboard</span>
+                <span class="sidebar-link__text">@Language.T("sidebar.dashboard", "Dashboard")</span>
             </NavLink>
         }
         @if (SessionState.HasPermission(AdminPermissions.AnalyticsView))
         {
-            <NavLink class="sidebar-link" href="/statistics" title="Statistics" aria-label="Statistics" @attributes="GetDismissAttributes()">
+            <NavLink class="sidebar-link" href="/statistics" title="@(Language.T("sidebar.statistics", "Statistics"))" aria-label="@(Language.T("sidebar.statistics", "Statistics"))" @attributes="GetDismissAttributes()">
                 <i class="bi bi-graph-up-arrow"></i>
-                <span class="sidebar-link__text">Statistics</span>
+                <span class="sidebar-link__text">@Language.T("sidebar.statistics", "Statistics")</span>
             </NavLink>
         }
         @if (SessionState.HasPermission(AdminPermissions.UsageHistoryView))
         {
-            <NavLink class="sidebar-link" href="/usage" title="Usage History" aria-label="Usage History" @attributes="GetDismissAttributes()">
+            <NavLink class="sidebar-link" href="/usage" title="@(Language.T("sidebar.usage", "Usage History"))" aria-label="@(Language.T("sidebar.usage", "Usage History"))" @attributes="GetDismissAttributes()">
                 <i class="bi bi-clock-history"></i>
-                <span class="sidebar-link__text">Usage History</span>
+                <span class="sidebar-link__text">@Language.T("sidebar.usage", "Usage History")</span>
             </NavLink>
         }
         @if (SessionState.HasPermission(AdminPermissions.InboxView))
         {
-            <NavLink class="sidebar-link" href="/inbox" title="Inbox" aria-label="Inbox" @attributes="GetDismissAttributes()">
+            <NavLink class="sidebar-link" href="/inbox" title="@(Language.T("sidebar.inbox", "Inbox"))" aria-label="@(Language.T("sidebar.inbox", "Inbox"))" @attributes="GetDismissAttributes()">
                 <i class="bi bi-inbox-fill"></i>
-                <span class="sidebar-link__text">Inbox</span>
+                <span class="sidebar-link__text">@Language.T("sidebar.inbox", "Inbox")</span>
                 @if (InboxState.UnreadCount > 0)
                 {
                     <span class="sidebar-link__badge">@GetInboxBadgeLabel()</span>
@@ -52,40 +53,40 @@
     </div>
 
     <div class="sidebar-group">
-        <span class="sidebar-group__label">Management</span>
+        <span class="sidebar-group__label">@Language.T("sidebar.management", "Management")</span>
         @if (SessionState.HasPermission(AdminPermissions.LocationRead))
         {
-            <NavLink class="sidebar-link" href="/poi" title="Locations" aria-label="Locations" @attributes="GetDismissAttributes()">
+            <NavLink class="sidebar-link" href="/poi" title="@(Language.T("sidebar.locations", "Locations"))" aria-label="@(Language.T("sidebar.locations", "Locations"))" @attributes="GetDismissAttributes()">
                 <i class="bi bi-geo-alt-fill"></i>
-                <span class="sidebar-link__text">Locations</span>
+                <span class="sidebar-link__text">@Language.T("sidebar.locations", "Locations")</span>
             </NavLink>
         }
         @if (SessionState.HasPermission(AdminPermissions.TourRead))
         {
-            <NavLink class="sidebar-link" href="/tours" title="Tour Management" aria-label="Tour Management" @attributes="GetDismissAttributes()">
+            <NavLink class="sidebar-link" href="/tours" title="@(Language.T("sidebar.tours", "Tour Management"))" aria-label="@(Language.T("sidebar.tours", "Tour Management"))" @attributes="GetDismissAttributes()">
                 <i class="bi bi-signpost-split-fill"></i>
-                <span class="sidebar-link__text">Tour Management</span>
+                <span class="sidebar-link__text">@Language.T("sidebar.tours", "Tour Management")</span>
             </NavLink>
         }
         @if (SessionState.HasPermission(AdminPermissions.CategoryRead))
         {
-            <NavLink class="sidebar-link" href="/categories" title="Categories" aria-label="Categories" @attributes="GetDismissAttributes()">
+            <NavLink class="sidebar-link" href="/categories" title="@(Language.T("sidebar.categories", "Categories"))" aria-label="@(Language.T("sidebar.categories", "Categories"))" @attributes="GetDismissAttributes()">
                 <i class="bi bi-diagram-3-fill"></i>
-                <span class="sidebar-link__text">Categories</span>
+                <span class="sidebar-link__text">@Language.T("sidebar.categories", "Categories")</span>
             </NavLink>
         }
         @if (SessionState.HasPermission(AdminPermissions.LanguageRead))
         {
-            <NavLink class="sidebar-link" href="/languages" title="Languages" aria-label="Languages" @attributes="GetDismissAttributes()">
+            <NavLink class="sidebar-link" href="/languages" title="@(Language.T("sidebar.languages", "Languages"))" aria-label="@(Language.T("sidebar.languages", "Languages"))" @attributes="GetDismissAttributes()">
                 <i class="bi bi-translate"></i>
-                <span class="sidebar-link__text">Languages</span>
+                <span class="sidebar-link__text">@Language.T("sidebar.languages", "Languages")</span>
             </NavLink>
         }
         @if (SessionState.HasPermission(AdminPermissions.AudioRead))
         {
-            <NavLink class="sidebar-link" href="/audio" title="Audio & Voice" aria-label="Audio & Voice" @attributes="GetDismissAttributes()">
+            <NavLink class="sidebar-link" href="/audio" title="@(Language.T("sidebar.audio", "Audio & Voice"))" aria-label="@(Language.T("sidebar.audio", "Audio & Voice"))" @attributes="GetDismissAttributes()">
                 <i class="bi bi-mic-fill"></i>
-                <span class="sidebar-link__text">Audio &amp; Voice</span>
+                <span class="sidebar-link__text">@Language.T("sidebar.audio", "Audio & Voice")</span>
             </NavLink>
         }
     </div>
@@ -93,19 +94,19 @@
     @if (CanViewAdminSection)
     {
         <div class="sidebar-group">
-            <span class="sidebar-group__label">Admin Section</span>
+            <span class="sidebar-group__label">@Language.T("sidebar.admin", "Admin Section")</span>
             @if (SessionState.HasPermission(AdminPermissions.UserRead))
             {
-                <NavLink class="sidebar-link" href="/users" title="Users" aria-label="Users" @attributes="GetDismissAttributes()">
+                <NavLink class="sidebar-link" href="/users" title="@(Language.T("sidebar.users", "Users"))" aria-label="@(Language.T("sidebar.users", "Users"))" @attributes="GetDismissAttributes()">
                     <i class="bi bi-people-fill"></i>
-                    <span class="sidebar-link__text">Users</span>
+                    <span class="sidebar-link__text">@Language.T("sidebar.users", "Users")</span>
                 </NavLink>
             }
             @if (SessionState.HasPermission(AdminPermissions.ModerationView))
             {
-                <NavLink class="sidebar-link" href="/moderation" title="Moderation" aria-label="Moderation" @attributes="GetDismissAttributes()">
+                <NavLink class="sidebar-link" href="/moderation" title="@(Language.T("sidebar.moderation", "Moderation"))" aria-label="@(Language.T("sidebar.moderation", "Moderation"))" @attributes="GetDismissAttributes()">
                     <i class="bi bi-shield-check"></i>
-                    <span class="sidebar-link__text">Moderation</span>
+                    <span class="sidebar-link__text">@Language.T("sidebar.moderation", "Moderation")</span>
                     @if (ModerationState.PendingCount > 0)
                     {
                         <span class="sidebar-link__badge">@GetModerationBadgeLabel()</span>
@@ -114,9 +115,9 @@
             }
             @if (SessionState.HasPermission(AdminPermissions.ActivityLogView))
             {
-                <NavLink class="sidebar-link" href="/history" title="Activity History" aria-label="Activity History" @attributes="GetDismissAttributes()">
+                <NavLink class="sidebar-link" href="/history" title="@(Language.T("sidebar.activity", "Activity History"))" aria-label="@(Language.T("sidebar.activity", "Activity History"))" @attributes="GetDismissAttributes()">
                     <i class="bi bi-clock-history"></i>
-                    <span class="sidebar-link__text">Activity History</span>
+                    <span class="sidebar-link__text">@Language.T("sidebar.activity", "Activity History")</span>
                 </NavLink>
             }
         </div>
@@ -146,6 +147,7 @@
         SessionState.Changed += HandleSessionChanged;
         InboxState.Changed += HandleInboxStateChanged;
         ModerationState.Changed += HandleModerationStateChanged;
+        Language.Changed += HandleLanguageChanged;
 
         if (SessionState.HasPermission(AdminPermissions.InboxView)
             || SessionState.HasPermission(AdminPermissions.ModerationView))
@@ -172,8 +174,8 @@
 
     private string GetProfileMeta() =>
         string.IsNullOrWhiteSpace(SessionState.Role)
-            ? "Admin session"
-            : $"{SessionState.Role} · {SessionState.StatusLabel}";
+            ? Language.T("header.default-context", "Admin session")
+            : $"{Language.GetRoleLabel(SessionState.Role)} · {Language.GetStatusLabel(SessionState.CurrentUser?.Status ?? 0)}";
 
     private string GetInboxBadgeLabel() => InboxState.UnreadCount > 99
         ? "99+"
@@ -192,6 +194,7 @@
 
     private void HandleInboxStateChanged() => _ = InvokeAsync(StateHasChanged);
     private void HandleModerationStateChanged() => _ = InvokeAsync(StateHasChanged);
+    private void HandleLanguageChanged() => _ = InvokeAsync(StateHasChanged);
 
     private async Task RefreshForSessionAsync()
     {
@@ -289,6 +292,7 @@
         SessionState.Changed -= HandleSessionChanged;
         InboxState.Changed -= HandleInboxStateChanged;
         ModerationState.Changed -= HandleModerationStateChanged;
+        Language.Changed -= HandleLanguageChanged;
         await StopSidebarPollingAsync();
     }
 }

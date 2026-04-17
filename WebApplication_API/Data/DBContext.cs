@@ -63,6 +63,9 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.Property(item => item.DebounceSeconds).HasDefaultValue(300);
             entity.Property(item => item.IsGpsTriggerEnabled).HasDefaultValue(true);
             entity.Property(item => item.Status).HasDefaultValue(1);
+            entity.Property(item => item.QrFormat).HasMaxLength(8).HasDefaultValue("png");
+            entity.Property(item => item.QrSize).HasDefaultValue(512);
+            entity.Property(item => item.QrAutoplay).HasDefaultValue(true);
 
             entity.HasOne(item => item.Category)
                 .WithMany(item => item.Locations)

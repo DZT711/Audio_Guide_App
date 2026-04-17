@@ -41,6 +41,9 @@ public static class AdminPermissions
     public const string ModerationManage = "moderation:manage";
     public const string AnalyticsView = "analytics:view";
     public const string ActivityLogView = "activity-log:view";
+    public const string QrRead = "qr:read";
+    public const string QrManage = "qr:manage";
+    public const string QrBulk = "qr:bulk";
 }
 
 public static class AdminRolePolicies
@@ -79,7 +82,10 @@ public static class AdminRolePolicies
                 AdminPermissions.ModerationView,
                 AdminPermissions.ModerationManage,
                 AdminPermissions.AnalyticsView,
-                AdminPermissions.ActivityLogView
+                AdminPermissions.ActivityLogView,
+                AdminPermissions.QrRead,
+                AdminPermissions.QrManage,
+                AdminPermissions.QrBulk
             ],
             [AdminRoles.Developer] =
             [
@@ -102,7 +108,10 @@ public static class AdminRolePolicies
                 AdminPermissions.ModerationView,
                 AdminPermissions.ModerationManage,
                 AdminPermissions.AnalyticsView,
-                AdminPermissions.ActivityLogView
+                AdminPermissions.ActivityLogView,
+                AdminPermissions.QrRead,
+                AdminPermissions.QrManage,
+                AdminPermissions.QrBulk
             ],
             [AdminRoles.Editor] =
             [
@@ -137,7 +146,10 @@ public static class AdminRolePolicies
                 AdminPermissions.LocationRequest,
                 AdminPermissions.TourRead,
                 AdminPermissions.AudioRead,
-                AdminPermissions.AudioRequest
+                AdminPermissions.AudioRequest,
+                AdminPermissions.QrRead,
+                AdminPermissions.QrManage,
+                AdminPermissions.QrBulk
             ]
         };
 
