@@ -905,6 +905,15 @@ public partial class MapPage : ContentPage
             return;
         }
 
+        try
+        {
+            GeofenceOrchestratorService.Instance.ClearRuntimeCooldowns();
+        }
+        catch (Exception ex)
+        {
+            LogMapFailure("ClearGeofenceCooldownsOnRefresh", ex);
+        }
+
         FireAndForgetMapTask(
             "RefreshMapButton",
             () => RefreshMapAsync(forceReloadWebView: !_isMapReady || MapRetryPanel.IsVisible));

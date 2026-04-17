@@ -36,6 +36,9 @@ public partial class MiniPlayerView : ContentView
     public string SubtitleText => string.IsNullOrWhiteSpace(PlaybackCoordinatorService.Instance.CurrentSubtitle)
         ? PlaybackCoordinatorService.Instance.QueueTitle
         : PlaybackCoordinatorService.Instance.CurrentSubtitle;
+    public IReadOnlyList<PlaybackQueueItem> Queue => PlaybackCoordinatorService.Instance.Queue;
+    public bool HasQueueItems => Queue.Count > 0;
+    public string QueueCountText => Queue.Count == 1 ? "1 item" : $"{Queue.Count} items";
     public string PlayPauseGlyph => PlaybackCoordinatorService.Instance.PlayPauseGlyph;
     public double ProgressRatio => PlaybackCoordinatorService.Instance.ProgressRatio;
     public string PositionText => FormatTime(PlaybackCoordinatorService.Instance.Position);
@@ -47,10 +50,10 @@ public partial class MiniPlayerView : ContentView
     public string CollapseGlyph => IsExpanded ? "⌄" : "⌃";
     public string CollapseIconSource => IsExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
     public Color ChromeBackgroundColor => UseTransparentChrome
-        ? Color.FromArgb("#B8FFFFFF")
+        ? Colors.Transparent
         : Color.FromArgb("#E8FFFFFF");
     public Color ChromeStrokeColor => UseTransparentChrome
-        ? Color.FromArgb("#80FFFFFF")
+        ? Color.FromArgb("#66FFFFFF")
         : Color.FromArgb("#A0FFFFFF");
 
     private async void OnPlayPauseTapped(object? sender, TappedEventArgs e) =>
@@ -119,6 +122,16 @@ public partial class MiniPlayerView : ContentView
         }
     }
 
+    private void OnRemoveQueuedItemTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is not Element element || element.BindingContext is not PlaybackQueueItem item)
+        {
+            return;
+        }
+
+        PlaybackCoordinatorService.Instance.RemoveQueueItem(item);
+    }
+
     private void OnPlaybackStateChanged(object? sender, PropertyChangedEventArgs e) =>
         MainThread.BeginInvokeOnMainThread(UpdateBindings);
 
@@ -146,6 +159,9 @@ public partial class MiniPlayerView : ContentView
         OnPropertyChanged(nameof(IsMiniPlayerVisible));
         OnPropertyChanged(nameof(TitleText));
         OnPropertyChanged(nameof(SubtitleText));
+        OnPropertyChanged(nameof(Queue));
+        OnPropertyChanged(nameof(HasQueueItems));
+        OnPropertyChanged(nameof(QueueCountText));
         OnPropertyChanged(nameof(PlayPauseGlyph));
         OnPropertyChanged(nameof(ProgressRatio));
         OnPropertyChanged(nameof(PositionText));

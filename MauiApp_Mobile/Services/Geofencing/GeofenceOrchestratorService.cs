@@ -14,6 +14,8 @@ public sealed partial class GeofenceOrchestratorService : INotifyPropertyChanged
     private readonly SemaphoreSlim _playbackSingleFlight = new(1, 1);
     private readonly object _stateGate = new();
     private readonly Dictionary<string, GeofencePoiRuntimeState> _runtimeStates = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTimeOffset> _cooldownSkipNotifiedAtUtc = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly TimeSpan CooldownSkipNotificationThrottle = TimeSpan.FromSeconds(5);
 
     private CancellationTokenSource? _engineCts;
     private Channel<GeofenceLocationSample>? _locationChannel;
@@ -27,7 +29,6 @@ public sealed partial class GeofenceOrchestratorService : INotifyPropertyChanged
     private DateTimeOffset? _lastProcessedAtUtc;
     private DateTimeOffset _lastProcessorHeartbeatUtc = DateTimeOffset.UtcNow;
     private DateTimeOffset? _lastEnqueuedAtUtc;
-    private DateTimeOffset? _globalCooldownUntilUtc;
     private DateTimeOffset? _nativeCircuitBrokenUntilUtc;
     private int _queueDepth;
     private int _nativeFailureCount;

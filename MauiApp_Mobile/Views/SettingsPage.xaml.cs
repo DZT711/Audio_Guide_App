@@ -68,7 +68,6 @@ public partial class SettingsPage : ContentPage
             GpsAccuracyLabel,
             TriggerRadiusLabel,
             AlertRadiusLabel,
-            WaitTimeLabel,
             ShowPoiRadiusLabel,
             AutoFocusIdleLabel,
             AutoFocusIdleHintLabel,
@@ -138,7 +137,6 @@ public partial class SettingsPage : ContentPage
         GpsAccuracyLabel.Text = LocalizationService.Instance.T("Settings.Accuracy");
         TriggerRadiusLabel.Text = LocalizationService.Instance.T("Settings.TriggerRadius");
         AlertRadiusLabel.Text = LocalizationService.Instance.T("Settings.AlertRadius");
-        WaitTimeLabel.Text = LocalizationService.Instance.T("Settings.WaitTime");
         ShowPoiRadiusLabel.Text = "Hiện bán kính POI trên bản đồ";
         AutoFocusIdleLabel.Text = "Tự focus POI sau khi không chạm bản đồ";
         AutoFocusIdleHintLabel.Text = "s, -1 để tắt";
@@ -280,7 +278,6 @@ public partial class SettingsPage : ContentPage
         VolumeValueLabel.Text = $"{Math.Round(VolumeSlider.Value):0}%";
         TriggerRadiusValueLabel.Text = $"{Math.Round(TriggerRadiusSlider.Value):0}m";
         AlertRadiusValueLabel.Text = $"{Math.Round(AlertRadiusSlider.Value):0}m";
-        WaitTimeValueLabel.Text = $"{Math.Round(WaitTimeSlider.Value):0}s";
     }
 
     private void UpdateApiModeUI()
@@ -299,7 +296,6 @@ public partial class SettingsPage : ContentPage
         VolumeSlider.Value = settings.VolumePercent;
         TriggerRadiusSlider.Value = settings.TriggerRadiusMeters;
         AlertRadiusSlider.Value = settings.AlertRadiusMeters;
-        WaitTimeSlider.Value = settings.WaitTimeSeconds;
         AutoPlaySwitch.IsToggled = settings.AutoPlayEnabled;
         NotifyNearSwitch.IsToggled = settings.NotifyNearEnabled;
         BackgroundTrackingSwitch.IsToggled = settings.BackgroundTrackingEnabled;
@@ -317,7 +313,6 @@ public partial class SettingsPage : ContentPage
     private void OnVolumeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnTriggerRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnAlertRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
-    private void OnWaitTimeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
 
     private void OnGpsAccuracyChanged(object sender, EventArgs e)
     {
@@ -406,7 +401,6 @@ public partial class SettingsPage : ContentPage
                 VolumeSlider.Value,
                 TriggerRadiusSlider.Value,
                 AlertRadiusSlider.Value,
-                WaitTimeSlider.Value,
                 AutoPlaySwitch.IsToggled,
                 NotifyNearSwitch.IsToggled,
                 BackgroundTrackingSwitch.IsToggled,

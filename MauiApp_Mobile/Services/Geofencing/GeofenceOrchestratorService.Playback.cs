@@ -47,26 +47,19 @@ public sealed partial class GeofenceOrchestratorService
             if (HasBlockingRuntimeCooldown(trigger, out var runtimeCooldownUntilUtc))
             {
                 LogSkip("In Cooldown", ("poiId", trigger.Definition.Id), ("untilUtc", runtimeCooldownUntilUtc), ("source", "runtime"));
+                NotifyCooldownSkipIfNeeded(trigger.Definition.Id);
+
                 return;
             }
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var persistedCooldownUntilUtc = await GetPersistedCooldownUntilAsync(trigger.Definition.Id, cancellationToken);
-            if (persistedCooldownUntilUtc.HasValue && persistedCooldownUntilUtc.Value > DateTimeOffset.UtcNow)
-            {
-                lock (_stateGate)
-                {
-                    var runtimeState = GetOrCreateRuntimeState(trigger.Definition.Id);
-                    runtimeState.CooldownUntilUtc = persistedCooldownUntilUtc;
-                }
-
-                LogSkip("In Cooldown", ("poiId", trigger.Definition.Id), ("untilUtc", persistedCooldownUntilUtc.Value), ("source", "sqlite"));
-                return;
-            }
-
+            var hasExistingQueueSession =
+                PlaybackCoordinatorService.Instance.QueueCount > 0 ||
+                PlaybackCoordinatorService.Instance.CurrentQueueItem is not null ||
+                PlaybackCoordinatorService.Instance.HasActivePlayback;
             var currentPriority = ResolveCurrentPlaybackPriority(currentTrack);
-            if (currentTrack is not null && currentPriority > trigger.Definition.Priority)
+            if (currentTrack is not null && !hasExistingQueueSession && currentPriority > trigger.Definition.Priority)
             {
                 LogSkip("Lower Priority", ("poiId", trigger.Definition.Id), ("currentPriority", currentPriority), ("requestedPriority", trigger.Definition.Priority));
                 return;
@@ -111,13 +104,38 @@ public sealed partial class GeofenceOrchestratorService
             var startedAtUtc = DateTimeOffset.UtcNow;
             var queueStartIndex = FindQueueIndex(queueItems, sourceTrack.Id);
             var cooldownUntilUtc = startedAtUtc.Add(trigger.CooldownWindow);
+            var poiName = string.IsNullOrWhiteSpace(place.Name) ? "POI" : place.Name;
+
+            await ShowTransientNotificationSafeAsync($"📍 Entering: {poiName}", cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
-            await MainThread.InvokeOnMainThreadAsync(() =>
+            await MainThread.InvokeOnMainThreadAsync(async () =>
             {
                 HistoryService.Instance.AddToHistory(historyItem, cancellationToken);
-                _ = FireAndForgetPlaybackAsync(queueItems, queueStartIndex, cancellationToken);
-                return Task.CompletedTask;
+
+                if (hasExistingQueueSession)
+                {
+                    var queueCountBefore = PlaybackCoordinatorService.Instance.QueueCount;
+                    PlaybackCoordinatorService.Instance.EnqueueRange(queueItems);
+                    var queuedCount = Math.Max(0, PlaybackCoordinatorService.Instance.QueueCount - queueCountBefore);
+                    if (queuedCount > 0)
+                    {
+                        await ShowTransientNotificationSafeAsync($"Audio for {poiName} queued", cancellationToken);
+                    }
+                    Log(
+                        "playback-queued",
+                        ("poiId", place.Id),
+                        ("eventType", trigger.EventType.ToString()),
+                        ("queuedCount", queueItems.Count),
+                        ("queueCount", PlaybackCoordinatorService.Instance.QueueCount));
+                    return;
+                }
+
+                await PlaybackCoordinatorService.Instance.PlayQueueAsync(
+                    queueItems,
+                    queueStartIndex,
+                    playbackSource,
+                    cancellationToken);
             });
 
             lock (_stateGate)
@@ -126,19 +144,6 @@ public sealed partial class GeofenceOrchestratorService
                 runtimeState.LastTriggeredAtUtc = startedAtUtc;
                 runtimeState.CooldownUntilUtc = cooldownUntilUtc;
                 runtimeState.SetTriggerTime(trigger.EventType, trigger.OccurredAtUtc);
-                _globalCooldownUntilUtc = startedAtUtc.Add(_engineOptions.GlobalCooldown);
-            }
-
-            if (int.TryParse(place.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var locationId) &&
-                !string.IsNullOrWhiteSpace(LocationTrackingService.Instance.DeviceId))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                await MobileDatabaseService.Instance.SetPlaybackCooldownAsync(
-                    LocationTrackingService.Instance.DeviceId,
-                    locationId,
-                    startedAtUtc,
-                    cooldownUntilUtc,
-                    cancellationToken);
             }
 
             UpdateDebugSnapshot(
@@ -157,6 +162,7 @@ public sealed partial class GeofenceOrchestratorService
         catch (Exception ex)
         {
             Log("playback-trigger-failed", ("poiId", trigger.Definition?.Id ?? string.Empty), ("error", ex.Message));
+            await ShowTransientNotificationSafeAsync("POI trigger failed. Please try again.", cancellationToken);
         }
         finally
         {
@@ -198,6 +204,8 @@ public sealed partial class GeofenceOrchestratorService
                 if (runtimeState.CooldownUntilUtc.HasValue && runtimeState.CooldownUntilUtc.Value > transition.OccurredAtUtc)
                 {
                     LogSkip("In Cooldown", ("poiId", definition.Id), ("source", "native-transition"));
+                    NotifyCooldownSkipIfNeeded(definition.Id);
+
                     return;
                 }
 
@@ -322,11 +330,28 @@ public sealed partial class GeofenceOrchestratorService
                 continue;
             }
 
-            var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(sourceTrack, cancellationToken);
-            queueItems.Add(new PlaybackQueueItem(
-                playableTrack,
-                place.Name,
-                $"{sourceTrack.LanguageName ?? sourceTrack.Language} • {sourceTrack.SourceType}"));
+            try
+            {
+                var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(sourceTrack, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                queueItems.Add(new PlaybackQueueItem(
+                    playableTrack,
+                    place.Name,
+                    $"{sourceTrack.LanguageName ?? sourceTrack.Language} • {sourceTrack.SourceType}"));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                LogSkip(
+                    "Audio track lookup failed",
+                    ("poiId", place.Id),
+                    ("trackId", sourceTrack.Id),
+                    ("error", ex.Message));
+            }
         }
 
         return queueItems;
@@ -411,38 +436,73 @@ public sealed partial class GeofenceOrchestratorService
         }
     }
 
-    private static async Task FireAndForgetPlaybackAsync(
-        IReadOnlyList<PlaybackQueueItem> queueItems,
-        int queueStartIndex,
-        CancellationToken cancellationToken)
+    public void ClearRuntimeCooldowns()
     {
+        lock (_stateGate)
+        {
+            foreach (var runtimeState in _runtimeStates.Values)
+            {
+                runtimeState.CooldownUntilUtc = null;
+                runtimeState.ResetNearWindow();
+            }
+            _cooldownSkipNotifiedAtUtc.Clear();
+        }
+
+        Log("cooldowns-cleared", ("stateCount", _runtimeStates.Count));
+    }
+
+    private void NotifyCooldownSkipIfNeeded(string? poiId)
+    {
+        if (string.IsNullOrWhiteSpace(poiId))
+        {
+            return;
+        }
+
+        var nowUtc = DateTimeOffset.UtcNow;
+        if (!ShouldNotifyCooldownSkip(poiId, nowUtc))
+        {
+            return;
+        }
+
+        var poiName = PlaceCatalogService.Instance.FindById(poiId)?.Name;
+        var displayName = string.IsNullOrWhiteSpace(poiName) ? poiId : poiName;
+        _ = ShowTransientNotificationSafeAsync($"POI trigger skipped: {displayName} is cooling down.");
+    }
+
+    private bool ShouldNotifyCooldownSkip(string poiId, DateTimeOffset nowUtc)
+    {
+        lock (_stateGate)
+        {
+            if (_cooldownSkipNotifiedAtUtc.TryGetValue(poiId, out var lastNotifiedUtc) &&
+                nowUtc - lastNotifiedUtc < CooldownSkipNotificationThrottle)
+            {
+                return false;
+            }
+
+            _cooldownSkipNotifiedAtUtc[poiId] = nowUtc;
+            return true;
+        }
+    }
+
+    private static async Task ShowTransientNotificationSafeAsync(string? message, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
         try
         {
-            await PlaybackCoordinatorService.Instance.PlayQueueAsync(queueItems, queueStartIndex, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            await AppNotificationService.ShowTransientInfoAsync(message, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
         catch (Exception ex)
         {
-            Log("playback-start-failed", ("error", ex.Message));
+            Log("notification-failed", ("message", message), ("error", ex.Message));
         }
-    }
-
-    private static async Task<DateTimeOffset?> GetPersistedCooldownUntilAsync(string poiId, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(poiId) ||
-            string.IsNullOrWhiteSpace(LocationTrackingService.Instance.DeviceId) ||
-            !int.TryParse(poiId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var locationId))
-        {
-            return null;
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        return await MobileDatabaseService.Instance.GetPlaybackCooldownUntilAsync(
-            LocationTrackingService.Instance.DeviceId,
-            locationId,
-            cancellationToken);
     }
 
     private GeofencePoiRuntimeState GetOrCreateRuntimeState(string poiId)

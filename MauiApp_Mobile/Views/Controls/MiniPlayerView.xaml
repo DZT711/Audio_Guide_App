@@ -3,6 +3,7 @@
     x:Class="MauiApp_Mobile.Views.Controls.MiniPlayerView"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:services="clr-namespace:MauiApp_Mobile.Services"
     x:Name="ThisControl"
     IsVisible="{Binding IsMiniPlayerVisible, Source={x:Reference ThisControl}}">
 
@@ -167,6 +168,88 @@
                            TextColor="{DynamicResource MutedText}" />
                 </Grid>
             </VerticalStackLayout>
+
+            <Border IsVisible="{Binding HasQueueItems, Source={x:Reference ThisControl}}"
+                    Margin="0,12,0,0"
+                    Padding="12"
+                    BackgroundColor="{DynamicResource PopupBg}"
+                    Stroke="{DynamicResource BorderColor}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 14">
+                <Grid RowDefinitions="Auto,*"
+                      RowSpacing="8">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="8">
+                        <Label Text="📋"
+                               FontSize="14"
+                               VerticalOptions="Center" />
+                        <Label Grid.Column="1"
+                               Text="Queue"
+                               FontAttributes="Bold"
+                               FontSize="12"
+                               TextColor="{DynamicResource BodyText}"
+                               VerticalOptions="Center" />
+                        <Border Grid.Column="2"
+                                Padding="6,3"
+                                BackgroundColor="{DynamicResource PrimaryGreen}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 10">
+                            <Label Text="{Binding QueueCountText, Source={x:Reference ThisControl}}"
+                                   FontAttributes="Bold"
+                                   FontSize="10"
+                                   TextColor="White"
+                                   VerticalOptions="Center" />
+                        </Border>
+                    </Grid>
+
+                    <CollectionView Grid.Row="1"
+                                    ItemsSource="{Binding Queue, Source={x:Reference ThisControl}}"
+                                    SelectionMode="None"
+                                    MaximumHeightRequest="140">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="services:PlaybackQueueItem">
+                                <Border Margin="0,0,0,6"
+                                        Padding="10"
+                                        BackgroundColor="{DynamicResource PopupBg}"
+                                        Stroke="{DynamicResource DividerColor}"
+                                        StrokeThickness="1"
+                                        StrokeShape="RoundRectangle 10">
+                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                          ColumnSpacing="8">
+                                        <Label Text="♫"
+                                               FontSize="13"
+                                               TextColor="{DynamicResource PrimaryGreen}"
+                                               VerticalOptions="Center" />
+                                        <VerticalStackLayout Grid.Column="1"
+                                                             Spacing="2">
+                                            <Label Text="{Binding Track.Title}"
+                                                   FontAttributes="Bold"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource BodyText}"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1" />
+                                            <Label Text="{Binding Subtitle}"
+                                                   FontSize="9"
+                                                   TextColor="{DynamicResource MutedText}"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1" />
+                                        </VerticalStackLayout>
+                                        <Label Grid.Column="2"
+                                               Text="✕"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource MutedText}"
+                                               VerticalOptions="Center">
+                                            <Label.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnRemoveQueuedItemTapped" />
+                                            </Label.GestureRecognizers>
+                                        </Label>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </Grid>
+            </Border>
         </VerticalStackLayout>
     </Border>
 </ContentView>

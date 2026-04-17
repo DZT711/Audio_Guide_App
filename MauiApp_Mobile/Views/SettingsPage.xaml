@@ -413,29 +413,6 @@
                                        FontAttributes="Bold" />
                             </Grid>
 
-                            <Label x:Name="WaitTimeLabel"
-                                   Text="Thời gian chờ"
-                                   FontSize="16"
-                                   TextColor="{DynamicResource BodyText}" />
-
-                              <Grid ColumnDefinitions="*,Auto">
-                                  <Slider Minimum="60"
-                                          Maximum="600"
-                                          Value="300"
-                                        MinimumTrackColor="{DynamicResource PrimaryGreen}"
-                                        MaximumTrackColor="{DynamicResource BorderColor}"
-                                        ThumbColor="{DynamicResource PrimaryGreen}"
-                                        x:Name="WaitTimeSlider"
-                                        ValueChanged="OnWaitTimeChanged" />
-                                <Label x:Name="WaitTimeValueLabel"
-                                       Grid.Column="1"
-                                       Text="300s"
-                                       Margin="10,0,0,0"
-                                       VerticalOptions="Center"
-                                         FontSize="16"
-                                         FontAttributes="Bold" />
-                              </Grid>
-
                               <Grid ColumnDefinitions="*,Auto"
                                     ColumnSpacing="12">
                                   <Label x:Name="ShowPoiRadiusLabel"
