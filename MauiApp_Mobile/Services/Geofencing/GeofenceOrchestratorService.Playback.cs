@@ -47,7 +47,7 @@ public sealed partial class GeofenceOrchestratorService
             if (HasBlockingRuntimeCooldown(trigger, out var runtimeCooldownUntilUtc))
             {
                 LogSkip("In Cooldown", ("poiId", trigger.Definition.Id), ("untilUtc", runtimeCooldownUntilUtc), ("source", "runtime"));
-                NotifyCooldownSkipIfNeeded(trigger.Definition.Id);
+                NotifyCooldownSkipIfNeeded(trigger.Definition.Id, runtimeCooldownUntilUtc);
 
                 return;
             }
@@ -58,6 +58,16 @@ public sealed partial class GeofenceOrchestratorService
                 PlaybackCoordinatorService.Instance.QueueCount > 0 ||
                 PlaybackCoordinatorService.Instance.CurrentQueueItem is not null ||
                 PlaybackCoordinatorService.Instance.HasActivePlayback;
+            var hasActivePlayback = PlaybackCoordinatorService.Instance.HasActivePlayback;
+            if (hasActivePlayback)
+            {
+                var currentPlaybackTitle = PlaybackCoordinatorService.Instance.CurrentTitle;
+                var fallbackTitle = string.IsNullOrWhiteSpace(currentPlaybackTitle) ? "another POI" : currentPlaybackTitle;
+                await ShowTransientNotificationSafeAsync($"Audio is playing ({fallbackTitle}). Stop it to trigger this POI.", cancellationToken);
+                LogSkip("Playback active", ("poiId", trigger.Definition.Id), ("currentTitle", fallbackTitle));
+                return;
+            }
+
             var currentPriority = ResolveCurrentPlaybackPriority(currentTrack);
             if (currentTrack is not null && !hasExistingQueueSession && currentPriority > trigger.Definition.Priority)
             {
@@ -204,7 +214,7 @@ public sealed partial class GeofenceOrchestratorService
                 if (runtimeState.CooldownUntilUtc.HasValue && runtimeState.CooldownUntilUtc.Value > transition.OccurredAtUtc)
                 {
                     LogSkip("In Cooldown", ("poiId", definition.Id), ("source", "native-transition"));
-                    NotifyCooldownSkipIfNeeded(definition.Id);
+                    NotifyCooldownSkipIfNeeded(definition.Id, runtimeState.CooldownUntilUtc);
 
                     return;
                 }
@@ -451,7 +461,7 @@ public sealed partial class GeofenceOrchestratorService
         Log("cooldowns-cleared", ("stateCount", _runtimeStates.Count));
     }
 
-    private void NotifyCooldownSkipIfNeeded(string? poiId)
+    private void NotifyCooldownSkipIfNeeded(string? poiId, DateTimeOffset? cooldownUntilUtc = null)
     {
         if (string.IsNullOrWhiteSpace(poiId))
         {
@@ -466,7 +476,17 @@ public sealed partial class GeofenceOrchestratorService
 
         var poiName = PlaceCatalogService.Instance.FindById(poiId)?.Name;
         var displayName = string.IsNullOrWhiteSpace(poiName) ? poiId : poiName;
-        _ = ShowTransientNotificationSafeAsync($"POI trigger skipped: {displayName} is cooling down.");
+        var remaining = cooldownUntilUtc.HasValue ? cooldownUntilUtc.Value - nowUtc : TimeSpan.Zero;
+        if (remaining <= TimeSpan.Zero)
+        {
+            _ = ShowTransientNotificationSafeAsync($"POI trigger skipped: {displayName} is cooling down.");
+            return;
+        }
+
+        var remainingText = remaining.TotalMinutes >= 1
+            ? $"{Math.Ceiling(remaining.TotalMinutes):0} minute(s)"
+            : $"{Math.Ceiling(Math.Max(1, remaining.TotalSeconds)):0} second(s)";
+        _ = ShowTransientNotificationSafeAsync($"POI trigger skipped: {displayName} cooldown {remainingText} remaining.");
     }
 
     private bool ShouldNotifyCooldownSkip(string poiId, DateTimeOffset nowUtc)

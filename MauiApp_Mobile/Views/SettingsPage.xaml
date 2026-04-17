@@ -42,7 +42,8 @@
                                        FontSize="16"
                                        TextColor="{DynamicResource PrimaryGreen}"
                                        FontAttributes="Bold"
-                                       VerticalOptions="Center" />
+                                       VerticalOptions="Center"
+                                       TranslationY="-6" />
 
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnToggleLanguagePopupTapped" />
@@ -60,12 +61,15 @@
                                        Text="Giọng nữ miền Nam"
                                        FontSize="16"
                                        TextColor="{DynamicResource PrimaryGreen}"
-                                       FontAttributes="Bold" />
+                                       FontAttributes="Bold"
+                                       VerticalOptions="Center"
+                                       TranslationY="-6" />
                                 <Image Grid.Column="2"
                                        Source="triangle_down_filled.svg"
                                        WidthRequest="14"
                                        HeightRequest="10"
                                        VerticalOptions="Center"
+                                       TranslationY="-6"
                                        HorizontalOptions="Center" />
                             </Grid>
 
@@ -465,6 +469,8 @@
                                 <Switch x:Name="AutoPlaySwitch"
                                         Grid.Column="1"
                                         IsToggled="True"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
@@ -476,6 +482,8 @@
                                 <Switch x:Name="NotifyNearSwitch"
                                         Grid.Column="1"
                                         IsToggled="True"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
@@ -487,6 +495,8 @@
                                 <Switch x:Name="BackgroundTrackingSwitch"
                                          Grid.Column="1"
                                          IsToggled="True"
+                                         VerticalOptions="Center"
+                                         TranslationY="-6"
                                          Toggled="OnBackgroundTrackingToggled"
                                          OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
@@ -499,6 +509,8 @@
                                 <Switch x:Name="BatterySaverSwitch"
                                         Grid.Column="1"
                                         IsToggled="False"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}"
                                         Toggled="OnBatterySaverToggled" />
                             </Grid>
@@ -511,6 +523,8 @@
                                 <Switch x:Name="ApiModeSwitch"
                                         Grid.Column="1"
                                         IsToggled="True"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}"
                                         Toggled="OnApiModeToggled" />
                             </Grid>
@@ -523,6 +537,8 @@
                                 <Switch x:Name="DeveloperModeSwitch"
                                         Grid.Column="1"
                                         IsToggled="False"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
@@ -534,6 +550,8 @@
                                 <Switch x:Name="MiniPlayerSwitch"
                                         Grid.Column="1"
                                         IsToggled="True"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
                         </VerticalStackLayout>

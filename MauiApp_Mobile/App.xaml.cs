@@ -62,12 +62,17 @@ public partial class App : Application
     private void OnWindowDestroying(object? sender, EventArgs e)
     {
         Interlocked.Exchange(ref _hasStartedInitialization, 0);
+        if (sender is Window window)
+        {
+            window.Created -= OnWindowCreated;
+            window.Destroying -= OnWindowDestroying;
+        }
 
         _ = Task.Run(async () =>
         {
             try
             {
-                await PlaybackCoordinatorService.Instance.StopAsync();
+                await AudioPlaybackService.Instance.ShutdownForAppTerminationAsync();
             }
             catch (Exception ex)
             {
@@ -83,16 +88,6 @@ public partial class App : Application
                 System.Diagnostics.Debug.WriteLine($"App shutdown geofence cleanup failed: {ex.Message}");
             }
 
-#if ANDROID
-            try
-            {
-                AndroidAudioPlaybackNotificationManager.Instance.Cancel();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"App shutdown notification cleanup failed: {ex.Message}");
-            }
-#endif
         });
     }
 

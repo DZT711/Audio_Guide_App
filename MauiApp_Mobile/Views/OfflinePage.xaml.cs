@@ -37,6 +37,7 @@ public partial class OfflinePage : ContentPage
     private double _offlineDetailHalfY = 180;
     private double _offlineDetailClosedY = OfflineDetailFallbackClosedOffset;
     private CancellationTokenSource? _loadingCts;
+    private bool _subscriptionsAttached;
 
     public ObservableCollection<OfflinePackItem> FilteredItems
     {
@@ -124,35 +125,12 @@ public partial class OfflinePage : ContentPage
         SyncCategoryFilters([]);
         ApplyFilter();
         ApplyFilterSummary();
-        UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
-        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
-
-        LocalizationService.Instance.PropertyChanged += (_, _) =>
-        {
-            ApplyLocalizedText();
-            ApplyFilter();
-            OnPropertyChanged(nameof(DownloadedCountText));
-            OnPropertyChanged(nameof(DownloadProgressText));
-        };
-
-        ThemeService.Instance.PropertyChanged += (_, _) =>
-        {
-            OnPropertyChanged(nameof(AllTabBg));
-            OnPropertyChanged(nameof(DownloadedTabBg));
-            OnPropertyChanged(nameof(NotDownloadedTabBg));
-            OnPropertyChanged(nameof(AllTabTextColor));
-            OnPropertyChanged(nameof(DownloadedTabTextColor));
-            OnPropertyChanged(nameof(NotDownloadedTabTextColor));
-            foreach (var item in _allItems)
-            {
-                item.RefreshThemeState();
-            }
-        };
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        AttachSubscriptions();
 
         if (!_hasInitializedView)
         {
@@ -172,10 +150,61 @@ public partial class OfflinePage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
-        AppSettingsService.Instance.SettingsSaved -= OnSettingsSaved;
+        DetachSubscriptions();
         _loadingCts?.Cancel();
     }
+
+    private void AttachSubscriptions()
+    {
+        if (_subscriptionsAttached)
+        {
+            return;
+        }
+
+        UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
+        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
+        LocalizationService.Instance.PropertyChanged += OnLocalizationPropertyChanged;
+        ThemeService.Instance.PropertyChanged += OnThemePropertyChanged;
+        _subscriptionsAttached = true;
+    }
+
+    private void DetachSubscriptions()
+    {
+        if (!_subscriptionsAttached)
+        {
+            return;
+        }
+
+        UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
+        AppSettingsService.Instance.SettingsSaved -= OnSettingsSaved;
+        LocalizationService.Instance.PropertyChanged -= OnLocalizationPropertyChanged;
+        ThemeService.Instance.PropertyChanged -= OnThemePropertyChanged;
+        _subscriptionsAttached = false;
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            ApplyLocalizedText();
+            ApplyFilter();
+            OnPropertyChanged(nameof(DownloadedCountText));
+            OnPropertyChanged(nameof(DownloadProgressText));
+        });
+
+    private void OnThemePropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            OnPropertyChanged(nameof(AllTabBg));
+            OnPropertyChanged(nameof(DownloadedTabBg));
+            OnPropertyChanged(nameof(NotDownloadedTabBg));
+            OnPropertyChanged(nameof(AllTabTextColor));
+            OnPropertyChanged(nameof(DownloadedTabTextColor));
+            OnPropertyChanged(nameof(NotDownloadedTabTextColor));
+            foreach (var item in _allItems)
+            {
+                item.RefreshThemeState();
+            }
+        });
 
     private void OnSettingsSaved(object? sender, AppSettingsSnapshot snapshot)
     {

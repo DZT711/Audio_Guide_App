@@ -15,6 +15,7 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
     private bool _manualStopRequested;
     private PublicAudioTrackDto? _lastPlaybackTrack;
     private string? _activePlaybackSource;
+    private int _autoAdvanceGate;
 
     private PlaybackCoordinatorService()
     {
@@ -223,13 +224,6 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
             _isTransitioning = false;
             NotifyStateChanged();
         }
-
-        if (!_manualStopRequested && AudioPlaybackService.Instance.CurrentTrack is null && CanGoNext)
-        {
-            _currentIndex++;
-            NotifyStateChanged();
-            await PlayCurrentAsync(cancellationToken);
-        }
     }
 
     private void OnPlaybackStateChanged(object? sender, PublicAudioTrackDto? currentTrack)
@@ -239,7 +233,21 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
 
         if (!_isTransitioning && !_manualStopRequested && previousTrack is not null && currentTrack is null && CanGoNext)
         {
-            _ = MainThread.InvokeOnMainThreadAsync(async () => await PlayNextAsync());
+            if (Interlocked.CompareExchange(ref _autoAdvanceGate, 1, 0) == 0)
+            {
+                _ = MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    try
+                    {
+                        await PlayNextAsync();
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref _autoAdvanceGate, 0);
+                    }
+                });
+            }
+
             return;
         }
 

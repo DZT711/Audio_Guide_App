@@ -85,7 +85,23 @@ public sealed class LocationForegroundService : Service
     {
         _serviceCts?.Cancel();
         _serviceCts = null;
+        _ = Task.Run(async () => await AudioPlaybackService.Instance.ShutdownForAppTerminationAsync());
         base.OnDestroy();
+    }
+
+    public override void OnTaskRemoved(Intent? rootIntent)
+    {
+        try
+        {
+            _serviceCts?.Cancel();
+            _ = Task.Run(async () => await AudioPlaybackService.Instance.ShutdownForAppTerminationAsync());
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[LocationForegroundService] task-removed cleanup failed: {ex.Message}");
+        }
+
+        base.OnTaskRemoved(rootIntent);
     }
 
     private void EnsureChannel()

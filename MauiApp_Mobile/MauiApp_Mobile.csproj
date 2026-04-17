@@ -66,9 +66,9 @@
 		<ProjectReference Include="..\Project_SharedClassLibrary\Shared_ClassLibrary.csproj" />
 	</ItemGroup>
 
-	<ItemGroup>
+	<!-- <ItemGroup>
 		<None Remove="App.xaml;AppShell.xaml;MainPage.xaml;Views\**\*.xaml" />
 		<MauiXaml Include="App.xaml;AppShell.xaml;MainPage.xaml;Views\**\*.xaml" />
-	</ItemGroup>
+	</ItemGroup> -->
 
 </Project>

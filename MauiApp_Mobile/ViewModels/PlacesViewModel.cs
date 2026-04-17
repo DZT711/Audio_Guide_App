@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Maui.ApplicationModel;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
 using Project_SharedClassLibrary.Contracts;
@@ -26,6 +27,7 @@ public partial class PlacesViewModel : ObservableObject
     private string _selectedCategoryValue = AllCategoryValue;
     private string _selectedVoiceValue = AllVoiceValue;
     private string _selectedLanguageValue = AllLanguageValue;
+    private CancellationTokenSource? _searchDebounceCts;
 
     public PlacesViewModel(PlaceCatalogService catalogService)
     {
@@ -73,7 +75,7 @@ public partial class PlacesViewModel : ObservableObject
     [ObservableProperty]
     private DateTimeOffset lastCatalogRefreshAt;
 
-    partial void OnSearchTextChanged(string value) => ApplyFilter();
+    partial void OnSearchTextChanged(string value) => QueueApplyFilterDebounced();
 
     public async Task LoadCatalogAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
@@ -273,8 +275,7 @@ public partial class PlacesViewModel : ObservableObject
     public void SyncLanguageFilters()
     {
         var languages = _allPlaces
-            .SelectMany(place => place.AudioTracks)
-            .Select(track => NormalizeLanguageCode(track.Language))
+            .SelectMany(ExtractLanguageCodes)
             .Where(code => !string.IsNullOrWhiteSpace(code))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(code => code, StringComparer.OrdinalIgnoreCase)
@@ -346,7 +347,11 @@ public partial class PlacesViewModel : ObservableObject
             return HasPlayableAudio(place);
         }
 
-        return place.AvailableVoiceGenders.Any(item =>
+        var availableVoices = place.AvailableVoiceGenders.Any()
+            ? place.AvailableVoiceGenders
+            : place.AudioTracks.Select(track => track.VoiceGender ?? string.Empty).ToList();
+
+        return availableVoices.Any(item =>
             string.Equals(NormalizeVoiceGender(item), _selectedVoiceValue, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -357,8 +362,9 @@ public partial class PlacesViewModel : ObservableObject
             return true;
         }
 
-        return place.AudioTracks.Any(track =>
-            string.Equals(NormalizeLanguageCode(track.Language), _selectedLanguageValue, StringComparison.OrdinalIgnoreCase));
+        var selectedLanguage = NormalizeLanguageCode(_selectedLanguageValue);
+        return ExtractLanguageCodes(place)
+            .Any(code => string.Equals(code, selectedLanguage, StringComparison.OrdinalIgnoreCase));
     }
 
     public void ApplyFilter()
@@ -380,6 +386,35 @@ public partial class PlacesViewModel : ObservableObject
         }
 
         RefreshDisplayState();
+    }
+
+    private void QueueApplyFilterDebounced()
+    {
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
+        _searchDebounceCts = new CancellationTokenSource();
+        var cancellationToken = _searchDebounceCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(140, cancellationToken);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                await MainThread.InvokeOnMainThreadAsync(ApplyFilter);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Filter debounce failed: {ex.Message}");
+            }
+        }, cancellationToken);
     }
 
     public void RefreshDisplayState()
@@ -516,6 +551,7 @@ public partial class PlacesViewModel : ObservableObject
 
         return language.Trim().ToLowerInvariant() switch
         {
+            var value when value.StartsWith("vn") => "vi",
             var value when value.StartsWith("vi") => "vi",
             var value when value.StartsWith("en") => "en",
             var value when value.StartsWith("fr") => "fr",
@@ -547,6 +583,51 @@ public partial class PlacesViewModel : ObservableObject
         "cn" => "🇨🇳",
         _ => "🌐"
     };
+
+    private static IEnumerable<string> ExtractLanguageCodes(PlaceItem place)
+    {
+        if (place is null)
+        {
+            return [];
+        }
+
+        var fromTracks = place.AudioTracks
+            .Select(track => NormalizeLanguageCode(track.Language))
+            .Where(code => !string.IsNullOrWhiteSpace(code));
+
+        var normalizedTrackCodes = fromTracks.ToList();
+        if (normalizedTrackCodes.Count > 0)
+        {
+            return normalizedTrackCodes;
+        }
+
+        if (string.IsNullOrWhiteSpace(place.LanguageBadgeSummaryText))
+        {
+            return [];
+        }
+
+        return place.LanguageBadgeSummaryText
+            .Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => NormalizeLanguageCode(token))
+            .Where(IsSupportedLanguageCode)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static bool IsSupportedLanguageCode(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return false;
+        }
+
+        return code.Equals("vi", StringComparison.OrdinalIgnoreCase) ||
+               code.Equals("en", StringComparison.OrdinalIgnoreCase) ||
+               code.Equals("fr", StringComparison.OrdinalIgnoreCase) ||
+               code.Equals("jp", StringComparison.OrdinalIgnoreCase) ||
+               code.Equals("kr", StringComparison.OrdinalIgnoreCase) ||
+               code.Equals("cn", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string ComputePlacesSignature(IEnumerable<PlaceItem> places)
     {
