@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using MauiApp_Mobile.Services;
+using Microsoft.Maui.ApplicationModel;
 
 namespace MauiApp_Mobile.Views;
 
@@ -79,6 +80,7 @@ public partial class SettingsPage : ContentPage
             ApiModeLabel,
             DeveloperModeLabel,
             LanguagePopupTitleLabel,
+            ScanQrButton,
             SaveSettingsButton);
         UpdateLanguageSelectionUI();
         UpdateApiModeUI();
@@ -151,6 +153,7 @@ public partial class SettingsPage : ContentPage
         DeveloperModeLabel.Text = "Hiện nút dev trên bản đồ";
         MiniPlayerLabel.Text = "Hiện thanh phát mini";
         SaveSettingsButton.Text = LocalizationService.Instance.T("Settings.Save");
+        ScanQrButton.Text = LocalizationService.Instance.T("Settings.ScanQr");
 
         LanguagePopupTitleLabel.Text = LocalizationService.Instance.T("Settings.ChooseLanguage");
 
@@ -444,6 +447,51 @@ public partial class SettingsPage : ContentPage
     private void OnApiModeToggled(object sender, ToggledEventArgs e)
     {
         AppDataModeService.Instance.IsApiEnabled = !e.Value;
+    }
+
+    private async void OnScanQrClicked(object sender, EventArgs e)
+    {
+#if !ANDROID
+        await DisplayAlertAsync(
+            LocalizationService.Instance.T("QrScanner.Title"),
+            LocalizationService.Instance.T("QrScanner.AndroidOnly"),
+            "OK");
+        return;
+#else
+        try
+        {
+            var permissionStatus = await Permissions.CheckStatusAsync<Permissions.Camera>();
+            if (permissionStatus != PermissionStatus.Granted)
+            {
+                permissionStatus = await Permissions.RequestAsync<Permissions.Camera>();
+            }
+
+            if (permissionStatus == PermissionStatus.Granted)
+            {
+                await Shell.Current.GoToAsync("qr-scanner");
+                return;
+            }
+
+            var openSettings = await DisplayAlertAsync(
+                LocalizationService.Instance.T("QrScanner.PermissionTitle"),
+                LocalizationService.Instance.T("QrScanner.PermissionMessage"),
+                LocalizationService.Instance.T("QrScanner.OpenSettings"),
+                LocalizationService.Instance.T("QrScanner.Cancel"));
+
+            if (openSettings)
+            {
+                AppInfo.ShowSettingsUI();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[QrScanner] Failed to open scanner: {ex}");
+            await DisplayAlertAsync(
+                LocalizationService.Instance.T("QrScanner.Title"),
+                LocalizationService.Instance.T("QrScanner.OpenFailed"),
+                "OK");
+        }
+#endif
     }
 
     private int ParseAutoFocusIdleSeconds()

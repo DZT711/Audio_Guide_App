@@ -200,7 +200,7 @@ public class LocationController(
         }
 
         var ownerId = await ResolveOwnerIdAsync(access.User!, request.OwnerId);
-        if (ownerId is null && request.OwnerId is not null && !IsOwnerScoped(access.User!))
+        if (ownerId is null && request.OwnerId is not null && !AdminOwnershipScope.IsOwnerScoped(access.User!))
         {
             return NotFound(new { message = "Owner account not found." });
         }
@@ -293,7 +293,7 @@ public class LocationController(
             return NotFound(new { message = "Location not found." });
         }
 
-        if (IsOwnerScoped(access.User!) && location.OwnerId != access.User!.UserId)
+        if (!AdminOwnershipScope.CanAccessLocation(access.User!, location))
         {
             return StatusCode(403, new { message = "You can only update your own locations." });
         }
@@ -310,7 +310,7 @@ public class LocationController(
         }
 
         var ownerId = await ResolveOwnerIdAsync(access.User!, request.OwnerId);
-        if (ownerId is null && request.OwnerId is not null && !IsOwnerScoped(access.User!))
+        if (ownerId is null && request.OwnerId is not null && !AdminOwnershipScope.IsOwnerScoped(access.User!))
         {
             return NotFound(new { message = "Owner account not found." });
         }
@@ -409,7 +409,7 @@ public class LocationController(
             return NotFound(new { message = "Location not found." });
         }
 
-        if (IsOwnerScoped(access.User!) && location.OwnerId != access.User!.UserId)
+        if (!AdminOwnershipScope.CanAccessLocation(access.User!, location))
         {
             return StatusCode(403, new { message = "You can only archive your own locations." });
         }
@@ -438,14 +438,12 @@ public class LocationController(
             .AsSplitQuery()
             .AsQueryable();
 
-        return IsOwnerScoped(currentUser)
-            ? query.Where(item => item.OwnerId == currentUser.UserId)
-            : query;
+        return AdminOwnershipScope.ApplyLocationScope(query, currentUser);
     }
 
     private async Task<int?> ResolveOwnerIdAsync(DashboardUser currentUser, int? requestedOwnerId)
     {
-        if (IsOwnerScoped(currentUser))
+        if (AdminOwnershipScope.IsOwnerScoped(currentUser))
         {
             return currentUser.UserId;
         }
@@ -647,9 +645,6 @@ public class LocationController(
                 ?? [])
             .FirstOrDefault(item => !IsSupportedImageFile(item))
             ?.FileName;
-
-    private static bool IsOwnerScoped(DashboardUser user) =>
-        string.Equals(user.Role, AdminRoles.User, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsSupportedImageFile(IFormFile file)
     {

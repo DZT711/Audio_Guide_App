@@ -997,11 +997,17 @@ public partial class MainPage : ContentPage
 
     private async Task TryOpenPendingPlaceAsync()
     {
-        var pendingPlaceId = PlaceNavigationService.Instance.ConsumePendingPlaceId();
-        if (string.IsNullOrWhiteSpace(pendingPlaceId))
+        var pendingRequest = PlaceNavigationService.Instance.ConsumePendingPlaceRequest();
+        if (pendingRequest is null || string.IsNullOrWhiteSpace(pendingRequest.PlaceId))
             return;
 
-        var place = ViewModel.FindPlaceById(pendingPlaceId);
+        var place = ViewModel.FindPlaceById(pendingRequest.PlaceId);
+        if (place is null && AppDataModeService.Instance.IsApiEnabled)
+        {
+            await LoadPlacesAsync(forceRefresh: true);
+            place = ViewModel.FindPlaceById(pendingRequest.PlaceId);
+        }
+
         if (place is null)
             return;
 
@@ -1011,6 +1017,25 @@ public partial class MainPage : ContentPage
         }
 
         await ShowPlaceDetailAsync(place);
+
+        if (!pendingRequest.Autoplay)
+        {
+            return;
+        }
+
+        if (pendingRequest.AudioTrackId is > 0)
+        {
+            var selectedTrackStarted = await PlaySelectedTrackAsync(
+                place,
+                pendingRequest.AudioTrackId.Value,
+                showUnavailableAlert: false);
+            if (selectedTrackStarted)
+            {
+                return;
+            }
+        }
+
+        await PlayDefaultAudioAsync(place, showUnavailableAlert: false);
     }
 
     private async Task ShowPlaceDetailAsync(PlaceItem item)
@@ -1183,7 +1208,7 @@ public partial class MainPage : ContentPage
         }
     }
 
-    private async Task PlayDefaultAudioAsync(PlaceItem place)
+    private async Task PlayDefaultAudioAsync(PlaceItem place, bool showUnavailableAlert = true)
     {
         if (place.IsPlaying || place.IsAudioLoading)
         {
@@ -1211,7 +1236,11 @@ public partial class MainPage : ContentPage
             if (preferredTrack is null)
             {
                 MarkPendingPlayback(null, null);
-                await DisplayAlertAsync("Audio", "POI này chưa có audio khả dụng.", "OK");
+                if (showUnavailableAlert)
+                {
+                    await DisplayAlertAsync("Audio", "POI này chưa có audio khả dụng.", "OK");
+                }
+
                 return;
             }
 
@@ -1229,7 +1258,10 @@ public partial class MainPage : ContentPage
         catch (Exception ex)
         {
             MarkPendingPlayback(null, null);
-            await DisplayAlertAsync("Audio", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
+            if (showUnavailableAlert)
+            {
+                await DisplayAlertAsync("Audio", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
+            }
         }
     }
 
@@ -1256,32 +1288,7 @@ public partial class MainPage : ContentPage
                 return;
             }
 
-            MarkPendingPlayback(SelectedPlace.Id, track.Id);
-            var selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
-            if (selectedTrack is null)
-            {
-                await LoadSelectedPlaceAudioTracksAsync(SelectedPlace);
-                selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
-            }
-
-            if (selectedTrack is null && AppDataModeService.Instance.IsApiEnabled)
-            {
-                await LoadSelectedPlaceAudioTracksAsync(SelectedPlace, forceRefresh: true);
-                selectedTrack = SelectedPlace.AudioTracks.FirstOrDefault(item => item.Id == track.Id);
-            }
-
-            if (selectedTrack is null)
-            {
-                MarkPendingPlayback(null, null);
-                await DisplayAlertAsync("Audio", "Không tìm thấy audio đã chọn.", "OK");
-                return;
-            }
-
-            var queueItems = await BuildPlaybackQueueItemsAsync(SelectedPlace, SelectedPlace.AudioTracks, selectedTrack.Id);
-            HistoryService.Instance.AddToHistory(SelectedPlace);
-            await PlaybackCoordinatorService.Instance.PlayQueueAsync(
-                queueItems,
-                FindQueueIndex(queueItems, selectedTrack.Id));
+            await PlaySelectedTrackAsync(SelectedPlace, track.Id);
         }
         catch (OperationCanceledException)
         {
@@ -1291,6 +1298,68 @@ public partial class MainPage : ContentPage
         {
             MarkPendingPlayback(null, null);
             await DisplayAlertAsync("Audio", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
+        }
+    }
+
+    private async Task<bool> PlaySelectedTrackAsync(
+        PlaceItem place,
+        int trackId,
+        bool showUnavailableAlert = true)
+    {
+        try
+        {
+            if (trackId <= 0)
+            {
+                return false;
+            }
+
+            MarkPendingPlayback(place.Id, trackId);
+
+            var selectedTrack = place.AudioTracks.FirstOrDefault(item => item.Id == trackId);
+            if (selectedTrack is null)
+            {
+                await LoadSelectedPlaceAudioTracksAsync(place);
+                selectedTrack = place.AudioTracks.FirstOrDefault(item => item.Id == trackId);
+            }
+
+            if (selectedTrack is null && AppDataModeService.Instance.IsApiEnabled)
+            {
+                await LoadSelectedPlaceAudioTracksAsync(place, forceRefresh: true);
+                selectedTrack = place.AudioTracks.FirstOrDefault(item => item.Id == trackId);
+            }
+
+            if (selectedTrack is null)
+            {
+                MarkPendingPlayback(null, null);
+                if (showUnavailableAlert)
+                {
+                    await DisplayAlertAsync("Audio", "Không tìm thấy audio đã chọn.", "OK");
+                }
+
+                return false;
+            }
+
+            var queueItems = await BuildPlaybackQueueItemsAsync(place, place.AudioTracks, selectedTrack.Id);
+            HistoryService.Instance.AddToHistory(place);
+            await PlaybackCoordinatorService.Instance.PlayQueueAsync(
+                queueItems,
+                FindQueueIndex(queueItems, selectedTrack.Id));
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            MarkPendingPlayback(null, null);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            MarkPendingPlayback(null, null);
+            if (showUnavailableAlert)
+            {
+                await DisplayAlertAsync("Audio", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
+            }
+
+            return false;
         }
     }
 

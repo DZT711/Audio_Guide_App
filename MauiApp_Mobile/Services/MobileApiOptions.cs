@@ -6,7 +6,7 @@ namespace MauiApp_Mobile.Services;
 
 public static class MobileApiOptions
 {
-    private const string HardcodedBaseUrl = "http://192.168.1.3:5123/";
+    private const string HardcodedBaseUrl = "http://10.0.2.2:5123/";
     private const string PlaceholderBaseUrl = "http://smarttour.invalid/";
 
     public static string BaseUrl => HardcodedBaseUrl;

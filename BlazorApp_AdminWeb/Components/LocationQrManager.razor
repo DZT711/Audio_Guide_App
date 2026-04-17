@@ -1,0 +1,327 @@
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject IJSRuntime JS
+
+@if (!CanView)
+{
+    <section class="location-qr">
+        <div class="location-qr__empty">
+            <strong>QR access is unavailable for this role.</strong>
+            <span>Your current permission set does not include location QR tools.</span>
+        </div>
+    </section>
+}
+else if (Location is null || Location.Id <= 0)
+{
+    <section class="location-qr">
+        <div class="location-qr__empty">
+            <strong>Save the location first.</strong>
+            <span>QR status, preview, and download become available after this location has a persisted ID.</span>
+        </div>
+    </section>
+}
+else
+{
+    <section class="location-qr">
+        <div class="location-qr__header">
+            <div>
+                <span class="location-qr__eyebrow">Location QR</span>
+                <h4>@Location.Name</h4>
+                <p>Generate a production QR that opens the app, falls back to the install page, and keeps autoplay aligned with the location audio setup.</p>
+            </div>
+
+            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="RefreshStatusAsync" disabled="@_isLoadingStatus">
+                <i class="bi bi-arrow-clockwise me-1"></i>
+                @(_isLoadingStatus ? "Refreshing..." : "Refresh status")
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_statusError))
+        {
+            <div class="location-qr__error">
+                <strong>Unable to load the QR status.</strong>
+                <span>@_statusError</span>
+            </div>
+        }
+        else if (_isLoadingStatus && _status is null)
+        {
+            <div class="location-qr__loading">Loading QR status...</div>
+        }
+        else if (_status is not null)
+        {
+            <div class="location-qr__meta-grid">
+                <article class="location-qr__meta-card">
+                    <span>Status</span>
+                    <strong>@(_status.Status == 1 ? "Active location" : "Inactive location")</strong>
+                    <small>@(_status.Status == 1 ? "The generated QR will open the location normally." : "Inactive locations will route visitors to the unavailable screen.")</small>
+                </article>
+
+                <article class="location-qr__meta-card">
+                    <span>Default audio</span>
+                    <strong>@(_status.HasDefaultAudio ? _status.DefaultAudioTitle ?? $"Track #{_status.DefaultAudioId}" : "No active default audio")</strong>
+                    <small>@(_status.HasDefaultAudio ? "Leaving the audio track blank will autoplay this default track." : "Autoplay can still route to the location, but playback will wait for manual selection.")</small>
+                </article>
+
+                <article class="location-qr__meta-card">
+                    <span>Owner</span>
+                    <strong>@(_status.OwnerName ?? "Unassigned")</strong>
+                    <small>Location ID: @_status.LocationId</small>
+                </article>
+            </div>
+
+            <EditForm Model="_request" OnValidSubmit="GeneratePreviewAsync" class="location-qr__form">
+                <DataAnnotationsValidator />
+
+                <div class="location-qr__controls">
+                    <div class="management-field">
+                        <label for="@(GetFieldId("format"))">Format</label>
+                        <InputSelect id="@(GetFieldId("format"))" class="form-select" @bind-Value="_request.Format" @bind-Value:after="OnPreviewSettingsChangedAsync">
+                            @foreach (var format in QrCodeFormats.All)
+                            {
+                                <option value="@format">@format.ToUpperInvariant()</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="management-field">
+                        <label for="@(GetFieldId("size"))">Size (px)</label>
+                        <InputNumber id="@(GetFieldId("size"))" class="form-control" @bind-Value="_request.Size" @bind-Value:after="OnPreviewSettingsChangedAsync" />
+                        <span class="management-field__hint">Recommended range: 256-1024 for print and screen sharing.</span>
+                    </div>
+
+                    <div class="management-field">
+                        <label class="location-qr__checkbox">
+                            <InputCheckbox @bind-Value="_request.Autoplay" @bind-Value:after="OnPreviewSettingsChangedAsync" />
+                            <span>Autoplay location audio after deep link</span>
+                        </label>
+                        <span class="management-field__hint">Keep this on to make the app open and play the default track automatically.</span>
+                    </div>
+
+                    <div class="management-field">
+                        <label for="@(GetFieldId("audio"))">Specific audio track ID</label>
+                        <InputNumber id="@(GetFieldId("audio"))" class="form-control" @bind-Value="_request.AudioTrackId" @bind-Value:after="OnPreviewSettingsChangedAsync" />
+                        <span class="management-field__hint">Optional. Leave empty to use the default audio track for this location.</span>
+                    </div>
+                </div>
+
+                <ValidationSummary class="location-qr__validation" />
+
+                <div class="location-qr__actions">
+                    <button type="submit" class="btn btn-primary" disabled="@(!CanGenerate || _isGeneratingPreview)">
+                        @(_isGeneratingPreview ? "Generating..." : "Generate preview")
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="DownloadAsync" disabled="@(!CanGenerate || _isDownloading)">
+                        @(_isDownloading ? "Downloading..." : "Download QR")
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ClearPreview" disabled="@string.IsNullOrWhiteSpace(_previewDataUrl)">
+                        Clear preview
+                    </button>
+                </div>
+            </EditForm>
+
+            <div class="location-qr__link-grid">
+                <a class="location-qr__link-card" href="@_status.LandingUrl" target="_blank" rel="noreferrer">
+                    <span>Public landing URL</span>
+                    <strong>Open scan landing</strong>
+                    <small>@_status.LandingUrl</small>
+                </a>
+                <a class="location-qr__link-card" href="@_status.DownloadPageUrl" target="_blank" rel="noreferrer">
+                    <span>Fallback page</span>
+                    <strong>Open app download page</strong>
+                    <small>@_status.DownloadPageUrl</small>
+                </a>
+                <a class="location-qr__link-card" href="@_status.AndroidApkQrUrl" target="_blank" rel="noreferrer">
+                    <span>Android install QR</span>
+                    <strong>Open APK QR</strong>
+                    <small>@_status.AndroidApkQrUrl</small>
+                </a>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_previewDataUrl))
+            {
+                <div class="location-qr__preview">
+                    <div class="location-qr__preview-copy">
+                        <span class="location-qr__eyebrow">Preview</span>
+                        <strong>@(_previewFileName ?? $"{_status.SuggestedFileNameBase}.{_request.Format}")</strong>
+                        <small>@_previewContentType</small>
+                    </div>
+                    <div class="location-qr__preview-frame">
+                        <img src="@_previewDataUrl" alt="Location QR preview" />
+                    </div>
+                </div>
+            }
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public LocationDto? Location { get; set; }
+
+    [Parameter]
+    public bool CanView { get; set; }
+
+    [Parameter]
+    public bool CanGenerate { get; set; }
+
+    private LocationQrStatusDto? _status;
+    private LocationQrGenerateRequest _request = new();
+    private string? _statusError;
+    private string? _previewDataUrl;
+    private string? _previewFileName;
+    private string? _previewContentType;
+    private int? _loadedLocationId;
+    private bool _isLoadingStatus;
+    private bool _isGeneratingPreview;
+    private bool _isDownloading;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        int? nextLocationId = CanView && Location is not null && Location.Id > 0
+            ? Location.Id
+            : null;
+
+        if (_loadedLocationId == nextLocationId)
+        {
+            return;
+        }
+
+        _loadedLocationId = nextLocationId;
+        _status = null;
+        _statusError = null;
+        ResetRequest();
+        ClearPreview();
+
+        if (nextLocationId is > 0)
+        {
+            await RefreshStatusAsync();
+        }
+    }
+
+    private async Task RefreshStatusAsync()
+    {
+        if (!CanView || Location is null || Location.Id <= 0)
+        {
+            return;
+        }
+
+        _isLoadingStatus = true;
+        _statusError = null;
+
+        try
+        {
+            _status = await ApiClient.GetLocationQrStatusAsync(Location.Id);
+            _request.Format = _status.DefaultFormat;
+            _request.Size = _status.DefaultSize;
+        }
+        catch (Exception ex)
+        {
+            _status = null;
+            _statusError = ex.Message;
+        }
+        finally
+        {
+            _isLoadingStatus = false;
+        }
+    }
+
+    private async Task GeneratePreviewAsync()
+    {
+        if (!CanGenerate || Location is null || Location.Id <= 0)
+        {
+            Notifications.Warning("Save the location first, then try generating its QR code again.", "QR unavailable");
+            return;
+        }
+
+        _isGeneratingPreview = true;
+
+        try
+        {
+            var file = await ApiClient.GenerateLocationQrAsync(Location.Id, CreateRequestSnapshot());
+            ApplyPreview(file);
+            Notifications.Success("The location QR preview is ready.", "QR generated");
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "QR generation failed");
+        }
+        finally
+        {
+            _isGeneratingPreview = false;
+        }
+    }
+
+    private async Task DownloadAsync()
+    {
+        if (!CanGenerate || Location is null || Location.Id <= 0)
+        {
+            return;
+        }
+
+        _isDownloading = true;
+
+        try
+        {
+            var file = await ApiClient.GenerateLocationQrAsync(Location.Id, CreateRequestSnapshot());
+            ApplyPreview(file);
+            await TriggerDownloadAsync(file);
+            Notifications.Success("The location QR file was downloaded.", "Download ready");
+        }
+        catch (Exception ex)
+        {
+            Notifications.Error(ex.Message, "QR download failed");
+        }
+        finally
+        {
+            _isDownloading = false;
+        }
+    }
+
+    private Task OnPreviewSettingsChangedAsync()
+    {
+        ClearPreview();
+        return Task.CompletedTask;
+    }
+
+    private void ApplyPreview(DownloadedAdminFile file)
+    {
+        _previewFileName = file.FileName;
+        _previewContentType = file.ContentType;
+        _previewDataUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(file.Content)}";
+    }
+
+    private async Task TriggerDownloadAsync(DownloadedAdminFile file)
+    {
+        var payload = Convert.ToBase64String(file.Content);
+        await JS.InvokeVoidAsync("smartTourAdmin.download.base64", file.FileName, payload, file.ContentType);
+    }
+
+    private LocationQrGenerateRequest CreateRequestSnapshot() =>
+        new()
+        {
+            Format = _request.Format,
+            Size = _request.Size,
+            Autoplay = _request.Autoplay,
+            AudioTrackId = _request.AudioTrackId
+        };
+
+    private void ResetRequest()
+    {
+        _request = new LocationQrGenerateRequest
+        {
+            Format = QrCodeFormats.Png,
+            Size = 512,
+            Autoplay = true
+        };
+    }
+
+    private void ClearPreview()
+    {
+        _previewDataUrl = null;
+        _previewFileName = null;
+        _previewContentType = null;
+    }
+
+    private string GetFieldId(string suffix) =>
+        $"location-qr-{Location?.Id ?? 0}-{suffix}";
+}

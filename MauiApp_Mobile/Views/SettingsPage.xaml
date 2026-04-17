@@ -567,6 +567,11 @@
                             Style="{StaticResource PrimaryButtonStyle}"
                             Clicked="OnSaveSettingsClicked" />
 
+                    <Button x:Name="ScanQrButton"
+                            Text="Quét mã QR"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Clicked="OnScanQrClicked" />
+
                 </VerticalStackLayout>
             </ScrollView>
 

@@ -15,6 +15,16 @@ public sealed class BufferedUploadFile
     public byte[] Content { get; set; } = [];
 }
 
+public sealed record DownloadedAdminFile(
+    string FileName,
+    string ContentType,
+    byte[] Content,
+    IReadOnlyDictionary<string, string> Headers)
+{
+    public string? GetHeader(string name) =>
+        Headers.TryGetValue(name, out var value) ? value : null;
+}
+
 public sealed class AdminCredentialsModel
 {
     [Required(ErrorMessage = "Username is required.")]

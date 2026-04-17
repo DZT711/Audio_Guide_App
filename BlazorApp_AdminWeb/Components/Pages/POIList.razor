@@ -40,6 +40,13 @@ else
                     @(CanManage ? "New POI" : "Request New POI")
                 </button>
             }
+            @if (CanBulkGenerateQr)
+            {
+                <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="OpenBulkQrModal" disabled="@(_isLoading || _locations.Count == 0)">
+                    <i class="bi bi-qr-code me-2"></i>
+                    Bulk QR (@SelectedQrLocationCount)
+                </button>
+            }
             <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
                 <i class="bi bi-arrow-clockwise me-2"></i>
                 Refresh
@@ -143,6 +150,12 @@ else
                     <table class="table management-table">
                         <thead>
                             <tr>
+                                @if (CanBulkGenerateQr)
+                                {
+                                    <th class="poi-qr-select-col">
+                                        <input class="form-check-input" type="checkbox" checked="@IsCurrentPageSelectedForBulkQr" @onchange="args => SetCurrentPageQrSelection(args.Value is bool value && value)" />
+                                    </th>
+                                }
                                 <th>Avatar</th>
                                 <th>Name</th>
                                 <th>Category</th>
@@ -156,6 +169,12 @@ else
                             @foreach (var location in PagedLocations)
                             {
                                 <tr class="@GetRowClass(location.Status)">
+                                    @if (CanBulkGenerateQr)
+                                    {
+                                        <td class="poi-qr-select-col">
+                                            <input class="form-check-input" type="checkbox" checked="@IsLocationSelectedForBulkQr(location.Id)" @onchange="args => SetLocationQrSelection(location.Id, args.Value is bool value && value)" />
+                                        </td>
+                                    }
                                     <td>
                                         <div class="poi-list-avatar">
                                             @if (GetLocationAvatarUrl(location) is { } avatarUrl)
@@ -190,6 +209,10 @@ else
                                     <td class="text-end">
                                         <div class="management-inline-actions">
                                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(location)">@(CanEditContent ? "Edit" : "View")</button>
+                                            @if (CanViewQr)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-success" @onclick="() => OpenQrAsync(location)">QR</button>
+                                            }
                                             <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage && !CanSubmitRequests || location.Status == 0)" @onclick="() => PromptArchiveLocation(location)">
                                                 @(location.Status == 0 ? "Inactive" : CanManage ? "Archive" : "Request Archive")
                                             </button>
@@ -625,6 +648,13 @@ else
                             <span class="management-field__hint">Optional note for Admin or Developer review.</span>
                         </div>
                     }
+
+                    @if (CanViewQr)
+                    {
+                        <div class="management-field management-field--full">
+                            <LocationQrManager Location="@QrEditorLocation" CanView="@CanViewQr" CanGenerate="@CanGenerateQr" />
+                        </div>
+                    }
                         </div>
                     </section>
                     }
@@ -653,6 +683,11 @@ else
                     <div class="poi-readonly__notice">
                         This role can review location details only.
                     </div>
+
+                    @if (CanViewQr)
+                    {
+                        <LocationQrManager Location="@selectedLocation" CanView="@CanViewQr" CanGenerate="@CanGenerateQr" />
+                    }
 
                     @if (imageUrls.Count > 0)
                     {
@@ -731,6 +766,56 @@ else
             <span class="management-field__hint">Optional note for the reviewer.</span>
         </div>
     }
+</AdminConfirmDialog>
+
+<AdminConfirmDialog Visible="@_isBulkQrModalOpen"
+                    Eyebrow="Bulk Location QR"
+                    Title="Export QR ZIP for selected locations?"
+                    Message="Generate one QR file per selected location and bundle them into a ZIP download."
+                    ConfirmLabel="@(_isBulkQrExporting ? "Preparing ZIP..." : "Export ZIP")"
+                    ConfirmButtonClass="btn btn-primary"
+                    OnConfirm="ExportBulkQrAsync"
+                    OnCancel="CloseBulkQrModalAsync">
+    <div class="poi-qr-bulk">
+        <div class="poi-qr-bulk__summary">
+            <strong>@SelectedBulkQrLocations.Count selected location(s)</strong>
+            <small>Maximum 100 locations per export.</small>
+        </div>
+
+        <div class="poi-qr-bulk__controls">
+            <div class="management-field">
+                <label for="bulk-qr-format">Format</label>
+                <InputSelect id="bulk-qr-format" class="form-select" @bind-Value="_bulkQrRequest.Format">
+                    @foreach (var format in QrCodeFormats.All)
+                    {
+                        <option value="@format">@format.ToUpperInvariant()</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="management-field">
+                <label for="bulk-qr-size">Size (px)</label>
+                <InputNumber id="bulk-qr-size" class="form-control" @bind-Value="_bulkQrRequest.Size" />
+            </div>
+
+            <div class="management-field">
+                <label class="location-qr__checkbox">
+                    <InputCheckbox @bind-Value="_bulkQrRequest.Autoplay" />
+                    <span>Autoplay default audio after deep link</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="poi-qr-bulk__list">
+            @foreach (var location in SelectedBulkQrLocations)
+            {
+                <div class="poi-qr-bulk__list-item">
+                    <strong>@location.Name</strong>
+                    <small>#@location.Id • @(location.OwnerName ?? "No owner assigned")</small>
+                </div>
+            }
+        </div>
+    </div>
 </AdminConfirmDialog>
 }
 
@@ -886,6 +971,7 @@ else
                 .Where(item => item.Status == 1)
                 .OrderBy(item => item.FullName ?? item.Username));
 
+            TrimBulkQrSelection();
             EnsureFormCategorySelection();
             SyncSelectedLocation();
             _currentLocationPage = 1;

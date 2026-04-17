@@ -270,7 +270,7 @@ public class AudioController(
             return BadRequest(new { message = "Inactive locations cannot be assigned to audio." });
         }
 
-        if (IsOwnerScoped(access.User!) && location.OwnerId != access.User!.UserId)
+        if (!AdminOwnershipScope.CanAccessLocation(access.User!, location))
         {
             return StatusCode(403, new { message = "You can only create audio for your own locations." });
         }
@@ -366,7 +366,7 @@ public class AudioController(
             return NotFound(new { message = "Audio item not found." });
         }
 
-        if (IsOwnerScoped(access.User!) && audio.Location?.OwnerId != access.User!.UserId)
+        if (!AdminOwnershipScope.CanAccessLocation(access.User!, audio.Location))
         {
             return StatusCode(403, new { message = "You can only update audio for your own locations." });
         }
@@ -385,7 +385,7 @@ public class AudioController(
             return BadRequest(new { message = "Inactive locations cannot be assigned to audio." });
         }
 
-        if (IsOwnerScoped(access.User!) && location.OwnerId != access.User!.UserId)
+        if (!AdminOwnershipScope.CanAccessLocation(access.User!, location))
         {
             return StatusCode(403, new { message = "You can only assign audio to your own locations." });
         }
@@ -467,7 +467,7 @@ public class AudioController(
             return NotFound(new { message = "Audio item not found." });
         }
 
-        if (IsOwnerScoped(access.User!) && audio.Location?.OwnerId != access.User!.UserId)
+        if (!AdminOwnershipScope.CanAccessLocation(access.User!, audio.Location))
         {
             return StatusCode(403, new { message = "You can only archive audio for your own locations." });
         }
@@ -493,9 +493,7 @@ public class AudioController(
             .ThenInclude(item => item!.Owner)
             .AsQueryable();
 
-        return IsOwnerScoped(currentUser)
-            ? query.Where(item => item.Location!.OwnerId == currentUser.UserId)
-            : query;
+        return AdminOwnershipScope.ApplyAudioScope(query, currentUser);
     }
 
     private static string? ValidateAudioPayload(AudioUpsertRequest request, string? audioPath)
@@ -577,6 +575,4 @@ public class AudioController(
                 ? language
                 : null;
 
-    private static bool IsOwnerScoped(DashboardUser user) =>
-        string.Equals(user.Role, AdminRoles.User, StringComparison.OrdinalIgnoreCase);
 }
