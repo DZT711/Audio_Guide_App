@@ -111,10 +111,12 @@
             </Grid>
 
             <VerticalStackLayout x:Name="EmptyStateLayout"
-                                 Grid.Row="1"
+                                 Grid.Row="2"
                                  IsVisible="{Binding ViewModel.ShowEmptyState}"
                                  Spacing="8"
-                                 Padding="0,8,0,8">
+                                 Padding="0,8,0,8"
+                                 VerticalOptions="Center"
+                                 ZIndex="6">
                 <Label Text="🔎"
                        FontSize="34"
                        HorizontalOptions="Center" />

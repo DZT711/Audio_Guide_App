@@ -37,9 +37,9 @@
 - [x] Implement geofence engine:
   - [x] Native geofencing API (Android / iOS region monitoring), **OR**
   - [x] Manual distance calculation using **Haversine formula**
-- [ ] Trigger audio playback when user **enters** a POI radius
-- [ ] Trigger audio playback when user **stands near** a POI point
-- [ ] Implement **debounce / cooldown** mechanism to prevent audio spam
+- [x] Trigger audio playback when user **enters** a POI radius
+- [x] Trigger audio playback when user **stands near** a POI point
+- [x] Implement **debounce / cooldown** mechanism to prevent audio spam
 
 ---
 

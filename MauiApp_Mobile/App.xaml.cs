@@ -1,6 +1,7 @@
 using MauiApp_Mobile.Services;
 using MauiApp_Mobile.Services.Geofencing;
 using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Controls.Xaml;
 
 namespace MauiApp_Mobile;
 
@@ -10,7 +11,15 @@ public partial class App : Application
 
     public App()
     {
-        InitializeComponent();
+        try
+        {
+            InitializeComponent();
+        }
+        catch (XamlParseException ex) when (IsMissingXamlResource(ex))
+        {
+            LogStartup("initializecomponent:missing-xaml-resource", ex);
+            Resources ??= new ResourceDictionary();
+        }
 
         try
         {
@@ -26,10 +35,18 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        var window = new Window(new AppShell());
-        window.Created += OnWindowCreated;
-        window.Destroying += OnWindowDestroying;
-        return window;
+        try
+        {
+            var window = new Window(new AppShell());
+            window.Created += OnWindowCreated;
+            window.Destroying += OnWindowDestroying;
+            return window;
+        }
+        catch (Exception ex)
+        {
+            LogStartup("create-window:failed", ex);
+            return CreateStartupFallbackWindow(ex.Message);
+        }
     }
 
     private void OnWindowCreated(object? sender, EventArgs e)
@@ -44,11 +61,18 @@ public partial class App : Application
 
     private void OnWindowDestroying(object? sender, EventArgs e)
     {
+        Interlocked.Exchange(ref _hasStartedInitialization, 0);
+        if (sender is Window window)
+        {
+            window.Created -= OnWindowCreated;
+            window.Destroying -= OnWindowDestroying;
+        }
+
         _ = Task.Run(async () =>
         {
             try
             {
-                await PlaybackCoordinatorService.Instance.StopAsync();
+                await AudioPlaybackService.Instance.ShutdownForAppTerminationAsync();
             }
             catch (Exception ex)
             {
@@ -64,9 +88,6 @@ public partial class App : Application
                 System.Diagnostics.Debug.WriteLine($"App shutdown geofence cleanup failed: {ex.Message}");
             }
 
-#if ANDROID
-            AndroidAudioPlaybackNotificationManager.Instance.Cancel();
-#endif
         });
     }
 
@@ -200,5 +221,41 @@ public partial class App : Application
 #if ANDROID
         Android.Util.Log.Info("SmartTour.Startup", payload);
 #endif
+    }
+
+    private static bool IsMissingXamlResource(XamlParseException ex) =>
+        ex.Message.Contains("No embeddedresource found", StringComparison.OrdinalIgnoreCase);
+
+    private static Window CreateStartupFallbackWindow(string details)
+    {
+        var content = new VerticalStackLayout
+        {
+            Padding = new Thickness(20),
+            Spacing = 10,
+            Children =
+            {
+                new Label
+                {
+                    Text = "Startup recovery mode",
+                    FontSize = 20,
+                    FontAttributes = FontAttributes.Bold
+                },
+                new Label
+                {
+                    Text = "The app recovered from a startup load error. Rebuild and reinstall to restore full UI resources.",
+                    FontSize = 14
+                },
+                new Label
+                {
+                    Text = details,
+                    FontSize = 12
+                }
+            }
+        };
+
+        return new Window(new ContentPage
+        {
+            Content = content
+        });
     }
 }

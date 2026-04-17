@@ -11,7 +11,6 @@ public sealed class AppSettingsService : INotifyPropertyChanged
     private const string VolumePercentKey = "app_settings.volume_percent";
     private const string TriggerRadiusKey = "app_settings.trigger_radius";
     private const string AlertRadiusKey = "app_settings.alert_radius";
-    private const string WaitTimeKey = "app_settings.wait_time";
     private const string AutoPlayKey = "app_settings.auto_play";
     private const string NotifyNearKey = "app_settings.notify_near";
     private const string BackgroundTrackingKey = "app_settings.background_tracking";
@@ -40,7 +39,6 @@ public sealed class AppSettingsService : INotifyPropertyChanged
     public double VolumePercent { get; private set; }
     public double TriggerRadiusMeters { get; private set; }
     public double AlertRadiusMeters { get; private set; }
-    public double WaitTimeSeconds { get; private set; }
     public bool AutoPlayEnabled { get; private set; }
     public bool NotifyNearEnabled { get; private set; }
     public bool BackgroundTrackingEnabled { get; private set; }
@@ -73,7 +71,6 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             await ReadDoubleAsync(VolumePercentKey, VolumePercent, cancellationToken),
             await ReadDoubleAsync(TriggerRadiusKey, TriggerRadiusMeters, cancellationToken),
             await ReadDoubleAsync(AlertRadiusKey, AlertRadiusMeters, cancellationToken),
-            await ReadDoubleAsync(WaitTimeKey, WaitTimeSeconds, cancellationToken),
             await ReadBoolAsync(AutoPlayKey, AutoPlayEnabled, cancellationToken),
             await ReadBoolAsync(NotifyNearKey, NotifyNearEnabled, cancellationToken),
             await ReadBoolAsync(BackgroundTrackingKey, BackgroundTrackingEnabled, cancellationToken),
@@ -95,7 +92,6 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         VolumePercent,
         TriggerRadiusMeters,
         AlertRadiusMeters,
-        WaitTimeSeconds,
         AutoPlayEnabled,
         NotifyNearEnabled,
         BackgroundTrackingEnabled,
@@ -117,7 +113,6 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         await MobileDatabaseService.Instance.SetSettingAsync(VolumePercentKey, VolumePercent.ToString(CultureInfo.InvariantCulture), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(TriggerRadiusKey, TriggerRadiusMeters.ToString(CultureInfo.InvariantCulture), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(AlertRadiusKey, AlertRadiusMeters.ToString(CultureInfo.InvariantCulture), cancellationToken);
-        await MobileDatabaseService.Instance.SetSettingAsync(WaitTimeKey, WaitTimeSeconds.ToString(CultureInfo.InvariantCulture), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(AutoPlayKey, AutoPlayEnabled.ToString(), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(NotifyNearKey, NotifyNearEnabled.ToString(), cancellationToken);
         await MobileDatabaseService.Instance.SetSettingAsync(BackgroundTrackingKey, BackgroundTrackingEnabled.ToString(), cancellationToken);
@@ -150,7 +145,6 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         VolumePercent = Clamp(snapshot.VolumePercent, 0d, 100d);
         TriggerRadiusMeters = Clamp(snapshot.TriggerRadiusMeters, 10d, 100d);
         AlertRadiusMeters = Clamp(snapshot.AlertRadiusMeters, 20d, 200d);
-        WaitTimeSeconds = Clamp(snapshot.WaitTimeSeconds, 60d, 600d);
         AutoPlayEnabled = snapshot.AutoPlayEnabled;
         NotifyNearEnabled = snapshot.NotifyNearEnabled;
         BackgroundTrackingEnabled = backgroundTrackingEnabled;
@@ -170,7 +164,6 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             Preferences.Default.Set(VolumePercentKey, VolumePercent);
             Preferences.Default.Set(TriggerRadiusKey, TriggerRadiusMeters);
             Preferences.Default.Set(AlertRadiusKey, AlertRadiusMeters);
-            Preferences.Default.Set(WaitTimeKey, WaitTimeSeconds);
             Preferences.Default.Set(AutoPlayKey, AutoPlayEnabled);
             Preferences.Default.Set(NotifyNearKey, NotifyNearEnabled);
             Preferences.Default.Set(BackgroundTrackingKey, BackgroundTrackingEnabled);
@@ -193,7 +186,6 @@ public sealed class AppSettingsService : INotifyPropertyChanged
         RaisePropertyChanged(nameof(VolumePercent));
         RaisePropertyChanged(nameof(TriggerRadiusMeters));
         RaisePropertyChanged(nameof(AlertRadiusMeters));
-        RaisePropertyChanged(nameof(WaitTimeSeconds));
         RaisePropertyChanged(nameof(AutoPlayEnabled));
         RaisePropertyChanged(nameof(NotifyNearEnabled));
         RaisePropertyChanged(nameof(BackgroundTrackingEnabled));
@@ -229,7 +221,6 @@ public sealed class AppSettingsService : INotifyPropertyChanged
             Preferences.Default.Get(VolumePercentKey, 100d),
             Preferences.Default.Get(TriggerRadiusKey, 50d),
             Preferences.Default.Get(AlertRadiusKey, 100d),
-            Preferences.Default.Get(WaitTimeKey, 300d),
             Preferences.Default.Get(AutoPlayKey, true),
             Preferences.Default.Get(NotifyNearKey, true),
             Preferences.Default.Get(BackgroundTrackingKey, true),
@@ -291,7 +282,6 @@ public readonly record struct AppSettingsSnapshot(
     double VolumePercent,
     double TriggerRadiusMeters,
     double AlertRadiusMeters,
-    double WaitTimeSeconds,
     bool AutoPlayEnabled,
     bool NotifyNearEnabled,
     bool BackgroundTrackingEnabled,

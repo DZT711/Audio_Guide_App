@@ -14,6 +14,8 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
     private bool _isTransitioning;
     private bool _manualStopRequested;
     private PublicAudioTrackDto? _lastPlaybackTrack;
+    private string? _activePlaybackSource;
+    private int _autoAdvanceGate;
 
     private PlaybackCoordinatorService()
     {
@@ -41,10 +43,18 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
     public bool CanSeek => AudioPlaybackService.Instance.CanSeek;
     public double ProgressRatio => Duration.TotalMilliseconds <= 0 ? 0d : Math.Clamp(Position.TotalMilliseconds / Duration.TotalMilliseconds, 0d, 1d);
     public string PlayPauseGlyph => IsPlaying ? "❚❚" : "▶";
+    public string? ActivePlaybackSource => _activePlaybackSource;
 
     public async Task PlayQueueAsync(
         IReadOnlyList<PlaybackQueueItem> items,
         int startIndex,
+        CancellationToken cancellationToken = default) =>
+        await PlayQueueAsync(items, startIndex, null, cancellationToken);
+
+    public async Task PlayQueueAsync(
+        IReadOnlyList<PlaybackQueueItem> items,
+        int startIndex,
+        string? playbackSource,
         CancellationToken cancellationToken = default)
     {
         var normalizedItems = NormalizeQueueItems(items);
@@ -58,6 +68,7 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
             _queue.Add(item);
         }
 
+        _activePlaybackSource = NormalizePlaybackSource(playbackSource);
         _currentIndex = ResolveStartIndex(normalizedItems, selectedIdentity);
         NotifyStateChanged();
 
@@ -95,6 +106,20 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
         NotifyStateChanged();
     }
 
+    public void EnqueueRange(IReadOnlyList<PlaybackQueueItem> items)
+    {
+        foreach (var item in items)
+        {
+            Enqueue(item.Track, item.QueueTitle, item.Subtitle);
+        }
+    }
+
+    public bool IsPlaybackSourceActive(string sourcePrefix) =>
+        !string.IsNullOrWhiteSpace(sourcePrefix) &&
+        !string.IsNullOrWhiteSpace(_activePlaybackSource) &&
+        _activePlaybackSource.StartsWith(sourcePrefix, StringComparison.OrdinalIgnoreCase) &&
+        HasActivePlayback;
+
     public Task TogglePauseResumeAsync(CancellationToken cancellationToken = default) =>
         AudioPlaybackService.Instance.TogglePauseResumeAsync(cancellationToken);
 
@@ -131,6 +156,7 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
         _manualStopRequested = true;
         _queue.Clear();
         _currentIndex = -1;
+        _activePlaybackSource = null;
         NotifyStateChanged();
         await AudioPlaybackService.Instance.StopAsync();
     }
@@ -198,13 +224,6 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
             _isTransitioning = false;
             NotifyStateChanged();
         }
-
-        if (!_manualStopRequested && AudioPlaybackService.Instance.CurrentTrack is null && CanGoNext)
-        {
-            _currentIndex++;
-            NotifyStateChanged();
-            await PlayCurrentAsync(cancellationToken);
-        }
     }
 
     private void OnPlaybackStateChanged(object? sender, PublicAudioTrackDto? currentTrack)
@@ -214,13 +233,31 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
 
         if (!_isTransitioning && !_manualStopRequested && previousTrack is not null && currentTrack is null && CanGoNext)
         {
-            _ = MainThread.InvokeOnMainThreadAsync(async () => await PlayNextAsync());
+            if (Interlocked.CompareExchange(ref _autoAdvanceGate, 1, 0) == 0)
+            {
+                _ = MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    try
+                    {
+                        await PlayNextAsync();
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref _autoAdvanceGate, 0);
+                    }
+                });
+            }
+
             return;
         }
 
         if (currentTrack is null)
         {
             _manualStopRequested = false;
+            if (_queue.Count == 0 || (_currentIndex >= _queue.Count - 1 && !CanGoNext))
+            {
+                _activePlaybackSource = null;
+            }
         }
 
         MainThread.BeginInvokeOnMainThread(NotifyStateChanged);
@@ -258,6 +295,7 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
         RaisePropertyChanged(nameof(Position));
         RaisePropertyChanged(nameof(Duration));
         RaisePropertyChanged(nameof(ProgressRatio));
+        RaisePropertyChanged(nameof(ActivePlaybackSource));
     }
 
     private bool ContainsTrack(PublicAudioTrackDto track)
@@ -333,6 +371,11 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
             track.SourceType ?? string.Empty,
             track.Title ?? string.Empty).ToLowerInvariant();
     }
+
+    private static string? NormalizePlaybackSource(string? playbackSource) =>
+        string.IsNullOrWhiteSpace(playbackSource)
+            ? null
+            : playbackSource.Trim();
 
     private void RaisePropertyChanged([CallerMemberName] string? propertyName = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

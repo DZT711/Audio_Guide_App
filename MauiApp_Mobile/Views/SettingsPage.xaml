@@ -42,7 +42,8 @@
                                        FontSize="16"
                                        TextColor="{DynamicResource PrimaryGreen}"
                                        FontAttributes="Bold"
-                                       VerticalOptions="Center" />
+                                       VerticalOptions="Center"
+                                       TranslationY="-6" />
 
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnToggleLanguagePopupTapped" />
@@ -60,12 +61,15 @@
                                        Text="Giọng nữ miền Nam"
                                        FontSize="16"
                                        TextColor="{DynamicResource PrimaryGreen}"
-                                       FontAttributes="Bold" />
+                                       FontAttributes="Bold"
+                                       VerticalOptions="Center"
+                                       TranslationY="-6" />
                                 <Image Grid.Column="2"
                                        Source="triangle_down_filled.svg"
                                        WidthRequest="14"
                                        HeightRequest="10"
                                        VerticalOptions="Center"
+                                       TranslationY="-6"
                                        HorizontalOptions="Center" />
                             </Grid>
 
@@ -413,29 +417,6 @@
                                        FontAttributes="Bold" />
                             </Grid>
 
-                            <Label x:Name="WaitTimeLabel"
-                                   Text="Thời gian chờ"
-                                   FontSize="16"
-                                   TextColor="{DynamicResource BodyText}" />
-
-                              <Grid ColumnDefinitions="*,Auto">
-                                  <Slider Minimum="60"
-                                          Maximum="600"
-                                          Value="300"
-                                        MinimumTrackColor="{DynamicResource PrimaryGreen}"
-                                        MaximumTrackColor="{DynamicResource BorderColor}"
-                                        ThumbColor="{DynamicResource PrimaryGreen}"
-                                        x:Name="WaitTimeSlider"
-                                        ValueChanged="OnWaitTimeChanged" />
-                                <Label x:Name="WaitTimeValueLabel"
-                                       Grid.Column="1"
-                                       Text="300s"
-                                       Margin="10,0,0,0"
-                                       VerticalOptions="Center"
-                                         FontSize="16"
-                                         FontAttributes="Bold" />
-                              </Grid>
-
                               <Grid ColumnDefinitions="*,Auto"
                                     ColumnSpacing="12">
                                   <Label x:Name="ShowPoiRadiusLabel"
@@ -488,6 +469,8 @@
                                 <Switch x:Name="AutoPlaySwitch"
                                         Grid.Column="1"
                                         IsToggled="True"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
@@ -499,6 +482,8 @@
                                 <Switch x:Name="NotifyNearSwitch"
                                         Grid.Column="1"
                                         IsToggled="True"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
@@ -510,6 +495,8 @@
                                 <Switch x:Name="BackgroundTrackingSwitch"
                                          Grid.Column="1"
                                          IsToggled="True"
+                                         VerticalOptions="Center"
+                                         TranslationY="-6"
                                          Toggled="OnBackgroundTrackingToggled"
                                          OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
@@ -522,6 +509,8 @@
                                 <Switch x:Name="BatterySaverSwitch"
                                         Grid.Column="1"
                                         IsToggled="False"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}"
                                         Toggled="OnBatterySaverToggled" />
                             </Grid>
@@ -534,6 +523,8 @@
                                 <Switch x:Name="ApiModeSwitch"
                                         Grid.Column="1"
                                         IsToggled="True"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}"
                                         Toggled="OnApiModeToggled" />
                             </Grid>
@@ -546,6 +537,8 @@
                                 <Switch x:Name="DeveloperModeSwitch"
                                         Grid.Column="1"
                                         IsToggled="False"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
@@ -557,6 +550,8 @@
                                 <Switch x:Name="MiniPlayerSwitch"
                                         Grid.Column="1"
                                         IsToggled="True"
+                                        VerticalOptions="Center"
+                                        TranslationY="-6"
                                         OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
                         </VerticalStackLayout>

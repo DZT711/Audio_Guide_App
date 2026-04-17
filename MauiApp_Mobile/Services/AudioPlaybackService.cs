@@ -186,6 +186,29 @@ public sealed partial class AudioPlaybackService
         await PlatformStopAudioAsync();
     }
 
+    public async Task ShutdownForAppTerminationAsync()
+    {
+        try
+        {
+            await StopAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Playback termination cleanup failed: {ex.Message}");
+        }
+
+#if ANDROID
+        try
+        {
+            AndroidAudioPlaybackNotificationManager.Instance.Cancel();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Playback notification termination cleanup failed: {ex.Message}");
+        }
+#endif
+    }
+
     public async Task PauseAsync(bool requestedByAudioFocus = false)
     {
         if (CurrentTrack is null || IsLoading || IsPaused)

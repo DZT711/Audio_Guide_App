@@ -1,4 +1,5 @@
 using Android.App;
+using Android.Content;
 using Android.OS;
 using Android.Runtime;
 using MauiApp_Mobile.Services;
@@ -16,10 +17,23 @@ public class MainApplication : MauiApplication
     public override void OnCreate()
     {
         base.OnCreate();
+        StartNotificationCleanupService();
         RegisterActivityLifecycleCallbacks(new TaskRemovalCleanupCallbacks());
     }
 
     protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
+
+    private void StartNotificationCleanupService()
+    {
+        try
+        {
+            StartService(new Intent(this, typeof(NotificationCleanupService)));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainApplication] notification cleanup service start failed: {ex.Message}");
+        }
+    }
 
     private sealed class TaskRemovalCleanupCallbacks : Java.Lang.Object, IActivityLifecycleCallbacks
     {

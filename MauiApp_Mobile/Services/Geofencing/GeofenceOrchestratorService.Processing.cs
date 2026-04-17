@@ -62,11 +62,13 @@ public sealed partial class GeofenceOrchestratorService
 
     private async Task WatchdogLoopAsync(CancellationToken cancellationToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
         while (await timer.WaitForNextTickAsync(cancellationToken))
         {
             try
             {
+                await ProbeStationaryNearStayAsync(cancellationToken);
+
                 var nowUtc = DateTimeOffset.UtcNow;
                 var stalled =
                     _lastEnqueuedAtUtc.HasValue &&
@@ -103,6 +105,48 @@ public sealed partial class GeofenceOrchestratorService
         }
     }
 
+    private async Task ProbeStationaryNearStayAsync(CancellationToken cancellationToken)
+    {
+        GeofenceLocationSample? lastSample;
+        DateTimeOffset? lastProcessedAtUtc;
+        var nowUtc = DateTimeOffset.UtcNow;
+        var shouldProbe = false;
+
+        lock (_stateGate)
+        {
+            lastSample = _lastProcessedSample;
+            lastProcessedAtUtc = _lastProcessedAtUtc;
+
+            shouldProbe = _runtimeStates.Values.Any(state =>
+                state.NearWindowStartedAtUtc.HasValue &&
+                !state.NearStayHandled &&
+                (!state.CooldownUntilUtc.HasValue || state.CooldownUntilUtc.Value <= nowUtc));
+        }
+
+        if (!shouldProbe || !lastSample.HasValue || !lastProcessedAtUtc.HasValue)
+        {
+            return;
+        }
+
+        if (Volatile.Read(ref _queueDepth) > 0)
+        {
+            return;
+        }
+
+        if (nowUtc - lastProcessedAtUtc.Value < _engineOptions.MinimumEvaluationInterval)
+        {
+            return;
+        }
+
+        var probeSample = lastSample.Value with
+        {
+            CapturedAtUtc = nowUtc,
+            IsForeground = true
+        };
+
+        await ProcessLocationSampleAsync(probeSample, cancellationToken);
+    }
+
     private async Task RefreshCatalogAndRegistrationsAsync(string reason, CancellationToken cancellationToken)
     {
         if (_isDisposed)
@@ -117,9 +161,6 @@ public sealed partial class GeofenceOrchestratorService
             await PlaceCatalogService.Instance.EnsureLoadedAsync(false, cancellationToken);
 
             var definitions = PlaceCatalogService.Instance.GetGeofenceDefinitions();
-            var cooldowns = !string.IsNullOrWhiteSpace(LocationTrackingService.Instance.DeviceId)
-                ? await MobileDatabaseService.Instance.GetPlaybackCooldownsAsync(LocationTrackingService.Instance.DeviceId, cancellationToken)
-                : new Dictionary<int, DateTimeOffset>();
 
             lock (_stateGate)
             {
@@ -136,11 +177,7 @@ public sealed partial class GeofenceOrchestratorService
 
                 foreach (var definition in _definitions)
                 {
-                    var runtimeState = GetOrCreateRuntimeState(definition.Id);
-                    if (int.TryParse(definition.Id, out var locationId) && cooldowns.TryGetValue(locationId, out var cooldownUntilUtc))
-                    {
-                        runtimeState.CooldownUntilUtc = cooldownUntilUtc > DateTimeOffset.UtcNow ? cooldownUntilUtc : null;
-                    }
+                    _ = GetOrCreateRuntimeState(definition.Id);
                 }
             }
 
@@ -266,7 +303,7 @@ public sealed partial class GeofenceOrchestratorService
                 sample,
                 _spatialIndex,
                 _runtimeStates,
-                AppSettingsService.Instance.AutoPlayEnabled ? _globalCooldownUntilUtc : DateTimeOffset.MaxValue);
+                AppSettingsService.Instance.AutoPlayEnabled ? null : DateTimeOffset.MaxValue);
 
             _lastProcessedSample = sample;
             _lastProcessedAtUtc = sample.CapturedAtUtc;
@@ -281,6 +318,12 @@ public sealed partial class GeofenceOrchestratorService
                 ("poiId", skipped.Definition.Id),
                 ("eventType", skipped.EventType.ToString()),
                 ("distanceMeters", Math.Round(skipped.DistanceMeters, 2)));
+
+            if (string.Equals(skipped.Reason, "global-cooldown", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(skipped.Reason, "poi-cooldown", StringComparison.OrdinalIgnoreCase))
+            {
+                NotifyCooldownSkipIfNeeded(skipped.Definition.Id);
+            }
         }
 
         UpdateDebugSnapshot(
@@ -508,18 +551,7 @@ public sealed partial class GeofenceOrchestratorService
     }
 
     private static GeofenceEngineOptions CreateEngineOptions(GeofencePerformanceTier tier)
-    {
-        var defaults = GeofenceEngineOptions.Create(tier);
-        var configuredCooldown = TimeSpan.FromSeconds(Math.Max(0d, AppSettingsService.Instance.WaitTimeSeconds));
-
-        return configuredCooldown > TimeSpan.Zero
-            ? defaults with
-            {
-                DefaultPoiCooldown = configuredCooldown,
-                GlobalCooldown = configuredCooldown
-            }
-            : defaults;
-    }
+        => GeofenceEngineOptions.Create(tier);
 
     private static string DescribeSkipReason(string reason) =>
         reason switch
@@ -537,6 +569,5 @@ public sealed partial class GeofenceOrchestratorService
         string.Equals(propertyName, nameof(AppSettingsService.NotifyNearEnabled), StringComparison.Ordinal) ||
         string.Equals(propertyName, nameof(AppSettingsService.TriggerRadiusMeters), StringComparison.Ordinal) ||
         string.Equals(propertyName, nameof(AppSettingsService.AlertRadiusMeters), StringComparison.Ordinal) ||
-        string.Equals(propertyName, nameof(AppSettingsService.WaitTimeSeconds), StringComparison.Ordinal) ||
         string.Equals(propertyName, nameof(AppSettingsService.GpsAccuracy), StringComparison.Ordinal);
 }
