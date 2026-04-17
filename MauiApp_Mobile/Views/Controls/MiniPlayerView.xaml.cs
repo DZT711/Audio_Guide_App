@@ -11,8 +11,7 @@ public partial class MiniPlayerView : ContentView
             nameof(UseTransparentChrome),
             typeof(bool),
             typeof(MiniPlayerView),
-            false,
-            propertyChanged: OnChromePropertyChanged);
+            false);
 
     public MiniPlayerView()
     {
@@ -49,12 +48,6 @@ public partial class MiniPlayerView : ContentView
     public bool IsExpanded => !MiniPlayerPresentationService.Instance.IsCollapsed;
     public string CollapseGlyph => IsExpanded ? "⌄" : "⌃";
     public string CollapseIconSource => IsExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
-    public Color ChromeBackgroundColor => UseTransparentChrome
-        ? Colors.Transparent
-        : Color.FromArgb("#E8FFFFFF");
-    public Color ChromeStrokeColor => UseTransparentChrome
-        ? Color.FromArgb("#66FFFFFF")
-        : Color.FromArgb("#A0FFFFFF");
 
     private async void OnPlayPauseTapped(object? sender, TappedEventArgs e) =>
         await ExecutePlaybackActionAsync(() => PlaybackCoordinatorService.Instance.TogglePauseResumeAsync());
@@ -138,14 +131,6 @@ public partial class MiniPlayerView : ContentView
     private void OnPresentationChanged(object? sender, PropertyChangedEventArgs e) =>
         MainThread.BeginInvokeOnMainThread(UpdateBindings);
 
-    private static void OnChromePropertyChanged(BindableObject bindable, object oldValue, object newValue)
-    {
-        if (bindable is MiniPlayerView view)
-        {
-            view.UpdateBindings();
-        }
-    }
-
     private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (string.Equals(e.PropertyName, nameof(AppSettingsService.MiniPlayerEnabled), StringComparison.Ordinal))
@@ -172,8 +157,6 @@ public partial class MiniPlayerView : ContentView
         OnPropertyChanged(nameof(IsExpanded));
         OnPropertyChanged(nameof(CollapseGlyph));
         OnPropertyChanged(nameof(CollapseIconSource));
-        OnPropertyChanged(nameof(ChromeBackgroundColor));
-        OnPropertyChanged(nameof(ChromeStrokeColor));
     }
 
     private static string FormatTime(TimeSpan value) =>

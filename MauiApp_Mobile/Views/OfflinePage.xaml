@@ -1020,7 +1020,6 @@
         <controls:MiniPlayerView Grid.Row="1"
                                  UseTransparentChrome="True"
                                  VerticalOptions="End"
-                                 Margin="0,0,0,12"
                                  ZIndex="40" />
     </Grid>
 </ContentPage>

@@ -9,8 +9,8 @@
 
     <Border Margin="16,0,16,12"
             Padding="14,12"
-            BackgroundColor="{Binding ChromeBackgroundColor, Source={x:Reference ThisControl}}"
-            Stroke="{Binding ChromeStrokeColor, Source={x:Reference ThisControl}}"
+            BackgroundColor="#80FFFFFF"
+            Stroke="#A0FFFFFF"
             StrokeThickness="1"
             StrokeShape="RoundRectangle 22">
         <VerticalStackLayout Spacing="10">
