@@ -6,7 +6,7 @@ namespace MauiApp_Mobile.Services;
 
 public static class MobileApiOptions
 {
-    private const string HardcodedBaseUrl = "http://127.0.0.1:5123/";
+    private const string HardcodedBaseUrl = "http://192.168.1.3:5123/";
     private const string PlaceholderBaseUrl = "http://smarttour.invalid/";
 
     public static string BaseUrl => HardcodedBaseUrl;
@@ -97,6 +97,7 @@ public static class MobileApiOptions
 
     private static bool IsLoopbackDevelopmentHost(string? host) =>
         string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(host, "192.168.1.3", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(host, "0.0.0.0", StringComparison.OrdinalIgnoreCase);
 }

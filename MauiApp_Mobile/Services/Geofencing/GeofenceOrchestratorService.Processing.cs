@@ -276,7 +276,11 @@ public sealed partial class GeofenceOrchestratorService
 
         foreach (var skipped in evaluationResult.SkippedTriggers.Take(4))
         {
-            Log("trigger-skipped", ("poiId", skipped.Definition.Id), ("eventType", skipped.EventType.ToString()), ("reason", skipped.Reason));
+            LogSkip(
+                DescribeSkipReason(skipped.Reason),
+                ("poiId", skipped.Definition.Id),
+                ("eventType", skipped.EventType.ToString()),
+                ("distanceMeters", Math.Round(skipped.DistanceMeters, 2)));
         }
 
         UpdateDebugSnapshot(
@@ -287,10 +291,23 @@ public sealed partial class GeofenceOrchestratorService
             sample.CapturedAtUtc,
             string.Empty);
 
-        var selectedTrigger = GeofenceTriggerSelector.SelectBest(
-            evaluationResult.AcceptedTriggers
-                .Where(ShouldAllowTrigger)
-                .ToList());
+        var allowedTriggers = new List<GeofenceTriggeredEvent>(evaluationResult.AcceptedTriggers.Count);
+        foreach (var acceptedTrigger in evaluationResult.AcceptedTriggers)
+        {
+            if (ShouldAllowTrigger(acceptedTrigger))
+            {
+                allowedTriggers.Add(acceptedTrigger);
+                continue;
+            }
+
+            LogSkip(
+                "Near notification disabled",
+                ("poiId", acceptedTrigger.Definition.Id),
+                ("eventType", acceptedTrigger.EventType.ToString()),
+                ("distanceMeters", Math.Round(acceptedTrigger.DistanceMeters, 2)));
+        }
+
+        var selectedTrigger = GeofenceTriggerSelector.SelectBest(allowedTriggers);
 
         if (selectedTrigger is null)
         {
@@ -302,42 +319,71 @@ public sealed partial class GeofenceOrchestratorService
             return;
         }
 
-        if (evaluationResult.AcceptedTriggers.Count > 1)
+        if (allowedTriggers.Count > 1)
         {
-            Log("overlap-resolved", ("selectedPoiId", selectedTrigger.Definition.Id), ("acceptedCount", evaluationResult.AcceptedTriggers.Count));
-        }
+            foreach (var skippedTrigger in allowedTriggers.Where(item => !Equals(item, selectedTrigger)))
+            {
+                LogSkip(
+                    "Lower Priority",
+                    ("poiId", skippedTrigger.Definition.Id),
+                    ("eventType", skippedTrigger.EventType.ToString()),
+                    ("selectedPoiId", selectedTrigger.Definition.Id),
+                    ("selectedPriority", selectedTrigger.Definition.Priority),
+                    ("skippedPriority", skippedTrigger.Definition.Priority));
+            }
 
-        lock (_stateGate)
-        {
-            _globalCooldownUntilUtc = sample.CapturedAtUtc.Add(_engineOptions.GlobalCooldown);
+            Log("overlap-resolved", ("selectedPoiId", selectedTrigger.Definition.Id), ("acceptedCount", allowedTriggers.Count));
         }
 
         await HandleTriggerAsync(selectedTrigger, cancellationToken);
     }
 
-    private void OnTrackedLocationUpdated(object? sender, LocationSample sample) =>
-        EnqueueLocation(new GeofenceLocationSample(
-            sample.Location.Latitude,
-            sample.Location.Longitude,
-            sample.Location.Accuracy,
-            sample.Location.Speed,
-            sample.CapturedAtUtc,
-            sample.IsForeground));
+    private void OnTrackedLocationUpdated(object? sender, LocationSample sample)
+    {
+        try
+        {
+            if (sample.Location is null)
+            {
+                LogSkip("Missing tracked location", ("source", nameof(LocationTrackingService)));
+                return;
+            }
+
+            EnqueueLocation(new GeofenceLocationSample(
+                sample.Location.Latitude,
+                sample.Location.Longitude,
+                sample.Location.Accuracy,
+                sample.Location.Speed,
+                sample.CapturedAtUtc,
+                sample.IsForeground));
+        }
+        catch (Exception ex)
+        {
+            Log("tracked-location-update-failed", ("error", ex.Message));
+        }
+    }
 
     private void OnUserLocationUpdated(object? sender, Location? location)
     {
-        if (location is null)
+        try
         {
-            return;
-        }
+            if (location is null)
+            {
+                LogSkip("Missing user location", ("source", nameof(UserLocationService)));
+                return;
+            }
 
-        EnqueueLocation(new GeofenceLocationSample(
-            location.Latitude,
-            location.Longitude,
-            location.Accuracy,
-            location.Speed,
-            DateTimeOffset.UtcNow,
-            true));
+            EnqueueLocation(new GeofenceLocationSample(
+                location.Latitude,
+                location.Longitude,
+                location.Accuracy,
+                location.Speed,
+                DateTimeOffset.UtcNow,
+                true));
+        }
+        catch (Exception ex)
+        {
+            Log("user-location-update-failed", ("error", ex.Message));
+        }
     }
 
     private void OnCatalogChanged(object? sender, EventArgs e) =>
@@ -388,6 +434,48 @@ public sealed partial class GeofenceOrchestratorService
         Interlocked.Increment(ref _droppedLocationEvents);
     }
 
+    public GeofenceProcessingHealthCheck GetProcessingHealthCheck()
+    {
+        var nowUtc = DateTimeOffset.UtcNow;
+        var queueDepth = Math.Max(0, Volatile.Read(ref _queueDepth));
+        var hasPendingWork = queueDepth > 0;
+        var processorRunning = _processingLoopTask is { IsCompleted: false };
+        var watchdogRunning = _watchdogLoopTask is { IsCompleted: false };
+        var heartbeatFresh = nowUtc - _lastProcessorHeartbeatUtc <= _engineOptions.WatchdogThreshold;
+
+        var isHealthy =
+            !_isDisposed &&
+            _engineCts is not null &&
+            _locationChannel is not null &&
+            processorRunning &&
+            watchdogRunning &&
+            (!hasPendingWork || heartbeatFresh) &&
+            RunState != GeofenceRunState.Faulted;
+
+        var status = isHealthy
+            ? "healthy"
+            : !processorRunning
+                ? "processing-loop-stopped"
+                : !watchdogRunning
+                    ? "watchdog-stopped"
+                    : hasPendingWork && !heartbeatFresh
+                        ? "processing-loop-stalled"
+                        : RunState == GeofenceRunState.Faulted
+                            ? "faulted"
+                            : _engineCts is null || _locationChannel is null
+                                ? "not-started"
+                                : "degraded";
+
+        return new GeofenceProcessingHealthCheck(
+            isHealthy,
+            status,
+            RunState,
+            _lastProcessorHeartbeatUtc,
+            _lastProcessedAtUtc,
+            _lastEnqueuedAtUtc,
+            queueDepth);
+    }
+
     private bool ShouldEvaluateSample(GeofenceLocationSample sample)
     {
         if (!_lastProcessedAtUtc.HasValue || !_lastProcessedSample.HasValue)
@@ -432,6 +520,15 @@ public sealed partial class GeofenceOrchestratorService
             }
             : defaults;
     }
+
+    private static string DescribeSkipReason(string reason) =>
+        reason switch
+        {
+            "global-cooldown" => "In Cooldown",
+            "poi-cooldown" => "In Cooldown",
+            "duplicate-event" => "Duplicate Trigger",
+            _ => string.IsNullOrWhiteSpace(reason) ? "Skipped" : reason
+        };
 
     private static bool ShouldRefreshForSetting(string? propertyName) =>
         string.Equals(propertyName, nameof(AppSettingsService.BatterySaverEnabled), StringComparison.Ordinal) ||

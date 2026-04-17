@@ -9,6 +9,7 @@ using Microsoft.Maui.Networking;
 using Microsoft.Maui.Devices.Sensors;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
+using MauiApp_Mobile.Services.Geofencing;
 using Project_SharedClassLibrary.Contracts;
 #if ANDROID
 using Microsoft.Maui.Handlers;
@@ -55,6 +56,7 @@ public partial class MapPage : ContentPage
     private Location? _lastMapLocationRendered;
     private int _searchRequestVersion;
     private bool _isRefreshingMap;
+    private int _isProcessingDevLocation;
     private const int MapLoadTimeoutSeconds = 25;
 
     public ObservableCollection<MapTourViewModel> AvailableTours => _availableTours;
@@ -553,21 +555,195 @@ public partial class MapPage : ContentPage
             if (string.IsNullOrWhiteSpace(e.Url))
                 return;
 
-            if (!e.Url.StartsWith("smarttour://place/", StringComparison.OrdinalIgnoreCase))
+            if (e.Url.StartsWith("smarttour://place/", StringComparison.OrdinalIgnoreCase))
+            {
+                e.Cancel = true;
+
+                var placeId = e.Url["smarttour://place/".Length..];
+                if (string.IsNullOrWhiteSpace(placeId) || !CanUsePageUi())
+                    return;
+
+                await OpenPlaceDetailAsync(Uri.UnescapeDataString(placeId));
+                return;
+            }
+
+            if (!e.Url.StartsWith("smarttour://dev-location", StringComparison.OrdinalIgnoreCase))
                 return;
 
             e.Cancel = true;
 
-            var placeId = e.Url["smarttour://place/".Length..];
-            if (string.IsNullOrWhiteSpace(placeId) || !CanUsePageUi())
+            if (!CanUsePageUi() || !_isDeveloperModeEnabled)
                 return;
 
-            await OpenPlaceDetailAsync(Uri.UnescapeDataString(placeId));
+            if (!TryParseDeveloperLocationUri(e.Url, out var latitude, out var longitude))
+            {
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    if (!CanUsePageUi())
+                    {
+                        return Task.CompletedTask;
+                    }
+
+                    UpdateSearchStatus("Không thể đọc tọa độ thử nghiệm từ chế độ dev.");
+                    return Task.CompletedTask;
+                });
+                return;
+            }
+
+            await ApplyDeveloperLocationAsync(latitude, longitude);
         }
         catch (Exception ex)
         {
             LogMapFailure("OnMapWebViewNavigating", ex);
         }
+    }
+
+    private async Task ApplyDeveloperLocationAsync(double latitude, double longitude)
+    {
+        if (_isPageDisposing || !CanUsePageUi())
+        {
+            return;
+        }
+
+        if (Interlocked.CompareExchange(ref _isProcessingDevLocation, 1, 0) != 0)
+        {
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                if (!CanUsePageUi())
+                {
+                    return Task.CompletedTask;
+                }
+
+                UpdateSearchStatus("Đang xử lý vị trí dev trước đó...");
+                return Task.CompletedTask;
+            });
+            return;
+        }
+
+        try
+        {
+            if (_isPageDisposing || !CanUsePageUi())
+            {
+                return;
+            }
+
+            var location = new Location(latitude, longitude);
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                if (!CanUsePageUi())
+                {
+                    return;
+                }
+
+                try
+                {
+                    await GeofenceOrchestratorService.Instance.WarmStartAsync();
+                }
+                catch (Exception ex)
+                {
+                    LogMapFailure("ApplyDeveloperLocationWarmStart", ex);
+                }
+
+                UserLocationService.Instance.UpdateLocation(location);
+
+                try
+                {
+                    await UserLocationService.Instance.EnsureHeadingTrackingAsync();
+                }
+                catch (Exception ex)
+                {
+                    LogMapFailure("ApplyDeveloperLocationHeading", ex);
+                }
+            });
+
+            if (_isPageDisposing || !CanUsePageUi())
+            {
+                return;
+            }
+
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                if (!CanUsePageUi())
+                {
+                    return Task.CompletedTask;
+                }
+
+                UpdateSearchStatus(
+                    $"Đã đặt vị trí thử nghiệm: {latitude.ToString("F6", CultureInfo.InvariantCulture)}, {longitude.ToString("F6", CultureInfo.InvariantCulture)}.");
+                return Task.CompletedTask;
+            });
+        }
+        catch (ObjectDisposedException ex)
+        {
+            LogMapFailure("ApplyDeveloperLocationDisposed", ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            LogMapFailure("ApplyDeveloperLocationInvalidState", ex);
+        }
+        catch (Exception ex)
+        {
+            LogMapFailure("ApplyDeveloperLocation", ex);
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                if (!CanUsePageUi())
+                {
+                    return Task.CompletedTask;
+                }
+
+                UpdateSearchStatus("Không thể đặt vị trí thử nghiệm lúc này.");
+                return Task.CompletedTask;
+            });
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _isProcessingDevLocation, 0);
+        }
+    }
+
+    private static bool TryParseDeveloperLocationUri(string url, out double latitude, out double longitude)
+    {
+        latitude = 0d;
+        longitude = 0d;
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return false;
+
+        if (!string.Equals(uri.Host, "dev-location", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var query = uri.Query.TrimStart('?');
+        if (string.IsNullOrWhiteSpace(query))
+            return false;
+
+        string? latRaw = null;
+        string? lngRaw = null;
+        foreach (var segment in query.Split('&', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var separatorIndex = segment.IndexOf('=');
+            if (separatorIndex <= 0)
+                continue;
+
+            var key = Uri.UnescapeDataString(segment[..separatorIndex]);
+            var value = Uri.UnescapeDataString(segment[(separatorIndex + 1)..]);
+            if (string.Equals(key, "lat", StringComparison.OrdinalIgnoreCase))
+            {
+                latRaw = value;
+            }
+            else if (string.Equals(key, "lng", StringComparison.OrdinalIgnoreCase))
+            {
+                lngRaw = value;
+            }
+        }
+
+        if (!double.TryParse(latRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out latitude) ||
+            !double.TryParse(lngRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out longitude))
+        {
+            return false;
+        }
+
+        return latitude is >= -90d and <= 90d &&
+               longitude is >= -180d and <= 180d;
     }
 
     private async Task SyncPlacesToMapAsync()

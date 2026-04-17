@@ -48,7 +48,7 @@ public class HistoryService
         _isInitialized = true;
     }
 
-    public void AddToHistory(PlaceItem item)
+    public void AddToHistory(PlaceItem item, CancellationToken cancellationToken = default)
     {
         var existingItem = HistoryItems.FirstOrDefault(existing =>
             string.Equals(existing.Id, item.Id, StringComparison.OrdinalIgnoreCase));
@@ -61,7 +61,7 @@ public class HistoryService
         var clonedItem = ClonePlaceItem(item);
         HistoryItems.Insert(0, clonedItem);
         TrimHistory();
-        _ = PersistAsync(clonedItem);
+        _ = PersistAsync(clonedItem, cancellationToken);
     }
 
     public void RemoveFromHistory(PlaceItem item)
@@ -140,15 +140,20 @@ public class HistoryService
         }
     }
 
-    private static async Task PersistAsync(PlaceItem item)
+    private static async Task PersistAsync(PlaceItem item, CancellationToken cancellationToken)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var payload = JsonSerializer.Serialize(item, JsonOptions);
             await MobileDatabaseService.Instance.SavePlaybackHistoryAsync(
                 item.Id,
                 payload,
-                item.HistoryAddedAt ?? DateTimeOffset.Now);
+                item.HistoryAddedAt ?? DateTimeOffset.Now,
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch
         {

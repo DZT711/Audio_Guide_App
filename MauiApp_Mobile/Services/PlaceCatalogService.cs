@@ -198,7 +198,9 @@ public sealed class PlaceCatalogService
                 Category = item.Category,
                 Latitude = item.Latitude,
                 Longitude = item.Longitude,
-                RadiusMeters = AppSettingsService.Instance.TriggerRadiusMeters,
+                RadiusMeters = item.ActivationRadiusMeters > 0d
+                    ? item.ActivationRadiusMeters
+                    : AppSettingsService.Instance.TriggerRadiusMeters,
                 Image = string.IsNullOrWhiteSpace(item.PreferenceImage) ? item.Image : item.PreferenceImage,
                 GalleryImages = SelectMapGalleryImages(item)
             })
@@ -968,8 +970,12 @@ public sealed class PlaceCatalogService
             _ => 2
         };
 
-    private static double SanitizeActivationRadius(double radiusMeters) =>
-        Math.Clamp(radiusMeters > 0d ? radiusMeters : AppSettingsService.Instance.TriggerRadiusMeters, 10d, 500d);
+    private static double SanitizeActivationRadius(double radiusMeters)
+    {
+        var configuredTriggerRadius = Math.Clamp(AppSettingsService.Instance.TriggerRadiusMeters, 10d, 500d);
+        var poiRadius = radiusMeters > 0d ? radiusMeters : configuredTriggerRadius;
+        return Math.Clamp(Math.Max(poiRadius, configuredTriggerRadius), 10d, 500d);
+    }
 
     private static double SanitizeNearRadius(double activationRadiusMeters, double nearRadiusMeters)
     {

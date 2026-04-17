@@ -54,3 +54,12 @@ public sealed record GeofenceDebugSnapshot(
         null,
         string.Empty);
 }
+
+public sealed record GeofenceProcessingHealthCheck(
+    bool IsHealthy,
+    string Status,
+    GeofenceRunState RunState,
+    DateTimeOffset LastHeartbeatUtc,
+    DateTimeOffset? LastProcessedAtUtc,
+    DateTimeOffset? LastEnqueuedAtUtc,
+    int QueueDepth);

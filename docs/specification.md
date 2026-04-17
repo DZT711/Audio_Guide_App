@@ -34,8 +34,8 @@
   - [x] Coordinate (Longitude, Latitude)
   - [x] Activation Radius
   - [x] Priority level
-- [ ] Implement geofence engine:
-  - [ ] Native geofencing API (Android / iOS region monitoring), **OR**
+- [x] Implement geofence engine:
+  - [x] Native geofencing API (Android / iOS region monitoring), **OR**
   - [x] Manual distance calculation using **Haversine formula**
 - [ ] Trigger audio playback when user **enters** a POI radius
 - [ ] Trigger audio playback when user **stands near** a POI point
@@ -46,8 +46,8 @@
 ### 🔊 Narration Engine (PoC)
 
 - [x] Implement **Text-to-Speech (TTS)**:
-  - [x] Android: Android TTS engine
-  - [ ] iOS: `AVSpeechSynthesizer`
+  - Android: Android TTS engine
+  - iOS: `AVSpeechSynthesizer`
   <!-- - [ ] Optional: Azure Cognitive Services (natural voice, online/offline notice) -->
   - [x] Auto-detect device locale → default Vietnamese if region is VN  (LocalizationService.cs-CultureInfo.CurrentUICulture,RegionInfo.CurrentRegion.TwoLetterISORegionName)
   - [x] Support multiple languages (flexible, low memory footprint)
@@ -170,7 +170,7 @@
   - [x] Choose TTS voice
   - [x] Download offline language pack
 - [x] Multi-language UI (Vietnamese default)
-- [ ] Notification integration (auto-stop audio on incoming call/notification)
+- [x] Notification integration (auto-stop audio on incoming call/notification)
 - [x] POI owner web portal (non-admin role, manages own POI content)
 - [ ] App distribution via QR code (install link)
 

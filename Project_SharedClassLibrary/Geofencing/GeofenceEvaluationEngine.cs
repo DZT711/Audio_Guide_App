@@ -73,6 +73,15 @@ public sealed class GeofenceEvaluationEngine
                 if (insideActivationRadius)
                 {
                     runtimeState.LastEnteredAtUtc = nowUtc;
+                    EvaluateTrigger(
+                        acceptedTriggers,
+                        skippedTriggers,
+                        runtimeState,
+                        definition,
+                        GeofenceTriggerEvent.EnteredRadius,
+                        distanceMeters,
+                        globalCooldownUntilUtc,
+                        nowUtc);
                 }
 
                 if (insideNearRadius)
@@ -153,9 +162,11 @@ public sealed class GeofenceEvaluationEngine
         DateTimeOffset? globalCooldownUntilUtc,
         DateTimeOffset nowUtc)
     {
-        var cooldownWindow = TimeSpan.FromSeconds(Math.Max(
-            Math.Max(0, definition.DebounceSeconds),
-            Math.Max(1, (int)Math.Round(_options.DefaultPoiCooldown.TotalSeconds))));
+        var cooldownWindow = definition.DebounceSeconds > 0
+            ? TimeSpan.FromSeconds(definition.DebounceSeconds)
+            : _options.DefaultPoiCooldown > TimeSpan.Zero
+                ? _options.DefaultPoiCooldown
+                : TimeSpan.FromSeconds(1);
 
         if (globalCooldownUntilUtc.HasValue && globalCooldownUntilUtc.Value > nowUtc)
         {
@@ -188,14 +199,11 @@ public sealed class GeofenceEvaluationEngine
             return;
         }
 
-        runtimeState.LastTriggeredAtUtc = nowUtc;
-        runtimeState.CooldownUntilUtc = nowUtc.Add(cooldownWindow);
-        runtimeState.SetTriggerTime(eventType, nowUtc);
-
         acceptedTriggers.Add(new GeofenceTriggeredEvent(
             definition,
             eventType,
             distanceMeters,
+            nowUtc,
             cooldownWindow));
     }
 

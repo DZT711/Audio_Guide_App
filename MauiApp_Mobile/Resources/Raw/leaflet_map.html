@@ -1256,6 +1256,12 @@ __LEAFLET_JS__
             }
 
             window.showCurrentLocation(eventArgs.latlng.lat, eventArgs.latlng.lng, currentHeadingDegrees, true);
+            var devLocationUrl =
+                "smarttour://dev-location?lat=" +
+                encodeURIComponent(eventArgs.latlng.lat.toFixed(7)) +
+                "&lng=" +
+                encodeURIComponent(eventArgs.latlng.lng.toFixed(7));
+            window.location.href = devLocationUrl;
         });
 
         window.setPlaces = function(nextPlaces) {
@@ -1437,7 +1443,10 @@ __LEAFLET_JS__
         window.applyMapBehavior = function(behavior) {
             mapBehavior = Object.assign({}, mapBehavior, behavior || {});
             places.forEach(function(place) {
-                place.radiusMeters = Number(mapBehavior.poiRadiusMeters || place.radiusMeters || 0);
+                var placeRadius = Number(place.radiusMeters || 0);
+                if (!Number.isFinite(placeRadius) || placeRadius <= 0) {
+                    place.radiusMeters = Number(mapBehavior.poiRadiusMeters || 0);
+                }
             });
             renderPlaces();
             scheduleIdleAutoFocus();

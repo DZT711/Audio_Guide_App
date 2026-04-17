@@ -20,8 +20,17 @@ public sealed partial class GeofenceOrchestratorService
         await _playbackSingleFlight.WaitAsync(cancellationToken);
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (trigger.Definition is null || string.IsNullOrWhiteSpace(trigger.Definition.Id))
+            {
+                LogSkip("Missing POI definition", ("eventType", trigger.EventType));
+                return;
+            }
+
             if (!AppSettingsService.Instance.AutoPlayEnabled)
             {
+                LogSkip("Autoplay disabled", ("poiId", trigger.Definition.Id), ("eventType", trigger.EventType));
                 return;
             }
 
@@ -31,39 +40,69 @@ public sealed partial class GeofenceOrchestratorService
             if (!string.IsNullOrWhiteSpace(currentPlaceId) &&
                 string.Equals(currentPlaceId, trigger.Definition.Id, StringComparison.OrdinalIgnoreCase))
             {
-                Log("trigger-ignored", ("reason", "already-playing"), ("poiId", trigger.Definition.Id));
+                LogSkip("Already playing", ("poiId", trigger.Definition.Id), ("eventType", trigger.EventType));
+                return;
+            }
+
+            if (HasBlockingRuntimeCooldown(trigger, out var runtimeCooldownUntilUtc))
+            {
+                LogSkip("In Cooldown", ("poiId", trigger.Definition.Id), ("untilUtc", runtimeCooldownUntilUtc), ("source", "runtime"));
+                return;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var persistedCooldownUntilUtc = await GetPersistedCooldownUntilAsync(trigger.Definition.Id, cancellationToken);
+            if (persistedCooldownUntilUtc.HasValue && persistedCooldownUntilUtc.Value > DateTimeOffset.UtcNow)
+            {
+                lock (_stateGate)
+                {
+                    var runtimeState = GetOrCreateRuntimeState(trigger.Definition.Id);
+                    runtimeState.CooldownUntilUtc = persistedCooldownUntilUtc;
+                }
+
+                LogSkip("In Cooldown", ("poiId", trigger.Definition.Id), ("untilUtc", persistedCooldownUntilUtc.Value), ("source", "sqlite"));
                 return;
             }
 
             var currentPriority = ResolveCurrentPlaybackPriority(currentTrack);
             if (currentTrack is not null && currentPriority > trigger.Definition.Priority)
             {
-                Log("trigger-ignored", ("reason", "higher-priority-playing"), ("poiId", trigger.Definition.Id));
+                LogSkip("Lower Priority", ("poiId", trigger.Definition.Id), ("currentPriority", currentPriority), ("requestedPriority", trigger.Definition.Priority));
                 return;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             var place = await EnsurePlaceAsync(trigger.Definition.Id, cancellationToken);
             if (place is null)
             {
-                Log("trigger-ignored", ("reason", "place-not-found"), ("poiId", trigger.Definition.Id));
+                LogSkip("Missing POI definition", ("poiId", trigger.Definition.Id), ("eventType", trigger.EventType));
                 return;
             }
 
             using var lookupCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             lookupCts.CancelAfter(TrackLookupTimeout);
 
+            lookupCts.Token.ThrowIfCancellationRequested();
             var audioTracks = await LoadAudioTracksAsync(place.Id, lookupCts.Token);
-            var sourceTrack = SelectDefaultTrack(audioTracks);
-            if (sourceTrack is null || audioTracks.Count == 0)
+            lookupCts.Token.ThrowIfCancellationRequested();
+            if (audioTracks is null || audioTracks.Count == 0)
             {
-                Log("trigger-ignored", ("reason", "audio-track-not-found"), ("poiId", place.Id));
+                LogSkip("No audio track", ("poiId", place.Id), ("eventType", trigger.EventType));
+                return;
+            }
+
+            var sourceTrack = SelectDefaultTrack(audioTracks);
+            if (sourceTrack is null)
+            {
+                LogSkip("No audio track", ("poiId", place.Id), ("eventType", trigger.EventType));
                 return;
             }
 
             var queueItems = await BuildPlaybackQueueItemsAsync(place, audioTracks, sourceTrack.Id, lookupCts.Token);
             if (queueItems.Count == 0)
             {
-                Log("trigger-ignored", ("reason", "audio-queue-empty"), ("poiId", place.Id));
+                LogSkip("Audio queue empty", ("poiId", place.Id), ("eventType", trigger.EventType));
                 return;
             }
 
@@ -71,24 +110,34 @@ public sealed partial class GeofenceOrchestratorService
             var playbackSource = trigger.EventType == GeofenceTriggerEvent.EnteredRadius ? EnterPlaybackSource : NearPlaybackSource;
             var startedAtUtc = DateTimeOffset.UtcNow;
             var queueStartIndex = FindQueueIndex(queueItems, sourceTrack.Id);
+            var cooldownUntilUtc = startedAtUtc.Add(trigger.CooldownWindow);
 
-            await MainThread.InvokeOnMainThreadAsync(async () =>
+            cancellationToken.ThrowIfCancellationRequested();
+            await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                HistoryService.Instance.AddToHistory(historyItem);
-                await PlaybackCoordinatorService.Instance.PlayQueueAsync(
-                    queueItems,
-                    queueStartIndex,
-                    cancellationToken);
+                HistoryService.Instance.AddToHistory(historyItem, cancellationToken);
+                _ = FireAndForgetPlaybackAsync(queueItems, queueStartIndex, cancellationToken);
+                return Task.CompletedTask;
             });
+
+            lock (_stateGate)
+            {
+                var runtimeState = GetOrCreateRuntimeState(place.Id);
+                runtimeState.LastTriggeredAtUtc = startedAtUtc;
+                runtimeState.CooldownUntilUtc = cooldownUntilUtc;
+                runtimeState.SetTriggerTime(trigger.EventType, trigger.OccurredAtUtc);
+                _globalCooldownUntilUtc = startedAtUtc.Add(_engineOptions.GlobalCooldown);
+            }
 
             if (int.TryParse(place.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var locationId) &&
                 !string.IsNullOrWhiteSpace(LocationTrackingService.Instance.DeviceId))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await MobileDatabaseService.Instance.SetPlaybackCooldownAsync(
                     LocationTrackingService.Instance.DeviceId,
                     locationId,
                     startedAtUtc,
-                    startedAtUtc.Add(trigger.CooldownWindow),
+                    cooldownUntilUtc,
                     cancellationToken);
             }
 
@@ -107,7 +156,7 @@ public sealed partial class GeofenceOrchestratorService
         }
         catch (Exception ex)
         {
-            Log("playback-trigger-failed", ("poiId", trigger.Definition.Id), ("error", ex.Message));
+            Log("playback-trigger-failed", ("poiId", trigger.Definition?.Id ?? string.Empty), ("error", ex.Message));
         }
         finally
         {
@@ -140,27 +189,26 @@ public sealed partial class GeofenceOrchestratorService
                     return;
                 }
 
-                var cooldownWindow = TimeSpan.FromSeconds(Math.Max(
-                    Math.Max(0, definition.DebounceSeconds),
-                    Math.Max(1, (int)Math.Round(_engineOptions.DefaultPoiCooldown.TotalSeconds))));
+                var cooldownWindow = definition.DebounceSeconds > 0
+                    ? TimeSpan.FromSeconds(definition.DebounceSeconds)
+                    : _engineOptions.DefaultPoiCooldown > TimeSpan.Zero
+                        ? _engineOptions.DefaultPoiCooldown
+                        : TimeSpan.FromSeconds(1);
 
                 if (runtimeState.CooldownUntilUtc.HasValue && runtimeState.CooldownUntilUtc.Value > transition.OccurredAtUtc)
                 {
-                    Log("native-enter-skipped", ("poiId", definition.Id), ("reason", "poi-cooldown"));
+                    LogSkip("In Cooldown", ("poiId", definition.Id), ("source", "native-transition"));
                     return;
                 }
 
                 runtimeState.LastEnteredAtUtc = transition.OccurredAtUtc;
-                runtimeState.LastTriggeredAtUtc = transition.OccurredAtUtc;
-                runtimeState.CooldownUntilUtc = transition.OccurredAtUtc.Add(cooldownWindow);
-                runtimeState.SetTriggerTime(GeofenceTriggerEvent.EnteredRadius, transition.OccurredAtUtc);
                 runtimeState.State = GeofenceState.Inside;
-                _globalCooldownUntilUtc = transition.OccurredAtUtc.Add(_engineOptions.GlobalCooldown);
 
                 acceptedTrigger = new GeofenceTriggeredEvent(
                     definition,
                     GeofenceTriggerEvent.EnteredRadius,
                     runtimeState.LastDistanceMeters ?? double.MaxValue,
+                    transition.OccurredAtUtc,
                     cooldownWindow,
                     IsNativeTransition: true);
             }
@@ -168,6 +216,10 @@ public sealed partial class GeofenceOrchestratorService
             if (acceptedTrigger is not null && ShouldAllowTrigger(acceptedTrigger))
             {
                 await HandleTriggerAsync(acceptedTrigger, cancellationToken);
+            }
+            else if (acceptedTrigger is not null)
+            {
+                LogSkip("Near notification disabled", ("poiId", acceptedTrigger.Definition.Id), ("eventType", acceptedTrigger.EventType));
             }
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
@@ -221,10 +273,12 @@ public sealed partial class GeofenceOrchestratorService
         string placeId,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(
             placeId,
             cancellationToken: cancellationToken);
 
+        cancellationToken.ThrowIfCancellationRequested();
         if (audioTracks.Count == 0 && AppDataModeService.Instance.IsApiEnabled)
         {
             audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(
@@ -233,6 +287,7 @@ public sealed partial class GeofenceOrchestratorService
                 cancellationToken: cancellationToken);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         return audioTracks;
     }
 
@@ -261,6 +316,11 @@ public sealed partial class GeofenceOrchestratorService
         foreach (var sourceTrack in orderedTracks)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (sourceTrack is null)
+            {
+                continue;
+            }
 
             var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(sourceTrack, cancellationToken);
             queueItems.Add(new PlaybackQueueItem(
@@ -335,6 +395,56 @@ public sealed partial class GeofenceOrchestratorService
         };
     }
 
+    private bool HasBlockingRuntimeCooldown(GeofenceTriggeredEvent trigger, out DateTimeOffset? cooldownUntilUtc)
+    {
+        lock (_stateGate)
+        {
+            var runtimeState = GetOrCreateRuntimeState(trigger.Definition.Id);
+            cooldownUntilUtc = runtimeState.CooldownUntilUtc;
+            if (!cooldownUntilUtc.HasValue || cooldownUntilUtc.Value <= DateTimeOffset.UtcNow)
+            {
+                return false;
+            }
+
+            return !runtimeState.TryGetLastTriggerTime(trigger.EventType, out var lastTriggerAtUtc)
+                || lastTriggerAtUtc != trigger.OccurredAtUtc;
+        }
+    }
+
+    private static async Task FireAndForgetPlaybackAsync(
+        IReadOnlyList<PlaybackQueueItem> queueItems,
+        int queueStartIndex,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await PlaybackCoordinatorService.Instance.PlayQueueAsync(queueItems, queueStartIndex, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            Log("playback-start-failed", ("error", ex.Message));
+        }
+    }
+
+    private static async Task<DateTimeOffset?> GetPersistedCooldownUntilAsync(string poiId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(poiId) ||
+            string.IsNullOrWhiteSpace(LocationTrackingService.Instance.DeviceId) ||
+            !int.TryParse(poiId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var locationId))
+        {
+            return null;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return await MobileDatabaseService.Instance.GetPlaybackCooldownUntilAsync(
+            LocationTrackingService.Instance.DeviceId,
+            locationId,
+            cancellationToken);
+    }
+
     private GeofencePoiRuntimeState GetOrCreateRuntimeState(string poiId)
     {
         if (_runtimeStates.TryGetValue(poiId, out var runtimeState))
@@ -368,6 +478,9 @@ public sealed partial class GeofenceOrchestratorService
             "HYBRID" => 1,
             _ => 2
         };
+
+    private static void LogSkip(string reason, params (string Key, object? Value)[] properties) =>
+        Log($"Skipped: {reason}", properties);
 
     private static void Log(string eventName, params (string Key, object? Value)[] properties)
     {

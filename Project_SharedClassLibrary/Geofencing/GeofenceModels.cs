@@ -58,7 +58,7 @@ public sealed record GeofenceEngineOptions(
             ? new GeofenceEngineOptions(
                 DefaultPoiCooldown: TimeSpan.FromSeconds(45),
                 GlobalCooldown: TimeSpan.FromSeconds(10),
-                NearDwellWindow: TimeSpan.FromSeconds(20),
+                NearDwellWindow: TimeSpan.FromSeconds(15),
                 MinimumEvaluationInterval: TimeSpan.FromSeconds(12),
                 MinimumMovementMeters: 22d,
                 SpatialPaddingMeters: 60d,
@@ -69,7 +69,7 @@ public sealed record GeofenceEngineOptions(
             : new GeofenceEngineOptions(
                 DefaultPoiCooldown: TimeSpan.FromSeconds(30),
                 GlobalCooldown: TimeSpan.FromSeconds(6),
-                NearDwellWindow: TimeSpan.FromSeconds(12),
+                NearDwellWindow: TimeSpan.FromSeconds(10),
                 MinimumEvaluationInterval: TimeSpan.FromSeconds(5),
                 MinimumMovementMeters: 8d,
                 SpatialPaddingMeters: 40d,
@@ -118,6 +118,7 @@ public sealed record GeofenceTriggeredEvent(
     PoiGeofenceDefinition Definition,
     GeofenceTriggerEvent EventType,
     double DistanceMeters,
+    DateTimeOffset OccurredAtUtc,
     TimeSpan CooldownWindow,
     bool IsNativeTransition = false);
 

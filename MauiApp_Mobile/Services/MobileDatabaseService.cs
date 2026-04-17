@@ -233,66 +233,108 @@ public sealed class MobileDatabaseService
 
     public async Task LogTrackingEventAsync(LocationTrackingRecord record, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync(cancellationToken);
-        await connection.InsertAsync(new LocationTrackingEventEntity
+        cancellationToken.ThrowIfCancellationRequested();
+        try
         {
-            DeviceId = record.DeviceId,
-            SessionId = record.SessionId,
-            Latitude = record.Latitude,
-            Longitude = record.Longitude,
-            AccuracyMeters = record.AccuracyMeters,
-            SpeedMetersPerSecond = record.SpeedMetersPerSecond,
-            BatteryPercent = record.BatteryPercent,
-            IsForeground = record.IsForeground,
-            CapturedAtUtc = record.CapturedAtUtc.ToString("O", CultureInfo.InvariantCulture)
-        });
+            var connection = await GetConnectionAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await connection.InsertAsync(new LocationTrackingEventEntity
+            {
+                DeviceId = record.DeviceId,
+                SessionId = record.SessionId,
+                Latitude = record.Latitude,
+                Longitude = record.Longitude,
+                AccuracyMeters = record.AccuracyMeters,
+                SpeedMetersPerSecond = record.SpeedMetersPerSecond,
+                BatteryPercent = record.BatteryPercent,
+                IsForeground = record.IsForeground,
+                CapturedAtUtc = record.CapturedAtUtc.ToString("O", CultureInfo.InvariantCulture)
+            });
+        }
+        catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
     }
 
     public async Task SetPlaybackCooldownAsync(string deviceId, int locationId, DateTimeOffset lastPlayedAtUtc, DateTimeOffset cooldownUntilUtc, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync(cancellationToken);
-        await connection.ExecuteAsync(
-            """
-            INSERT OR REPLACE INTO PlaybackCooldown(DeviceId, LocationId, LastPlayedAtUtc, CooldownUntilUtc, PlayCount)
-            VALUES (?, ?, ?, ?, COALESCE((SELECT PlayCount + 1 FROM PlaybackCooldown WHERE DeviceId = ? AND LocationId = ?), 1));
-            """,
-            deviceId,
-            locationId,
-            lastPlayedAtUtc.ToString("O", CultureInfo.InvariantCulture),
-            cooldownUntilUtc.ToString("O", CultureInfo.InvariantCulture),
-            deviceId,
-            locationId);
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var connection = await GetConnectionAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await connection.ExecuteAsync(
+                """
+                INSERT OR REPLACE INTO PlaybackCooldown(DeviceId, LocationId, LastPlayedAtUtc, CooldownUntilUtc, PlayCount)
+                VALUES (?, ?, ?, ?, COALESCE((SELECT PlayCount + 1 FROM PlaybackCooldown WHERE DeviceId = ? AND LocationId = ?), 1));
+                """,
+                deviceId,
+                locationId,
+                lastPlayedAtUtc.ToString("O", CultureInfo.InvariantCulture),
+                cooldownUntilUtc.ToString("O", CultureInfo.InvariantCulture),
+                deviceId,
+                locationId);
+        }
+        catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
     }
 
     public async Task<DateTimeOffset?> GetPlaybackCooldownUntilAsync(string deviceId, int locationId, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync(cancellationToken);
-        var value = await connection.ExecuteScalarAsync<string?>(
-            "SELECT CooldownUntilUtc FROM PlaybackCooldown WHERE DeviceId = ? AND LocationId = ? LIMIT 1;",
-            deviceId,
-            locationId);
-        return ParseDateTimeOffset(value);
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var connection = await GetConnectionAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var value = await connection.ExecuteScalarAsync<string?>(
+                "SELECT CooldownUntilUtc FROM PlaybackCooldown WHERE DeviceId = ? AND LocationId = ? LIMIT 1;",
+                deviceId,
+                locationId);
+            cancellationToken.ThrowIfCancellationRequested();
+            return ParseDateTimeOffset(value);
+        }
+        catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
     }
 
     public async Task<IReadOnlyDictionary<int, DateTimeOffset>> GetPlaybackCooldownsAsync(
         string deviceId,
         CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync(cancellationToken);
-        var rows = await connection.QueryAsync<PlaybackCooldownRow>(
-            "SELECT LocationId, CooldownUntilUtc FROM PlaybackCooldown WHERE DeviceId = ?;",
-            deviceId);
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var connection = await GetConnectionAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-        return rows
-            .Select(row => new
-            {
-                row.LocationId,
-                CooldownUntilUtc = ParseDateTimeOffset(row.CooldownUntilUtc)
-            })
-            .Where(item => item.CooldownUntilUtc.HasValue)
-            .ToDictionary(
-                item => item.LocationId,
-                item => item.CooldownUntilUtc!.Value);
+            var rows = await connection.QueryAsync<PlaybackCooldownRow>(
+                "SELECT LocationId, CooldownUntilUtc FROM PlaybackCooldown WHERE DeviceId = ?;",
+                deviceId);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return rows
+                .Select(row => new
+                {
+                    row.LocationId,
+                    CooldownUntilUtc = ParseDateTimeOffset(row.CooldownUntilUtc)
+                })
+                .Where(item => item.CooldownUntilUtc.HasValue)
+                .ToDictionary(
+                    item => item.LocationId,
+                    item => item.CooldownUntilUtc!.Value);
+        }
+        catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
     }
 
     public async Task SetSyncStateAsync(string scope, DateTimeOffset lastFullSyncAtUtc, string? deltaToken, CancellationToken cancellationToken = default)
@@ -467,20 +509,34 @@ public sealed class MobileDatabaseService
 
     public async Task SavePlaybackHistoryAsync(string placeId, string placePayloadJson, DateTimeOffset playedAtUtc, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync(cancellationToken);
-        await connection.ExecuteAsync("DELETE FROM PlaybackHistory WHERE PlaceId = ?;", placeId);
-        await connection.ExecuteAsync(
-            "INSERT INTO PlaybackHistory(PlaceId, PlacePayloadJson, PlayedAtUtc) VALUES (?, ?, ?);",
-            placeId,
-            placePayloadJson,
-            playedAtUtc.ToString("O", CultureInfo.InvariantCulture));
-        await connection.ExecuteAsync(
-            """
-            DELETE FROM PlaybackHistory
-            WHERE HistoryId NOT IN (
-                SELECT HistoryId FROM PlaybackHistory ORDER BY PlayedAtUtc DESC LIMIT 40
-            );
-            """);
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var connection = await GetConnectionAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await connection.ExecuteAsync("DELETE FROM PlaybackHistory WHERE PlaceId = ?;", placeId);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await connection.ExecuteAsync(
+                "INSERT INTO PlaybackHistory(PlaceId, PlacePayloadJson, PlayedAtUtc) VALUES (?, ?, ?);",
+                placeId,
+                placePayloadJson,
+                playedAtUtc.ToString("O", CultureInfo.InvariantCulture));
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await connection.ExecuteAsync(
+                """
+                DELETE FROM PlaybackHistory
+                WHERE HistoryId NOT IN (
+                    SELECT HistoryId FROM PlaybackHistory ORDER BY PlayedAtUtc DESC LIMIT 40
+                );
+                """);
+        }
+        catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
     }
 
     public async Task<IReadOnlyList<PlaybackHistoryRecord>> LoadPlaybackHistoryAsync(CancellationToken cancellationToken = default)

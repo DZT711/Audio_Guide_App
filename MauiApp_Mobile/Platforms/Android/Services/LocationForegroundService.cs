@@ -3,6 +3,7 @@ using Android.App;
 using Android.Content;
 using Android.OS;
 using AndroidX.Core.App;
+using MauiApp_Mobile.Services.Geofencing;
 
 namespace MauiApp_Mobile.Services;
 
@@ -54,14 +55,23 @@ public sealed class LocationForegroundService : Service
                 try
                 {
                     await LocationTrackingService.Instance.RunSingleBackgroundTickAsync(localToken);
+                    var healthCheck = GeofenceOrchestratorService.Instance.GetProcessingHealthCheck();
+                    if (!healthCheck.IsHealthy)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[Geofence] foreground-service-health-check | status={healthCheck.Status}, runState={healthCheck.RunState}, queueDepth={healthCheck.QueueDepth}, lastHeartbeatUtc={healthCheck.LastHeartbeatUtc:O}");
+                        await GeofenceOrchestratorService.Instance.WarmStartAsync(localToken);
+                    }
+
                     await Task.Delay(LocationTrackingService.Instance.GetRecommendedTrackingInterval(), localToken);
                 }
                 catch (System.OperationCanceledException)
                 {
                     break;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    System.Diagnostics.Debug.WriteLine($"[LocationForegroundService] background-loop-error | {ex}");
                 }
             }
         }, localToken);
