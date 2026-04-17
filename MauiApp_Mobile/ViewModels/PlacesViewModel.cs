@@ -12,6 +12,7 @@ public partial class PlacesViewModel : ObservableObject
 {
     private const string AllCategoryValue = "__all__";
     private const string AllVoiceValue = "__all_voice__";
+    private const string AllLanguageValue = "__all_language__";
     private const string AudioAvailableVoiceValue = "__audio_available__";
     private const string MaleVoiceValue = "Male";
     private const string FemaleVoiceValue = "Female";
@@ -24,6 +25,7 @@ public partial class PlacesViewModel : ObservableObject
     private string _categoriesSignature = string.Empty;
     private string _selectedCategoryValue = AllCategoryValue;
     private string _selectedVoiceValue = AllVoiceValue;
+    private string _selectedLanguageValue = AllLanguageValue;
 
     public PlacesViewModel(PlaceCatalogService catalogService)
     {
@@ -36,6 +38,8 @@ public partial class PlacesViewModel : ObservableObject
     public ObservableCollection<CategoryFilterOption> CategoryFilters { get; } = [];
 
     public ObservableCollection<CategoryFilterOption> VoiceFilters { get; } = [];
+
+    public ObservableCollection<CategoryFilterOption> LanguageFilters { get; } = [];
 
     public IReadOnlyList<PlaceItem> AllPlaces => _allPlaces;
 
@@ -111,6 +115,7 @@ public partial class PlacesViewModel : ObservableObject
     {
         SyncCategoryFilters(_categories);
         SyncVoiceFilters();
+        SyncLanguageFilters();
         RefreshDisplayState();
     }
 
@@ -127,6 +132,7 @@ public partial class PlacesViewModel : ObservableObject
 
         SyncCategoryFilters(categories);
         SyncVoiceFilters();
+        SyncLanguageFilters();
         ApplyFilter();
     }
 
@@ -170,6 +176,16 @@ public partial class PlacesViewModel : ObservableObject
             : voiceValue;
 
         UpdateVoiceSelectionState();
+        ApplyFilter();
+    }
+
+    public void ApplyLanguage(string languageValue)
+    {
+        _selectedLanguageValue = string.Equals(_selectedLanguageValue, languageValue, StringComparison.OrdinalIgnoreCase)
+            ? AllLanguageValue
+            : languageValue;
+
+        UpdateLanguageSelectionState();
         ApplyFilter();
     }
 
@@ -254,6 +270,46 @@ public partial class PlacesViewModel : ObservableObject
         UpdateVoiceSelectionState();
     }
 
+    public void SyncLanguageFilters()
+    {
+        var languages = _allPlaces
+            .SelectMany(place => place.AudioTracks)
+            .Select(track => NormalizeLanguageCode(track.Language))
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(code => code, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var selectedExists = _selectedLanguageValue == AllLanguageValue ||
+            languages.Any(code => string.Equals(code, _selectedLanguageValue, StringComparison.OrdinalIgnoreCase));
+
+        if (!selectedExists)
+        {
+            _selectedLanguageValue = AllLanguageValue;
+        }
+
+        LanguageFilters.Clear();
+        LanguageFilters.Add(new CategoryFilterOption
+        {
+            Value = AllLanguageValue,
+            DisplayName = LocalizationService.Instance.T("Filter.All"),
+            Icon = "🌐",
+            IsAllOption = true
+        });
+
+        foreach (var language in languages)
+        {
+            LanguageFilters.Add(new CategoryFilterOption
+            {
+                Value = language,
+                DisplayName = ResolveLanguageDisplayName(language),
+                Icon = ResolveLanguageIcon(language)
+            });
+        }
+
+        UpdateLanguageSelectionState();
+    }
+
     public void UpdateCategorySelectionState()
     {
         foreach (var option in CategoryFilters)
@@ -267,6 +323,14 @@ public partial class PlacesViewModel : ObservableObject
         foreach (var option in VoiceFilters)
         {
             option.IsSelected = string.Equals(option.Value, _selectedVoiceValue, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    public void UpdateLanguageSelectionState()
+    {
+        foreach (var option in LanguageFilters)
+        {
+            option.IsSelected = string.Equals(option.Value, _selectedLanguageValue, StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -286,6 +350,17 @@ public partial class PlacesViewModel : ObservableObject
             string.Equals(NormalizeVoiceGender(item), _selectedVoiceValue, StringComparison.OrdinalIgnoreCase));
     }
 
+    public bool MatchesLanguageFilter(PlaceItem place)
+    {
+        if (_selectedLanguageValue == AllLanguageValue)
+        {
+            return true;
+        }
+
+        return place.AudioTracks.Any(track =>
+            string.Equals(NormalizeLanguageCode(track.Language), _selectedLanguageValue, StringComparison.OrdinalIgnoreCase));
+    }
+
     public void ApplyFilter()
     {
         var keyword = SearchText.Trim().ToLowerInvariant();
@@ -294,6 +369,7 @@ public partial class PlacesViewModel : ObservableObject
             .Where(place =>
                 (_selectedCategoryValue == AllCategoryValue || string.Equals(place.Category, _selectedCategoryValue, StringComparison.OrdinalIgnoreCase)) &&
                 MatchesVoiceFilter(place) &&
+                MatchesLanguageFilter(place) &&
                 (string.IsNullOrWhiteSpace(keyword) || place.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
@@ -313,10 +389,12 @@ public partial class PlacesViewModel : ObservableObject
 
         var selectedCategory = CategoryFilters.FirstOrDefault(item => item.IsSelected);
         var selectedVoice = VoiceFilters.FirstOrDefault(item => item.IsSelected);
+        var selectedLanguage = LanguageFilters.FirstOrDefault(item => item.IsSelected);
         var hasCategoryFilter = selectedCategory is not null && !selectedCategory.IsAllOption;
         var hasVoiceFilter = selectedVoice is not null && !selectedVoice.IsAllOption;
+        var hasLanguageFilter = selectedLanguage is not null && !selectedLanguage.IsAllOption;
 
-        if (!hasCategoryFilter && !hasVoiceFilter)
+        if (!hasCategoryFilter && !hasVoiceFilter && !hasLanguageFilter)
         {
             FilterHeaderText = LocalizationService.Instance.T("Places.Filter");
             FilterHeaderColor = ThemeService.Instance.GetColor("BodyText", "#243B5A");
@@ -332,6 +410,11 @@ public partial class PlacesViewModel : ObservableObject
         if (hasVoiceFilter)
         {
             parts.Add(selectedVoice!.DisplayName);
+        }
+
+        if (hasLanguageFilter)
+        {
+            parts.Add(selectedLanguage!.DisplayName);
         }
 
         FilterHeaderText = $"{LocalizationService.Instance.T("Places.Filter")}: {string.Join(" • ", parts)}";
@@ -423,6 +506,47 @@ public partial class PlacesViewModel : ObservableObject
 
         return "🏷";
     }
+
+    private static string NormalizeLanguageCode(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return string.Empty;
+        }
+
+        return language.Trim().ToLowerInvariant() switch
+        {
+            var value when value.StartsWith("vi") => "vi",
+            var value when value.StartsWith("en") => "en",
+            var value when value.StartsWith("fr") => "fr",
+            var value when value.StartsWith("ja") || value.StartsWith("jp") => "jp",
+            var value when value.StartsWith("ko") || value.StartsWith("kr") => "kr",
+            var value when value.StartsWith("zh") || value.StartsWith("cn") => "cn",
+            _ => language.Trim().ToLowerInvariant()
+        };
+    }
+
+    private static string ResolveLanguageDisplayName(string languageCode) => languageCode switch
+    {
+        "vi" => "Tiếng Việt",
+        "en" => "English",
+        "fr" => "Français",
+        "jp" => "日本語",
+        "kr" => "한국어",
+        "cn" => "中文",
+        _ => languageCode.ToUpperInvariant()
+    };
+
+    private static string ResolveLanguageIcon(string languageCode) => languageCode switch
+    {
+        "vi" => "🇻🇳",
+        "en" => "🇬🇧",
+        "fr" => "🇫🇷",
+        "jp" => "🇯🇵",
+        "kr" => "🇰🇷",
+        "cn" => "🇨🇳",
+        _ => "🌐"
+    };
 
     private static string ComputePlacesSignature(IEnumerable<PlaceItem> places)
     {

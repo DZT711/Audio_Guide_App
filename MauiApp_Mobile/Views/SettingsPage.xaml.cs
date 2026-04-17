@@ -1,17 +1,20 @@
 using System.ComponentModel;
 using MauiApp_Mobile.Services;
+using Microsoft.Maui.ApplicationModel;
 
 namespace MauiApp_Mobile.Views;
 
 public partial class SettingsPage : ContentPage
 {
     private bool _hasAnimated;
+    private bool _isSyncingGpsControls;
 
     public SettingsPage()
     {
         InitializeComponent();
         LoadSavedSettings();
         ApplyTexts();
+        ConfigureGpsAccuracyOptions();
         UpdateSliderLabels();
         UpdateLanguageSelectionUI();
         UpdateThemeSelectionUI();
@@ -20,11 +23,18 @@ public partial class SettingsPage : ContentPage
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
         ThemeService.Instance.PropertyChanged += OnThemeChanged;
         AppDataModeService.Instance.PropertyChanged += OnAppDataModeChanged;
+        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        LoadSavedSettings();
+        UpdateLanguageSelectionUI();
+        UpdateThemeSelectionUI();
+        UpdateApiModeUI();
+        UpdateSliderLabels();
+        ConfigureGpsAccuracyOptions();
 
         if (_hasAnimated)
             return;
@@ -57,16 +67,20 @@ public partial class SettingsPage : ContentPage
             ThemeHeritageTitleLabel,
             ThemeHeritageSubtitleLabel,
             GpsAccuracyLabel,
-            GpsAccuracyValueLabel,
             TriggerRadiusLabel,
             AlertRadiusLabel,
             WaitTimeLabel,
+            ShowPoiRadiusLabel,
+            AutoFocusIdleLabel,
+            AutoFocusIdleHintLabel,
             AutoPlayLabel,
             NotifyNearLabel,
             BackgroundTrackingLabel,
             BatterySaverLabel,
             ApiModeLabel,
+            DeveloperModeLabel,
             LanguagePopupTitleLabel,
+            ScanQrButton,
             SaveSettingsButton);
         UpdateLanguageSelectionUI();
         UpdateApiModeUI();
@@ -86,6 +100,16 @@ public partial class SettingsPage : ContentPage
         }
 
         MainThread.BeginInvokeOnMainThread(UpdateApiModeUI);
+    }
+
+    private void OnSettingsSaved(object? sender, AppSettingsSnapshot snapshot)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            LoadSavedSettings();
+            UpdateApiModeUI();
+            UpdateSliderLabels();
+        });
     }
 
     private void ApplyTexts()
@@ -114,17 +138,22 @@ public partial class SettingsPage : ContentPage
         ThemeHeritageSubtitleLabel.Text = LocalizationService.Instance.T("Settings.ThemeHeritageSubtitle");
 
         GpsAccuracyLabel.Text = LocalizationService.Instance.T("Settings.Accuracy");
-        GpsAccuracyValueLabel.Text = LocalizationService.Instance.T("Settings.AccuracyValue");
         TriggerRadiusLabel.Text = LocalizationService.Instance.T("Settings.TriggerRadius");
         AlertRadiusLabel.Text = LocalizationService.Instance.T("Settings.AlertRadius");
         WaitTimeLabel.Text = LocalizationService.Instance.T("Settings.WaitTime");
+        ShowPoiRadiusLabel.Text = "Hiện bán kính POI trên bản đồ";
+        AutoFocusIdleLabel.Text = "Tự focus POI sau khi không chạm bản đồ";
+        AutoFocusIdleHintLabel.Text = "s, -1 để tắt";
 
         AutoPlayLabel.Text = LocalizationService.Instance.T("Settings.AutoPlay");
         NotifyNearLabel.Text = LocalizationService.Instance.T("Settings.NotifyNear");
         BackgroundTrackingLabel.Text = LocalizationService.Instance.T("Settings.BackgroundTracking");
         BatterySaverLabel.Text = LocalizationService.Instance.T("Settings.BatterySaver");
-        ApiModeLabel.Text = LocalizationService.Instance.T("Settings.ApiMode");
+        ApiModeLabel.Text = LocalizationService.Instance.T("Settings.Offline");
+        DeveloperModeLabel.Text = "Hiện nút dev trên bản đồ";
+        MiniPlayerLabel.Text = "Hiện thanh phát mini";
         SaveSettingsButton.Text = LocalizationService.Instance.T("Settings.Save");
+        ScanQrButton.Text = LocalizationService.Instance.T("Settings.ScanQr");
 
         LanguagePopupTitleLabel.Text = LocalizationService.Instance.T("Settings.ChooseLanguage");
 
@@ -134,6 +163,28 @@ public partial class SettingsPage : ContentPage
         LangJpLabel.Text = "日本語";
         LangKrLabel.Text = "한국어";
         LangFrLabel.Text = "Français";
+
+        ConfigureGpsAccuracyOptions();
+    }
+
+    private void ConfigureGpsAccuracyOptions()
+    {
+        if (GpsAccuracyPicker is null)
+        {
+            return;
+        }
+
+        var labels = new[]
+        {
+            "Very low",
+            "Low",
+            "Medium",
+            "High",
+            "Very high"
+        };
+
+        GpsAccuracyPicker.ItemsSource = labels;
+        GpsAccuracyPicker.SelectedIndex = (int)AppSettingsService.Instance.GpsAccuracy;
     }
 
     private async void OnToggleLanguagePopupTapped(object sender, TappedEventArgs e)
@@ -237,9 +288,10 @@ public partial class SettingsPage : ContentPage
 
     private void UpdateApiModeUI()
     {
-        if (ApiModeSwitch.IsToggled != AppDataModeService.Instance.IsApiEnabled)
+        var isOfflineModeEnabled = !AppDataModeService.Instance.IsApiEnabled;
+        if (ApiModeSwitch.IsToggled != isOfflineModeEnabled)
         {
-            ApiModeSwitch.IsToggled = AppDataModeService.Instance.IsApiEnabled;
+            ApiModeSwitch.IsToggled = isOfflineModeEnabled;
         }
     }
 
@@ -255,6 +307,13 @@ public partial class SettingsPage : ContentPage
         NotifyNearSwitch.IsToggled = settings.NotifyNearEnabled;
         BackgroundTrackingSwitch.IsToggled = settings.BackgroundTrackingEnabled;
         BatterySaverSwitch.IsToggled = settings.BatterySaverEnabled;
+        DeveloperModeSwitch.IsToggled = settings.DeveloperModeEnabled;
+        MiniPlayerSwitch.IsToggled = settings.MiniPlayerEnabled;
+        ShowPoiRadiusSwitch.IsToggled = settings.ShowPoiRadiusEnabled;
+        AutoFocusIdleEntry.Text = settings.AutoFocusIdleSeconds.ToString();
+        _isSyncingGpsControls = true;
+        GpsAccuracyPicker.SelectedIndex = (int)settings.GpsAccuracy;
+        _isSyncingGpsControls = false;
     }
 
     private void OnReadingSpeedChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
@@ -262,6 +321,60 @@ public partial class SettingsPage : ContentPage
     private void OnTriggerRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnAlertRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnWaitTimeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
+
+    private void OnGpsAccuracyChanged(object sender, EventArgs e)
+    {
+        if (_isSyncingGpsControls || GpsAccuracyPicker.SelectedIndex < 0)
+        {
+            return;
+        }
+
+        var selectedAccuracy = (GpsAccuracyOption)GpsAccuracyPicker.SelectedIndex;
+        if (selectedAccuracy is GpsAccuracyOption.High or GpsAccuracyOption.VeryHigh)
+        {
+            BatterySaverSwitch.IsToggled = false;
+        }
+    }
+
+    private void OnBatterySaverToggled(object sender, ToggledEventArgs e)
+    {
+        if (_isSyncingGpsControls)
+        {
+            return;
+        }
+
+        if (!e.Value)
+        {
+            return;
+        }
+
+        _isSyncingGpsControls = true;
+        BackgroundTrackingSwitch.IsToggled = false;
+        GpsAccuracyPicker.SelectedIndex = (int)GpsAccuracyOption.VeryLow;
+        _isSyncingGpsControls = false;
+    }
+
+    private async void OnBackgroundTrackingToggled(object sender, ToggledEventArgs e)
+    {
+        if (_isSyncingGpsControls || !e.Value)
+        {
+            return;
+        }
+
+        if (!BatterySaverSwitch.IsToggled)
+        {
+            return;
+        }
+
+        _isSyncingGpsControls = true;
+        BatterySaverSwitch.IsToggled = false;
+        _isSyncingGpsControls = false;
+
+        await DisplayAlertAsync(
+            "Theo dõi nền",
+            "Bật theo dõi nền sẽ tự tắt chế độ tiết kiệm pin để vị trí được cập nhật ổn định hơn.",
+            "OK");
+    }
 
     private async void OnTestVoiceClicked(object sender, EventArgs e)
     {
@@ -272,7 +385,7 @@ public partial class SettingsPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("Audio", ex.Message, "OK");
+            await DisplayAlertAsync("Audio", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
         }
         finally
         {
@@ -286,7 +399,12 @@ public partial class SettingsPage : ContentPage
         {
             SaveSettingsButton.IsEnabled = false;
 
-            AppSettingsService.Instance.Save(new AppSettingsSnapshot(
+            if (BackgroundTrackingSwitch.IsToggled && BatterySaverSwitch.IsToggled)
+            {
+                BatterySaverSwitch.IsToggled = false;
+            }
+
+            await AppSettingsService.Instance.SaveAsync(new AppSettingsSnapshot(
                 ReadingSpeedSlider.Value,
                 VolumeSlider.Value,
                 TriggerRadiusSlider.Value,
@@ -295,7 +413,18 @@ public partial class SettingsPage : ContentPage
                 AutoPlaySwitch.IsToggled,
                 NotifyNearSwitch.IsToggled,
                 BackgroundTrackingSwitch.IsToggled,
-                BatterySaverSwitch.IsToggled));
+                BatterySaverSwitch.IsToggled,
+                LocalizationService.Instance.Language,
+                ThemeService.Instance.CurrentTheme,
+                !ApiModeSwitch.IsToggled,
+                DeveloperModeSwitch.IsToggled,
+                GpsAccuracyPicker.SelectedIndex >= 0 ? (GpsAccuracyOption)GpsAccuracyPicker.SelectedIndex : GpsAccuracyOption.High,
+                MiniPlayerSwitch.IsToggled,
+                ShowPoiRadiusSwitch.IsToggled,
+                ParseAutoFocusIdleSeconds()));
+
+            await AudioPlaybackService.Instance.ApplyRuntimeVolumeAsync();
+            await LocationTrackingService.Instance.StartTrackingFromSettingsAsync(requestBackgroundUpgrade: BackgroundTrackingSwitch.IsToggled);
 
             await DisplayAlertAsync(
                 LocalizationService.Instance.T("Settings.Title"),
@@ -317,6 +446,61 @@ public partial class SettingsPage : ContentPage
 
     private void OnApiModeToggled(object sender, ToggledEventArgs e)
     {
-        AppDataModeService.Instance.IsApiEnabled = e.Value;
+        AppDataModeService.Instance.IsApiEnabled = !e.Value;
+    }
+
+    private async void OnScanQrClicked(object sender, EventArgs e)
+    {
+#if !ANDROID
+        await DisplayAlertAsync(
+            LocalizationService.Instance.T("QrScanner.Title"),
+            LocalizationService.Instance.T("QrScanner.AndroidOnly"),
+            "OK");
+        return;
+#else
+        try
+        {
+            var permissionStatus = await Permissions.CheckStatusAsync<Permissions.Camera>();
+            if (permissionStatus != PermissionStatus.Granted)
+            {
+                permissionStatus = await Permissions.RequestAsync<Permissions.Camera>();
+            }
+
+            if (permissionStatus == PermissionStatus.Granted)
+            {
+                await Shell.Current.GoToAsync("qr-scanner");
+                return;
+            }
+
+            var openSettings = await DisplayAlertAsync(
+                LocalizationService.Instance.T("QrScanner.PermissionTitle"),
+                LocalizationService.Instance.T("QrScanner.PermissionMessage"),
+                LocalizationService.Instance.T("QrScanner.OpenSettings"),
+                LocalizationService.Instance.T("QrScanner.Cancel"));
+
+            if (openSettings)
+            {
+                AppInfo.ShowSettingsUI();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[QrScanner] Failed to open scanner: {ex}");
+            await DisplayAlertAsync(
+                LocalizationService.Instance.T("QrScanner.Title"),
+                LocalizationService.Instance.T("QrScanner.OpenFailed"),
+                "OK");
+        }
+#endif
+    }
+
+    private int ParseAutoFocusIdleSeconds()
+    {
+        if (!int.TryParse(AutoFocusIdleEntry.Text?.Trim(), out var value))
+        {
+            return 60;
+        }
+
+        return Math.Clamp(value, -1, 3600);
     }
 }

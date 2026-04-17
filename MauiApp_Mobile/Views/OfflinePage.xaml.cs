@@ -4,6 +4,8 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows.Input;
+using Microsoft.Maui.Networking;
+using Microsoft.Maui.Devices.Sensors;
 using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
 
@@ -122,6 +124,8 @@ public partial class OfflinePage : ContentPage
         SyncCategoryFilters([]);
         ApplyFilter();
         ApplyFilterSummary();
+        UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
+        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
 
         LocalizationService.Instance.PropertyChanged += (_, _) =>
         {
@@ -165,16 +169,33 @@ public partial class OfflinePage : ContentPage
         _ = RefreshOfflinePacksSilentlyAsync();
     }
 
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
+        AppSettingsService.Instance.SettingsSaved -= OnSettingsSaved;
+        _loadingCts?.Cancel();
+    }
+
+    private void OnSettingsSaved(object? sender, AppSettingsSnapshot snapshot)
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            ApplyLocalizedText();
+            ApplyFilter();
+            ApplyFilterSummary();
+            OnPropertyChanged(nameof(DownloadedCountText));
+            OnPropertyChanged(nameof(DownloadedSizeText));
+            OnPropertyChanged(nameof(DownloadProgress));
+            OnPropertyChanged(nameof(DownloadProgressText));
+            await RefreshOfflinePacksSilentlyAsync();
+        });
+    }
+
     protected override void OnSizeAllocated(double width, double height)
     {
         base.OnSizeAllocated(width, height);
         UpdateOfflineDetailSheetLayout();
-    }
-
-    protected override void OnDisappearing()
-    {
-        base.OnDisappearing();
-        _loadingCts?.Cancel();
     }
 
     private async Task RunInitialLoadAsync()
@@ -321,8 +342,14 @@ public partial class OfflinePage : ContentPage
         _allItems.Clear();
         foreach (var item in mappedItems)
         {
+            if (UserLocationService.Instance.LastKnownLocation is Location currentLocation)
+            {
+                item.UpdateDistance(currentLocation);
+            }
             _allItems.Add(item);
         }
+
+        await ApplyDownloadedStatesAsync(_allItems, cancellationToken);
 
         SyncCategoryFilters(catalogSnapshot.Categories);
         ApplyLocalizedText();
@@ -353,6 +380,8 @@ public partial class OfflinePage : ContentPage
             Image = string.IsNullOrWhiteSpace(place.PreferenceImage) ? place.Image : place.PreferenceImage,
             Description = place.Description,
             Address = place.Address,
+            Latitude = place.Latitude,
+            Longitude = place.Longitude,
             Phone = place.Phone,
             Email = place.Email,
             Website = place.Website,
@@ -367,6 +396,28 @@ public partial class OfflinePage : ContentPage
             AudioTracks = BuildAudioTracksForPlace(place, audioCount),
             LocalizedTitles = BuildMirroredLocalizedTitles(place.Name)
         };
+    }
+
+    private void OnUserLocationUpdated(object? sender, Location? location)
+    {
+        if (location is null)
+        {
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            foreach (var item in _allItems)
+            {
+                item.UpdateDistance(location);
+            }
+
+            if (SelectedPack is not null)
+            {
+                SelectedPack.UpdateDistance(location);
+                OnPropertyChanged(nameof(SelectedPack));
+            }
+        });
     }
 
     private void ApplyLocalizedText()
@@ -444,12 +495,14 @@ public partial class OfflinePage : ContentPage
                     .Take(Math.Max(audioCount, 1))
                     .Select(track => new OfflineAudioTrack
                     {
+                        TrackId = track.Id,
                         LanguageCode = ResolveLanguageBadge(track.Language),
                         LanguageName = track.LanguageName ?? track.Language,
                         LocaleCode = string.IsNullOrWhiteSpace(track.Language) ? "vi-VN" : track.Language,
                         Title = string.IsNullOrWhiteSpace(track.Title) ? place.Name : track.Title,
                         Duration = FormatDuration(track.Duration > 0 ? track.Duration : 125),
-                        SourceType = string.IsNullOrWhiteSpace(track.SourceType) ? "TTS" : track.SourceType.Trim().ToUpperInvariant()
+                        SourceType = string.IsNullOrWhiteSpace(track.SourceType) ? "TTS" : track.SourceType.Trim().ToUpperInvariant(),
+                        AudioUrl = track.AudioURL
                     }));
         }
 
@@ -645,14 +698,24 @@ public partial class OfflinePage : ContentPage
         return builder.ToString().Normalize(NormalizationForm.FormC);
     }
 
-    private void OnDownload(OfflinePackItem? item)
+    private async void OnDownload(OfflinePackItem? item)
     {
         if (item == null) return;
 
-        item.IsDownloaded = true;
-        item.DownloadedAt = DateTime.Now;
-        item.IsExpanded = true;
-        ApplyFilter();
+        try
+        {
+            if (!await EnsureDownloadAvailableAsync())
+            {
+                return;
+            }
+
+            await DownloadPackAsync(item);
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync("Offline", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
+        }
     }
 
     private void OnDelete(OfflinePackItem? item)
@@ -667,14 +730,25 @@ public partial class OfflinePage : ContentPage
         IsDeleteConfirmVisible = true;
     }
 
-    private void OnRedownload(OfflinePackItem? item)
+    private async void OnRedownload(OfflinePackItem? item)
     {
         if (item == null) return;
 
-        item.IsDownloaded = true;
-        item.DownloadedAt = DateTime.Now;
-        item.IsExpanded = true;
-        ApplyFilter();
+        try
+        {
+            if (!await EnsureDownloadAvailableAsync())
+            {
+                return;
+            }
+
+            await AudioDownloadService.Instance.DeleteLocationTracksAsync(ParseLocationId(item.Id));
+            await DownloadPackAsync(item);
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync("Offline", FriendlyMessageService.Resolve(ex, "Server connect failure"), "OK");
+        }
     }
 
     private void OnAllTapped(object? sender, TappedEventArgs e)
@@ -728,12 +802,22 @@ public partial class OfflinePage : ContentPage
         IsDeleteConfirmVisible = true;
     }
 
-    private void OnDownloadAllClicked(object sender, EventArgs e)
+    private async void OnDownloadAllClicked(object sender, EventArgs e)
     {
+        if (!await EnsureDownloadAvailableAsync())
+        {
+            return;
+        }
+
         foreach (var item in _allItems)
         {
-            item.IsDownloaded = true;
-            item.DownloadedAt ??= DateTime.Now;
+            try
+            {
+                await DownloadPackAsync(item);
+            }
+            catch
+            {
+            }
         }
 
         ApplyFilter();
@@ -1011,15 +1095,13 @@ public partial class OfflinePage : ContentPage
         IsDeleteConfirmVisible = false;
     }
 
-    private void OnConfirmDeleteClicked(object sender, EventArgs e)
+    private async void OnConfirmDeleteClicked(object sender, EventArgs e)
     {
         if (_isBulkDeleteConfirm)
         {
             foreach (var item in _allItems)
             {
-                item.IsDownloaded = false;
-                item.DownloadedAt = null;
-                item.IsExpanded = false;
+                await DeletePackAsync(item);
             }
 
             _pendingDeleteItem = null;
@@ -1038,9 +1120,7 @@ public partial class OfflinePage : ContentPage
             return;
         }
 
-        _pendingDeleteItem.IsDownloaded = false;
-        _pendingDeleteItem.DownloadedAt = null;
-        _pendingDeleteItem.IsExpanded = false;
+        await DeletePackAsync(_pendingDeleteItem);
 
         _pendingDeleteItem = null;
         _isBulkDeleteConfirm = false;
@@ -1048,6 +1128,91 @@ public partial class OfflinePage : ContentPage
         IsDeleteConfirmVisible = false;
         ApplyFilter();
     }
+
+    private async Task ApplyDownloadedStatesAsync(IEnumerable<OfflinePackItem> items, CancellationToken cancellationToken)
+    {
+        foreach (var item in items)
+        {
+            var snapshots = await AudioDownloadService.Instance.GetSnapshotsForLocationAsync(ParseLocationId(item.Id), cancellationToken);
+            var downloadedTrackIds = snapshots.Select(snapshot => snapshot.TrackId).ToHashSet();
+            var downloadableTrackCount = item.AudioTracks.Count(track => track.IsDownloadable);
+            var downloadedTrackCount = item.AudioTracks.Count(track => track.IsDownloadable && downloadedTrackIds.Contains(track.TrackId));
+
+            item.IsDownloaded = downloadableTrackCount > 0 && downloadedTrackCount >= downloadableTrackCount;
+            item.DownloadedAt = snapshots.OrderByDescending(snapshot => snapshot.DownloadedAt).FirstOrDefault().DownloadedAt?.LocalDateTime;
+
+            foreach (var track in item.AudioTracks)
+            {
+                track.IsDownloaded = track.TrackId > 0 && downloadedTrackIds.Contains(track.TrackId);
+            }
+
+            item.RefreshTrackCollections();
+        }
+    }
+
+    private async Task DownloadPackAsync(OfflinePackItem item)
+    {
+        var placeId = item.Id;
+        var tracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(placeId, forceRefresh: AppDataModeService.Instance.IsApiEnabled);
+        var downloadableTracks = tracks.Where(track => !string.IsNullOrWhiteSpace(track.AudioURL)).ToList();
+
+        if (downloadableTracks.Count == 0)
+        {
+            throw new InvalidOperationException("POI này chưa có file audio để tải offline.");
+        }
+
+        foreach (var track in downloadableTracks)
+        {
+            await AudioDownloadService.Instance.DownloadAsync(track);
+            var matchingTrack = item.AudioTracks.FirstOrDefault(audioTrack => audioTrack.TrackId == track.Id);
+            if (matchingTrack is not null)
+            {
+                matchingTrack.IsDownloaded = true;
+            }
+        }
+
+        item.IsDownloaded = item.DownloadedAudioCount >= item.DownloadableAudioCount && item.DownloadableAudioCount > 0;
+        item.DownloadedAt = DateTime.Now;
+        item.IsExpanded = true;
+        item.RefreshTrackCollections();
+    }
+
+    private async Task DeletePackAsync(OfflinePackItem? item)
+    {
+        if (item is null)
+        {
+            return;
+        }
+
+        await AudioDownloadService.Instance.DeleteLocationTracksAsync(ParseLocationId(item.Id));
+        item.IsDownloaded = false;
+        item.DownloadedAt = null;
+        item.IsExpanded = false;
+
+        foreach (var track in item.AudioTracks)
+        {
+            track.IsDownloaded = false;
+        }
+
+        item.RefreshTrackCollections();
+    }
+
+    private async Task<bool> EnsureDownloadAvailableAsync()
+    {
+        if (!AppDataModeService.Instance.IsApiEnabled || Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+        {
+            await DisplayAlertAsync(
+                "Offline",
+                "Không thể tải audio khi ứng dụng đang ở chế độ offline hoặc thiết bị chưa có Internet.",
+                "OK");
+            return false;
+        }
+
+        return true;
+    }
+
+    private static int ParseLocationId(string id) =>
+        int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : 0;
 
 }
 
@@ -1066,6 +1231,8 @@ public class OfflinePackItem : INotifyPropertyChanged
     public string Image { get; set; } = "dotnet_bot.png";
     public string Description { get; set; } = "";
     public string Address { get; set; } = "";
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
     public string Phone { get; set; } = "";
     public string Email { get; set; } = "";
     public string Website { get; set; } = "";
@@ -1077,6 +1244,9 @@ public class OfflinePackItem : INotifyPropertyChanged
     public Color CategoryTextColor { get; set; } = Colors.Black;
     public ObservableCollection<LocalizedTitleItem> LocalizedTitles { get; set; } = new();
     public ObservableCollection<OfflineAudioTrack> AudioTracks { get; set; } = new();
+    public ObservableCollection<OfflineAudioTrack> DownloadedTracks { get; } = new();
+    public ObservableCollection<OfflineAudioTrack> PendingTracks { get; } = new();
+    private string _distanceText = "Bật định vị để xem khoảng cách";
 
     private bool _isDownloaded;
     private DateTime? _downloadedAt;
@@ -1084,6 +1254,12 @@ public class OfflinePackItem : INotifyPropertyChanged
 
     public string AudioCountText => $"{AudioCount} audio";
     public string LanguagesText => string.Join(" • ", AudioTracks.Select(track => track.LanguageCode));
+    public string DistanceText => _distanceText;
+    public int DownloadableAudioCount => AudioTracks.Count(track => track.IsDownloadable);
+    public int DownloadedAudioCount => AudioTracks.Count(track => track.IsDownloadable && track.IsDownloaded);
+    public string DownloadedAudioSummaryText => $"{DownloadedAudioCount}/{Math.Max(DownloadableAudioCount, 0)} audio";
+    public bool HasDownloadedTracks => DownloadedTracks.Count > 0;
+    public bool HasPendingTracks => PendingTracks.Count > 0;
     public string DownloadedDateText => DownloadedAt is DateTime downloadedAt
         ? $"✓ Đã tải {downloadedAt:dd/MM/yyyy}"
         : "Chưa tải về";
@@ -1120,6 +1296,7 @@ public class OfflinePackItem : INotifyPropertyChanged
             OnPropertyChanged(nameof(StatusTextColor));
             OnPropertyChanged(nameof(TrackPanelBackgroundColor));
             OnPropertyChanged(nameof(TrackPanelStrokeColor));
+            OnPropertyChanged(nameof(DownloadedAudioSummaryText));
         }
     }
 
@@ -1168,6 +1345,45 @@ public class OfflinePackItem : INotifyPropertyChanged
         }
     }
 
+    public void RefreshTrackCollections()
+    {
+        DownloadedTracks.Clear();
+        PendingTracks.Clear();
+
+        foreach (var track in AudioTracks.Where(track => track.IsDownloadable && track.IsDownloaded))
+        {
+            DownloadedTracks.Add(track);
+        }
+
+        foreach (var track in AudioTracks.Where(track => !track.IsDownloadable || !track.IsDownloaded))
+        {
+            PendingTracks.Add(track);
+        }
+
+        OnPropertyChanged(nameof(DownloadableAudioCount));
+        OnPropertyChanged(nameof(DownloadedAudioCount));
+        OnPropertyChanged(nameof(DownloadedAudioSummaryText));
+        OnPropertyChanged(nameof(HasDownloadedTracks));
+        OnPropertyChanged(nameof(HasPendingTracks));
+    }
+
+    public void UpdateDistance(Location location)
+    {
+        if (Latitude == 0d && Longitude == 0d)
+        {
+            _distanceText = "Chưa có tọa độ";
+            OnPropertyChanged(nameof(DistanceText));
+            return;
+        }
+
+        var distanceKm = Location.CalculateDistance(location.Latitude, location.Longitude, Latitude, Longitude, DistanceUnits.Kilometers);
+        var distanceMeters = Math.Max(0, distanceKm * 1000d);
+        _distanceText = distanceMeters < 1000d
+            ? $"{distanceMeters:0} m"
+            : $"{distanceKm:0.0} km";
+        OnPropertyChanged(nameof(DistanceText));
+    }
+
     public void ApplyLanguage(string language)
     {
         var languageCode = language switch
@@ -1208,12 +1424,15 @@ public class OfflineAudioTrack : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    public int TrackId { get; set; }
     public string LanguageCode { get; set; } = "";
     public string LanguageName { get; set; } = "";
     public string LocaleCode { get; set; } = "";
     public string Title { get; set; } = "";
     public string Duration { get; set; } = "";
     public string SourceType { get; set; } = "TTS";
+    public string? AudioUrl { get; set; }
+    public bool IsDownloadable => !string.IsNullOrWhiteSpace(AudioUrl);
     public string MetaText => $"{LocaleCode} - {SourceType}";
     public string StatusSymbol => IsDownloaded ? "✓" : "";
     public Color StatusBackgroundColor => IsDownloaded

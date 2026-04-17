@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="MauiApp_Mobile.Views.PlaybackQueuePage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:services="clr-namespace:MauiApp_Mobile.Services"
+    x:DataType="services:PlaybackCoordinatorService"
+    Shell.NavBarIsVisible="False"
+    BackgroundColor="{DynamicResource LightBg}">
+
+    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="12" Padding="16,18,16,16">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+            <Border WidthRequest="40" HeightRequest="40" BackgroundColor="{DynamicResource CardBg}" StrokeThickness="0" StrokeShape="RoundRectangle 20">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped" />
+                </Border.GestureRecognizers>
+                <Label Text="←" FontSize="18" HorizontalOptions="Center" VerticalOptions="Center" />
+            </Border>
+
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                <Label Text="Hàng đợi audio" FontSize="22" FontAttributes="Bold" TextColor="{DynamicResource BodyText}" />
+                <Label Text="{Binding QueueCount, StringFormat='{0} mục'}" FontSize="12" TextColor="{DynamicResource MutedText}" />
+            </VerticalStackLayout>
+
+            <Border Grid.Column="2" BackgroundColor="{DynamicResource SurfaceAlt}" StrokeThickness="0" StrokeShape="RoundRectangle 16" Padding="12,8">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnClearTapped" />
+                </Border.GestureRecognizers>
+                <Label Text="Xóa bớt" FontSize="12" FontAttributes="Bold" TextColor="{DynamicResource BodyText}" />
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="1" BackgroundColor="{DynamicResource CardBg}" Stroke="{DynamicResource BorderColor}" StrokeThickness="1" StrokeShape="RoundRectangle 18" Padding="14">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <Label Text="Âm lượng" FontSize="14" FontAttributes="Bold" TextColor="{DynamicResource BodyText}" VerticalOptions="Center" />
+                <Slider x:Name="VolumeSlider"
+                        Grid.Column="1"
+                        Minimum="0"
+                        Maximum="100"
+                        MinimumTrackColor="{DynamicResource PrimaryGreen}"
+                        MaximumTrackColor="{DynamicResource BorderColor}"
+                        ThumbColor="{DynamicResource PrimaryGreen}"
+                        ValueChanged="OnVolumeChanged"
+                        DragCompleted="OnVolumeDragCompleted" />
+                <Label x:Name="VolumeValueLabel"
+                       Grid.Column="2"
+                       Text="100%"
+                       FontSize="13"
+                       FontAttributes="Bold"
+                       TextColor="{DynamicResource BodyText}"
+                       VerticalOptions="Center" />
+            </Grid>
+        </Border>
+
+        <CollectionView Grid.Row="2" ItemsSource="{Binding Queue}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="services:PlaybackQueueItem">
+                    <Border Margin="0,0,0,10" Padding="14,12" BackgroundColor="{DynamicResource CardBg}" Stroke="{DynamicResource BorderColor}" StrokeThickness="1" StrokeShape="RoundRectangle 18">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="{Binding Track.Title}" FontSize="15" FontAttributes="Bold" TextColor="{DynamicResource BodyText}" />
+                                <Label Text="{Binding Subtitle}" FontSize="12" TextColor="{DynamicResource MutedText}" />
+                                <Label Text="{Binding QueueTitle}" FontSize="11" TextColor="{DynamicResource PrimaryGreen}" />
+                            </VerticalStackLayout>
+                            <Border Grid.Column="1" WidthRequest="34" HeightRequest="34" BackgroundColor="#FFF3F2" StrokeThickness="0" StrokeShape="RoundRectangle 17">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnRemoveTapped" />
+                                </Border.GestureRecognizers>
+                                <Label Text="✕" FontSize="13" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{DynamicResource DangerText}" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>

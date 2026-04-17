@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 using MauiApp_Mobile.Models;
 
 namespace MauiApp_Mobile.Services;
@@ -6,14 +7,48 @@ namespace MauiApp_Mobile.Services;
 public class HistoryService
 {
     private const int MaxHistoryItems = 40;
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static HistoryService? _instance;
     public static HistoryService Instance => _instance ??= new HistoryService();
 
     public ObservableCollection<PlaceItem> HistoryItems { get; private set; } = new();
+    private bool _isInitialized;
 
     private HistoryService() { }
 
-    public void AddToHistory(PlaceItem item)
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_isInitialized)
+        {
+            return;
+        }
+
+        await MobileDatabaseService.Instance.InitializeAsync(cancellationToken);
+        var rows = await MobileDatabaseService.Instance.LoadPlaybackHistoryAsync(cancellationToken);
+        HistoryItems.Clear();
+
+        foreach (var row in rows)
+        {
+            try
+            {
+                var place = JsonSerializer.Deserialize<PlaceItem>(row.PlacePayloadJson, JsonOptions);
+                if (place is null)
+                {
+                    continue;
+                }
+
+                place.HistoryAddedAt = row.PlayedAtUtc.ToLocalTime();
+                HistoryItems.Add(place);
+            }
+            catch
+            {
+            }
+        }
+
+        _isInitialized = true;
+    }
+
+    public void AddToHistory(PlaceItem item, CancellationToken cancellationToken = default)
     {
         var existingItem = HistoryItems.FirstOrDefault(existing =>
             string.Equals(existing.Id, item.Id, StringComparison.OrdinalIgnoreCase));
@@ -23,8 +58,10 @@ public class HistoryService
             HistoryItems.Remove(existingItem);
         }
 
-        HistoryItems.Insert(0, ClonePlaceItem(item));
+        var clonedItem = ClonePlaceItem(item);
+        HistoryItems.Insert(0, clonedItem);
         TrimHistory();
+        _ = PersistAsync(clonedItem, cancellationToken);
     }
 
     public void RemoveFromHistory(PlaceItem item)
@@ -36,11 +73,14 @@ public class HistoryService
         {
             HistoryItems.Remove(existingItem);
         }
+
+        _ = MobileDatabaseService.Instance.DeletePlaybackHistoryAsync(item.Id);
     }
 
     public void ClearHistory()
     {
         HistoryItems.Clear();
+        _ = MobileDatabaseService.Instance.ClearPlaybackHistoryAsync();
     }
 
     private static PlaceItem ClonePlaceItem(PlaceItem item)
@@ -70,10 +110,21 @@ public class HistoryService
             StatusText = item.StatusText,
             GpsTriggerText = item.GpsTriggerText,
             AudioCountText = item.AudioCountText,
-            AudioTracks = Array.Empty<Project_SharedClassLibrary.Contracts.PublicAudioTrackDto>(),
+            AudioTracks = item.AudioTracks.ToList(),
             AvailableVoiceGenders = item.AvailableVoiceGenders.Take(3).ToList(),
+            LanguageBadgeSummaryText = item.LanguageBadgeSummaryText,
             Latitude = item.Latitude,
             Longitude = item.Longitude,
+            ActivationRadiusMeters = item.ActivationRadiusMeters,
+            NearRadiusMeters = item.NearRadiusMeters,
+            Priority = item.Priority,
+            DebounceSeconds = item.DebounceSeconds,
+            Status = item.Status,
+            IsGpsTriggerEnabled = item.IsGpsTriggerEnabled,
+            LastPlaybackSource = item.LastPlaybackSource,
+            LastPlaybackTrigger = item.LastPlaybackTrigger,
+            LastPlaybackTriggeredAt = item.LastPlaybackTriggeredAt,
+            LastTriggerDistanceMeters = item.LastTriggerDistanceMeters,
             CategoryColor = item.CategoryColor,
             CategoryTextColor = item.CategoryTextColor,
             HistoryAddedAt = DateTimeOffset.Now,
@@ -86,6 +137,26 @@ public class HistoryService
         while (HistoryItems.Count > MaxHistoryItems)
         {
             HistoryItems.RemoveAt(HistoryItems.Count - 1);
+        }
+    }
+
+    private static async Task PersistAsync(PlaceItem item, CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var payload = JsonSerializer.Serialize(item, JsonOptions);
+            await MobileDatabaseService.Instance.SavePlaybackHistoryAsync(
+                item.Id,
+                payload,
+                item.HistoryAddedAt ?? DateTimeOffset.Now,
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch
+        {
         }
     }
 }

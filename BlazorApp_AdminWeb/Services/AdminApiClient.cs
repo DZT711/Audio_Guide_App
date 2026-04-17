@@ -60,8 +60,53 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
     public Task<IReadOnlyList<AudioDto>> GetAudioAsync() =>
         GetListAsync<AudioDto>(ApiRoutes.Audio, "Unable to load audio.");
 
+    public Task<IReadOnlyList<AudioDto>> GetAudioByLocationAsync(int locationId) =>
+        GetListAsync<AudioDto>($"{ApiRoutes.Audio}/location/{locationId}", "Unable to load location audio.");
+
     public Task<IReadOnlyList<DashboardUserDto>> GetUsersAsync() =>
         GetListAsync<DashboardUserDto>(ApiRoutes.Users, "Unable to load users.");
+
+    public async Task<LocationQrStatusDto> GetLocationQrStatusAsync(
+        int locationId,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.GetAsync(ApiRoutes.GetLocationQrStatus(locationId), cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load the location QR status.");
+        return await ReadJsonAsync<LocationQrStatusDto>(response, "Unable to load the location QR status.");
+    }
+
+    public async Task<DownloadedAdminFile> GenerateLocationQrAsync(
+        int locationId,
+        LocationQrGenerateRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PostAsJsonAsync(
+            ApiRoutes.GetLocationQrGenerate(locationId),
+            request,
+            cancellationToken);
+
+        await EnsureSuccessAsync(response, "Unable to generate the location QR.");
+        return await ReadFileAsync(response, cancellationToken);
+    }
+
+    public async Task<DownloadedAdminFile> GenerateBulkLocationQrAsync(
+        LocationQrBulkRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.PostAsJsonAsync(
+            ApiRoutes.GetLocationQrBulkGenerate(),
+            request,
+            cancellationToken);
+
+        await EnsureSuccessAsync(response, "Unable to export bulk location QR files.");
+        return await ReadFileAsync(response, cancellationToken);
+    }
 
     public async Task<ChangeRequestListDto> GetChangeRequestsAsync(
         ChangeRequestQueryDto query,
@@ -546,6 +591,10 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         }
         AddString(content, nameof(model.EstablishedYear), model.EstablishedYear.ToString(CultureInfo.InvariantCulture));
         AddString(content, nameof(model.Status), model.Status.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.QrSize), model.QrSize.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.QrFormat), model.QrFormat);
+        AddString(content, nameof(model.QrAutoplay), model.QrAutoplay.ToString());
+        AddString(content, nameof(model.QrAudioTrackId), model.QrAudioTrackId?.ToString(CultureInfo.InvariantCulture));
         AddString(content, "RequestType", requestType);
         AddString(content, "TargetId", targetId?.ToString(CultureInfo.InvariantCulture));
         AddString(content, "Reason", reason);
@@ -705,6 +754,26 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
     {
         var payload = await response.Content.ReadFromJsonAsync<T>();
         return payload ?? throw new InvalidOperationException(fallbackMessage);
+    }
+
+    private static async Task<DownloadedAdminFile> ReadFileAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        var payload = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        var headers = response.Headers.ToDictionary(
+            item => item.Key,
+            item => string.Join(", ", item.Value),
+            StringComparer.OrdinalIgnoreCase);
+        var fileName = response.Content.Headers.ContentDisposition?.FileNameStar
+            ?? response.Content.Headers.ContentDisposition?.FileName
+            ?? "download.bin";
+
+        return new DownloadedAdminFile(
+            fileName.Trim('"'),
+            response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream",
+            payload,
+            headers);
     }
 
     private static string BuildStatisticsRoute(StatisticsQueryDto query)

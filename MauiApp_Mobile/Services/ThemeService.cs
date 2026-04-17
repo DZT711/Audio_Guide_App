@@ -59,6 +59,8 @@ public sealed class ThemeService : INotifyPropertyChanged
 
     public void SetTheme(AppThemeOption theme) => ApplyTheme(theme, persistSelection: true);
 
+    public void ApplyPersistedTheme(AppThemeOption theme) => ApplyTheme(theme, persistSelection: true);
+
     public Color GetColor(string resourceKey, string fallbackHex)
     {
         if (Application.Current?.Resources.ContainsKey(resourceKey) == true &&
@@ -330,7 +332,10 @@ public sealed class ThemeService : INotifyPropertyChanged
         var decorView = window.DecorView;
         if (decorView is not null)
         {
-            decorView.SystemUiVisibility &= ~((StatusBarVisibility)SystemUiFlags.LightStatusBar);
+#pragma warning disable CS0618
+            var visibility = decorView.SystemUiVisibility;
+            decorView.SystemUiVisibility = visibility & ~((StatusBarVisibility)SystemUiFlags.LightStatusBar);
+#pragma warning restore CS0618
         }
     }
 

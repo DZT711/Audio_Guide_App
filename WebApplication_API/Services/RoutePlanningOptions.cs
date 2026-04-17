@@ -4,9 +4,9 @@ public sealed class RoutePlanningOptions
 {
     public const string SectionName = "RoutePlanning";
 
-    public string BaseUrl { get; set; } = "https://routing.openstreetmap.de/routed-foot/";
+    public string BaseUrl { get; set; } = "http://routing.openstreetmap.de/routed-foot/";
 
-    public List<string> FallbackBaseUrls { get; set; } = ["http://routing.openstreetmap.de/routed-foot/"];
+    public List<string> FallbackBaseUrls { get; set; } = ["https://routing.openstreetmap.de/routed-foot/"];
 
     public string WalkingProfile { get; set; } = "walking";
 

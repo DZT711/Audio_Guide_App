@@ -3,6 +3,7 @@
     x:Class="MauiApp_Mobile.Views.OfflinePage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:MauiApp_Mobile.Views.Controls"
     xmlns:local="clr-namespace:MauiApp_Mobile.Views"
     xmlns:models="clr-namespace:MauiApp_Mobile.Models"
     x:Name="ThisPage"
@@ -122,8 +123,8 @@
                             </VerticalStackLayout>
 
                             <Label Grid.Column="1"
-                                   Text="🗑 Xóa hết"
-                                   FontSize="14"
+                                   Text="🗑"
+                                   FontSize="18"
                                    TextColor="{DynamicResource DangerText}"
                                    VerticalTextAlignment="Center">
                                 <Label.GestureRecognizers>
@@ -191,7 +192,8 @@
         </HorizontalStackLayout>
 
         <!-- List -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="3"
+              Padding="0,0,0,140">
             <Grid RowDefinitions="Auto,*">
                 <Grid Grid.Row="0"
                       ColumnDefinitions="*,Auto"
@@ -316,7 +318,10 @@
                                            MaxLines="2" />
 
                                     <HorizontalStackLayout Spacing="10">
-                                        <Label Text="{Binding AudioCountText}"
+                                        <Label Text="{Binding DownloadedAudioSummaryText}"
+                                               FontSize="13"
+                                               TextColor="{DynamicResource MutedText}" />
+                                        <Label Text="{Binding DistanceText, StringFormat='📏 {0}'}"
                                                FontSize="13"
                                                TextColor="{DynamicResource MutedText}" />
                                         <Label Text="{Binding Duration}"
@@ -365,8 +370,7 @@
                                                 Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DeleteCommand}"
                                                 CommandParameter="{Binding .}" />
                                         </Border.GestureRecognizers>
-                                        <Label Text="&#xE74D;"
-                                               FontFamily="Segoe MDL2 Assets"
+                                        <Label Text="🗑"
                                                TextColor="{DynamicResource DangerText}"
                                                FontSize="18"
                                                HorizontalTextAlignment="Center"
@@ -684,10 +688,13 @@
                                         <Label Text="Audio offline"
                                                FontSize="12"
                                                TextColor="{DynamicResource MutedText}" />
-                                        <Label Text="{Binding SelectedPack.AudioCountText}"
+                                        <Label Text="{Binding SelectedPack.DownloadedAudioSummaryText}"
                                                FontSize="20"
                                                FontAttributes="Bold"
                                                TextColor="{DynamicResource TitleText}" />
+                                        <Label Text="{Binding SelectedPack.DistanceText, StringFormat='📏 {0}'}"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource InfoText}" />
                                         <Label Text="{Binding SelectedPack.LanguagesText}"
                                                FontSize="12"
                                                TextColor="{DynamicResource SuccessText}" />
@@ -728,9 +735,6 @@
                                            FontSize="14"
                                            TextColor="{DynamicResource BodyText}" />
                                     <Label Text="{Binding SelectedPack.GpsText, StringFormat='🛰 {0}'}"
-                                           FontSize="14"
-                                           TextColor="{DynamicResource BodyText}" />
-                                    <Label Text="{Binding SelectedPack.RadiusText, StringFormat='📡 Bán kính kích hoạt: {0}'}"
                                            FontSize="14"
                                            TextColor="{DynamicResource BodyText}" />
                                     <Label Text="{Binding SelectedPack.DownloadedDateText}"
@@ -819,59 +823,126 @@
                                     </Grid>
 
                                     <VerticalStackLayout IsVisible="{Binding IsOfflineAudioListExpanded}"
-                                                         BindableLayout.ItemsSource="{Binding SelectedPack.AudioTracks}"
-                                                         Spacing="10">
-                                        <BindableLayout.ItemTemplate>
-                                            <DataTemplate x:DataType="local:OfflineAudioTrack">
-                                                <Grid ColumnDefinitions="Auto,*,Auto"
-                                                      ColumnSpacing="10">
-                                                    <Border BackgroundColor="{DynamicResource SurfaceAlt}"
-                                                            Stroke="{DynamicResource BorderColor}"
-                                                            StrokeThickness="1"
-                                                            StrokeShape="RoundRectangle 10"
-                                                            Padding="8,4"
-                                                            VerticalOptions="Center">
-                                                        <Label Text="{Binding LanguageCode}"
-                                                               FontSize="11"
-                                                               FontAttributes="Bold"
-                                                               TextColor="{DynamicResource BodyText}"
-                                                               VerticalTextAlignment="Center" />
-                                                    </Border>
+                                                         Spacing="12">
+                                        <Label Text="Đã tải"
+                                               IsVisible="{Binding SelectedPack.HasDownloadedTracks}"
+                                               FontSize="14"
+                                               FontAttributes="Bold"
+                                               TextColor="{DynamicResource SuccessText}" />
 
-                                                    <VerticalStackLayout Grid.Column="1"
-                                                                         Spacing="2"
-                                                                         VerticalOptions="Center">
-                                                        <Label Text="{Binding Title}"
-                                                               FontSize="13"
-                                                               FontAttributes="Bold"
-                                                               TextColor="{DynamicResource BodyText}"
-                                                               LineBreakMode="TailTruncation" />
-                                                        <Label Text="{Binding MetaText}"
-                                                               FontSize="12"
-                                                               TextColor="{DynamicResource MutedText}" />
-                                                    </VerticalStackLayout>
+                                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding SelectedPack.DownloadedTracks}"
+                                                             IsVisible="{Binding SelectedPack.HasDownloadedTracks}"
+                                                             Spacing="10">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="local:OfflineAudioTrack">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                                          ColumnSpacing="10">
+                                                        <Border BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                                Stroke="{DynamicResource BorderColor}"
+                                                                StrokeThickness="1"
+                                                                StrokeShape="RoundRectangle 10"
+                                                                Padding="8,4"
+                                                                VerticalOptions="Center">
+                                                            <Label Text="{Binding LanguageCode}"
+                                                                   FontSize="11"
+                                                                   FontAttributes="Bold"
+                                                                   TextColor="{DynamicResource BodyText}"
+                                                                   VerticalTextAlignment="Center" />
+                                                        </Border>
 
-                                                    <Border Grid.Column="2"
-                                                            BackgroundColor="{DynamicResource PrimaryGreen}"
-                                                            StrokeThickness="0"
-                                                            StrokeShape="RoundRectangle 18"
-                                                            WidthRequest="36"
-                                                            HeightRequest="36"
-                                                            VerticalOptions="Center">
-                                                        <Border.GestureRecognizers>
-                                                            <TapGestureRecognizer
-                                                                Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.PlayTrackCommand}"
-                                                                CommandParameter="{Binding .}" />
-                                                        </Border.GestureRecognizers>
-                                                        <Label Text="{Binding PlayIcon}"
-                                                               TextColor="White"
-                                                               FontSize="14"
-                                                               HorizontalTextAlignment="Center"
-                                                               VerticalTextAlignment="Center" />
-                                                    </Border>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </BindableLayout.ItemTemplate>
+                                                        <VerticalStackLayout Grid.Column="1"
+                                                                             Spacing="2"
+                                                                             VerticalOptions="Center">
+                                                            <Label Text="{Binding Title}"
+                                                                   FontSize="13"
+                                                                   FontAttributes="Bold"
+                                                                   TextColor="{DynamicResource BodyText}"
+                                                                   LineBreakMode="TailTruncation" />
+                                                            <Label Text="{Binding MetaText}"
+                                                                   FontSize="12"
+                                                                   TextColor="{DynamicResource MutedText}" />
+                                                        </VerticalStackLayout>
+
+                                                        <Border Grid.Column="2"
+                                                                BackgroundColor="{DynamicResource PrimaryGreen}"
+                                                                StrokeThickness="0"
+                                                                StrokeShape="RoundRectangle 18"
+                                                                WidthRequest="36"
+                                                                HeightRequest="36"
+                                                                VerticalOptions="Center">
+                                                            <Border.GestureRecognizers>
+                                                                <TapGestureRecognizer
+                                                                    Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.PlayTrackCommand}"
+                                                                    CommandParameter="{Binding .}" />
+                                                            </Border.GestureRecognizers>
+                                                            <Label Text="{Binding PlayIcon}"
+                                                                   TextColor="White"
+                                                                   FontSize="14"
+                                                                   HorizontalTextAlignment="Center"
+                                                                   VerticalTextAlignment="Center" />
+                                                        </Border>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </VerticalStackLayout>
+
+                                        <Label Text="Chưa tải"
+                                               IsVisible="{Binding SelectedPack.HasPendingTracks}"
+                                               FontSize="14"
+                                               FontAttributes="Bold"
+                                               TextColor="{DynamicResource WarningText}" />
+
+                                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding SelectedPack.PendingTracks}"
+                                                             IsVisible="{Binding SelectedPack.HasPendingTracks}"
+                                                             Spacing="10">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="local:OfflineAudioTrack">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                                          ColumnSpacing="10">
+                                                        <Border BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                                Stroke="{DynamicResource BorderColor}"
+                                                                StrokeThickness="1"
+                                                                StrokeShape="RoundRectangle 10"
+                                                                Padding="8,4"
+                                                                VerticalOptions="Center">
+                                                            <Label Text="{Binding LanguageCode}"
+                                                                   FontSize="11"
+                                                                   FontAttributes="Bold"
+                                                                   TextColor="{DynamicResource BodyText}"
+                                                                   VerticalTextAlignment="Center" />
+                                                        </Border>
+
+                                                        <VerticalStackLayout Grid.Column="1"
+                                                                             Spacing="2"
+                                                                             VerticalOptions="Center">
+                                                            <Label Text="{Binding Title}"
+                                                                   FontSize="13"
+                                                                   FontAttributes="Bold"
+                                                                   TextColor="{DynamicResource BodyText}"
+                                                                   LineBreakMode="TailTruncation" />
+                                                            <Label Text="{Binding MetaText}"
+                                                                   FontSize="12"
+                                                                   TextColor="{DynamicResource MutedText}" />
+                                                        </VerticalStackLayout>
+
+                                                        <Border Grid.Column="2"
+                                                                BackgroundColor="{DynamicResource SurfaceAlt}"
+                                                                Stroke="{DynamicResource BorderColor}"
+                                                                StrokeThickness="1"
+                                                                StrokeShape="RoundRectangle 18"
+                                                                WidthRequest="36"
+                                                                HeightRequest="36"
+                                                                VerticalOptions="Center">
+                                                            <Label Text="↓"
+                                                                   TextColor="{DynamicResource MutedText}"
+                                                                   FontSize="14"
+                                                                   HorizontalTextAlignment="Center"
+                                                                   VerticalTextAlignment="Center" />
+                                                        </Border>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </VerticalStackLayout>
                                     </VerticalStackLayout>
                                 </VerticalStackLayout>
                             </Border>
@@ -902,8 +973,7 @@
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 21"
                                 VerticalOptions="Start">
-                            <Label Text="&#xE74D;"
-                                   FontFamily="Segoe MDL2 Assets"
+                            <Label Text="🗑"
                                    TextColor="#FF4D4F"
                                    FontSize="18"
                                    HorizontalTextAlignment="Center"
@@ -946,5 +1016,10 @@
                 </VerticalStackLayout>
             </Border>
         </Grid>
+
+        <controls:MiniPlayerView Grid.Row="1"
+                                 UseTransparentChrome="True"
+                                 VerticalOptions="End"
+                                 ZIndex="40" />
     </Grid>
 </ContentPage>

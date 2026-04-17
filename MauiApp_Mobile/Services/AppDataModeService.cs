@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Microsoft.Maui.Storage;
 
 namespace MauiApp_Mobile.Services;
 
@@ -29,6 +30,23 @@ public sealed class AppDataModeService : INotifyPropertyChanged
             Preferences.Default.Set(ApiModePreferenceKey, value);
             OnPropertyChanged();
         }
+    }
+
+    public void Initialize(bool value)
+    {
+        if (_isApiEnabled == value)
+        {
+            return;
+        }
+
+        _isApiEnabled = value;
+        Preferences.Default.Set(ApiModePreferenceKey, value);
+        OnPropertyChanged(nameof(IsApiEnabled));
+    }
+
+    public void SwitchToOfflineFallback()
+    {
+        IsApiEnabled = false;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -1,4 +1,5 @@
 using MauiApp_Mobile.Services;
+using Microsoft.Maui.ApplicationModel;
 
 namespace MauiApp_Mobile.Views;
 
@@ -6,23 +7,31 @@ public partial class LanguagePage : ContentPage
 {
     private bool _hasAnimated;
     private bool _isRefreshingLanguageText;
+    private bool _subscriptionsAttached;
 
     public LanguagePage()
     {
         InitializeComponent();
-        ApplyLanguage("vi", animateText: false);
-        ThemeService.Instance.PropertyChanged += (_, _) => ApplyLanguage(LocalizationService.Instance.Language);
+        ApplyLanguage(ResolveInitialLanguageCode(), animateText: false);
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        AttachSubscriptions();
+        ApplyLanguage(ResolveInitialLanguageCode(), animateText: false);
 
         if (_hasAnimated)
             return;
 
         _hasAnimated = true;
         _ = UiEffectsService.AnimateEntranceAsync(HeroStack, LanguageCardGrid, StartButton, FooterLabel);
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        DetachSubscriptions();
     }
 
     private void ApplyLanguage(string languageCode, bool animateText = true)
@@ -112,10 +121,134 @@ public partial class LanguagePage : ContentPage
     private void OnTapKorean(object sender, TappedEventArgs e) => ApplyLanguage("kr");
     private void OnTapFrench(object sender, TappedEventArgs e) => ApplyLanguage("fr");
 
+    private void AttachSubscriptions()
+    {
+        if (_subscriptionsAttached)
+        {
+            return;
+        }
+
+        ThemeService.Instance.PropertyChanged += OnThemeChanged;
+        AppSettingsService.Instance.PropertyChanged += OnAppSettingsChanged;
+        _subscriptionsAttached = true;
+    }
+
+    private void DetachSubscriptions()
+    {
+        if (!_subscriptionsAttached)
+        {
+            return;
+        }
+
+        ThemeService.Instance.PropertyChanged -= OnThemeChanged;
+        AppSettingsService.Instance.PropertyChanged -= OnAppSettingsChanged;
+        _subscriptionsAttached = false;
+    }
+
+    private void OnThemeChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) =>
+        MainThread.BeginInvokeOnMainThread(() => ApplyLanguage(ResolveInitialLanguageCode(), animateText: false));
+
+    private void OnAppSettingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(AppSettingsService.LanguageCode), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(() => ApplyLanguage(ResolveInitialLanguageCode(), animateText: false));
+    }
+
+    private static string ResolveInitialLanguageCode()
+    {
+        var settingsLanguage = AppSettingsService.Instance.LanguageCode;
+        if (!string.IsNullOrWhiteSpace(settingsLanguage))
+        {
+            return settingsLanguage;
+        }
+
+        return LocalizationService.Instance.Language;
+    }
+
     private async void OnStartClicked(object sender, EventArgs e)
     {
         await StartButton.ScaleToAsync(0.98, 70, Easing.CubicIn);
         await StartButton.ScaleToAsync(1, 160, Easing.CubicOut);
+
+        var currentSettings = AppSettingsService.Instance.CreateSnapshot();
+        await AppSettingsService.Instance.SaveAsync(currentSettings with
+        {
+            LanguageCode = LocalizationService.Instance.Language
+        });
+
+#if ANDROID
+        if (!await EnsureAndroidTrackingPermissionsAsync())
+        {
+            return;
+        }
+#endif
+
         await Shell.Current.GoToAsync("//places");
     }
+
+#if ANDROID
+    private async Task<bool> EnsureAndroidTrackingPermissionsAsync()
+    {
+        while (true)
+        {
+            var foregroundStatus = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+            if (foregroundStatus != PermissionStatus.Granted)
+            {
+                foregroundStatus = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+            }
+
+            if (foregroundStatus != PermissionStatus.Granted)
+            {
+                var retryForeground = await DisplayAlertAsync(
+                    "Quyền vị trí",
+                    "Ứng dụng cần quyền vị trí chính xác để định vị bạn trên bản đồ và kích hoạt audio theo hành trình.",
+                    "Yêu cầu lại",
+                    "Để sau");
+
+                if (!retryForeground)
+                {
+                    return false;
+                }
+
+                if (!Permissions.ShouldShowRationale<Permissions.LocationWhenInUse>())
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            var backgroundStatus = await Permissions.CheckStatusAsync<Permissions.LocationAlways>();
+            if (backgroundStatus != PermissionStatus.Granted)
+            {
+                backgroundStatus = await Permissions.RequestAsync<Permissions.LocationAlways>();
+            }
+
+            if (backgroundStatus == PermissionStatus.Granted)
+            {
+                return true;
+            }
+
+            var retryBackground = await DisplayAlertAsync(
+                "Theo dõi nền",
+                "Hãy cho phép vị trí mọi lúc để app vẫn theo dõi được khi bạn rời khỏi màn hình và tiếp tục phát audio theo POI.",
+                "Yêu cầu lại",
+                "Mở cài đặt");
+
+            if (!retryBackground)
+            {
+                return false;
+            }
+
+            if (!Permissions.ShouldShowRationale<Permissions.LocationAlways>())
+            {
+                return false;
+            }
+        }
+    }
+#endif
 }

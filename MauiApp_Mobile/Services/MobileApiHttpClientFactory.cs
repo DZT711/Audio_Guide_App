@@ -16,7 +16,7 @@ internal static class MobileApiHttpClientFactory
 
         return new HttpClient(new MobileApiLoggingHandler(socketsHandler))
         {
-            BaseAddress = MobileApiOptions.BaseUri,
+            BaseAddress = MobileApiOptions.PlaceholderBaseUri,
             Timeout = timeout
         };
     }

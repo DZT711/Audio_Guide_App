@@ -3,6 +3,7 @@
     x:Class="MauiApp_Mobile.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:MauiApp_Mobile.Views.Controls"
     BackgroundColor="{DynamicResource LightBg}">
 
     <Grid RowDefinitions="Auto,*">
@@ -15,7 +16,7 @@
 
         <Grid Grid.Row="1">
             <ScrollView>
-                <VerticalStackLayout Padding="16,18,16,28" Spacing="18">
+                <VerticalStackLayout Padding="16,18,16,140" Spacing="18">
 
                     <HorizontalStackLayout Spacing="8">
                         <Label Text="🔊" FontSize="18" />
@@ -356,12 +357,14 @@
                                        Text="Độ chính xác GPS"
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
-                                <Label x:Name="GpsAccuracyValueLabel"
-                                       Grid.Column="1"
-                                       Text="Cao"
-                                       FontSize="16"
-                                       TextColor="{DynamicResource PrimaryGreen}"
-                                       FontAttributes="Bold" />
+                                <Picker x:Name="GpsAccuracyPicker"
+                                        Grid.Column="1"
+                                        Title="Accuracy"
+                                        WidthRequest="160"
+                                        HorizontalOptions="End"
+                                        SelectedIndexChanged="OnGpsAccuracyChanged"
+                                        TextColor="{DynamicResource PrimaryGreen}"
+                                        TitleColor="{DynamicResource MutedText}" />
                             </Grid>
 
                             <Label x:Name="TriggerRadiusLabel"
@@ -415,10 +418,10 @@
                                    FontSize="16"
                                    TextColor="{DynamicResource BodyText}" />
 
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Slider Minimum="60"
-                                        Maximum="600"
-                                        Value="300"
+                              <Grid ColumnDefinitions="*,Auto">
+                                  <Slider Minimum="60"
+                                          Maximum="600"
+                                          Value="300"
                                         MinimumTrackColor="{DynamicResource PrimaryGreen}"
                                         MaximumTrackColor="{DynamicResource BorderColor}"
                                         ThumbColor="{DynamicResource PrimaryGreen}"
@@ -429,10 +432,42 @@
                                        Text="300s"
                                        Margin="10,0,0,0"
                                        VerticalOptions="Center"
-                                       FontSize="16"
-                                       FontAttributes="Bold" />
-                            </Grid>
-                        </VerticalStackLayout>
+                                         FontSize="16"
+                                         FontAttributes="Bold" />
+                              </Grid>
+
+                              <Grid ColumnDefinitions="*,Auto"
+                                    ColumnSpacing="12">
+                                  <Label x:Name="ShowPoiRadiusLabel"
+                                         Text="Hiện bán kính POI trên bản đồ"
+                                         FontSize="16"
+                                         TextColor="{DynamicResource BodyText}" />
+                                  <Switch x:Name="ShowPoiRadiusSwitch"
+                                          Grid.Column="1"
+                                          IsToggled="True"
+                                          OnColor="{DynamicResource PrimaryGreen}" />
+                              </Grid>
+
+                              <Label x:Name="AutoFocusIdleLabel"
+                                     Text="Tự focus POI sau khi không chạm bản đồ"
+                                     FontSize="16"
+                                     TextColor="{DynamicResource BodyText}" />
+
+                              <Grid ColumnDefinitions="*,Auto"
+                                    ColumnSpacing="12">
+                                  <Entry x:Name="AutoFocusIdleEntry"
+                                         Keyboard="Numeric"
+                                         Placeholder="60"
+                                         TextColor="{DynamicResource BodyText}"
+                                         PlaceholderColor="{DynamicResource MutedText}"
+                                         BackgroundColor="{DynamicResource CardBg}" />
+                                  <Label x:Name="AutoFocusIdleHintLabel"
+                                         Grid.Column="1"
+                                         Text="s, -1 để tắt"
+                                         VerticalOptions="Center"
+                                         TextColor="{DynamicResource MutedText}" />
+                              </Grid>
+                          </VerticalStackLayout>
                     </Border>
 
                     <HorizontalStackLayout Spacing="8">
@@ -473,9 +508,10 @@
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
                                 <Switch x:Name="BackgroundTrackingSwitch"
-                                        Grid.Column="1"
-                                        IsToggled="True"
-                                        OnColor="{DynamicResource PrimaryGreen}" />
+                                         Grid.Column="1"
+                                         IsToggled="True"
+                                         Toggled="OnBackgroundTrackingToggled"
+                                         OnColor="{DynamicResource PrimaryGreen}" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
@@ -486,12 +522,13 @@
                                 <Switch x:Name="BatterySaverSwitch"
                                         Grid.Column="1"
                                         IsToggled="False"
-                                        OnColor="{DynamicResource PrimaryGreen}" />
+                                        OnColor="{DynamicResource PrimaryGreen}"
+                                        Toggled="OnBatterySaverToggled" />
                             </Grid>
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="ApiModeLabel"
-                                       Text="Kết nối API"
+                                       Text="Offline mode"
                                        FontSize="16"
                                        TextColor="{DynamicResource BodyText}" />
                                 <Switch x:Name="ApiModeSwitch"
@@ -500,6 +537,28 @@
                                         OnColor="{DynamicResource PrimaryGreen}"
                                         Toggled="OnApiModeToggled" />
                             </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="DeveloperModeLabel"
+                                       Text="Hiện nút dev trên bản đồ"
+                                       FontSize="16"
+                                       TextColor="{DynamicResource BodyText}" />
+                                <Switch x:Name="DeveloperModeSwitch"
+                                        Grid.Column="1"
+                                        IsToggled="False"
+                                        OnColor="{DynamicResource PrimaryGreen}" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="MiniPlayerLabel"
+                                       Text="Hiện thanh phát mini"
+                                       FontSize="16"
+                                       TextColor="{DynamicResource BodyText}" />
+                                <Switch x:Name="MiniPlayerSwitch"
+                                        Grid.Column="1"
+                                        IsToggled="True"
+                                        OnColor="{DynamicResource PrimaryGreen}" />
+                            </Grid>
                         </VerticalStackLayout>
                     </Border>
 
@@ -507,6 +566,11 @@
                             Text="Lưu cài đặt"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Clicked="OnSaveSettingsClicked" />
+
+                    <Button x:Name="ScanQrButton"
+                            Text="Quét mã QR"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Clicked="OnScanQrClicked" />
 
                 </VerticalStackLayout>
             </ScrollView>
@@ -709,5 +773,10 @@
                 </ScrollView>
             </Border>
         </Grid>
+
+        <controls:MiniPlayerView Grid.Row="1"
+                                 UseTransparentChrome="True"
+                                 VerticalOptions="End"
+                                 ZIndex="40" />
     </Grid>
 </ContentPage>

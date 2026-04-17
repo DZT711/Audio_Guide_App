@@ -111,6 +111,10 @@ public static class AdminMappings
             Email = location.Email,
             Phone = location.PhoneContact,
             EstablishedYear = location.EstablishedYear ?? DateTime.UtcNow.Year,
+            QrSize = location.QrSize,
+            QrFormat = string.IsNullOrWhiteSpace(location.QrFormat) ? QrCodeFormats.Png : location.QrFormat,
+            QrAutoplay = location.QrAutoplay,
+            QrAudioTrackId = location.QrAudioTrackId,
             AudioCount = location.AudioContents.Count(item => item.Status == 1),
             AvailableVoiceGenders = location.AudioContents
                 .Where(item => item.Status == 1 && !string.IsNullOrWhiteSpace(item.VoiceGender))
@@ -212,6 +216,26 @@ public static class AdminMappings
             Status = tour.Status,
             CreatedAt = tour.CreatedAt,
             UpdatedAt = tour.UpdatedAt,
+            RoutePreview = new TourRoutePreviewDto
+            {
+                TotalDistanceKm = Math.Round(tour.TotalDistanceKm, 2, MidpointRounding.AwayFromZero),
+                EstimatedDurationMinutes = tour.EstimatedDurationMinutes,
+                WalkingSpeedKph = tour.WalkingSpeedKph,
+                StartTime = TourPlanningService.NormalizeTime(tour.StartTime),
+                FinishTime = finishTime,
+                UsesRoadRouting = false,
+                Segments = stopDtos.Select(stop => new TourRouteSegmentDto
+                {
+                    SequenceOrder = stop.SequenceOrder,
+                    LocationId = stop.LocationId,
+                    DistanceKm = stop.SegmentDistanceKm
+                }).ToList(),
+                Path = stopDtos.Select(stop => new TourRoutePointDto
+                {
+                    Latitude = stop.Latitude,
+                    Longitude = stop.Longitude
+                }).ToList()
+            },
             Stops = stopDtos
         };
     }

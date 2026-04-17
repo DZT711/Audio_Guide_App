@@ -7,6 +7,7 @@ using System.Text.Json;
 using MauiApp_Mobile.Models;
 using Project_SharedClassLibrary.Constants;
 using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Geofencing;
 
 namespace MauiApp_Mobile.Services;
 
@@ -31,6 +32,8 @@ public sealed class PlaceCatalogService
     private PlaceCatalogService()
     {
     }
+
+    public event EventHandler? CatalogChanged;
 
     public IReadOnlyList<PlaceItem> GetPlaces() => _places.ToList();
 
@@ -115,22 +118,28 @@ public sealed class PlaceCatalogService
             await SaveAudioTrackCacheAsync(cancellationToken);
 
             var place = _places.FirstOrDefault(item => string.Equals(item.Id, normalizedPlaceId, StringComparison.OrdinalIgnoreCase));
-            if (place is not null)
-            {
-                place.AudioTracks = audioTracks;
-                place.AudioCountText = $"{audioTracks.Count} audio";
-                place.AvailableVoiceGenders = audioTracks
+                if (place is not null)
+                {
+                    place.AudioTracks = audioTracks;
+                    place.AudioCountText = $"{audioTracks.Count} audio";
+                    place.AvailableVoiceGenders = audioTracks
                     .Select(item => NormalizeVoiceGender(item.VoiceGender))
-                    .Where(item => !string.IsNullOrWhiteSpace(item))
-                    .Cast<string>()
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
+                        .Where(item => !string.IsNullOrWhiteSpace(item))
+                        .Cast<string>()
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    place.LanguageBadgeSummaryText = LanguageBadgeService.BuildSummary(audioTracks);
+                }
 
             return audioTracks.ToList();
         }
-        catch when (!cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
+            if (FriendlyMessageService.IsServerFailure(ex))
+            {
+                AppDataModeService.Instance.SwitchToOfflineFallback();
+            }
+
             await EnsureAudioTrackCacheLoadedAsync(cancellationToken);
             return _audioTracksByPlaceId.TryGetValue(normalizedPlaceId, out var fallbackTracks)
                 ? fallbackTracks.ToList()
@@ -189,10 +198,29 @@ public sealed class PlaceCatalogService
                 Category = item.Category,
                 Latitude = item.Latitude,
                 Longitude = item.Longitude,
+                RadiusMeters = item.ActivationRadiusMeters > 0d
+                    ? item.ActivationRadiusMeters
+                    : AppSettingsService.Instance.TriggerRadiusMeters,
                 Image = string.IsNullOrWhiteSpace(item.PreferenceImage) ? item.Image : item.PreferenceImage,
                 GalleryImages = SelectMapGalleryImages(item)
             })
             .ToList();
+    }
+
+    public async Task TrySyncCatalogInBackgroundAsync(CancellationToken cancellationToken = default)
+    {
+        if (!AppDataModeService.Instance.IsApiEnabled)
+        {
+            return;
+        }
+
+        try
+        {
+            await EnsureCatalogLoadedAsync(forceRefresh: true, cancellationToken);
+        }
+        catch
+        {
+        }
     }
 
     private static PlaceItem MapToPlaceItem(LocationDto location, IReadOnlyList<PublicAudioTrackDto>? audioTracks)
@@ -261,11 +289,39 @@ public sealed class PlaceCatalogService
                 .Cast<string>()
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList(),
+            LanguageBadgeSummaryText = LanguageBadgeService.BuildSummary(audioTracks),
             Latitude = location.Latitude,
             Longitude = location.Longitude,
+            ActivationRadiusMeters = SanitizeActivationRadius(location.Radius),
+            NearRadiusMeters = SanitizeNearRadius(location.Radius, location.StandbyRadius),
+            Priority = location.Priority,
+            DebounceSeconds = Math.Max(0, location.DebounceSeconds),
+            Status = location.Status,
+            IsGpsTriggerEnabled = location.IsGpsTriggerEnabled,
             CategoryColor = categoryColors.Background,
             CategoryTextColor = categoryColors.Foreground
         };
+    }
+
+    public IReadOnlyList<PoiGeofenceDefinition> GetGeofenceDefinitions()
+    {
+        return _places
+            .Where(item =>
+                item.Status == 1 &&
+                item.IsGpsTriggerEnabled &&
+                !string.IsNullOrWhiteSpace(item.Id) &&
+                IsFiniteCoordinate(item.Latitude) &&
+                IsFiniteCoordinate(item.Longitude))
+            .Select(item => new PoiGeofenceDefinition(
+                item.Id,
+                item.Latitude,
+                item.Longitude,
+                SanitizeActivationRadius(item.ActivationRadiusMeters),
+                SanitizeNearRadius(item.ActivationRadiusMeters, item.NearRadiusMeters),
+                item.Priority,
+                Math.Max(0, item.DebounceSeconds),
+                item.IsGpsTriggerEnabled))
+            .ToList();
     }
 
     private static IReadOnlyList<string> SelectMapGalleryImages(PlaceItem item)
@@ -380,19 +436,23 @@ public sealed class PlaceCatalogService
 
     private static int GetSearchScore(PlaceItem item, string keyword)
     {
-        if (item.Name.Equals(keyword, StringComparison.OrdinalIgnoreCase))
+        var name = item.Name ?? string.Empty;
+        var category = item.Category ?? string.Empty;
+        var description = item.Description ?? string.Empty;
+
+        if (name.Equals(keyword, StringComparison.OrdinalIgnoreCase))
             return 300;
 
-        if (item.Name.StartsWith(keyword, StringComparison.OrdinalIgnoreCase))
+        if (name.StartsWith(keyword, StringComparison.OrdinalIgnoreCase))
             return 220;
 
-        if (item.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        if (name.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             return 180;
 
-        if (item.Category.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        if (category.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             return 120;
 
-        if (item.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        if (description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             return 90;
 
         return 0;
@@ -455,6 +515,8 @@ public sealed class PlaceCatalogService
 
             return MapToPlaceItem(location, audioTracks);
         }));
+
+        CatalogChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async Task<CachedCatalogData> LoadCatalogWithFallbackAsync(bool forceRefresh, CancellationToken cancellationToken)
@@ -480,6 +542,7 @@ public sealed class PlaceCatalogService
                 ?? new PublicCatalogSnapshotDto();
             var audioTracksByPlaceId = GroupAudioTracksByPlaceId(snapshot.AudioTracks);
 
+            await MobileDatabaseService.Instance.SaveCatalogSnapshotAsync(snapshot, cancellationToken);
             await SaveCacheAsync(snapshot.Locations, cancellationToken);
             await SaveCategoryCacheAsync(snapshot.Categories, cancellationToken);
             await SaveAudioTrackCacheAsync(audioTracksByPlaceId, cancellationToken);
@@ -490,8 +553,13 @@ public sealed class PlaceCatalogService
 
             return new CachedCatalogData(snapshot.Locations, snapshot.Categories, audioTracksByPlaceId);
         }
-        catch when (!cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
+            if (FriendlyMessageService.IsServerFailure(ex))
+            {
+                AppDataModeService.Instance.SwitchToOfflineFallback();
+            }
+
             var cachedCatalog = await LoadCatalogFromCacheAsync(cancellationToken);
             if (cachedCatalog.HasContent)
             {
@@ -681,6 +749,15 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var existingSnapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            await MobileDatabaseService.Instance.SaveCatalogSnapshotAsync(new PublicCatalogSnapshotDto
+            {
+                RefreshedAtUtc = existingSnapshot.RefreshedAtUtc,
+                Categories = existingSnapshot.Categories,
+                Locations = locations,
+                AudioTracks = existingSnapshot.AudioTracks
+            }, cancellationToken);
+
             Directory.CreateDirectory(Path.GetDirectoryName(CacheFilePath)!);
             await using var stream = File.Create(CacheFilePath);
             await JsonSerializer.SerializeAsync(stream, locations, CacheJsonOptions, cancellationToken);
@@ -694,6 +771,15 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var existingSnapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            await MobileDatabaseService.Instance.SaveCatalogSnapshotAsync(new PublicCatalogSnapshotDto
+            {
+                RefreshedAtUtc = existingSnapshot.RefreshedAtUtc,
+                Categories = categories,
+                Locations = existingSnapshot.Locations,
+                AudioTracks = existingSnapshot.AudioTracks
+            }, cancellationToken);
+
             Directory.CreateDirectory(Path.GetDirectoryName(CategoryCacheFilePath)!);
             await using var stream = File.Create(CategoryCacheFilePath);
             await JsonSerializer.SerializeAsync(stream, categories, CacheJsonOptions, cancellationToken);
@@ -707,6 +793,12 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var snapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            if (snapshot.Locations.Count > 0)
+            {
+                return snapshot.Locations.ToList();
+            }
+
             if (!File.Exists(CacheFilePath))
             {
                 return [];
@@ -725,6 +817,12 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var snapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            if (snapshot.Categories.Count > 0)
+            {
+                return snapshot.Categories.ToList();
+            }
+
             if (!File.Exists(CategoryCacheFilePath))
             {
                 return [];
@@ -781,6 +879,15 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var existingSnapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            await MobileDatabaseService.Instance.SaveCatalogSnapshotAsync(new PublicCatalogSnapshotDto
+            {
+                RefreshedAtUtc = existingSnapshot.RefreshedAtUtc,
+                Categories = existingSnapshot.Categories,
+                Locations = existingSnapshot.Locations,
+                AudioTracks = audioTracksByPlaceId.Values.SelectMany(item => item).ToList()
+            }, cancellationToken);
+
             Directory.CreateDirectory(Path.GetDirectoryName(AudioTrackCacheFilePath)!);
             await using var stream = File.Create(AudioTrackCacheFilePath);
             await JsonSerializer.SerializeAsync(stream, audioTracksByPlaceId, CacheJsonOptions, cancellationToken);
@@ -794,6 +901,12 @@ public sealed class PlaceCatalogService
     {
         try
         {
+            var snapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
+            if (snapshot.AudioTracks.Count > 0)
+            {
+                return GroupAudioTracksByPlaceId(snapshot.AudioTracks);
+            }
+
             if (!File.Exists(AudioTrackCacheFilePath))
             {
                 return new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase);
@@ -857,6 +970,26 @@ public sealed class PlaceCatalogService
             _ => 2
         };
 
+    private static double SanitizeActivationRadius(double radiusMeters)
+    {
+        var configuredTriggerRadius = Math.Clamp(AppSettingsService.Instance.TriggerRadiusMeters, 10d, 500d);
+        var poiRadius = radiusMeters > 0d ? radiusMeters : configuredTriggerRadius;
+        return Math.Clamp(Math.Max(poiRadius, configuredTriggerRadius), 10d, 500d);
+    }
+
+    private static double SanitizeNearRadius(double activationRadiusMeters, double nearRadiusMeters)
+    {
+        var activationRadius = SanitizeActivationRadius(activationRadiusMeters);
+        var candidateNearRadius = nearRadiusMeters > 0d
+            ? nearRadiusMeters
+            : Math.Min(activationRadius, Math.Max(10d, AppSettingsService.Instance.AlertRadiusMeters / 2d));
+
+        return Math.Clamp(candidateNearRadius, 5d, activationRadius);
+    }
+
+    private static bool IsFiniteCoordinate(double value) =>
+        !double.IsNaN(value) && !double.IsInfinity(value);
+
     private static IEnumerable<string?> GetImageCandidates(LocationDto location)
     {
         yield return location.PreferenceImageUrl;
@@ -894,6 +1027,7 @@ public sealed class PlaceCatalogService
         public string Category { get; init; } = string.Empty;
         public double Latitude { get; init; }
         public double Longitude { get; init; }
+        public double RadiusMeters { get; init; }
         public string Image { get; init; } = string.Empty;
         public IReadOnlyList<string> GalleryImages { get; init; } = Array.Empty<string>();
     }

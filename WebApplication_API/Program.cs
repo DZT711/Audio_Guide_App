@@ -1,3 +1,4 @@
+
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
@@ -26,6 +27,7 @@ builder.Services.AddSingleton<SharedAudioFileStorageService>();
 builder.Services.AddSingleton<SharedImageFileStorageService>();
 builder.Services.Configure<RoutePlanningOptions>(builder.Configuration.GetSection(RoutePlanningOptions.SectionName));
 builder.Services.Configure<GeminiSpeechOptions>(builder.Configuration.GetSection(GeminiSpeechOptions.SectionName));
+builder.Services.Configure<QrLinkOptions>(builder.Configuration.GetSection(QrLinkOptions.SectionName));
 builder.Services.AddHttpClient<TtsPreviewService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(20);
@@ -65,6 +67,8 @@ builder.Services.AddSingleton<ServerRuntimeInfoService>();
 builder.Services.AddScoped<AdminRequestAuthorizationService>();
 builder.Services.AddScoped<ChangeRequestWorkflowService>();
 builder.Services.AddScoped<ActivityLogService>();
+builder.Services.AddSingleton<LocationQrService>();
+builder.Services.AddSingleton<AndroidApkPackagingService>();
 
 builder.Services.AddCors(options =>
 {
@@ -117,4 +121,3 @@ app.MapControllers();
 // app.MapVoiceEndpoints();
 app.MigrateDb();
 app.Run();
-

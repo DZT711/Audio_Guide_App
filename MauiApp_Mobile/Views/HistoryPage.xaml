@@ -3,6 +3,8 @@
     x:Class="MauiApp_Mobile.Views.HistoryPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:MauiApp_Mobile.Views.Controls"
+    xmlns:models="clr-namespace:MauiApp_Mobile.Models"
     x:Name="ThisPage"
     BackgroundColor="{DynamicResource LightBg}">
 
@@ -32,7 +34,7 @@
         </Grid>
 
         <ScrollView Grid.Row="1">
-            <VerticalStackLayout Padding="16,12,16,24" Spacing="14">
+            <VerticalStackLayout Padding="16,12,16,140" Spacing="14">
                 <HorizontalStackLayout Spacing="10">
                     <Border BackgroundColor="{DynamicResource CardBg}"
                             Stroke="{DynamicResource BorderColor}"
@@ -86,10 +88,10 @@
                                 <Border.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnHistoryItemTapped" />
                                 </Border.GestureRecognizers>
-                                <Grid ColumnDefinitions="74,*,Auto"
+                                <Grid ColumnDefinitions="86,*,Auto"
                                       ColumnSpacing="12">
-                                    <Grid WidthRequest="74"
-                                          HeightRequest="74">
+                                    <Grid WidthRequest="86"
+                                          HeightRequest="86">
                                         <Border StrokeThickness="0"
                                                 StrokeShape="RoundRectangle 18"
                                                 BackgroundColor="{DynamicResource SurfaceAlt}">
@@ -126,20 +128,42 @@
                                                TextColor="{DynamicResource MutedText}"
                                                LineBreakMode="TailTruncation"
                                                MaxLines="1" />
-                                        <HorizontalStackLayout Spacing="8">
-                                            <Border Padding="10,4"
-                                                    BackgroundColor="{Binding CategoryColor}"
+                                            <HorizontalStackLayout Spacing="8">
+                                                <Border Padding="10,4"
+                                                    BackgroundColor="{Binding DisplayCategoryColor}"
                                                     StrokeThickness="0"
-                                                    StrokeShape="RoundRectangle 10">
+                                                    StrokeShape="RoundRectangle 10"
+                                                    IsVisible="{Binding HasCategory}">
                                                 <Label Text="{Binding Category}"
                                                        FontSize="12"
-                                                       TextColor="{Binding CategoryTextColor}" />
+                                                       TextColor="{Binding DisplayCategoryTextColor}" />
                                             </Border>
                                             <Label Text="{Binding HistoryRelativeTimeText}"
                                                    FontSize="12"
                                                    TextColor="{DynamicResource MutedText}"
                                                    VerticalOptions="Center" />
                                         </HorizontalStackLayout>
+                                        <FlexLayout BindableLayout.ItemsSource="{Binding LanguageBadges}"
+                                                    Wrap="Wrap"
+                                                    Direction="Row"
+                                                    AlignItems="Start"
+                                                    JustifyContent="Start"
+                                                    IsVisible="{Binding HasLanguageBadges}">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="models:LanguageBadgeChip">
+                                                    <Border Margin="0,0,6,6"
+                                                            Padding="8,4"
+                                                            BackgroundColor="{Binding BackgroundColor}"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 10">
+                                                        <Label Text="{Binding Label}"
+                                                               FontSize="11"
+                                                               FontAttributes="Bold"
+                                                               TextColor="{Binding TextColor}" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </FlexLayout>
                                     </VerticalStackLayout>
 
                                     <VerticalStackLayout Grid.Column="2"
@@ -251,7 +275,7 @@
                     <VerticalStackLayout Grid.Row="2"
                                          Padding="16,14,16,0"
                                          Spacing="10">
-                        <Border BackgroundColor="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.CategoryColor}"
+                        <Border BackgroundColor="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.DisplayCategoryColor}"
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 12"
                                 Padding="10,4"
@@ -259,7 +283,7 @@
                             <Label Text="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.Category}"
                                    FontSize="12"
                                    FontAttributes="Bold"
-                                   TextColor="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.CategoryTextColor}" />
+                                   TextColor="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.DisplayCategoryTextColor}" />
                         </Border>
 
                         <Label Text="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.Name}"
@@ -330,9 +354,6 @@
                                            FontSize="14"
                                            TextColor="{DynamicResource BodyText}" />
                                     <Label Text="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.GpsText, StringFormat='🛰 {0}'}"
-                                           FontSize="14"
-                                           TextColor="{DynamicResource BodyText}" />
-                                    <Label Text="{Binding Source={x:Reference ThisPage}, Path=SelectedHistoryItem.RadiusText, StringFormat='📡 Bán kính kích hoạt: {0}'}"
                                            FontSize="14"
                                            TextColor="{DynamicResource BodyText}" />
                                     <Label Text="Đã lưu trong lịch sử nghe"
@@ -480,5 +501,10 @@
                 </Grid>
             </Border>
         </Grid>
+
+        <controls:MiniPlayerView Grid.Row="1"
+                                 UseTransparentChrome="True"
+                                 VerticalOptions="End"
+                                 ZIndex="40" />
     </Grid>
 </ContentPage>

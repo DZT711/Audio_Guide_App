@@ -470,6 +470,26 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("QrAutoplay")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
+                    b.Property<int?>("QrAudioTrackId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("QrFormat")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("png");
+
+                    b.Property<int>("QrSize")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(512);
+
                     b.Property<double>("Radius")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("REAL")

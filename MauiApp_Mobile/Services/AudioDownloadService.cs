@@ -48,6 +48,26 @@ public sealed class AudioDownloadService
             entry.DownloadedAt);
     }
 
+    public async Task<IReadOnlyList<AudioDownloadSnapshot>> GetSnapshotsForLocationAsync(int locationId, CancellationToken cancellationToken = default)
+    {
+        await EnsureManifestLoadedAsync(cancellationToken);
+
+        return _entries.Values
+            .Where(item => item.LocationId == locationId && File.Exists(item.LocalFilePath))
+            .Select(item =>
+            {
+                var fileInfo = new FileInfo(item.LocalFilePath);
+                return new AudioDownloadSnapshot(
+                    item.TrackId,
+                    true,
+                    item.LocalFilePath,
+                    fileInfo.Exists ? fileInfo.Length : 0,
+                    item.TotalBytes > 0 ? item.TotalBytes : fileInfo.Length,
+                    item.DownloadedAt);
+            })
+            .ToList();
+    }
+
     public async Task<PublicAudioTrackDto> ResolvePlayableTrackAsync(
         PublicAudioTrackDto track,
         CancellationToken cancellationToken = default)
@@ -104,6 +124,7 @@ public sealed class AudioDownloadService
 
             var buffer = new byte[81920];
             long downloadedBytes = 0;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             int bytesRead;
             while ((bytesRead = await responseStream.ReadAsync(buffer, cancellationToken)) > 0)
             {
@@ -113,7 +134,11 @@ public sealed class AudioDownloadService
                 var progressRatio = totalBytes.HasValue && totalBytes.Value > 0
                     ? Math.Clamp(downloadedBytes / (double)totalBytes.Value, 0d, 1d)
                     : 0d;
-                progress?.Report(new AudioDownloadProgressUpdate(downloadedBytes, totalBytes, progressRatio));
+                var elapsedSeconds = Math.Max(stopwatch.Elapsed.TotalSeconds, 0.25d);
+                var speedBytesPerSecond = downloadedBytes / elapsedSeconds;
+                var update = new AudioDownloadProgressUpdate(downloadedBytes, totalBytes, progressRatio, speedBytesPerSecond);
+                progress?.Report(update);
+                DownloadNotificationService.ShowProgress(track.Title ?? $"Track {track.Id}", update);
             }
 
             await localStream.FlushAsync(cancellationToken);
@@ -147,12 +172,53 @@ public sealed class AudioDownloadService
                 totalBytes ?? fileInfo.Length,
                 entry.DownloadedAt);
             progress?.Report(new AudioDownloadProgressUpdate(snapshot.DownloadedBytes, snapshot.TotalBytes, 1d));
+            DownloadNotificationService.ShowSuccess(track.Title ?? $"Track {track.Id}");
             return snapshot;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             CleanupPartialDownload(tempFilePath);
+            DownloadNotificationService.ShowFailure(track.Title ?? $"Track {track.Id}", BuildFailureMessage(ex));
             throw new InvalidOperationException(BuildFailureMessage(ex), ex);
+        }
+    }
+
+    public async Task DeleteTrackAsync(int trackId, CancellationToken cancellationToken = default)
+    {
+        await EnsureManifestLoadedAsync(cancellationToken);
+
+        if (!_entries.TryGetValue(trackId, out var entry))
+        {
+            return;
+        }
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(entry.LocalFilePath) && File.Exists(entry.LocalFilePath))
+            {
+                File.Delete(entry.LocalFilePath);
+            }
+        }
+        catch
+        {
+        }
+
+        _entries.Remove(trackId);
+        await SaveManifestAsync(cancellationToken);
+    }
+
+    public async Task DeleteLocationTracksAsync(int locationId, CancellationToken cancellationToken = default)
+    {
+        await EnsureManifestLoadedAsync(cancellationToken);
+
+        var trackIds = _entries.Values
+            .Where(item => item.LocationId == locationId)
+            .Select(item => item.TrackId)
+            .ToList();
+
+        foreach (var trackId in trackIds)
+        {
+            await DeleteTrackAsync(trackId, cancellationToken);
         }
     }
 
@@ -322,4 +388,5 @@ public readonly record struct AudioDownloadSnapshot(
 public readonly record struct AudioDownloadProgressUpdate(
     long DownloadedBytes,
     long? TotalBytes,
-    double ProgressRatio);
+    double ProgressRatio,
+    double SpeedBytesPerSecond = 0d);

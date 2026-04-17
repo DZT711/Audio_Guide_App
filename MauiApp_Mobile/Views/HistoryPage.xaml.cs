@@ -82,6 +82,7 @@ public partial class HistoryPage : ContentPage
     {
         base.OnAppearing();
         AttachSubscriptions();
+        _ = HistoryService.Instance.InitializeAsync();
         UpdateCount();
         UpdateHistoryDetailSheetLayout();
     }
@@ -106,6 +107,7 @@ public partial class HistoryPage : ContentPage
         }
 
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
+        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
         HistoryService.Instance.HistoryItems.CollectionChanged += OnHistoryItemsChanged;
         _subscriptionsAttached = true;
     }
@@ -118,6 +120,7 @@ public partial class HistoryPage : ContentPage
         }
 
         LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
+        AppSettingsService.Instance.SettingsSaved -= OnSettingsSaved;
         HistoryService.Instance.HistoryItems.CollectionChanged -= OnHistoryItemsChanged;
         _subscriptionsAttached = false;
     }
@@ -127,6 +130,14 @@ public partial class HistoryPage : ContentPage
 
     private void OnHistoryItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
         MainThread.BeginInvokeOnMainThread(UpdateCount);
+
+    private void OnSettingsSaved(object? sender, AppSettingsSnapshot snapshot) =>
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            ApplyTexts();
+            UpdateCount();
+            RefreshSelectedHistoryAudioTracks();
+        });
 
     private void UpdateCount()
     {
@@ -200,25 +211,41 @@ public partial class HistoryPage : ContentPage
             return;
         }
 
-        var languageTemplates = new (string LanguageCode, string LanguageName)[]
+        if (SelectedHistoryItem.AudioTracks.Count > 0)
         {
-            ("VI", "Tiếng Việt"),
-            ("EN", "English"),
-            ("FR", "Francais"),
-            ("KO", "Korean"),
-            ("JA", "Japanese"),
-            ("ZH", "Chinese")
-        };
-
-        foreach (var item in languageTemplates)
-        {
-            SelectedHistoryAudioTracks.Add(new HistoryAudioTrack
+            foreach (var track in SelectedHistoryItem.AudioTracks)
             {
-                LanguageCode = item.LanguageCode,
-                LanguageName = item.LanguageName,
-                Title = SelectedHistoryItem.Name,
-                Duration = "02:05"
-            });
+                SelectedHistoryAudioTracks.Add(new HistoryAudioTrack
+                {
+                    LanguageCode = ResolveLanguageCode(track.Language),
+                    LanguageName = track.LanguageName ?? track.Language,
+                    Title = string.IsNullOrWhiteSpace(track.Title) ? SelectedHistoryItem.Name : track.Title,
+                    Duration = FormatDuration(track.Duration)
+                });
+            }
+        }
+        else
+        {
+            var languageTemplates = new (string LanguageCode, string LanguageName)[]
+            {
+                ("VI", "Tiếng Việt"),
+                ("EN", "English"),
+                ("FR", "Francais"),
+                ("KO", "Korean"),
+                ("JA", "Japanese"),
+                ("ZH", "Chinese")
+            };
+
+            foreach (var item in languageTemplates)
+            {
+                SelectedHistoryAudioTracks.Add(new HistoryAudioTrack
+                {
+                    LanguageCode = item.LanguageCode,
+                    LanguageName = item.LanguageName,
+                    Title = SelectedHistoryItem.Name,
+                    Duration = "02:05"
+                });
+            }
         }
 
         IsHistoryAudioListExpanded = false;
@@ -430,6 +457,35 @@ public partial class HistoryPage : ContentPage
         TitleLabel.Text = LocalizationService.Instance.T("History.Title");
         SubtitleLabel.Text = LocalizationService.Instance.T("History.Subtitle");
         // CountLabel will be updated by UpdateCount()
+    }
+
+    private static string ResolveLanguageCode(string? locale)
+    {
+        if (string.IsNullOrWhiteSpace(locale))
+        {
+            return "VI";
+        }
+
+        var normalized = locale.Trim().ToLowerInvariant();
+        if (normalized.StartsWith("en")) return "EN";
+        if (normalized.StartsWith("fr")) return "FR";
+        if (normalized.StartsWith("ko")) return "KO";
+        if (normalized.StartsWith("ja")) return "JA";
+        if (normalized.StartsWith("zh")) return "ZH";
+        return "VI";
+    }
+
+    private static string FormatDuration(int durationSeconds)
+    {
+        if (durationSeconds <= 0)
+        {
+            return "00:00";
+        }
+
+        var duration = TimeSpan.FromSeconds(durationSeconds);
+        return duration.TotalHours >= 1
+            ? duration.ToString(@"hh\:mm\:ss")
+            : duration.ToString(@"mm\:ss");
     }
 }
 

@@ -46,6 +46,10 @@ public sealed class LocationDto
     public string? Email { get; init; }
     public string? Phone { get; init; }
     public int EstablishedYear { get; init; }
+    public int QrSize { get; init; } = 512;
+    public string QrFormat { get; init; } = QrCodeFormats.Png;
+    public bool QrAutoplay { get; init; } = true;
+    public int? QrAudioTrackId { get; init; }
     public int AudioCount { get; init; }
     public IReadOnlyList<string> AvailableVoiceGenders { get; init; } = [];
     public int Status { get; init; }
@@ -141,6 +145,7 @@ public sealed class TourDto
     public int Status { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
+    public TourRoutePreviewDto? RoutePreview { get; init; }
     public IReadOnlyList<TourStopDto> Stops { get; init; } = [];
 }
 

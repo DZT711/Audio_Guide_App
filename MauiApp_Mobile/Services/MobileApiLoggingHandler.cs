@@ -7,6 +7,11 @@ internal sealed class MobileApiLoggingHandler(HttpMessageHandler innerHandler) :
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        if (request.RequestUri is not null && MobileApiOptions.IsPlaceholderHost(request.RequestUri.Host))
+        {
+            request.RequestUri = MobileApiOptions.RewriteToCurrentBaseUri(request.RequestUri);
+        }
+
         var targetUri = request.RequestUri;
         var shouldLog = ShouldLogApiRequest(targetUri);
         var startedAt = Stopwatch.StartNew();
@@ -24,6 +29,16 @@ internal sealed class MobileApiLoggingHandler(HttpMessageHandler innerHandler) :
             {
                 Debug.WriteLine(
                     $"[MobileApi] API response: {request.Method} {targetUri} -> {(int)response.StatusCode} {response.ReasonPhrase} in {startedAt.ElapsedMilliseconds} ms");
+            }
+
+            if (response.IsSuccessStatusCode && targetUri is not null)
+            {
+                var builder = new UriBuilder(targetUri)
+                {
+                    Path = "/",
+                    Query = string.Empty
+                };
+                MobileApiOptions.SetLastKnownWorkingBaseUrl(builder.Uri.AbsoluteUri);
             }
 
             return response;
@@ -47,6 +62,7 @@ internal sealed class MobileApiLoggingHandler(HttpMessageHandler innerHandler) :
             return true;
         }
 
-        return string.Equals(requestUri.Host, MobileApiOptions.BaseUri.Host, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(requestUri.Host, MobileApiOptions.BaseUri.Host, StringComparison.OrdinalIgnoreCase) ||
+               MobileApiOptions.IsPlaceholderHost(requestUri.Host);
     }
 }
