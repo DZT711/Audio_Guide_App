@@ -1,0 +1,9 @@
+{
+    "BaseUrl":  "https://olympics-steadfast-skimmed.ngrok-free.dev/",
+    "PublicBaseUrl":  "https://olympics-steadfast-skimmed.ngrok-free.dev/",
+    "AllowLocalhostFallback":  true,
+    "FallbackBaseUrls":  [
+                             "http://10.0.2.2:5123/",
+                             "http://localhost:5123/"
+                         ]
+}
