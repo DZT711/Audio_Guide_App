@@ -77,4 +77,6 @@ public sealed class LocationQrStatusDto
     public string SuggestedFileNameBase { get; init; } = string.Empty;
     public int DefaultSize { get; init; } = 512;
     public string DefaultFormat { get; init; } = QrCodeFormats.Png;
+    public bool DefaultAutoplay { get; init; } = true;
+    public int? DefaultAudioTrackId { get; init; }
 }

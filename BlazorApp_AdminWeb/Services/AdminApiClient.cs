@@ -60,6 +60,9 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
     public Task<IReadOnlyList<AudioDto>> GetAudioAsync() =>
         GetListAsync<AudioDto>(ApiRoutes.Audio, "Unable to load audio.");
 
+    public Task<IReadOnlyList<AudioDto>> GetAudioByLocationAsync(int locationId) =>
+        GetListAsync<AudioDto>($"{ApiRoutes.Audio}/location/{locationId}", "Unable to load location audio.");
+
     public Task<IReadOnlyList<DashboardUserDto>> GetUsersAsync() =>
         GetListAsync<DashboardUserDto>(ApiRoutes.Users, "Unable to load users.");
 
@@ -588,6 +591,10 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         }
         AddString(content, nameof(model.EstablishedYear), model.EstablishedYear.ToString(CultureInfo.InvariantCulture));
         AddString(content, nameof(model.Status), model.Status.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.QrSize), model.QrSize.ToString(CultureInfo.InvariantCulture));
+        AddString(content, nameof(model.QrFormat), model.QrFormat);
+        AddString(content, nameof(model.QrAutoplay), model.QrAutoplay.ToString());
+        AddString(content, nameof(model.QrAudioTrackId), model.QrAudioTrackId?.ToString(CultureInfo.InvariantCulture));
         AddString(content, "RequestType", requestType);
         AddString(content, "TargetId", targetId?.ToString(CultureInfo.InvariantCulture));
         AddString(content, "Reason", reason);

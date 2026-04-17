@@ -68,6 +68,7 @@ builder.Services.AddScoped<AdminRequestAuthorizationService>();
 builder.Services.AddScoped<ChangeRequestWorkflowService>();
 builder.Services.AddScoped<ActivityLogService>();
 builder.Services.AddSingleton<LocationQrService>();
+builder.Services.AddSingleton<AndroidApkPackagingService>();
 
 builder.Services.AddCors(options =>
 {
@@ -120,4 +121,3 @@ app.MapControllers();
 // app.MapVoiceEndpoints();
 app.MigrateDb();
 app.Run();
-

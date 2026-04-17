@@ -3,6 +3,7 @@
 @inject AdminAuthService AuthService
 @inject NotificationService Notifications
 @inject AdminSessionState SessionState
+@inject AdminUiLanguageService Language
 
 <header class="admin-header">
     <div class="admin-header__leading">
@@ -10,12 +11,12 @@
             <i class="bi bi-list"></i>
         </button>
 
-        <button type="button" class="btn admin-header__toggle d-none d-lg-inline-flex" @onclick="ToggleSidebarAsync" title="Toggle navigation">
+        <button type="button" class="btn admin-header__toggle d-none d-lg-inline-flex" @onclick="ToggleSidebarAsync" title="@(Language.T("sidebar.navigation", "Navigation"))">
             <i class="bi @(SidebarCollapsed ? "bi-chevron-bar-right" : "bi-chevron-bar-left")"></i>
         </button>
 
         <div>
-            <span class="admin-header__eyebrow">Smart Tourism Admin</span>
+            <span class="admin-header__eyebrow">@Language.T("header.brand", "Smart Tourism Admin")</span>
             <h1>@GetPageTitle()</h1>
         </div>
     </div>
@@ -26,9 +27,22 @@
             @GetHeaderContext()
         </span>
 
+        <div class="admin-header__language-switch" aria-label="Admin language switch">
+            <button type="button"
+                    class="@(GetLanguageButtonClass("en"))"
+                    @onclick='() => SetLanguage("en")'>
+                @Language.T("language.en", "EN")
+            </button>
+            <button type="button"
+                    class="@(GetLanguageButtonClass("vi"))"
+                    @onclick='() => SetLanguage("vi")'>
+                @Language.T("language.vi", "VI")
+            </button>
+        </div>
+
         <button type="button" class="btn btn-outline-secondary admin-header__logout" @onclick="LogoutAsync">
             <i class="bi bi-box-arrow-right me-2"></i>
-            Logout
+            @Language.T("header.logout", "Logout")
         </button>
 
         <div class="admin-header__avatar">@GetAvatarInitial()</div>
@@ -45,17 +59,24 @@
     protected override void OnInitialized()
     {
         Navigation.LocationChanged += HandleLocationChanged;
+        Language.Changed += HandleLanguageChanged;
     }
 
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
         => InvokeAsync(StateHasChanged);
 
+    private void HandleLanguageChanged() => InvokeAsync(StateHasChanged);
+
     private Task ToggleSidebarAsync() => OnToggleSidebar.InvokeAsync();
+
+    private void SetLanguage(string language) => Language.SetLanguage(language);
 
     private async Task LogoutAsync()
     {
         await AuthService.LogoutAsync();
-        Notifications.Info("You have been signed out.", "Logout");
+        Notifications.Info(
+            Language.T("header.logout.message", "You have been signed out."),
+            Language.T("header.logout", "Logout"));
         Navigation.NavigateTo("/");
     }
 
@@ -65,19 +86,19 @@
 
         return relativePath switch
         {
-            "" => "Login",
-            "dashboard" => "Dashboard",
-            "statistics" => "Statistics",
-            "usage" => "Usage History",
-            "poi" => "Location Management",
-            "categories" => "Category Management",
-            "languages" => "Language Management",
-            "audio" => "Audio & Voice Management",
-            "tours" => "Tour Management",
-            "users" => "User Management",
-            "moderation" => "Moderation Queue",
-            "history" => "Activity History",
-            _ => "Admin"
+            "" => Language.T("page.login", "Login"),
+            "dashboard" => Language.T("page.dashboard", "Dashboard"),
+            "statistics" => Language.T("page.statistics", "Statistics"),
+            "usage" => Language.T("page.usage", "Usage History"),
+            "poi" => Language.T("page.poi", "Location Management"),
+            "categories" => Language.T("page.categories", "Category Management"),
+            "languages" => Language.T("page.languages", "Language Management"),
+            "audio" => Language.T("page.audio", "Audio & Voice Management"),
+            "tours" => Language.T("page.tours", "Tour Management"),
+            "users" => Language.T("page.users", "User Management"),
+            "moderation" => Language.T("page.moderation", "Moderation Queue"),
+            "history" => Language.T("page.history", "Activity History"),
+            _ => Language.T("page.admin", "Admin")
         };
     }
 
@@ -85,10 +106,10 @@
     {
         if (string.IsNullOrWhiteSpace(SessionState.Role))
         {
-            return "Admin session";
+            return Language.T("header.default-context", "Admin session");
         }
 
-        return $"{SessionState.Role} · {SessionState.StatusLabel}";
+        return $"{Language.GetRoleLabel(SessionState.Role)} · {Language.GetStatusLabel(SessionState.CurrentUser?.Status ?? 0)}";
     }
 
     private string GetAvatarInitial()
@@ -97,8 +118,14 @@
         return string.IsNullOrWhiteSpace(value) ? "A" : value[..1].ToUpperInvariant();
     }
 
+    private string GetLanguageButtonClass(string language) =>
+        string.Equals(Language.CurrentLanguage, language, StringComparison.OrdinalIgnoreCase)
+            ? "admin-header__language-btn admin-header__language-btn--active"
+            : "admin-header__language-btn";
+
     public void Dispose()
     {
         Navigation.LocationChanged -= HandleLocationChanged;
+        Language.Changed -= HandleLanguageChanged;
     }
 }

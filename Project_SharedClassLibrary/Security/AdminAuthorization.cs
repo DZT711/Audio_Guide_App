@@ -148,7 +148,8 @@ public static class AdminRolePolicies
                 AdminPermissions.AudioRead,
                 AdminPermissions.AudioRequest,
                 AdminPermissions.QrRead,
-                AdminPermissions.QrManage
+                AdminPermissions.QrManage,
+                AdminPermissions.QrBulk
             ]
         };
 

@@ -72,6 +72,44 @@
     font-weight: 600;
 }
 
+.admin-header__language-switch {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.22rem;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.admin-header__language-btn {
+    min-width: 2.75rem;
+    padding: 0.42rem 0.7rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition:
+        background 160ms ease,
+        color 160ms ease,
+        transform 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.admin-header__language-btn:hover {
+    color: #0f766e;
+}
+
+.admin-header__language-btn--active {
+    background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+    color: #fff;
+    box-shadow: 0 10px 20px rgba(15, 118, 110, 0.18);
+}
+
 .admin-header__logout {
     border-radius: 14px;
 }
@@ -95,6 +133,10 @@
 
     .admin-header__actions {
         gap: 0.65rem;
+    }
+
+    .admin-header__language-switch {
+        order: 2;
     }
 
     .admin-header__logout {

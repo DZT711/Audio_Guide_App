@@ -17,6 +17,7 @@ public class LocationQrController(
     AdminRequestAuthorizationService authService,
     ActivityLogService activityLogService,
     LocationQrService qrService,
+    AndroidApkPackagingService apkPackagingService,
     ILogger<LocationQrController> logger) : ControllerBase
 {
     [HttpGet("location/{locationId:int}/status")]
@@ -296,18 +297,39 @@ public class LocationQrController(
 
     [AllowAnonymous]
     [HttpGet("public/android-apk")]
-    public IActionResult RedirectAndroidApk()
+    public async Task<IActionResult> RedirectAndroidApk(CancellationToken cancellationToken)
     {
         if (!qrService.IsEnabled)
         {
             return NotFound(new { message = "QR features are disabled." });
         }
 
+        if (apkPackagingService.IsDynamicBuildEnabled)
+        {
+            try
+            {
+                var package = await apkPackagingService.GetOrBuildPackageAsync(
+                    ResolvePublicBaseUrl(),
+                    cancellationToken);
+                logger.LogInformation("Serving dynamically packaged Android APK from {PhysicalPath}.", package.PhysicalPath);
+                Response.Headers.CacheControl = "public,max-age=300";
+                return PhysicalFile(
+                    package.PhysicalPath,
+                    package.ContentType,
+                    package.DownloadFileName,
+                    enableRangeProcessing: true);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Dynamic Android APK packaging failed.");
+            }
+        }
+
         var installUrl = qrService.ResolveConfiguredAndroidInstallUrl();
         if (string.IsNullOrWhiteSpace(installUrl))
         {
             logger.LogWarning("Android APK redirect requested but no Android install URL is configured.");
-            return NotFound(new { message = "Android install URL is not configured." });
+            return StatusCode(503, new { message = "Android APK is not available right now." });
         }
 
         logger.LogInformation("Redirecting to the configured Android install URL.");
@@ -354,4 +376,15 @@ public class LocationQrController(
             "HYBRID" => 1,
             _ => 2
         };
+
+    private string ResolvePublicBaseUrl()
+    {
+        var pathBase = HttpContext.Request.PathBase.HasValue
+            ? HttpContext.Request.PathBase.Value!.Trim('/').Trim()
+            : string.Empty;
+
+        return string.IsNullOrWhiteSpace(pathBase)
+            ? $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}/"
+            : $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}/{pathBase}/";
+    }
 }

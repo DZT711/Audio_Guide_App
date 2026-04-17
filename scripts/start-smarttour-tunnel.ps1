@@ -3,7 +3,7 @@ param(
     [int]$ApiPort = 5123,
     [string]$Configuration = "Debug",
     [string]$ApiProjectPath = "WebApplication_API/WebApplication_API.csproj",
-    [string]$NgrokAuthtoken = $env:3CULkocej9cGPutR7N3uGNIpc0X_5Tm5GZ9MUc3DJ6JGfzBKC,
+    [string]$NgrokAuthtoken = $env:NGROK_AUTHTOKEN,
     [string]$NgrokDownloadUrl = "",
     [string]$AndroidApkFilePath = "",
     [string]$AndroidStoreUrl = "",
@@ -390,20 +390,50 @@ function Ensure-ApiRunning {
     $apiLog = Join-Path $runtimeRoot "api.log"
     $apiErrorLog = Join-Path $runtimeRoot "api.error.log"
     $apiProjectFullPath = Join-Path $repoRoot $ApiProjectPath
+    $apiWorkingDirectory = Split-Path -Path $apiProjectFullPath -Parent
+    $startupTimeoutSeconds = 90
 
     Add-CommandLog "dotnet run --project `"$ApiProjectFullPath`" --configuration $Configuration --no-launch-profile --urls $apiBindUrl"
-    Start-Process -FilePath "dotnet" `
+    $apiProcess = Start-Process -FilePath "dotnet" `
         -ArgumentList @("run", "--project", $apiProjectFullPath, "--configuration", $Configuration, "--no-launch-profile", "--urls", $apiBindUrl) `
-        -WorkingDirectory $repoRoot `
+        -WorkingDirectory $apiWorkingDirectory `
         -RedirectStandardOutput $apiLog `
         -RedirectStandardError $apiErrorLog `
-        -WindowStyle Hidden | Out-Null
+        -WindowStyle Hidden `
+        -PassThru
 
-    if (-not (Wait-Until -Condition { Test-ApiHealth } -TimeoutSeconds 90 -DelayMilliseconds 1500)) {
-        throw "WebApplication_API did not become healthy. Check $apiLog and $apiErrorLog."
+    for ($elapsed = 0; $elapsed -lt $startupTimeoutSeconds; $elapsed++) {
+        if (Test-ApiHealth) {
+            Write-Host "API is healthy at $apiHealthUrl"
+            return
+        }
+
+        if ($apiProcess.HasExited) {
+            $stdoutTail = if (Test-Path -LiteralPath $apiLog) {
+                (Get-Content -LiteralPath $apiLog -ErrorAction SilentlyContinue | Select-Object -Last 20) -join [Environment]::NewLine
+            }
+            else {
+                ""
+            }
+
+            $stderrTail = if (Test-Path -LiteralPath $apiErrorLog) {
+                (Get-Content -LiteralPath $apiErrorLog -ErrorAction SilentlyContinue | Select-Object -Last 20) -join [Environment]::NewLine
+            }
+            else {
+                ""
+            }
+
+            throw "WebApplication_API exited early with code $($apiProcess.ExitCode). Stdout:`n$stdoutTail`nStderr:`n$stderrTail"
+        }
+
+        if (($elapsed % 10) -eq 0) {
+            Write-Host "Waiting for API health... ${elapsed}s/${startupTimeoutSeconds}s"
+        }
+
+        Start-Sleep -Seconds 1
     }
 
-    Write-Host "API is healthy at $apiHealthUrl"
+    throw "WebApplication_API did not become healthy in $startupTimeoutSeconds seconds. Check $apiLog and $apiErrorLog."
 }
 
 function Ensure-NgrokTunnel {

@@ -27,7 +27,9 @@ public sealed class LocationQrService(
         Audio? defaultAudio,
         LocationQrGenerateRequest? request = null)
     {
-        var normalizedRequest = NormalizeRequest(request);
+        var normalizedRequest = request is null
+            ? NormalizeStoredRequest(location)
+            : NormalizeRequest(request);
         var links = BuildLocationLinks(
             httpContext,
             location.LocationId,
@@ -54,7 +56,9 @@ public sealed class LocationQrService(
             AndroidApkQrUrl = links.AndroidApkQrUrl,
             SuggestedFileNameBase = BuildFileNameBase(location.LocationId, location.Name),
             DefaultSize = normalizedRequest.Size,
-            DefaultFormat = normalizedRequest.Format
+            DefaultFormat = normalizedRequest.Format,
+            DefaultAutoplay = normalizedRequest.Autoplay,
+            DefaultAudioTrackId = normalizedRequest.AudioTrackId
         };
     }
 
@@ -304,7 +308,8 @@ public sealed class LocationQrService(
             ? "Download the Android app, then return here and tap Open App to continue."
             : $"Install the Android app to continue to {WebUtility.HtmlEncode(locationName)}.";
         var installConfigured = !string.IsNullOrWhiteSpace(_options.AndroidApkUrl)
-            || !string.IsNullOrWhiteSpace(_options.AndroidStoreUrl);
+            || !string.IsNullOrWhiteSpace(_options.AndroidStoreUrl)
+            || _options.EnableDynamicAndroidApkBuild;
 
         return $$"""
 <!DOCTYPE html>
@@ -712,11 +717,28 @@ public sealed class LocationQrService(
         if (!string.IsNullOrWhiteSpace(_options.PublicBaseUrl)
             && Uri.TryCreate(_options.PublicBaseUrl.Trim(), UriKind.Absolute, out var configuredUri))
         {
+            if (IsLocalHost(configuredUri)
+                && !string.IsNullOrWhiteSpace(httpContext.Request.Host.Host)
+                && !IsLocalHost(httpContext.Request.Host.Host))
+            {
+                _logger.LogWarning(
+                    "QrLinks.PublicBaseUrl is localhost ({ConfiguredBaseUrl}) but request host is public ({RequestHost}). Using request host for QR links.",
+                    configuredUri.AbsoluteUri,
+                    httpContext.Request.Host.Host);
+
+                return BuildRequestBaseUri(httpContext);
+            }
+
             return configuredUri.AbsolutePath.EndsWith("/", StringComparison.Ordinal)
                 ? configuredUri
                 : new Uri($"{configuredUri.AbsoluteUri.TrimEnd('/')}/");
         }
 
+        return BuildRequestBaseUri(httpContext);
+    }
+
+    private static Uri BuildRequestBaseUri(HttpContext httpContext)
+    {
         var pathBase = httpContext.Request.PathBase.HasValue
             ? httpContext.Request.PathBase.Value!.Trim('/').Trim()
             : string.Empty;
@@ -727,6 +749,14 @@ public sealed class LocationQrService(
         return new Uri(baseUrl, UriKind.Absolute);
     }
 
+    private static bool IsLocalHost(Uri uri) =>
+        IsLocalHost(uri.Host);
+
+    private static bool IsLocalHost(string host) =>
+        string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(host, "0.0.0.0", StringComparison.OrdinalIgnoreCase);
+
     private LocationQrGenerateRequest NormalizeRequest(LocationQrGenerateRequest? request)
     {
         var normalized = request ?? new LocationQrGenerateRequest();
@@ -734,6 +764,15 @@ public sealed class LocationQrService(
         normalized.Size = NormalizeSize(normalized.Size);
         return normalized;
     }
+
+    private LocationQrGenerateRequest NormalizeStoredRequest(Location location) =>
+        NormalizeRequest(new LocationQrGenerateRequest
+        {
+            Format = location.QrFormat,
+            Size = location.QrSize,
+            Autoplay = location.QrAutoplay,
+            AudioTrackId = location.QrAudioTrackId
+        });
 
     private string NormalizeFormat(string? format)
     {

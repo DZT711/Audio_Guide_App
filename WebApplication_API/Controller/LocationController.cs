@@ -232,6 +232,10 @@ public class LocationController(
             PhoneContact = Normalize(request.Phone),
             EstablishedYear = request.EstablishedYear,
             Status = request.Status,
+            QrSize = request.QrSize,
+            QrFormat = QrCodeFormats.Normalize(request.QrFormat),
+            QrAutoplay = request.QrAutoplay,
+            QrAudioTrackId = request.QrAudioTrackId,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -332,6 +336,10 @@ public class LocationController(
         location.PhoneContact = Normalize(request.Phone);
         location.EstablishedYear = request.EstablishedYear;
         location.Status = request.Status;
+        location.QrSize = request.QrSize;
+        location.QrFormat = QrCodeFormats.Normalize(request.QrFormat);
+        location.QrAutoplay = request.QrAutoplay;
+        location.QrAudioTrackId = request.QrAudioTrackId;
         location.UpdatedAt = DateTime.UtcNow;
 
         var currentImageSet = location.Images

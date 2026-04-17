@@ -1,13 +1,16 @@
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
+@inject AdminUiLanguageService Language
+@using BlazorApp_AdminWeb.Models
+@implements IDisposable
 
 @if (!CanView)
 {
     <section class="location-qr">
         <div class="location-qr__empty">
-            <strong>QR access is unavailable for this role.</strong>
-            <span>Your current permission set does not include location QR tools.</span>
+            <strong>@L("qr.no-access.title", "QR access is unavailable for this role.")</strong>
+            <span>@L("qr.no-access.desc", "Your current permission set does not include location QR tools.")</span>
         </div>
     </section>
 }
@@ -15,8 +18,8 @@ else if (Location is null || Location.Id <= 0)
 {
     <section class="location-qr">
         <div class="location-qr__empty">
-            <strong>Save the location first.</strong>
-            <span>QR status, preview, and download become available after this location has a persisted ID.</span>
+            <strong>@L("qr.save-first.title", "Save the location first.")</strong>
+            <span>@L("qr.save-first.desc", "QR status, preview, and download become available after this location has a persisted ID.")</span>
         </div>
     </section>
 }
@@ -25,131 +28,239 @@ else
     <section class="location-qr">
         <div class="location-qr__header">
             <div>
-                <span class="location-qr__eyebrow">Location QR</span>
+                <span class="location-qr__eyebrow">@L("qr.eyebrow", "Location QR")</span>
                 <h4>@Location.Name</h4>
-                <p>Generate a production QR that opens the app, falls back to the install page, and keeps autoplay aligned with the location audio setup.</p>
+                <p>@L("qr.header.desc", "Generate a production QR that opens the app, falls back to the install page, and keeps autoplay aligned with the location audio setup.")</p>
             </div>
 
             <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="RefreshStatusAsync" disabled="@_isLoadingStatus">
                 <i class="bi bi-arrow-clockwise me-1"></i>
-                @(_isLoadingStatus ? "Refreshing..." : "Refresh status")
+                @(_isLoadingStatus ? L("qr.refreshing", "Refreshing...") : L("qr.refresh", "Refresh status"))
             </button>
         </div>
 
         @if (!string.IsNullOrWhiteSpace(_statusError))
         {
             <div class="location-qr__error">
-                <strong>Unable to load the QR status.</strong>
+                <strong>@L("qr.load-error.title", "Unable to load the QR status.")</strong>
                 <span>@_statusError</span>
             </div>
         }
         else if (_isLoadingStatus && _status is null)
         {
-            <div class="location-qr__loading">Loading QR status...</div>
+            <div class="location-qr__loading">@L("qr.loading", "Loading QR status...")</div>
         }
         else if (_status is not null)
         {
             <div class="location-qr__meta-grid">
                 <article class="location-qr__meta-card">
-                    <span>Status</span>
-                    <strong>@(_status.Status == 1 ? "Active location" : "Inactive location")</strong>
-                    <small>@(_status.Status == 1 ? "The generated QR will open the location normally." : "Inactive locations will route visitors to the unavailable screen.")</small>
+                    <span class="location-qr__meta-icon"><i class="bi bi-activity"></i></span>
+                    <div class="location-qr__meta-copy">
+                        <span>@L("qr.status", "Status")</span>
+                        <strong>@(_status.Status == 1 ? L("qr.status.active-title", "Active location") : L("qr.status.inactive-title", "Inactive location"))</strong>
+                        <small>@(_status.Status == 1 ? L("qr.status.active-desc", "The generated QR will open the location normally.") : L("qr.status.inactive-desc", "Inactive locations will route visitors to the unavailable screen."))</small>
+                    </div>
                 </article>
 
                 <article class="location-qr__meta-card">
-                    <span>Default audio</span>
-                    <strong>@(_status.HasDefaultAudio ? _status.DefaultAudioTitle ?? $"Track #{_status.DefaultAudioId}" : "No active default audio")</strong>
-                    <small>@(_status.HasDefaultAudio ? "Leaving the audio track blank will autoplay this default track." : "Autoplay can still route to the location, but playback will wait for manual selection.")</small>
+                    <span class="location-qr__meta-icon"><i class="bi bi-music-note-beamed"></i></span>
+                    <div class="location-qr__meta-copy">
+                        <span>@L("qr.default-audio", "Default audio")</span>
+                        <strong>@(_status.HasDefaultAudio ? _status.DefaultAudioTitle ?? $"Track #{_status.DefaultAudioId}" : L("qr.default-audio.empty", "No active default audio"))</strong>
+                        <small>@(_status.HasDefaultAudio ? L("qr.default-audio.desc", "Leaving the audio track blank will autoplay this default track.") : L("qr.default-audio.empty-desc", "Autoplay can still route to the location, but playback will wait for manual selection."))</small>
+                    </div>
                 </article>
 
                 <article class="location-qr__meta-card">
-                    <span>Owner</span>
-                    <strong>@(_status.OwnerName ?? "Unassigned")</strong>
-                    <small>Location ID: @_status.LocationId</small>
+                    <span class="location-qr__meta-icon"><i class="bi bi-person-badge"></i></span>
+                    <div class="location-qr__meta-copy">
+                        <span>@L("qr.owner", "Owner")</span>
+                        <strong>@(_status.OwnerName ?? L("qr.owner.empty", "Unassigned"))</strong>
+                        <small>@L("qr.location-id", "Location ID"): @_status.LocationId</small>
+                    </div>
                 </article>
             </div>
 
-            <EditForm Model="_request" OnValidSubmit="GeneratePreviewAsync" class="location-qr__form">
-                <DataAnnotationsValidator />
+            <div class="location-qr__workspace">
+                <div class="location-qr__form">
+                    <section class="location-qr__panel location-qr__panel--builder">
+                        <div class="location-qr__panel-header">
+                            <div>
+                                <span class="location-qr__panel-kicker">@L("qr.setup.kicker", "QR Setup")</span>
+                                <h5>@L("qr.setup.title", "Fine tune how this location opens")</h5>
+                                <p>@L("qr.setup.desc", "Choose the file format, set the output size, and decide how audio should behave when the mobile app is launched from the QR.")</p>
+                            </div>
+                        </div>
 
-                <div class="location-qr__controls">
-                    <div class="management-field">
-                        <label for="@(GetFieldId("format"))">Format</label>
-                        <InputSelect id="@(GetFieldId("format"))" class="form-select" @bind-Value="_request.Format" @bind-Value:after="OnPreviewSettingsChangedAsync">
-                            @foreach (var format in QrCodeFormats.All)
-                            {
-                                <option value="@format">@format.ToUpperInvariant()</option>
-                            }
-                        </InputSelect>
-                    </div>
+                        <div class="location-qr__controls">
+                            <div class="management-field location-qr__field-shell">
+                                <label for="@(GetFieldId("format"))">@L("qr.format", "Format")</label>
+                                <InputSelect id="@(GetFieldId("format"))" class="form-select location-qr__field-input" @bind-Value="BoundFormat" @bind-Value:after="OnPreviewSettingsChangedAsync">
+                                    @foreach (var format in QrCodeFormats.All)
+                                    {
+                                        <option value="@format">@format.ToUpperInvariant()</option>
+                                    }
+                                </InputSelect>
+                            </div>
 
-                    <div class="management-field">
-                        <label for="@(GetFieldId("size"))">Size (px)</label>
-                        <InputNumber id="@(GetFieldId("size"))" class="form-control" @bind-Value="_request.Size" @bind-Value:after="OnPreviewSettingsChangedAsync" />
-                        <span class="management-field__hint">Recommended range: 256-1024 for print and screen sharing.</span>
-                    </div>
+                            <div class="management-field location-qr__field-shell">
+                                <label for="@(GetFieldId("size"))">@L("qr.size", "Size (px)")</label>
+                                <InputNumber id="@(GetFieldId("size"))" class="form-control location-qr__field-input" @bind-Value="BoundSize" @bind-Value:after="OnPreviewSettingsChangedAsync" />
+                                <span class="management-field__hint">@L("qr.size.hint", "Recommended range: 256-1024 for print and screen sharing.")</span>
+                            </div>
+                        </div>
 
-                    <div class="management-field">
-                        <label class="location-qr__checkbox">
-                            <InputCheckbox @bind-Value="_request.Autoplay" @bind-Value:after="OnPreviewSettingsChangedAsync" />
-                            <span>Autoplay location audio after deep link</span>
-                        </label>
-                        <span class="management-field__hint">Keep this on to make the app open and play the default track automatically.</span>
-                    </div>
+                        <div class="location-qr__behavior-grid">
+                            <div class="location-qr__option-card">
+                                <label class="location-qr__checkbox">
+                                    <InputCheckbox @bind-Value="BoundAutoplay" @bind-Value:after="OnPreviewSettingsChangedAsync" />
+                                    <span>@L("qr.behavior.autoplay", "Autoplay location audio after deep link")</span>
+                                </label>
+                                <small>@L("qr.behavior.autoplay.hint", "Keep this enabled to open the app and immediately play the default track when possible.")</small>
+                            </div>
 
-                    <div class="management-field">
-                        <label for="@(GetFieldId("audio"))">Specific audio track ID</label>
-                        <InputNumber id="@(GetFieldId("audio"))" class="form-control" @bind-Value="_request.AudioTrackId" @bind-Value:after="OnPreviewSettingsChangedAsync" />
-                        <span class="management-field__hint">Optional. Leave empty to use the default audio track for this location.</span>
-                    </div>
+                            <div class="management-field location-qr__option-card">
+                                <label for="@(GetFieldId("audio-search"))">@L("qr.behavior.track", "Specific audio track")</label>
+                                <InputText id="@(GetFieldId("audio-search"))"
+                                           class="form-control location-qr__field-input"
+                                           @bind-Value="_audioSearchText"
+                                           @bind-Value:after="HandleAudioSearchChangedAsync"
+                                           placeholder="@L("qr.behavior.track.search", "Search by track title, language, or voice")" />
+
+                                <div class="location-qr__track-summary">
+                                    @if (SelectedAudioTrack is not null)
+                                    {
+                                        <span class="location-qr__track-badge">
+                                            @L("qr.behavior.track.selected", "Selected"): @SelectedAudioTrack.Title
+                                        </span>
+                                        <small>@L("qr.behavior.track.id", "Track ID"): @SelectedAudioTrack.Id</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="location-qr__track-badge location-qr__track-badge--muted">@L("qr.behavior.track.default", "Use default audio")</span>
+                                    }
+                                </div>
+
+                                <span class="management-field__hint">@L("qr.behavior.track.hint", "Type to filter the active audio tracks for this location, then select one quickly.")</span>
+
+                                @if (_isLoadingTracks)
+                                {
+                                    <div class="location-qr__track-empty">@L("qr.loading", "Loading QR status...")</div>
+                                }
+                                else if (ActiveAudioTracks.Count == 0)
+                                {
+                                    <div class="location-qr__track-empty">@L("qr.behavior.track.empty", "No active audio tracks are available for this location.")</div>
+                                }
+                                else
+                                {
+                                    <div class="location-qr__track-picker">
+                                        <span class="location-qr__track-label">@L("qr.behavior.track.available", "Available active tracks")</span>
+                                        <div class="location-qr__track-list">
+                                            <button type="button"
+                                                    class="@GetTrackButtonClass(null)"
+                                                    @onclick="ClearSelectedTrackAsync">
+                                                @L("qr.behavior.track.default", "Use default audio")
+                                            </button>
+
+                                            @foreach (var track in FilteredAudioTracks)
+                                            {
+                                                <button type="button"
+                                                        class="@GetTrackButtonClass(track.Id)"
+                                                        @onclick="() => SelectTrackAsync(track)">
+                                                    <span>@track.Title</span>
+                                                    <small>@BuildTrackMeta(track)</small>
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        @if (FormModel is not null)
+                        {
+                            <div class="location-qr__inline-note">
+                                <i class="bi bi-save me-1"></i>
+                                @L("qr.persist.hint", "These QR settings are saved together with the location when you click Save Changes.")
+                            </div>
+                        }
+
+                        <div class="location-qr__actions">
+                            <button type="button" class="btn btn-primary" @onclick="GeneratePreviewAsync" disabled="@(!CanGenerate || _isGeneratingPreview)">
+                                @(_isGeneratingPreview ? L("qr.generating", "Generating...") : L("qr.generate", "Generate preview"))
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="DownloadAsync" disabled="@(!CanGenerate || _isDownloading)">
+                                @(_isDownloading ? L("qr.downloading", "Downloading...") : L("qr.download", "Download QR"))
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="ClearPreview" disabled="@string.IsNullOrWhiteSpace(_previewDataUrl)">
+                                @L("qr.clear", "Clear preview")
+                            </button>
+                        </div>
+                    </section>
                 </div>
 
-                <ValidationSummary class="location-qr__validation" />
+                <div class="location-qr__side-stack">
+                    <section class="location-qr__panel location-qr__panel--preview">
+                        <div class="location-qr__panel-header">
+                            <div>
+                                <span class="location-qr__panel-kicker">@L("qr.preview.kicker", "Preview")</span>
+                                <h5>@L("qr.preview.title", "Export-ready QR output")</h5>
+                                <p>@L("qr.preview.desc", "Generate once to preview the exact file that admins can download and share.")</p>
+                            </div>
+                        </div>
 
-                <div class="location-qr__actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(!CanGenerate || _isGeneratingPreview)">
-                        @(_isGeneratingPreview ? "Generating..." : "Generate preview")
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="DownloadAsync" disabled="@(!CanGenerate || _isDownloading)">
-                        @(_isDownloading ? "Downloading..." : "Download QR")
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="ClearPreview" disabled="@string.IsNullOrWhiteSpace(_previewDataUrl)">
-                        Clear preview
-                    </button>
+                        @if (!string.IsNullOrWhiteSpace(_previewDataUrl))
+                        {
+                            <div class="location-qr__preview">
+                                <div class="location-qr__preview-copy">
+                                    <span class="location-qr__eyebrow">@L("qr.preview.ready", "Preview ready")</span>
+                                    <strong>@(_previewFileName ?? $"{_status.SuggestedFileNameBase}.{_request.Format}")</strong>
+                                    <small>@_previewContentType</small>
+                                </div>
+                                <div class="location-qr__preview-frame">
+                                    <img src="@_previewDataUrl" alt="Location QR preview" />
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="location-qr__preview-placeholder">
+                                <span class="location-qr__preview-placeholder-icon"><i class="bi bi-qr-code"></i></span>
+                                <strong>@L("qr.preview.empty-title", "Preview not generated yet")</strong>
+                                <small>@L("qr.preview.empty-desc", "Use the builder on the left to generate a live QR preview for this location.")</small>
+                            </div>
+                        }
+                    </section>
+
+                    <section class="location-qr__panel location-qr__panel--links">
+                        <div class="location-qr__panel-header">
+                            <div>
+                                <span class="location-qr__panel-kicker">@L("qr.links.kicker", "Launch Links")</span>
+                                <h5>@L("qr.links.title", "Public routes wired to this QR")</h5>
+                                <p>@L("qr.links.desc", "Quick access to the landing page, the fallback download page, and the Android install QR.")</p>
+                            </div>
+                        </div>
+
+                        <div class="location-qr__link-grid">
+                            <a class="location-qr__link-card" href="@_status.LandingUrl" target="_blank" rel="noreferrer">
+                                <span>@L("qr.link.landing", "Public landing URL")</span>
+                                <strong>@L("qr.link.landing-title", "Open scan landing")</strong>
+                                <small>@_status.LandingUrl</small>
+                            </a>
+                            <a class="location-qr__link-card" href="@_status.DownloadPageUrl" target="_blank" rel="noreferrer">
+                                <span>@L("qr.link.download", "Fallback page")</span>
+                                <strong>@L("qr.link.download-title", "Open app download page")</strong>
+                                <small>@_status.DownloadPageUrl</small>
+                            </a>
+                            <a class="location-qr__link-card" href="@_status.AndroidApkQrUrl" target="_blank" rel="noreferrer">
+                                <span>@L("qr.link.apk", "Android install QR")</span>
+                                <strong>@L("qr.link.apk-title", "Open APK QR")</strong>
+                                <small>@_status.AndroidApkQrUrl</small>
+                            </a>
+                        </div>
+                    </section>
                 </div>
-            </EditForm>
-
-            <div class="location-qr__link-grid">
-                <a class="location-qr__link-card" href="@_status.LandingUrl" target="_blank" rel="noreferrer">
-                    <span>Public landing URL</span>
-                    <strong>Open scan landing</strong>
-                    <small>@_status.LandingUrl</small>
-                </a>
-                <a class="location-qr__link-card" href="@_status.DownloadPageUrl" target="_blank" rel="noreferrer">
-                    <span>Fallback page</span>
-                    <strong>Open app download page</strong>
-                    <small>@_status.DownloadPageUrl</small>
-                </a>
-                <a class="location-qr__link-card" href="@_status.AndroidApkQrUrl" target="_blank" rel="noreferrer">
-                    <span>Android install QR</span>
-                    <strong>Open APK QR</strong>
-                    <small>@_status.AndroidApkQrUrl</small>
-                </a>
             </div>
-
-            @if (!string.IsNullOrWhiteSpace(_previewDataUrl))
-            {
-                <div class="location-qr__preview">
-                    <div class="location-qr__preview-copy">
-                        <span class="location-qr__eyebrow">Preview</span>
-                        <strong>@(_previewFileName ?? $"{_status.SuggestedFileNameBase}.{_request.Format}")</strong>
-                        <small>@_previewContentType</small>
-                    </div>
-                    <div class="location-qr__preview-frame">
-                        <img src="@_previewDataUrl" alt="Location QR preview" />
-                    </div>
-                </div>
-            }
         }
     </section>
 }
@@ -164,16 +275,95 @@ else
     [Parameter]
     public bool CanGenerate { get; set; }
 
+    [Parameter]
+    public LocationFormModel? FormModel { get; set; }
+
     private LocationQrStatusDto? _status;
     private LocationQrGenerateRequest _request = new();
     private string? _statusError;
     private string? _previewDataUrl;
     private string? _previewFileName;
     private string? _previewContentType;
+    private string _audioSearchText = string.Empty;
     private int? _loadedLocationId;
     private bool _isLoadingStatus;
     private bool _isGeneratingPreview;
     private bool _isDownloading;
+    private bool _isLoadingTracks;
+    private List<AudioDto> _activeAudioTracks = [];
+
+    private IReadOnlyList<AudioDto> ActiveAudioTracks => _activeAudioTracks;
+
+    private LocationQrGenerateRequest CurrentRequest =>
+        FormModel is null
+            ? _request
+            : new LocationQrGenerateRequest
+            {
+                Format = FormModel.QrFormat,
+                Size = FormModel.QrSize,
+                Autoplay = FormModel.QrAutoplay,
+                AudioTrackId = FormModel.QrAudioTrackId
+            };
+
+    private string BoundFormat
+    {
+        get => FormModel?.QrFormat ?? _request.Format;
+        set
+        {
+            if (FormModel is not null)
+            {
+                FormModel.QrFormat = value;
+                return;
+            }
+
+            _request.Format = value;
+        }
+    }
+
+    private int BoundSize
+    {
+        get => FormModel?.QrSize ?? _request.Size;
+        set
+        {
+            if (FormModel is not null)
+            {
+                FormModel.QrSize = value;
+                return;
+            }
+
+            _request.Size = value;
+        }
+    }
+
+    private bool BoundAutoplay
+    {
+        get => FormModel?.QrAutoplay ?? _request.Autoplay;
+        set
+        {
+            if (FormModel is not null)
+            {
+                FormModel.QrAutoplay = value;
+                return;
+            }
+
+            _request.Autoplay = value;
+        }
+    }
+
+    private AudioDto? SelectedAudioTrack => CurrentRequest.AudioTrackId is > 0
+        ? _activeAudioTracks.FirstOrDefault(item => item.Id == CurrentRequest.AudioTrackId.Value)
+        : null;
+
+    private IReadOnlyList<AudioDto> FilteredAudioTracks =>
+        _activeAudioTracks
+            .Where(MatchesAudioSearch)
+            .Take(8)
+            .ToList();
+
+    protected override void OnInitialized()
+    {
+        Language.Changed += HandleLanguageChanged;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -195,6 +385,7 @@ else
         if (nextLocationId is > 0)
         {
             await RefreshStatusAsync();
+            await LoadActiveAudioTracksAsync();
         }
     }
 
@@ -211,8 +402,8 @@ else
         try
         {
             _status = await ApiClient.GetLocationQrStatusAsync(Location.Id);
-            _request.Format = _status.DefaultFormat;
-            _request.Size = _status.DefaultSize;
+            ApplyStatusDefaults();
+            SyncSelectedTrackLabel();
         }
         catch (Exception ex)
         {
@@ -222,6 +413,38 @@ else
         finally
         {
             _isLoadingStatus = false;
+        }
+    }
+
+    private async Task LoadActiveAudioTracksAsync()
+    {
+        if (Location is null || Location.Id <= 0)
+        {
+            _activeAudioTracks = [];
+            _audioSearchText = string.Empty;
+            return;
+        }
+
+        _isLoadingTracks = true;
+
+        try
+        {
+            _activeAudioTracks = (await ApiClient.GetAudioByLocationAsync(Location.Id))
+                .Where(item => item.Status == 1)
+                .OrderByDescending(item => item.Priority)
+                .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            SyncSelectedTrackLabel();
+        }
+        catch
+        {
+            _activeAudioTracks = [];
+            _audioSearchText = string.Empty;
+        }
+        finally
+        {
+            _isLoadingTracks = false;
         }
     }
 
@@ -283,6 +506,33 @@ else
         return Task.CompletedTask;
     }
 
+    private Task HandleAudioSearchChangedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_audioSearchText))
+        {
+            SetAudioTrackId(null);
+        }
+
+        ClearPreview();
+        return Task.CompletedTask;
+    }
+
+    private Task SelectTrackAsync(AudioDto track)
+    {
+        SetAudioTrackId(track.Id);
+        _audioSearchText = track.Title;
+        ClearPreview();
+        return Task.CompletedTask;
+    }
+
+    private Task ClearSelectedTrackAsync()
+    {
+        SetAudioTrackId(null);
+        _audioSearchText = string.Empty;
+        ClearPreview();
+        return Task.CompletedTask;
+    }
+
     private void ApplyPreview(DownloadedAdminFile file)
     {
         _previewFileName = file.FileName;
@@ -299,10 +549,10 @@ else
     private LocationQrGenerateRequest CreateRequestSnapshot() =>
         new()
         {
-            Format = _request.Format,
-            Size = _request.Size,
-            Autoplay = _request.Autoplay,
-            AudioTrackId = _request.AudioTrackId
+            Format = CurrentRequest.Format,
+            Size = CurrentRequest.Size,
+            Autoplay = CurrentRequest.Autoplay,
+            AudioTrackId = CurrentRequest.AudioTrackId
         };
 
     private void ResetRequest()
@@ -313,6 +563,14 @@ else
             Size = 512,
             Autoplay = true
         };
+        if (FormModel is not null)
+        {
+            FormModel.QrFormat = QrCodeFormats.Png;
+            FormModel.QrSize = 512;
+            FormModel.QrAutoplay = true;
+            FormModel.QrAudioTrackId = null;
+        }
+        _audioSearchText = string.Empty;
     }
 
     private void ClearPreview()
@@ -322,6 +580,94 @@ else
         _previewContentType = null;
     }
 
+    private string L(string key, string fallback) => Language.T(key, fallback);
+
+    private bool MatchesAudioSearch(AudioDto track)
+    {
+        if (string.IsNullOrWhiteSpace(_audioSearchText))
+        {
+            return true;
+        }
+
+        var term = _audioSearchText.Trim();
+        return track.Title.Contains(term, StringComparison.OrdinalIgnoreCase)
+               || (track.LanguageName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+               || track.Language.Contains(term, StringComparison.OrdinalIgnoreCase)
+               || (track.VoiceName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private string BuildTrackMeta(AudioDto track)
+    {
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(track.LanguageName))
+        {
+            parts.Add(track.LanguageName);
+        }
+        else if (!string.IsNullOrWhiteSpace(track.Language))
+        {
+            parts.Add(track.Language);
+        }
+
+        if (!string.IsNullOrWhiteSpace(track.VoiceName))
+        {
+            parts.Add(track.VoiceName);
+        }
+
+        parts.Add($"{L("qr.behavior.track.id", "Track ID")}: {track.Id}");
+        return string.Join(" · ", parts);
+    }
+
+    private string GetTrackButtonClass(int? trackId) =>
+        trackId == CurrentRequest.AudioTrackId
+            ? "location-qr__track-item location-qr__track-item--active"
+            : "location-qr__track-item";
+
+    private void SyncSelectedTrackLabel()
+    {
+        _audioSearchText = SelectedAudioTrack?.Title ?? string.Empty;
+    }
+
+    private void ApplyStatusDefaults()
+    {
+        if (_status is null)
+        {
+            return;
+        }
+
+        if (FormModel is not null)
+        {
+            FormModel.QrFormat = _status.DefaultFormat;
+            FormModel.QrSize = _status.DefaultSize;
+            FormModel.QrAutoplay = _status.DefaultAutoplay;
+            FormModel.QrAudioTrackId = _status.DefaultAudioTrackId;
+            return;
+        }
+
+        _request.Format = _status.DefaultFormat;
+        _request.Size = _status.DefaultSize;
+        _request.Autoplay = _status.DefaultAutoplay;
+        _request.AudioTrackId = _status.DefaultAudioTrackId;
+    }
+
+    private void SetAudioTrackId(int? audioTrackId)
+    {
+        if (FormModel is not null)
+        {
+            FormModel.QrAudioTrackId = audioTrackId;
+            return;
+        }
+
+        _request.AudioTrackId = audioTrackId;
+    }
+
     private string GetFieldId(string suffix) =>
         $"location-qr-{Location?.Id ?? 0}-{suffix}";
+
+    private void HandleLanguageChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Language.Changed -= HandleLanguageChanged;
+    }
 }
