@@ -98,9 +98,9 @@
 
 ### 🔗 QR Code Direct Play (PoC)
 
-- [ ] Implement QR code scanning in-app
-- [ ] Link QR code to specific POI audio (bypass GPS requirement)
-- [ ] Target use case: bus stops in **Khánh Hội, Xóm Chiều, Vĩnh Hội** (Hồ Chí Minh City)
+- [x] Implement QR code scanning in-app
+- [x] Link QR code to specific POI audio (bypass GPS requirement)
+- Target use case: bus stops in **Khánh Hội, Xóm Chiều, Vĩnh Hội** (Hồ Chí Minh City)
 
 ---
 
@@ -172,7 +172,7 @@
 - [x] Multi-language UI (Vietnamese default)
 - [x] Notification integration (auto-stop audio on incoming call/notification)
 - [x] POI owner web portal (non-admin role, manages own POI content)
-- [ ] App distribution via QR code (install link)
+- [x] App distribution via QR code (install link)
 
 ---
 
