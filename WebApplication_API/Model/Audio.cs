@@ -53,4 +53,6 @@ public class Audio
     public DateTime? UpdatedAt { get; set; }
 
     public ICollection<PlaybackEvent> PlaybackEvents { get; set; } = [];
+
+    public ICollection<AudioListeningSession> AudioListeningSessions { get; set; } = [];
 }

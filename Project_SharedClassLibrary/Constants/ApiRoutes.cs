@@ -30,8 +30,14 @@ public static class ApiRoutes
     public const string ChangeRequests = "ChangeRequest";
     public const string Inbox = "Inbox";
     public const string Statistics = "Statistics";
+    public const string StatisticsTopPois = "Statistics/top-pois";
+    public const string StatisticsAverageListening = "Statistics/average-listening";
+    public const string StatisticsHeatmap = "Statistics/heatmap";
     public const string ActivityLogs = "ActivityLog";
     public const string LocationQr = "LocationQr";
+    public const string TelemetryIngestRouteHistoryV1 = "Telemetry/v1/route-history";
+    public const string TelemetryIngestAudioPlayEventsV1 = "Telemetry/v1/audio-play-events";
+    public const string TelemetryIngestAudioListeningSessionsV1 = "Telemetry/v1/audio-listening-sessions";
     public const string PublicLocationQrDownloadPage = "LocationQr/public/download";
     public const string PublicAndroidApkDownload = "LocationQr/public/android-apk";
     public const string PublicAndroidApkQr = "LocationQr/public/android-apk/qr";

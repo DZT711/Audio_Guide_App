@@ -88,6 +88,15 @@ public partial class App : Application
                 System.Diagnostics.Debug.WriteLine($"App shutdown geofence cleanup failed: {ex.Message}");
             }
 
+            try
+            {
+                await TelemetryCaptureService.Instance.StopAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"App shutdown telemetry cleanup failed: {ex.Message}");
+            }
+
         });
     }
 
@@ -117,6 +126,11 @@ public partial class App : Application
                 return;
             }
 
+            if (!await RunStartupStepAsync("telemetry-anonymizer-init", () => TelemetryAnonymizerService.Instance.InitializeAsync()))
+            {
+                return;
+            }
+
             if (!await RunStartupStepAsync("history-init", () => HistoryService.Instance.InitializeAsync()))
             {
                 return;
@@ -124,6 +138,7 @@ public partial class App : Application
 
             await RunStartupStepAsync("geofence-warm-start", () => GeofenceOrchestratorService.Instance.WarmStartAsync());
             RunStartupStep("background-sync-start", () => BackgroundSyncService.Instance.Start());
+            RunStartupStep("telemetry-capture-start", () => TelemetryCaptureService.Instance.Start());
             await RunStartupStepAsync("background-services-start", StartBackgroundServicesAsync);
 
             LogStartup("initialize-application:complete");
@@ -141,6 +156,7 @@ public partial class App : Application
             LogStartup("background-services:catalog-sync:begin");
             await BackgroundSyncService.Instance.TriggerCatalogSyncAsync();
             LogStartup("background-services:catalog-sync:complete");
+            await BackgroundSyncService.Instance.TriggerTelemetrySyncAsync();
 
             var locationPermission = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
             LogStartup($"background-services:foreground-location={locationPermission}");

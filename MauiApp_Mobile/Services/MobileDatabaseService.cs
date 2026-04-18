@@ -7,7 +7,7 @@ namespace MauiApp_Mobile.Services;
 
 public sealed class MobileDatabaseService
 {
-    private const int CurrentSchemaVersion = 1;
+    private const int CurrentSchemaVersion = 2;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
     private SQLiteAsyncConnection? _connection;
@@ -258,6 +258,213 @@ public sealed class MobileDatabaseService
         }
     }
 
+    public async Task EnqueueRouteTelemetryBatchAsync(
+        IReadOnlyList<RouteTelemetryQueueRecord> items,
+        CancellationToken cancellationToken = default)
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var connection = await GetConnectionAsync(cancellationToken);
+        await connection.RunInTransactionAsync(transaction =>
+        {
+            foreach (var item in items)
+            {
+                transaction.Insert(new RouteTelemetryQueueEntity
+                {
+                    DeviceHash = item.DeviceHash,
+                    SessionHash = item.SessionHash,
+                    CapturedAtUtc = item.CapturedAtUtc.ToString("O", CultureInfo.InvariantCulture),
+                    Latitude = item.Latitude,
+                    Longitude = item.Longitude,
+                    AccuracyMeters = item.AccuracyMeters,
+                    SpeedMetersPerSecond = item.SpeedMetersPerSecond,
+                    BatteryPercent = item.BatteryPercent,
+                    IsForeground = item.IsForeground,
+                    TourId = item.TourId,
+                    PoiId = item.PoiId,
+                    Context = item.Context,
+                    LastAttemptAtUtc = null,
+                    RetryCount = 0
+                });
+            }
+        });
+    }
+
+    public async Task EnqueueAudioPlayEventsAsync(
+        IReadOnlyList<AudioPlayEventQueueRecord> items,
+        CancellationToken cancellationToken = default)
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var connection = await GetConnectionAsync(cancellationToken);
+        await connection.RunInTransactionAsync(transaction =>
+        {
+            foreach (var item in items)
+            {
+                transaction.Insert(new AudioPlayEventQueueEntity
+                {
+                    DeviceHash = item.DeviceHash,
+                    SessionHash = item.SessionHash,
+                    PlayedAtUtc = item.PlayedAtUtc.ToString("O", CultureInfo.InvariantCulture),
+                    AudioId = item.AudioId,
+                    PoiId = item.PoiId,
+                    TourId = item.TourId,
+                    EventType = item.EventType,
+                    TriggerSource = item.TriggerSource,
+                    ListeningSeconds = item.ListeningSeconds,
+                    PositionSeconds = item.PositionSeconds,
+                    BatteryPercent = item.BatteryPercent,
+                    NetworkType = item.NetworkType,
+                    Context = item.Context,
+                    LastAttemptAtUtc = null,
+                    RetryCount = 0
+                });
+            }
+        });
+    }
+
+    public async Task EnqueueAudioListeningSessionsAsync(
+        IReadOnlyList<AudioListeningSessionQueueRecord> items,
+        CancellationToken cancellationToken = default)
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var connection = await GetConnectionAsync(cancellationToken);
+        await connection.RunInTransactionAsync(transaction =>
+        {
+            foreach (var item in items)
+            {
+                transaction.Insert(new AudioListeningSessionQueueEntity
+                {
+                    DeviceHash = item.DeviceHash,
+                    SessionHash = item.SessionHash,
+                    AudioId = item.AudioId,
+                    PoiId = item.PoiId,
+                    TourId = item.TourId,
+                    StartedAtUtc = item.StartedAtUtc.ToString("O", CultureInfo.InvariantCulture),
+                    EndedAtUtc = item.EndedAtUtc.ToString("O", CultureInfo.InvariantCulture),
+                    ListeningSeconds = item.ListeningSeconds,
+                    IsCompleted = item.IsCompleted,
+                    InterruptedReason = item.InterruptedReason,
+                    Context = item.Context,
+                    LastAttemptAtUtc = null,
+                    RetryCount = 0
+                });
+            }
+        });
+    }
+
+    public async Task<IReadOnlyList<RouteTelemetryPendingItem>> GetPendingRouteTelemetryAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 500);
+        var connection = await GetConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<RouteTelemetryQueueEntity>(
+            "SELECT * FROM RouteTelemetryQueue ORDER BY QueueId LIMIT ?;",
+            safeLimit);
+
+        return rows
+            .Select(item => new RouteTelemetryPendingItem(
+                item.QueueId,
+                item.DeviceHash,
+                item.SessionHash,
+                ParseDateTimeOffset(item.CapturedAtUtc) ?? DateTimeOffset.UtcNow,
+                item.Latitude,
+                item.Longitude,
+                item.AccuracyMeters,
+                item.SpeedMetersPerSecond,
+                item.BatteryPercent,
+                item.IsForeground,
+                item.TourId,
+                item.PoiId,
+                item.Context))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<AudioPlayEventPendingItem>> GetPendingAudioPlayEventsAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 500);
+        var connection = await GetConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<AudioPlayEventQueueEntity>(
+            "SELECT * FROM AudioPlayEventQueue ORDER BY QueueId LIMIT ?;",
+            safeLimit);
+
+        return rows
+            .Select(item => new AudioPlayEventPendingItem(
+                item.QueueId,
+                item.DeviceHash,
+                item.SessionHash,
+                ParseDateTimeOffset(item.PlayedAtUtc) ?? DateTimeOffset.UtcNow,
+                item.AudioId,
+                item.PoiId,
+                item.TourId,
+                item.EventType,
+                item.TriggerSource,
+                item.ListeningSeconds,
+                item.PositionSeconds,
+                item.BatteryPercent,
+                item.NetworkType,
+                item.Context))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<AudioListeningSessionPendingItem>> GetPendingAudioListeningSessionsAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 500);
+        var connection = await GetConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<AudioListeningSessionQueueEntity>(
+            "SELECT * FROM AudioListeningSessionQueue ORDER BY QueueId LIMIT ?;",
+            safeLimit);
+
+        return rows
+            .Select(item => new AudioListeningSessionPendingItem(
+                item.QueueId,
+                item.DeviceHash,
+                item.SessionHash,
+                item.AudioId,
+                item.PoiId,
+                item.TourId,
+                ParseDateTimeOffset(item.StartedAtUtc) ?? DateTimeOffset.UtcNow,
+                ParseDateTimeOffset(item.EndedAtUtc) ?? DateTimeOffset.UtcNow,
+                item.ListeningSeconds,
+                item.IsCompleted,
+                item.InterruptedReason,
+                item.Context))
+            .ToList();
+    }
+
+    public Task DeleteRouteTelemetryAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
+        DeleteQueuedRowsAsync("RouteTelemetryQueue", "QueueId", queueIds, cancellationToken);
+
+    public Task DeleteAudioPlayEventsAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
+        DeleteQueuedRowsAsync("AudioPlayEventQueue", "QueueId", queueIds, cancellationToken);
+
+    public Task DeleteAudioListeningSessionsAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
+        DeleteQueuedRowsAsync("AudioListeningSessionQueue", "QueueId", queueIds, cancellationToken);
+
+    public Task MarkRouteTelemetryAttemptFailedAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
+        MarkQueuedRowsAttemptFailedAsync("RouteTelemetryQueue", "QueueId", queueIds, cancellationToken);
+
+    public Task MarkAudioPlayEventsAttemptFailedAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
+        MarkQueuedRowsAttemptFailedAsync("AudioPlayEventQueue", "QueueId", queueIds, cancellationToken);
+
+    public Task MarkAudioListeningSessionsAttemptFailedAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
+        MarkQueuedRowsAttemptFailedAsync("AudioListeningSessionQueue", "QueueId", queueIds, cancellationToken);
+
     public async Task SetPlaybackCooldownAsync(string deviceId, int locationId, DateTimeOffset lastPlayedAtUtc, DateTimeOffset cooldownUntilUtc, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -345,6 +552,54 @@ public sealed class MobileDatabaseService
             SyncScope = scope,
             LastFullSyncAtUtc = lastFullSyncAtUtc.ToString("O", CultureInfo.InvariantCulture),
             LastDeltaToken = deltaToken
+        });
+    }
+
+    private async Task DeleteQueuedRowsAsync(
+        string tableName,
+        string keyColumn,
+        IReadOnlyCollection<int> queueIds,
+        CancellationToken cancellationToken)
+    {
+        if (queueIds.Count == 0)
+        {
+            return;
+        }
+
+        var connection = await GetConnectionAsync(cancellationToken);
+        await connection.RunInTransactionAsync(transaction =>
+        {
+            foreach (var queueId in queueIds.Distinct())
+            {
+                transaction.Execute(
+                    $"DELETE FROM {tableName} WHERE {keyColumn} = ?;",
+                    queueId);
+            }
+        });
+    }
+
+    private async Task MarkQueuedRowsAttemptFailedAsync(
+        string tableName,
+        string keyColumn,
+        IReadOnlyCollection<int> queueIds,
+        CancellationToken cancellationToken)
+    {
+        if (queueIds.Count == 0)
+        {
+            return;
+        }
+
+        var attemptedAtUtc = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+        var connection = await GetConnectionAsync(cancellationToken);
+        await connection.RunInTransactionAsync(transaction =>
+        {
+            foreach (var queueId in queueIds.Distinct())
+            {
+                transaction.Execute(
+                    $"UPDATE {tableName} SET RetryCount = COALESCE(RetryCount, 0) + 1, LastAttemptAtUtc = ? WHERE {keyColumn} = ?;",
+                    attemptedAtUtc,
+                    queueId);
+            }
         });
     }
 
@@ -478,6 +733,76 @@ public sealed class MobileDatabaseService
                     PlayedAtUtc TEXT NOT NULL
                 );
                 """);
+        }
+
+        if (version < 2)
+        {
+            await connection.ExecuteAsync("""
+                CREATE TABLE IF NOT EXISTS RouteTelemetryQueue (
+                    QueueId INTEGER PRIMARY KEY AUTOINCREMENT,
+                    DeviceHash TEXT NOT NULL,
+                    SessionHash TEXT NULL,
+                    CapturedAtUtc TEXT NOT NULL,
+                    Latitude REAL NOT NULL,
+                    Longitude REAL NOT NULL,
+                    AccuracyMeters REAL NULL,
+                    SpeedMetersPerSecond REAL NULL,
+                    BatteryPercent INTEGER NULL,
+                    IsForeground INTEGER NOT NULL,
+                    TourId INTEGER NULL,
+                    PoiId INTEGER NULL,
+                    Context TEXT NULL,
+                    LastAttemptAtUtc TEXT NULL,
+                    RetryCount INTEGER NOT NULL DEFAULT 0
+                );
+                """);
+
+            await connection.ExecuteAsync("""
+                CREATE TABLE IF NOT EXISTS AudioPlayEventQueue (
+                    QueueId INTEGER PRIMARY KEY AUTOINCREMENT,
+                    DeviceHash TEXT NOT NULL,
+                    SessionHash TEXT NULL,
+                    PlayedAtUtc TEXT NOT NULL,
+                    AudioId INTEGER NULL,
+                    PoiId INTEGER NULL,
+                    TourId INTEGER NULL,
+                    EventType TEXT NOT NULL,
+                    TriggerSource TEXT NOT NULL,
+                    ListeningSeconds INTEGER NULL,
+                    PositionSeconds REAL NULL,
+                    BatteryPercent INTEGER NULL,
+                    NetworkType TEXT NULL,
+                    Context TEXT NULL,
+                    LastAttemptAtUtc TEXT NULL,
+                    RetryCount INTEGER NOT NULL DEFAULT 0
+                );
+                """);
+
+            await connection.ExecuteAsync("""
+                CREATE TABLE IF NOT EXISTS AudioListeningSessionQueue (
+                    QueueId INTEGER PRIMARY KEY AUTOINCREMENT,
+                    DeviceHash TEXT NOT NULL,
+                    SessionHash TEXT NULL,
+                    AudioId INTEGER NULL,
+                    PoiId INTEGER NULL,
+                    TourId INTEGER NULL,
+                    StartedAtUtc TEXT NOT NULL,
+                    EndedAtUtc TEXT NOT NULL,
+                    ListeningSeconds INTEGER NOT NULL,
+                    IsCompleted INTEGER NOT NULL,
+                    InterruptedReason TEXT NULL,
+                    Context TEXT NULL,
+                    LastAttemptAtUtc TEXT NULL,
+                    RetryCount INTEGER NOT NULL DEFAULT 0
+                );
+                """);
+
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_RouteTelemetryQueue_CapturedAtUtc ON RouteTelemetryQueue(CapturedAtUtc);");
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_RouteTelemetryQueue_PoiTour ON RouteTelemetryQueue(PoiId, TourId);");
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_AudioPlayEventQueue_PlayedAtUtc ON AudioPlayEventQueue(PlayedAtUtc);");
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_AudioPlayEventQueue_PoiTour ON AudioPlayEventQueue(PoiId, TourId);");
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_AudioListeningSessionQueue_StartedAtUtc ON AudioListeningSessionQueue(StartedAtUtc);");
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_AudioListeningSessionQueue_PoiTour ON AudioListeningSessionQueue(PoiId, TourId);");
         }
 
         await connection.ExecuteAsync($"PRAGMA user_version = {CurrentSchemaVersion};");
@@ -666,6 +991,69 @@ public sealed class MobileDatabaseService
         public string CapturedAtUtc { get; set; } = string.Empty;
     }
 
+    [Table("RouteTelemetryQueue")]
+    private sealed class RouteTelemetryQueueEntity
+    {
+        [PrimaryKey, AutoIncrement]
+        public int QueueId { get; set; }
+        public string DeviceHash { get; set; } = string.Empty;
+        public string? SessionHash { get; set; }
+        public string CapturedAtUtc { get; set; } = string.Empty;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double? AccuracyMeters { get; set; }
+        public double? SpeedMetersPerSecond { get; set; }
+        public int? BatteryPercent { get; set; }
+        public bool IsForeground { get; set; }
+        public int? TourId { get; set; }
+        public int? PoiId { get; set; }
+        public string? Context { get; set; }
+        public string? LastAttemptAtUtc { get; set; }
+        public int RetryCount { get; set; }
+    }
+
+    [Table("AudioPlayEventQueue")]
+    private sealed class AudioPlayEventQueueEntity
+    {
+        [PrimaryKey, AutoIncrement]
+        public int QueueId { get; set; }
+        public string DeviceHash { get; set; } = string.Empty;
+        public string? SessionHash { get; set; }
+        public string PlayedAtUtc { get; set; } = string.Empty;
+        public int? AudioId { get; set; }
+        public int? PoiId { get; set; }
+        public int? TourId { get; set; }
+        public string EventType { get; set; } = "Started";
+        public string TriggerSource { get; set; } = "Unknown";
+        public int? ListeningSeconds { get; set; }
+        public double? PositionSeconds { get; set; }
+        public int? BatteryPercent { get; set; }
+        public string? NetworkType { get; set; }
+        public string? Context { get; set; }
+        public string? LastAttemptAtUtc { get; set; }
+        public int RetryCount { get; set; }
+    }
+
+    [Table("AudioListeningSessionQueue")]
+    private sealed class AudioListeningSessionQueueEntity
+    {
+        [PrimaryKey, AutoIncrement]
+        public int QueueId { get; set; }
+        public string DeviceHash { get; set; } = string.Empty;
+        public string? SessionHash { get; set; }
+        public int? AudioId { get; set; }
+        public int? PoiId { get; set; }
+        public int? TourId { get; set; }
+        public string StartedAtUtc { get; set; } = string.Empty;
+        public string EndedAtUtc { get; set; } = string.Empty;
+        public int ListeningSeconds { get; set; }
+        public bool IsCompleted { get; set; }
+        public string? InterruptedReason { get; set; }
+        public string? Context { get; set; }
+        public string? LastAttemptAtUtc { get; set; }
+        public int RetryCount { get; set; }
+    }
+
     private sealed class PlaybackHistoryRow
     {
         public int HistoryId { get; set; }
@@ -698,3 +1086,90 @@ public sealed record PlaybackHistoryRecord(
     string PlaceId,
     string PlacePayloadJson,
     DateTimeOffset PlayedAtUtc);
+
+public sealed record RouteTelemetryQueueRecord(
+    string DeviceHash,
+    string? SessionHash,
+    DateTimeOffset CapturedAtUtc,
+    double Latitude,
+    double Longitude,
+    double? AccuracyMeters,
+    double? SpeedMetersPerSecond,
+    int? BatteryPercent,
+    bool IsForeground,
+    int? TourId,
+    int? PoiId,
+    string? Context);
+
+public sealed record RouteTelemetryPendingItem(
+    int QueueId,
+    string DeviceHash,
+    string? SessionHash,
+    DateTimeOffset CapturedAtUtc,
+    double Latitude,
+    double Longitude,
+    double? AccuracyMeters,
+    double? SpeedMetersPerSecond,
+    int? BatteryPercent,
+    bool IsForeground,
+    int? TourId,
+    int? PoiId,
+    string? Context);
+
+public sealed record AudioPlayEventQueueRecord(
+    string DeviceHash,
+    string? SessionHash,
+    DateTimeOffset PlayedAtUtc,
+    int? AudioId,
+    int? PoiId,
+    int? TourId,
+    string EventType,
+    string TriggerSource,
+    int? ListeningSeconds,
+    double? PositionSeconds,
+    int? BatteryPercent,
+    string? NetworkType,
+    string? Context);
+
+public sealed record AudioPlayEventPendingItem(
+    int QueueId,
+    string DeviceHash,
+    string? SessionHash,
+    DateTimeOffset PlayedAtUtc,
+    int? AudioId,
+    int? PoiId,
+    int? TourId,
+    string EventType,
+    string TriggerSource,
+    int? ListeningSeconds,
+    double? PositionSeconds,
+    int? BatteryPercent,
+    string? NetworkType,
+    string? Context);
+
+public sealed record AudioListeningSessionQueueRecord(
+    string DeviceHash,
+    string? SessionHash,
+    int? AudioId,
+    int? PoiId,
+    int? TourId,
+    DateTimeOffset StartedAtUtc,
+    DateTimeOffset EndedAtUtc,
+    int ListeningSeconds,
+    bool IsCompleted,
+    string? InterruptedReason,
+    string? Context);
+
+public sealed record AudioListeningSessionPendingItem(
+    int QueueId,
+    string DeviceHash,
+    string? SessionHash,
+    int? AudioId,
+    int? PoiId,
+    int? TourId,
+    DateTimeOffset StartedAtUtc,
+    DateTimeOffset EndedAtUtc,
+    int ListeningSeconds,
+    bool IsCompleted,
+    string? InterruptedReason,
+    string? Context);

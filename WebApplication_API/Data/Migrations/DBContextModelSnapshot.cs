@@ -170,6 +170,65 @@ namespace WebApplication_API.Data.Migrations
                     b.ToTable("AudioContents", (string)null);
                 });
 
+            modelBuilder.Entity("WebApplication_API.Model.AudioListeningSession", b =>
+                {
+                    b.Property<int>("AudioListeningSessionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AudioId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Context")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("EndedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("InterruptedReason")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ListeningSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("LocationId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("PoiId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SessionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("TourId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("AudioListeningSessionId");
+
+                    b.HasIndex("AudioId");
+
+                    b.HasIndex("LocationId", "StartedAt");
+
+                    b.HasIndex("PoiId", "TourId", "StartedAt");
+
+                    b.HasIndex("StartedAt");
+
+                    b.ToTable("AudioListeningSessions", (string)null);
+                });
+
             modelBuilder.Entity("WebApplication_API.Model.Category", b =>
                 {
                     b.Property<int>("CategoryId")
@@ -569,6 +628,9 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<DateTime>("CapturedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Context")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DeviceId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -582,15 +644,25 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<double>("Longitude")
                         .HasColumnType("REAL");
 
+                    b.Property<int?>("PoiId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("SessionId")
                         .HasColumnType("TEXT");
 
                     b.Property<double?>("SpeedMetersPerSecond")
                         .HasColumnType("REAL");
 
+                    b.Property<int?>("TourId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("TrackingEventId");
 
+                    b.HasIndex("CapturedAt");
+
                     b.HasIndex("DeviceId", "CapturedAt");
+
+                    b.HasIndex("PoiId", "TourId", "CapturedAt");
 
                     b.ToTable("LocationTrackingEvents", (string)null);
                 });
@@ -606,6 +678,9 @@ namespace WebApplication_API.Data.Migrations
 
                     b.Property<int?>("BatteryPercent")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Context")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("DeviceId")
                         .HasColumnType("TEXT");
@@ -626,6 +701,9 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<string>("NetworkType")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("PoiId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("QueuePosition")
                         .HasColumnType("INTEGER");
 
@@ -636,11 +714,18 @@ namespace WebApplication_API.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("TourId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("PlaybackEventId");
 
                     b.HasIndex("AudioId");
 
+                    b.HasIndex("EventAt");
+
                     b.HasIndex("LocationId", "EventAt");
+
+                    b.HasIndex("PoiId", "TourId", "EventAt");
 
                     b.ToTable("PlaybackEvents", (string)null);
                 });
@@ -740,6 +825,23 @@ namespace WebApplication_API.Data.Migrations
                         .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("WebApplication_API.Model.AudioListeningSession", b =>
+                {
+                    b.HasOne("WebApplication_API.Model.Audio", "Audio")
+                        .WithMany("AudioListeningSessions")
+                        .HasForeignKey("AudioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("WebApplication_API.Model.Location", "Location")
+                        .WithMany("AudioListeningSessions")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Audio");
 
                     b.Navigation("Location");
                 });
@@ -849,6 +951,8 @@ namespace WebApplication_API.Data.Migrations
 
             modelBuilder.Entity("WebApplication_API.Model.Audio", b =>
                 {
+                    b.Navigation("AudioListeningSessions");
+
                     b.Navigation("PlaybackEvents");
                 });
 
@@ -878,6 +982,8 @@ namespace WebApplication_API.Data.Migrations
             modelBuilder.Entity("WebApplication_API.Model.Location", b =>
                 {
                     b.Navigation("AudioContents");
+
+                    b.Navigation("AudioListeningSessions");
 
                     b.Navigation("Images");
 

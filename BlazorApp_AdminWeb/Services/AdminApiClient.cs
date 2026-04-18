@@ -150,6 +150,42 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         return await ReadJsonAsync<StatisticsOverviewDto>(response, "Unable to load statistics.");
     }
 
+    public async Task<IReadOnlyList<StatisticsPoiReportRowDto>> GetTopPoisByPlayCountAsync(
+        StatisticsQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        var route = BuildStatisticsRoute(query, ApiRoutes.StatisticsTopPois);
+        using var response = await httpClient.GetAsync(route, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load top POIs report.");
+        return await ReadJsonAsync<List<StatisticsPoiReportRowDto>>(response, "Unable to load top POIs report.");
+    }
+
+    public async Task<IReadOnlyList<StatisticsPoiReportRowDto>> GetAverageListeningByPoiAsync(
+        StatisticsQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        var route = BuildStatisticsRoute(query, ApiRoutes.StatisticsAverageListening);
+        using var response = await httpClient.GetAsync(route, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load average listening report.");
+        return await ReadJsonAsync<List<StatisticsPoiReportRowDto>>(response, "Unable to load average listening report.");
+    }
+
+    public async Task<IReadOnlyList<StatisticsHeatPointDto>> GetStatisticsHeatmapAsync(
+        StatisticsQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        var route = BuildStatisticsRoute(query, ApiRoutes.StatisticsHeatmap);
+        using var response = await httpClient.GetAsync(route, cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load heatmap data.");
+        return await ReadJsonAsync<List<StatisticsHeatPointDto>>(response, "Unable to load heatmap data.");
+    }
+
     public async Task<ActivityLogListDto> GetActivityLogsAsync(ActivityLogQueryDto query, CancellationToken cancellationToken = default)
     {
         ApplyAuthHeader();
@@ -777,18 +813,22 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
     }
 
     private static string BuildStatisticsRoute(StatisticsQueryDto query)
+        => BuildStatisticsRoute(query, ApiRoutes.Statistics);
+
+    private static string BuildStatisticsRoute(StatisticsQueryDto query, string baseRoute)
     {
         var segments = new List<string>();
 
-        AddQuerySegment("from", query.From?.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-        AddQuerySegment("to", query.To?.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        AddQuerySegment("from", query.From?.ToString("O", CultureInfo.InvariantCulture));
+        AddQuerySegment("to", query.To?.ToString("O", CultureInfo.InvariantCulture));
+        AddQuerySegment("timezone", string.IsNullOrWhiteSpace(query.Timezone) ? null : query.Timezone.Trim());
         AddQuerySegment("tourId", query.TourId is > 0 ? query.TourId.Value.ToString(CultureInfo.InvariantCulture) : null);
         AddQuerySegment("ward", string.IsNullOrWhiteSpace(query.Ward) ? null : query.Ward);
         AddQuerySegment("search", string.IsNullOrWhiteSpace(query.Search) ? null : query.Search);
 
         return segments.Count == 0
-            ? ApiRoutes.Statistics
-            : $"{ApiRoutes.Statistics}?{string.Join("&", segments)}";
+            ? baseRoute
+            : $"{baseRoute}?{string.Join("&", segments)}";
 
         void AddQuerySegment(string key, string? value)
         {

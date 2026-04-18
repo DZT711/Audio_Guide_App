@@ -529,6 +529,7 @@ else
                                             }
 
 @code {
+    private const string DefaultReportTimezone = "Asia/Ho_Chi_Minh";
     private StatisticsOverviewDto _overview = new();
     private DateTime? _fromDate = DateTime.UtcNow.Date.AddDays(-14);
     private DateTime? _toDate = DateTime.UtcNow.Date;
@@ -644,8 +645,9 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
         {
             _overview = await ApiClient.GetStatisticsAsync(new StatisticsQueryDto
             {
-                From = _fromDate?.Date,
-                To = _toDate?.Date,
+                From = ToUtcFromDate(_fromDate),
+                To = ToUtcToDate(_toDate),
+                Timezone = DefaultReportTimezone,
                 TourId = int.TryParse(_selectedTourValue, out var tourId) ? tourId : null,
                 Ward = string.IsNullOrWhiteSpace(_selectedWard) ? null : _selectedWard,
                 Search = string.IsNullOrWhiteSpace(_searchText) ? null : _searchText.Trim()
@@ -913,6 +915,16 @@ StringComparison.OrdinalIgnoreCase))
     private static string JoinItems(IReadOnlyList<string> items) => items.Count == 0 ? "No linked content" : string.Join(", ", items);
     private static string GetRouteLabel(StatisticsRouteHistoryDto route) => route.SessionId ?? route.DeviceId ??
 route.SessionKey;
+    private static DateTime? ToUtcFromDate(DateTime? value) =>
+        value.HasValue
+            ? DateTime.SpecifyKind(value.Value.Date, DateTimeKind.Utc)
+            : null;
+
+    private static DateTime? ToUtcToDate(DateTime? value) =>
+        value.HasValue
+            ? DateTime.SpecifyKind(value.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc)
+            : null;
+
     private string? GetPoiImageUrl(string? imagePath) => ApiClient.ResolveImageUrl(imagePath);
     private static string FormatDistance(double value) => $"{value.ToString("0.00", CultureInfo.InvariantCulture)} km";
     private static string FormatSeconds(double value)

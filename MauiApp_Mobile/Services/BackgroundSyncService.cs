@@ -21,6 +21,7 @@ public sealed class BackgroundSyncService
         }
 
         Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
+        TelemetrySyncService.Instance.Start();
         _started = true;
     }
 
@@ -32,6 +33,7 @@ public sealed class BackgroundSyncService
         }
 
         Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
+        TelemetrySyncService.Instance.Stop();
         _started = false;
     }
 
@@ -57,6 +59,9 @@ public sealed class BackgroundSyncService
         }
     }
 
+    public Task TriggerTelemetrySyncAsync(CancellationToken cancellationToken = default) =>
+        TelemetrySyncService.Instance.TriggerSyncAsync(cancellationToken);
+
     private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
     {
         if (e.NetworkAccess != NetworkAccess.Internet)
@@ -65,5 +70,6 @@ public sealed class BackgroundSyncService
         }
 
         _ = TriggerCatalogSyncAsync();
+        _ = TriggerTelemetrySyncAsync();
     }
 }

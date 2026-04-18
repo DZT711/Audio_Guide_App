@@ -4,6 +4,7 @@ public sealed class StatisticsQueryDto
 {
     public DateTime? From { get; init; }
     public DateTime? To { get; init; }
+    public string? Timezone { get; init; }
     public int? TourId { get; init; }
     public string? Ward { get; init; }
     public string? Search { get; init; }

@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using MauiApp_Mobile.Services.DependencyInjection;
 using MauiApp_Mobile.Services.Geofencing;
+using MauiApp_Mobile.Services.Platform;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Devices;
 using Microsoft.Maui.Devices.Sensors;
@@ -148,9 +150,7 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
 
     public async Task StartForegroundTrackingAsync(CancellationToken cancellationToken = default)
     {
-#if ANDROID
-        AndroidLocationForegroundServiceManager.Stop();
-#endif
+        MauiServiceHost.GetService<ILocationForegroundServiceController>()?.Stop();
         var foregroundStatus = await GetForegroundPermissionStatusAsync();
         if (foregroundStatus != PermissionStatus.Granted)
         {
@@ -169,9 +169,7 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
             return;
         }
 
-#if ANDROID
-        AndroidLocationForegroundServiceManager.Start();
-#endif
+        MauiServiceHost.GetService<ILocationForegroundServiceController>()?.Start();
         await StartPollingAsync(isForeground: false, cancellationToken);
     }
 
@@ -206,9 +204,7 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
         _trackingCts?.Cancel();
         _trackingCts = null;
         IsTracking = false;
-#if ANDROID
-        AndroidLocationForegroundServiceManager.Stop();
-#endif
+        MauiServiceHost.GetService<ILocationForegroundServiceController>()?.Stop();
         return Task.CompletedTask;
     }
 

@@ -15,6 +15,8 @@ public class StatisticsController(
     DBContext context,
     AdminRequestAuthorizationService authService) : ControllerBase
 {
+    private const string DefaultReportTimezoneIana = "Asia/Ho_Chi_Minh";
+
     [HttpGet]
     public async Task<IActionResult> GetStatistics([FromQuery] StatisticsQueryDto query)
     {
@@ -24,7 +26,80 @@ public class StatisticsController(
             return access.ToFailureResult();
         }
 
-        var currentUser = access.User!;
+        if (!TryResolveReportTimeZone(query.Timezone, out var reportTimeZone, out var reportTimeZoneId, out var validationError))
+        {
+            ModelState.AddModelError(nameof(StatisticsQueryDto.Timezone), validationError);
+            return ValidationProblem(ModelState);
+        }
+
+        var overview = await BuildStatisticsOverviewAsync(query, access.User!, reportTimeZone, reportTimeZoneId);
+        return Ok(overview);
+    }
+
+    [HttpGet("top-pois")]
+    public async Task<IActionResult> GetTopPoisByPlayCount([FromQuery] StatisticsQueryDto query)
+    {
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.AnalyticsView);
+        if (!access.Succeeded)
+        {
+            return access.ToFailureResult();
+        }
+
+        if (!TryResolveReportTimeZone(query.Timezone, out var reportTimeZone, out var reportTimeZoneId, out var validationError))
+        {
+            ModelState.AddModelError(nameof(StatisticsQueryDto.Timezone), validationError);
+            return ValidationProblem(ModelState);
+        }
+
+        var overview = await BuildStatisticsOverviewAsync(query, access.User!, reportTimeZone, reportTimeZoneId);
+        return Ok(overview.TopPoisByPlayCount);
+    }
+
+    [HttpGet("average-listening")]
+    public async Task<IActionResult> GetAverageListeningByPoi([FromQuery] StatisticsQueryDto query)
+    {
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.AnalyticsView);
+        if (!access.Succeeded)
+        {
+            return access.ToFailureResult();
+        }
+
+        if (!TryResolveReportTimeZone(query.Timezone, out var reportTimeZone, out var reportTimeZoneId, out var validationError))
+        {
+            ModelState.AddModelError(nameof(StatisticsQueryDto.Timezone), validationError);
+            return ValidationProblem(ModelState);
+        }
+
+        var overview = await BuildStatisticsOverviewAsync(query, access.User!, reportTimeZone, reportTimeZoneId);
+        return Ok(overview.AverageListeningByPoi);
+    }
+
+    [HttpGet("heatmap")]
+    public async Task<IActionResult> GetHeatmap([FromQuery] StatisticsQueryDto query)
+    {
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.AnalyticsView);
+        if (!access.Succeeded)
+        {
+            return access.ToFailureResult();
+        }
+
+        if (!TryResolveReportTimeZone(query.Timezone, out var reportTimeZone, out var reportTimeZoneId, out var validationError))
+        {
+            ModelState.AddModelError(nameof(StatisticsQueryDto.Timezone), validationError);
+            return ValidationProblem(ModelState);
+        }
+
+        var overview = await BuildStatisticsOverviewAsync(query, access.User!, reportTimeZone, reportTimeZoneId);
+        return Ok(overview.HeatmapPoints);
+    }
+
+    private async Task<StatisticsOverviewDto> BuildStatisticsOverviewAsync(
+        StatisticsQueryDto query,
+        DashboardUser currentUser,
+        TimeZoneInfo reportTimeZone,
+        string reportTimeZoneId)
+    {
+        var utcRange = ResolveUtcRange(query);
         var ownerScoped = IsOwnerScoped(currentUser);
         var locations = await BuildLocationScopeQuery(currentUser)
             .Include(item => item.Owner)
@@ -71,6 +146,13 @@ public class StatisticsController(
             .OrderByDescending(item => item.EventAt)
             .ToListAsync();
 
+        var listeningSessionItems = await BuildListeningSessionQuery(query, scopedLocationIds)
+            .Include(item => item.Location)
+            .ThenInclude(item => item!.Owner)
+            .Include(item => item.Audio)
+            .OrderByDescending(item => item.StartedAt)
+            .ToListAsync();
+
         var playbackBySession = playbackItems
             .GroupBy(GetSessionKey, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
@@ -109,9 +191,11 @@ public class StatisticsController(
             .Where(item => scopedLocationIds.Contains(item.LocationId))
             .ToList();
 
-        var listeningSamples = playbackItems
-            .Where(item => item.ListeningSeconds.HasValue && item.ListeningSeconds.Value > 0)
-            .Select(item => item.ListeningSeconds!.Value)
+        var locationLookup = locations.ToDictionary(item => item.LocationId);
+
+        var listeningSamples = listeningSessionItems
+            .Where(item => item.ListeningSeconds > 0)
+            .Select(item => item.ListeningSeconds)
             .ToList();
 
         var guestKeys = playbackItems
@@ -121,12 +205,13 @@ public class StatisticsController(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
 
-        return Ok(new StatisticsOverviewDto
+        return new StatisticsOverviewDto
         {
             AppliedFilters = new StatisticsQueryDto
             {
-                From = query.From?.Date,
-                To = query.To?.Date,
+                From = utcRange.FromUtcInclusive,
+                To = utcRange.ToUtcInclusive,
+                Timezone = reportTimeZoneId,
                 TourId = query.TourId,
                 Ward = query.Ward,
                 Search = query.Search
@@ -148,7 +233,7 @@ public class StatisticsController(
             },
             TourOptions = BuildTourOptions(tourLinks),
             WardOptions = BuildWardOptions(locations, wardLookup),
-            PlaybackTimeline = BuildPlaybackTimeline(playCountItems, trackingItems, query),
+            PlaybackTimeline = BuildPlaybackTimeline(playCountItems, trackingItems, utcRange, reportTimeZone),
             PlaysByWard = BuildPlaysByWard(playCountItems, wardLookup),
             PlaysByTour = BuildPlaysByTour(playCountItems, tourNamesByLocation),
             Locations = filteredLocations
@@ -168,9 +253,9 @@ public class StatisticsController(
                 .ToList(),
             HeatmapPoints = BuildHeatmapPoints(trackingItems, routeLookup, locations),
             RouteHistory = routeHistory,
-            TopPoisByPlayCount = BuildTopPoiReport(playCountItems, playbackItems, wardLookup, tourNamesByLocation),
-            AverageListeningByPoi = BuildAverageListeningReport(playbackItems, wardLookup, tourNamesByLocation)
-        });
+            TopPoisByPlayCount = BuildTopPoiReport(playCountItems, playbackItems, listeningSessionItems, wardLookup, tourNamesByLocation),
+            AverageListeningByPoi = BuildAverageListeningReport(listeningSessionItems, locationLookup, wardLookup, tourNamesByLocation)
+        };
     }
 
     private IQueryable<Location> BuildLocationScopeQuery(DashboardUser currentUser)
@@ -188,20 +273,19 @@ public class StatisticsController(
         StatisticsQueryDto query,
         IReadOnlyCollection<int> scopedLocationIds)
     {
+        var utcRange = ResolveUtcRange(query);
         var items = context.PlaybackEvents
             .AsNoTracking()
             .Where(item => item.LocationId.HasValue && scopedLocationIds.Contains(item.LocationId.Value));
 
-        if (query.From.HasValue)
+        if (utcRange.FromUtcInclusive.HasValue)
         {
-            var fromInclusive = query.From.Value.Date;
-            items = items.Where(item => item.EventAt >= fromInclusive);
+            items = items.Where(item => item.EventAt >= utcRange.FromUtcInclusive.Value);
         }
 
-        if (query.To.HasValue)
+        if (utcRange.ToUtcInclusive.HasValue)
         {
-            var toExclusive = query.To.Value.Date.AddDays(1);
-            items = items.Where(item => item.EventAt < toExclusive);
+            items = items.Where(item => item.EventAt <= utcRange.ToUtcInclusive.Value);
         }
 
         return items;
@@ -209,20 +293,41 @@ public class StatisticsController(
 
     private IQueryable<LocationTrackingEvent> BuildTrackingQuery(StatisticsQueryDto query)
     {
+        var utcRange = ResolveUtcRange(query);
         var items = context.LocationTrackingEvents
             .AsNoTracking()
             .AsQueryable();
 
-        if (query.From.HasValue)
+        if (utcRange.FromUtcInclusive.HasValue)
         {
-            var fromInclusive = query.From.Value.Date;
-            items = items.Where(item => item.CapturedAt >= fromInclusive);
+            items = items.Where(item => item.CapturedAt >= utcRange.FromUtcInclusive.Value);
         }
 
-        if (query.To.HasValue)
+        if (utcRange.ToUtcInclusive.HasValue)
         {
-            var toExclusive = query.To.Value.Date.AddDays(1);
-            items = items.Where(item => item.CapturedAt < toExclusive);
+            items = items.Where(item => item.CapturedAt <= utcRange.ToUtcInclusive.Value);
+        }
+
+        return items;
+    }
+
+    private IQueryable<AudioListeningSession> BuildListeningSessionQuery(
+        StatisticsQueryDto query,
+        IReadOnlyCollection<int> scopedLocationIds)
+    {
+        var utcRange = ResolveUtcRange(query);
+        var items = context.AudioListeningSessions
+            .AsNoTracking()
+            .Where(item => item.LocationId.HasValue && scopedLocationIds.Contains(item.LocationId.Value));
+
+        if (utcRange.FromUtcInclusive.HasValue)
+        {
+            items = items.Where(item => item.StartedAt >= utcRange.FromUtcInclusive.Value);
+        }
+
+        if (utcRange.ToUtcInclusive.HasValue)
+        {
+            items = items.Where(item => item.StartedAt <= utcRange.ToUtcInclusive.Value);
         }
 
         return items;
@@ -316,16 +421,21 @@ public class StatisticsController(
     private static List<StatisticsChartPointDto> BuildPlaybackTimeline(
         IReadOnlyCollection<PlaybackEvent> playCountItems,
         IReadOnlyCollection<LocationTrackingEvent> trackingItems,
-        StatisticsQueryDto query)
+        StatisticsUtcRange utcRange,
+        TimeZoneInfo reportTimeZone)
     {
-        var startDate = query.From?.Date;
-        var endDate = query.To?.Date;
+        var startDate = utcRange.FromUtcInclusive.HasValue
+            ? ConvertUtcToReportDate(utcRange.FromUtcInclusive.Value, reportTimeZone)
+            : (DateTime?)null;
+        var endDate = utcRange.ToUtcInclusive.HasValue
+            ? ConvertUtcToReportDate(utcRange.ToUtcInclusive.Value, reportTimeZone)
+            : (DateTime?)null;
 
         if (!startDate.HasValue || !endDate.HasValue)
         {
             var dates = playCountItems
-                .Select(item => item.EventAt.Date)
-                .Concat(trackingItems.Select(item => item.CapturedAt.Date))
+                .Select(item => ConvertUtcToReportDate(item.EventAt, reportTimeZone))
+                .Concat(trackingItems.Select(item => ConvertUtcToReportDate(item.CapturedAt, reportTimeZone)))
                 .ToList();
 
             if (dates.Count > 0)
@@ -344,7 +454,7 @@ public class StatisticsController(
         }
 
         var playCountByDate = playCountItems
-            .GroupBy(item => item.EventAt.Date)
+            .GroupBy(item => ConvertUtcToReportDate(item.EventAt, reportTimeZone))
             .ToDictionary(group => group.Key, group => group.Count());
 
         var results = new List<StatisticsChartPointDto>();
@@ -532,12 +642,18 @@ public class StatisticsController(
     private static List<StatisticsPoiReportRowDto> BuildTopPoiReport(
         IReadOnlyCollection<PlaybackEvent> playCountItems,
         IReadOnlyCollection<PlaybackEvent> playbackItems,
+        IReadOnlyCollection<AudioListeningSession> listeningSessionItems,
         IReadOnlyDictionary<int, string> wardLookup,
         IReadOnlyDictionary<int, IReadOnlyList<string>> tourNamesByLocation)
     {
         var playbackLookup = playbackItems
             .Where(item => item.LocationId.HasValue)
             .GroupBy(item => item.LocationId!.Value)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        var listeningLookup = listeningSessionItems
+            .Where(item => (item.LocationId ?? item.PoiId).HasValue)
+            .GroupBy(item => (item.LocationId ?? item.PoiId)!.Value)
             .ToDictionary(group => group.Key, group => group.ToList());
 
         return playCountItems
@@ -549,9 +665,12 @@ public class StatisticsController(
                 playbackLookup.TryGetValue(group.Key, out var locationPlaybackItems);
                 locationPlaybackItems ??= [];
 
-                var listeningSamples = locationPlaybackItems
-                    .Where(item => item.ListeningSeconds.HasValue && item.ListeningSeconds.Value > 0)
-                    .Select(item => item.ListeningSeconds!.Value)
+                listeningLookup.TryGetValue(group.Key, out var locationListeningSessions);
+                locationListeningSessions ??= [];
+
+                var listeningSamples = locationListeningSessions
+                    .Where(item => item.ListeningSeconds > 0)
+                    .Select(item => item.ListeningSeconds)
                     .ToList();
 
                 return new StatisticsPoiReportRowDto
@@ -591,18 +710,19 @@ public class StatisticsController(
     }
 
     private static List<StatisticsPoiReportRowDto> BuildAverageListeningReport(
-        IReadOnlyCollection<PlaybackEvent> playbackItems,
+        IReadOnlyCollection<AudioListeningSession> listeningSessionItems,
+        IReadOnlyDictionary<int, Location> locationLookup,
         IReadOnlyDictionary<int, string> wardLookup,
         IReadOnlyDictionary<int, IReadOnlyList<string>> tourNamesByLocation)
     {
-        return playbackItems
-            .Where(item => item.LocationId.HasValue && item.ListeningSeconds.HasValue && item.ListeningSeconds.Value > 0)
-            .GroupBy(item => item.LocationId!.Value)
+        return listeningSessionItems
+            .Where(item => (item.LocationId ?? item.PoiId).HasValue && item.ListeningSeconds > 0)
+            .GroupBy(item => (item.LocationId ?? item.PoiId)!.Value)
             .Select(group =>
             {
-                var location = group.First().Location;
+                locationLookup.TryGetValue(group.Key, out var location);
                 var listeningSamples = group
-                    .Select(item => item.ListeningSeconds!.Value)
+                    .Select(item => item.ListeningSeconds)
                     .ToList();
 
                 return new StatisticsPoiReportRowDto
@@ -612,11 +732,11 @@ public class StatisticsController(
                     PreferenceImageUrl = NormalizeImagePath(location?.PreferenceImageUrl),
                     OwnerName = location?.Owner?.FullName ?? location?.Owner?.Username,
                     Ward = wardLookup.TryGetValue(group.Key, out var ward) ? ward : "Unassigned",
-                    PlayCount = group.Count(item => IsPlayCountEvent(item.EventType)),
+                    PlayCount = group.Count(),
                     AverageListeningSeconds = Math.Round(listeningSamples.Average(), 1, MidpointRounding.AwayFromZero),
                     ListeningSamples = listeningSamples.Count,
                     TopAudioTitle = group
-                        .Select(item => item.Audio?.Title)
+                        .Select(item => item.Audio?.Title ?? item.Location?.AudioContents.FirstOrDefault()?.Title)
                         .Where(item => !string.IsNullOrWhiteSpace(item))
                         .GroupBy(item => item!, StringComparer.OrdinalIgnoreCase)
                         .OrderByDescending(item => item.Count())
@@ -763,9 +883,127 @@ public class StatisticsController(
 
     private static double DegreesToRadians(double value) => value * (Math.PI / 180d);
 
+    private static StatisticsUtcRange ResolveUtcRange(StatisticsQueryDto query)
+    {
+        var fromUtc = query.From.HasValue
+            ? NormalizeAsUtc(query.From.Value)
+            : (DateTime?)null;
+
+        var toUtc = query.To.HasValue
+            ? NormalizeAsUtc(query.To.Value)
+            : (DateTime?)null;
+
+        // Backward-compatible handling for date-only "to" values from legacy dashboard requests.
+        if (query.To.HasValue
+            && query.To.Value.Kind == DateTimeKind.Unspecified
+            && query.To.Value.TimeOfDay == TimeSpan.Zero)
+        {
+            toUtc = toUtc?.Date.AddDays(1).AddTicks(-1);
+        }
+
+        if (fromUtc.HasValue && toUtc.HasValue && toUtc.Value < fromUtc.Value)
+        {
+            (fromUtc, toUtc) = (toUtc, fromUtc);
+        }
+
+        return new StatisticsUtcRange(fromUtc, toUtc);
+    }
+
+    private static bool TryResolveReportTimeZone(
+        string? requestedTimezone,
+        out TimeZoneInfo reportTimeZone,
+        out string reportTimeZoneId,
+        out string validationError)
+    {
+        var candidate = string.IsNullOrWhiteSpace(requestedTimezone)
+            ? DefaultReportTimezoneIana
+            : requestedTimezone.Trim();
+
+        if (TryFindTimeZone(candidate, out reportTimeZone))
+        {
+            reportTimeZoneId = NormalizeTimeZoneId(candidate, reportTimeZone.Id);
+            validationError = string.Empty;
+            return true;
+        }
+
+        if (TimeZoneInfo.TryConvertIanaIdToWindowsId(candidate, out var windowsId)
+            && !string.IsNullOrWhiteSpace(windowsId)
+            && TryFindTimeZone(windowsId, out reportTimeZone))
+        {
+            reportTimeZoneId = NormalizeTimeZoneId(candidate, reportTimeZone.Id);
+            validationError = string.Empty;
+            return true;
+        }
+
+        if (string.Equals(candidate, DefaultReportTimezoneIana, StringComparison.OrdinalIgnoreCase)
+            && TryFindTimeZone("SE Asia Standard Time", out reportTimeZone))
+        {
+            reportTimeZoneId = DefaultReportTimezoneIana;
+            validationError = string.Empty;
+            return true;
+        }
+
+        reportTimeZone = TimeZoneInfo.Utc;
+        reportTimeZoneId = DefaultReportTimezoneIana;
+        validationError = $"'{candidate}' is not a valid timezone id. Use a valid IANA id such as '{DefaultReportTimezoneIana}'.";
+        return false;
+    }
+
+    private static DateTime ConvertUtcToReportDate(DateTime value, TimeZoneInfo reportTimeZone)
+    {
+        var utc = NormalizeAsUtc(value);
+        return TimeZoneInfo.ConvertTimeFromUtc(utc, reportTimeZone).Date;
+    }
+
+    private static DateTime NormalizeAsUtc(DateTime value)
+    {
+        if (value.Kind == DateTimeKind.Utc)
+        {
+            return value;
+        }
+
+        return value.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            : value.ToUniversalTime();
+    }
+
+    private static string NormalizeTimeZoneId(string requestedTimezone, string resolvedTimeZoneId)
+    {
+        if (TimeZoneInfo.TryConvertWindowsIdToIanaId(resolvedTimeZoneId, out var ianaId)
+            && !string.IsNullOrWhiteSpace(ianaId))
+        {
+            return ianaId;
+        }
+
+        return string.IsNullOrWhiteSpace(requestedTimezone)
+            ? DefaultReportTimezoneIana
+            : requestedTimezone.Trim();
+    }
+
+    private static bool TryFindTimeZone(string timeZoneId, out TimeZoneInfo timeZoneInfo)
+    {
+        try
+        {
+            timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            return true;
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            timeZoneInfo = TimeZoneInfo.Utc;
+            return false;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            timeZoneInfo = TimeZoneInfo.Utc;
+            return false;
+        }
+    }
+
     private static bool IsOwnerScoped(DashboardUser user) =>
         string.Equals(user.Role, AdminRoles.User, StringComparison.OrdinalIgnoreCase);
 
     private static string? NormalizeImagePath(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : SharedStoragePaths.NormalizePublicImagePath(value);
+
+    private readonly record struct StatisticsUtcRange(DateTime? FromUtcInclusive, DateTime? ToUtcInclusive);
 }

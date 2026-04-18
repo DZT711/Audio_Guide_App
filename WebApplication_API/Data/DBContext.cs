@@ -16,6 +16,7 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
     public DbSet<LocationImage> LocationImages => Set<LocationImage>();
     public DbSet<PlaybackEvent> PlaybackEvents => Set<PlaybackEvent>();
     public DbSet<LocationTrackingEvent> LocationTrackingEvents => Set<LocationTrackingEvent>();
+    public DbSet<AudioListeningSession> AudioListeningSessions => Set<AudioListeningSession>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
@@ -145,6 +146,8 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.ToTable("PlaybackEvents");
             entity.HasKey(item => item.PlaybackEventId);
             entity.HasIndex(item => new { item.LocationId, item.EventAt });
+            entity.HasIndex(item => item.EventAt);
+            entity.HasIndex(item => new { item.PoiId, item.TourId, item.EventAt });
 
             entity.HasOne(item => item.Location)
                 .WithMany(item => item.PlaybackEvents)
@@ -162,6 +165,27 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.ToTable("LocationTrackingEvents");
             entity.HasKey(item => item.TrackingEventId);
             entity.HasIndex(item => new { item.DeviceId, item.CapturedAt });
+            entity.HasIndex(item => item.CapturedAt);
+            entity.HasIndex(item => new { item.PoiId, item.TourId, item.CapturedAt });
+        });
+
+        modelBuilder.Entity<AudioListeningSession>(entity =>
+        {
+            entity.ToTable("AudioListeningSessions");
+            entity.HasKey(item => item.AudioListeningSessionId);
+            entity.HasIndex(item => item.StartedAt);
+            entity.HasIndex(item => new { item.PoiId, item.TourId, item.StartedAt });
+            entity.HasIndex(item => new { item.LocationId, item.StartedAt });
+
+            entity.HasOne(item => item.Location)
+                .WithMany(item => item.AudioListeningSessions)
+                .HasForeignKey(item => item.LocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(item => item.Audio)
+                .WithMany(item => item.AudioListeningSessions)
+                .HasForeignKey(item => item.AudioId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<ChangeRequest>(entity =>
