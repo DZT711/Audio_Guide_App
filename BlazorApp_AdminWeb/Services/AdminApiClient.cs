@@ -13,6 +13,12 @@ namespace BlazorApp_AdminWeb.Services;
 public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sessionState)
 {
     private const long MaxAudioUploadBytes = 25L * 1024 * 1024;
+    private const string NgrokBypassHeaderName = "ngrok-skip-browser-warning";
+    private const string NgrokBypassHeaderValue = "true";
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     public async Task<AdminLoginResponse> LoginAsync(string userName, string password)
     {
@@ -131,11 +137,14 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         return await ReadJsonAsync<InboxOverviewDto>(response, "Unable to load inbox messages.");
     }
 
-    public async Task<UsageHistoryOverviewDto> GetUsageHistoryAsync()
+    public async Task<UsageHistoryOverviewDto> GetUsageHistoryAsync(bool includeSynthetic = false)
     {
         ApplyAuthHeader();
 
-        using var response = await httpClient.GetAsync(ApiRoutes.UsageHistory);
+        var route = includeSynthetic
+            ? $"{ApiRoutes.UsageHistory}?includeSynthetic=true"
+            : ApiRoutes.UsageHistory;
+        using var response = await httpClient.GetAsync(route);
         await EnsureSuccessAsync(response, "Unable to load usage history.");
         return await ReadJsonAsync<UsageHistoryOverviewDto>(response, "Unable to load usage history.");
     }
@@ -775,6 +784,8 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
     private void ApplyAuthHeader()
     {
+        EnsureNgrokBypassHeader();
+
         if (string.IsNullOrWhiteSpace(sessionState.Token))
         {
             ClearAuthHeader();
@@ -784,12 +795,99 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sessionState.Token);
     }
 
-    private void ClearAuthHeader() => httpClient.DefaultRequestHeaders.Authorization = null;
+    private void ClearAuthHeader()
+    {
+        EnsureNgrokBypassHeader();
+        httpClient.DefaultRequestHeaders.Authorization = null;
+    }
 
     private async Task<T> ReadJsonAsync<T>(HttpResponseMessage response, string fallbackMessage)
     {
-        var payload = await response.Content.ReadFromJsonAsync<T>();
-        return payload ?? throw new InvalidOperationException(fallbackMessage);
+        var rawContent = await response.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(rawContent))
+        {
+            throw new InvalidOperationException(fallbackMessage);
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawContent);
+            var root = document.RootElement;
+
+            if (root.ValueKind == JsonValueKind.Object
+                && (TryReadWrappedPayload(root, "data", out T? wrappedPayload)
+                    || TryReadWrappedPayload(root, "result", out wrappedPayload)))
+            {
+                return wrappedPayload!;
+            }
+
+            if (TryDeserializeElement(root, out T? payload))
+            {
+                return payload!;
+            }
+        }
+        catch (JsonException)
+        {
+            if (LooksLikeHtml(rawContent))
+            {
+                throw new InvalidOperationException(
+                    "API returned HTML instead of JSON. Check AdminApi base URL or ngrok tunnel configuration.");
+            }
+
+            throw new InvalidOperationException(fallbackMessage);
+        }
+
+        throw new InvalidOperationException(fallbackMessage);
+    }
+
+    private void EnsureNgrokBypassHeader()
+    {
+        if (httpClient.BaseAddress is null
+            || !httpClient.BaseAddress.Host.Contains("ngrok", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (httpClient.DefaultRequestHeaders.Contains(NgrokBypassHeaderName))
+        {
+            return;
+        }
+
+        httpClient.DefaultRequestHeaders.TryAddWithoutValidation(NgrokBypassHeaderName, NgrokBypassHeaderValue);
+    }
+
+    private static bool TryReadWrappedPayload<T>(JsonElement root, string propertyName, out T? payload)
+    {
+        payload = default;
+        if (!root.TryGetProperty(propertyName, out var wrappedElement)
+            || wrappedElement.ValueKind == JsonValueKind.Null
+            || wrappedElement.ValueKind == JsonValueKind.Undefined)
+        {
+            return false;
+        }
+
+        return TryDeserializeElement(wrappedElement, out payload);
+    }
+
+    private static bool TryDeserializeElement<T>(JsonElement element, out T? payload)
+    {
+        payload = default;
+        try
+        {
+            payload = element.Deserialize<T>(JsonOptions);
+            return payload is not null;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool LooksLikeHtml(string rawContent)
+    {
+        var trimmed = rawContent.TrimStart();
+        return trimmed.StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("<html", StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<DownloadedAdminFile> ReadFileAsync(
@@ -825,6 +923,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         AddQuerySegment("tourId", query.TourId is > 0 ? query.TourId.Value.ToString(CultureInfo.InvariantCulture) : null);
         AddQuerySegment("ward", string.IsNullOrWhiteSpace(query.Ward) ? null : query.Ward);
         AddQuerySegment("search", string.IsNullOrWhiteSpace(query.Search) ? null : query.Search);
+        AddQuerySegment("includeSynthetic", query.IncludeSynthetic ? "true" : null);
 
         return segments.Count == 0
             ? baseRoute

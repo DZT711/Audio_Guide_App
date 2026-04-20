@@ -266,6 +266,11 @@ public sealed class UsageHistoryOverviewDto
     public IReadOnlyList<UsageHistoryItemDto> Items { get; init; } = [];
 }
 
+public sealed class UsageHistoryQueryDto
+{
+    public bool IncludeSynthetic { get; init; }
+}
+
 public sealed class ModerationItemDto
 {
     public string Type { get; init; } = "";

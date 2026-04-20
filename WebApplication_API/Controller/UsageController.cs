@@ -12,10 +12,11 @@ namespace WebApplication_API.Controller;
 [Route("[controller]")]
 public class UsageController(
     DBContext context,
-    AdminRequestAuthorizationService authService) : ControllerBase
+    AdminRequestAuthorizationService authService,
+    AnalyticsDataFilterService analyticsDataFilter) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetUsageHistory()
+    public async Task<IActionResult> GetUsageHistory([FromQuery] UsageHistoryQueryDto? query = null)
     {
         var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.UsageHistoryView);
         if (!access.Succeeded)
@@ -23,7 +24,9 @@ public class UsageController(
             return access.ToFailureResult();
         }
 
-        var items = await BuildPlaybackQuery(access.User!)
+        var includeSynthetic = query?.IncludeSynthetic == true;
+        var items = await analyticsDataFilter
+            .ApplyPlaybackFilter(BuildPlaybackQuery(access.User!), includeSynthetic)
             .OrderByDescending(item => item.EventAt)
             .ToListAsync();
 

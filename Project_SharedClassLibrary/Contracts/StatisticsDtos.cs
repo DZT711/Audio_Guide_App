@@ -8,6 +8,7 @@ public sealed class StatisticsQueryDto
     public int? TourId { get; init; }
     public string? Ward { get; init; }
     public string? Search { get; init; }
+    public bool IncludeSynthetic { get; init; }
 }
 
 public sealed class StatisticsSummaryDto

@@ -13,7 +13,8 @@ namespace WebApplication_API.Controller;
 [Route("[controller]")]
 public class StatisticsController(
     DBContext context,
-    AdminRequestAuthorizationService authService) : ControllerBase
+    AdminRequestAuthorizationService authService,
+    AnalyticsDataFilterService analyticsDataFilter) : ControllerBase
 {
     private const string DefaultReportTimezoneIana = "Asia/Ho_Chi_Minh";
 
@@ -214,7 +215,8 @@ public class StatisticsController(
                 Timezone = reportTimeZoneId,
                 TourId = query.TourId,
                 Ward = query.Ward,
-                Search = query.Search
+                Search = query.Search,
+                IncludeSynthetic = query.IncludeSynthetic
             },
             IsOwnerScoped = ownerScoped,
             ScopeLabel = ownerScoped
@@ -274,9 +276,11 @@ public class StatisticsController(
         IReadOnlyCollection<int> scopedLocationIds)
     {
         var utcRange = ResolveUtcRange(query);
-        var items = context.PlaybackEvents
+        var items = analyticsDataFilter.ApplyPlaybackFilter(
+            context.PlaybackEvents
             .AsNoTracking()
-            .Where(item => item.LocationId.HasValue && scopedLocationIds.Contains(item.LocationId.Value));
+            .Where(item => item.LocationId.HasValue && scopedLocationIds.Contains(item.LocationId.Value)),
+            query.IncludeSynthetic);
 
         if (utcRange.FromUtcInclusive.HasValue)
         {
@@ -294,9 +298,11 @@ public class StatisticsController(
     private IQueryable<LocationTrackingEvent> BuildTrackingQuery(StatisticsQueryDto query)
     {
         var utcRange = ResolveUtcRange(query);
-        var items = context.LocationTrackingEvents
+        var items = analyticsDataFilter.ApplyTrackingFilter(
+            context.LocationTrackingEvents
             .AsNoTracking()
-            .AsQueryable();
+            .AsQueryable(),
+            query.IncludeSynthetic);
 
         if (utcRange.FromUtcInclusive.HasValue)
         {
@@ -316,9 +322,11 @@ public class StatisticsController(
         IReadOnlyCollection<int> scopedLocationIds)
     {
         var utcRange = ResolveUtcRange(query);
-        var items = context.AudioListeningSessions
+        var items = analyticsDataFilter.ApplyListeningFilter(
+            context.AudioListeningSessions
             .AsNoTracking()
-            .Where(item => item.LocationId.HasValue && scopedLocationIds.Contains(item.LocationId.Value));
+            .Where(item => item.LocationId.HasValue && scopedLocationIds.Contains(item.LocationId.Value)),
+            query.IncludeSynthetic);
 
         if (utcRange.FromUtcInclusive.HasValue)
         {

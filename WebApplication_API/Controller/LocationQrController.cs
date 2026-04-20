@@ -214,7 +214,9 @@ public class LocationQrController(
         var location = await context.Locations
             .AsNoTracking()
             .Include(item => item.Owner)
+            .Include(item => item.Category)
             .Include(item => item.AudioContents)
+            .Include(item => item.Images)
             .FirstOrDefaultAsync(item => item.LocationId == locationId, cancellationToken);
 
         if (location is null)
@@ -237,6 +239,61 @@ public class LocationQrController(
             autoplay,
             audioTrackId);
 
+        try
+        {
+            context.QrLandingVisits.Add(new QrLandingVisit
+            {
+                LocationId = locationId,
+                OpenedAt = DateTime.UtcNow,
+                Source = "qr-landing",
+                UserAgent = HttpContext.Request.Headers.UserAgent.ToString(),
+                Referrer = HttpContext.Request.Headers.Referer.ToString()
+            });
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Unable to persist QR landing visit telemetry for location {LocationId}.", locationId);
+        }
+
+        var last7DaysUtc = DateTime.UtcNow.AddDays(-7);
+        var allTimeVisits = await context.QrLandingVisits
+            .AsNoTracking()
+            .CountAsync(item => item.LocationId == locationId, cancellationToken);
+        var recentVisits = await context.QrLandingVisits
+            .AsNoTracking()
+            .CountAsync(item => item.LocationId == locationId && item.OpenedAt >= last7DaysUtc, cancellationToken);
+        var audioPlayCount = await context.PlaybackEvents
+            .AsNoTracking()
+            .CountAsync(item => item.LocationId == locationId, cancellationToken);
+        var latestPlaybackUtc = await context.PlaybackEvents
+            .AsNoTracking()
+            .Where(item => item.LocationId == locationId)
+            .Select(item => (DateTime?)item.EventAt)
+            .OrderByDescending(item => item)
+            .FirstOrDefaultAsync(cancellationToken);
+        var latestListeningUtc = await context.AudioListeningSessions
+            .AsNoTracking()
+            .Where(item => item.LocationId == locationId)
+            .Select(item => (DateTime?)item.EndedAt)
+            .OrderByDescending(item => item)
+            .FirstOrDefaultAsync(cancellationToken);
+        var latestVisitUtc = await context.QrLandingVisits
+            .AsNoTracking()
+            .Where(item => item.LocationId == locationId)
+            .Select(item => (DateTime?)item.OpenedAt)
+            .OrderByDescending(item => item)
+            .FirstOrDefaultAsync(cancellationToken);
+        var latestUpdatedUtc = new[]
+        {
+            location.UpdatedAt,
+            location.CreatedAt,
+            latestPlaybackUtc,
+            latestListeningUtc,
+            latestVisitUtc
+        }.Where(item => item.HasValue)
+            .Max();
+
         var html = qrService.RenderLocationLandingPage(
             HttpContext,
             location,
@@ -245,6 +302,16 @@ public class LocationQrController(
             {
                 Autoplay = autoplay,
                 AudioTrackId = audioTrackId
+            },
+            new LocationQrService.LocationLandingInsights
+            {
+                CategoryName = location.Category?.Name,
+                OpeningHours = null,
+                ImageUrl = location.PreferenceImageUrl,
+                VisitCountAllTime = allTimeVisits,
+                VisitCountLast7Days = recentVisits,
+                AudioPlayCount = audioPlayCount,
+                LastUpdatedUtc = latestUpdatedUtc
             });
 
         return Content(html, "text/html; charset=utf-8");
@@ -304,12 +371,44 @@ public class LocationQrController(
             return NotFound(new { message = "QR features are disabled." });
         }
 
+        var publicBaseUrl = ResolvePublicBaseUrl();
+        var localPackage = apkPackagingService.TryGetLatestLocalPackage(publicBaseUrl);
+        if (localPackage is not null)
+        {
+            logger.LogInformation(
+                "Serving Android APK from local latest artifact {PhysicalPath}.",
+                localPackage.PhysicalPath);
+            Response.Headers.CacheControl = "public,max-age=300";
+            return PhysicalFile(
+                localPackage.PhysicalPath,
+                localPackage.ContentType,
+                localPackage.DownloadFileName,
+                enableRangeProcessing: true);
+        }
+
+        logger.LogInformation("No valid local latest APK artifact found. Evaluating configured fallback URLs.");
+
+        var configuredApkUrl = apkPackagingService.ResolveConfiguredAndroidApkUrl();
+        if (!string.IsNullOrWhiteSpace(configuredApkUrl))
+        {
+            logger.LogInformation("Redirecting Android APK request to configured AndroidApkUrl.");
+            return Redirect(configuredApkUrl);
+        }
+
+        var storeUrl = apkPackagingService.ResolveConfiguredAndroidStoreUrl();
+        if (!string.IsNullOrWhiteSpace(storeUrl))
+        {
+            logger.LogInformation("AndroidApkUrl is not configured. Redirecting Android APK request to AndroidStoreUrl.");
+            return Redirect(storeUrl);
+        }
+
         if (apkPackagingService.IsDynamicBuildEnabled)
         {
+            logger.LogInformation("No local APK and no configured URL fallback. Trying dynamic APK packaging as last resort.");
             try
             {
                 var package = await apkPackagingService.GetOrBuildPackageAsync(
-                    ResolvePublicBaseUrl(),
+                    publicBaseUrl,
                     cancellationToken);
                 logger.LogInformation("Serving dynamically packaged Android APK from {PhysicalPath}.", package.PhysicalPath);
                 Response.Headers.CacheControl = "public,max-age=300";
@@ -325,15 +424,10 @@ public class LocationQrController(
             }
         }
 
-        var installUrl = qrService.ResolveConfiguredAndroidInstallUrl();
-        if (string.IsNullOrWhiteSpace(installUrl))
-        {
-            logger.LogWarning("Android APK redirect requested but no Android install URL is configured.");
-            return StatusCode(503, new { message = "Android APK is not available right now." });
-        }
-
-        logger.LogInformation("Redirecting to the configured Android install URL.");
-        return Redirect(installUrl);
+        logger.LogWarning(
+            "Android APK redirect requested but no local artifact or configured URLs are available. Dynamic enabled={DynamicEnabled}.",
+            apkPackagingService.IsDynamicBuildEnabled);
+        return StatusCode(503, new { message = "Android APK is not available right now. Configure local latest artifact, AndroidApkUrl, or AndroidStoreUrl." });
     }
 
     [AllowAnonymous]

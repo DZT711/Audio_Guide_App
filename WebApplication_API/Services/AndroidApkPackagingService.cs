@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Project_SharedClassLibrary.Constants;
 
 namespace WebApplication_API.Services;
 
@@ -21,6 +23,52 @@ public sealed class AndroidApkPackagingService(
 
     public bool IsDynamicBuildEnabled => _options.EnableDynamicAndroidApkBuild;
 
+    public string? ResolveConfiguredAndroidApkUrl() =>
+        string.IsNullOrWhiteSpace(_options.AndroidApkUrl)
+            ? null
+            : _options.AndroidApkUrl.Trim();
+
+    public string? ResolveConfiguredAndroidStoreUrl() =>
+        string.IsNullOrWhiteSpace(_options.AndroidStoreUrl)
+            ? null
+            : _options.AndroidStoreUrl.Trim();
+
+    public AndroidApkPackageResult? TryGetLatestLocalPackage(string publicBaseUrl)
+    {
+        var context = ResolveBuildContext(publicBaseUrl, requireProjectFile: false);
+        var latestAliasPath = context.LatestAliasPath;
+        var manifest = TryReadLatestManifest(context.LatestManifestPath);
+        var localCandidatePath = File.Exists(latestAliasPath)
+            ? latestAliasPath
+            : FindLatestVersionedPackage(context.PackageDirectory);
+
+        if (string.IsNullOrWhiteSpace(localCandidatePath))
+        {
+            return null;
+        }
+
+        var fileInfo = new FileInfo(localCandidatePath);
+        if (!fileInfo.Exists || fileInfo.Length <= 0)
+        {
+            return null;
+        }
+
+        var downloadFileName = !string.IsNullOrWhiteSpace(manifest?.FileName)
+            ? manifest!.FileName
+            : Path.GetFileName(localCandidatePath);
+
+        return new AndroidApkPackageResult(
+            fileInfo.FullName,
+            downloadFileName,
+            "application/vnd.android.package-archive");
+    }
+
+    public int CleanupOldLocalPackages(string publicBaseUrl)
+    {
+        var context = ResolveBuildContext(publicBaseUrl, requireProjectFile: false);
+        return CleanupOldPackages(context.PackageDirectory, context.LatestAliasPath, Math.Max(1, _options.AndroidPackageRetentionCount));
+    }
+
     public async Task<AndroidApkPackageResult> GetOrBuildPackageAsync(
         string publicBaseUrl,
         CancellationToken cancellationToken = default)
@@ -30,7 +78,7 @@ public sealed class AndroidApkPackagingService(
             throw new InvalidOperationException("Dynamic Android APK packaging is disabled.");
         }
 
-        var context = ResolveBuildContext(publicBaseUrl);
+        var context = ResolveBuildContext(publicBaseUrl, requireProjectFile: true);
         if (TryUseCachedPackage(context, out var cachedPackage))
         {
             return cachedPackage;
@@ -56,7 +104,7 @@ public sealed class AndroidApkPackagingService(
     {
         package = default!;
 
-        if (!File.Exists(context.PackagePath) || !File.Exists(context.MetadataPath))
+        if (!File.Exists(context.LatestAliasPath) || !File.Exists(context.LegacyMetadataPath))
         {
             return false;
         }
@@ -64,7 +112,7 @@ public sealed class AndroidApkPackagingService(
         try
         {
             var metadata = JsonSerializer.Deserialize<AndroidApkBuildMetadata>(
-                File.ReadAllText(context.MetadataPath),
+                File.ReadAllText(context.LegacyMetadataPath),
                 JsonOptions);
 
             if (metadata is null)
@@ -83,8 +131,8 @@ public sealed class AndroidApkPackagingService(
             }
 
             package = new AndroidApkPackageResult(
-                context.PackagePath,
-                context.DownloadFileName,
+                context.LatestAliasPath,
+                Path.GetFileName(context.LatestAliasPath),
                 "application/vnd.android.package-archive");
             return true;
         }
@@ -99,7 +147,7 @@ public sealed class AndroidApkPackagingService(
         AndroidApkBuildContext context,
         CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(context.PackagePath)!);
+        Directory.CreateDirectory(context.PackageDirectory);
         Directory.CreateDirectory(context.PublishDirectory);
 
         var originalMobileConfig = File.Exists(context.MobileConfigFilePath)
@@ -120,7 +168,36 @@ public sealed class AndroidApkPackagingService(
                 throw new InvalidOperationException("The Android publish completed, but no APK file was produced.");
             }
 
-            File.Copy(publishedApkPath, context.PackagePath, overwrite: true);
+            var buildTimeUtc = DateTime.UtcNow;
+            var gitSha = ResolveGitShortSha(context.ProjectDirectory);
+            var versionedFileName = BuildVersionedFileName(buildTimeUtc, gitSha);
+            var versionedPackagePath = Path.Combine(context.PackageDirectory, versionedFileName);
+            File.Copy(publishedApkPath, versionedPackagePath, overwrite: true);
+            UpdateLatestAliasAtomically(versionedPackagePath, context.LatestAliasPath);
+
+            var fileInfo = new FileInfo(versionedPackagePath);
+            var payloadHash = ComputeSha256(versionedPackagePath);
+            var relativeDownloadPath = BuildRelativePublicPath(versionedPackagePath);
+            var normalizedBaseUrl = NormalizeBaseUrl(context.PublicBaseUrl);
+            var downloadUrl = new Uri(new Uri(normalizedBaseUrl), relativeDownloadPath).AbsoluteUri;
+            var version = $"{buildTimeUtc:yyyyMMdd-HHmm}-{gitSha}";
+
+            var latestManifest = new AndroidApkLatestManifest
+            {
+                FileName = versionedFileName,
+                Version = version,
+                BuildTimeUtc = buildTimeUtc,
+                GitSha = gitSha,
+                Sha256 = payloadHash,
+                FileSizeBytes = fileInfo.Length,
+                DownloadUrl = downloadUrl
+            };
+
+            await File.WriteAllTextAsync(
+                context.LatestManifestPath,
+                JsonSerializer.Serialize(latestManifest, JsonOptions),
+                cancellationToken);
+
             var metadata = new AndroidApkBuildMetadata
             {
                 PublicBaseUrl = context.PublicBaseUrl,
@@ -130,18 +207,21 @@ public sealed class AndroidApkPackagingService(
             };
 
             await File.WriteAllTextAsync(
-                context.MetadataPath,
+                context.LegacyMetadataPath,
                 JsonSerializer.Serialize(metadata, JsonOptions),
                 cancellationToken);
 
+            CleanupOldPackages(context.PackageDirectory, context.LatestAliasPath, Math.Max(1, _options.AndroidPackageRetentionCount));
+
             _logger.LogInformation(
-                "Android APK packaged successfully for {PublicBaseUrl} at {PackagePath}.",
+                "Android APK packaged successfully for {PublicBaseUrl}. Latest alias: {LatestAliasPath}, versioned: {VersionedPackagePath}.",
                 context.PublicBaseUrl,
-                context.PackagePath);
+                context.LatestAliasPath,
+                versionedPackagePath);
 
             return new AndroidApkPackageResult(
-                context.PackagePath,
-                context.DownloadFileName,
+                context.LatestAliasPath,
+                versionedFileName,
                 "application/vnd.android.package-archive");
         }
         finally
@@ -264,35 +344,46 @@ public sealed class AndroidApkPackagingService(
         throw new InvalidOperationException($"Android APK packaging failed: {message.Trim()}");
     }
 
-    private AndroidApkBuildContext ResolveBuildContext(string publicBaseUrl)
+    private AndroidApkBuildContext ResolveBuildContext(string publicBaseUrl, bool requireProjectFile)
     {
         var contentRoot = _environment.ContentRootPath;
         var projectFilePath = ResolvePath(contentRoot, _options.AndroidProjectFilePath);
-        if (!File.Exists(projectFilePath))
+        if (requireProjectFile && !File.Exists(projectFilePath))
         {
             throw new FileNotFoundException("Android project file not found.", projectFilePath);
         }
 
         var mobileConfigFilePath = ResolvePath(contentRoot, _options.AndroidMobileConfigFilePath);
         var packagePath = ResolvePath(contentRoot, _options.AndroidPackageOutputRelativePath);
+        var packageDirectory = Path.GetDirectoryName(packagePath)
+                              ?? throw new InvalidOperationException("Android package output directory cannot be resolved.");
+        var latestAliasFileName = string.IsNullOrWhiteSpace(_options.AndroidLatestAliasFileName)
+            ? Path.GetFileName(packagePath)
+            : _options.AndroidLatestAliasFileName.Trim();
+        var latestAliasPath = ResolvePath(packageDirectory, latestAliasFileName);
+        var latestManifestFileName = string.IsNullOrWhiteSpace(_options.AndroidLatestManifestFileName)
+            ? "latest.json"
+            : _options.AndroidLatestManifestFileName.Trim();
         var publishDirectory = Path.Combine(
-            Path.GetDirectoryName(packagePath)!,
+            packageDirectory,
             "publish-cache");
-        var metadataPath = Path.Combine(
-            Path.GetDirectoryName(packagePath)!,
-            Path.GetFileNameWithoutExtension(packagePath) + ".metadata.json");
+        var metadataPath = Path.Combine(packageDirectory, "smarttour-latest.metadata.json");
+        var latestManifestPath = Path.Combine(packageDirectory, latestManifestFileName);
         var sourceRoot = Path.GetDirectoryName(projectFilePath)!;
-        var sourceLastWriteUtc = GetSourceLastWriteUtc(sourceRoot);
+        var sourceLastWriteUtc = File.Exists(projectFilePath)
+            ? GetSourceLastWriteUtc(sourceRoot)
+            : DateTime.MinValue;
 
         return new AndroidApkBuildContext(
             NormalizeBaseUrl(publicBaseUrl),
             projectFilePath,
             Path.GetDirectoryName(projectFilePath)!,
             mobileConfigFilePath,
-            packagePath,
+            packageDirectory,
+            latestAliasPath,
             publishDirectory,
             metadataPath,
-            Path.GetFileName(packagePath),
+            latestManifestPath,
             sourceLastWriteUtc);
     }
 
@@ -336,6 +427,163 @@ public sealed class AndroidApkPackagingService(
             .FirstOrDefault();
     }
 
+    private static string? FindLatestVersionedPackage(string packageDirectory)
+    {
+        if (!Directory.Exists(packageDirectory))
+        {
+            return null;
+        }
+
+        return Directory.EnumerateFiles(packageDirectory, "smarttour-*.apk", SearchOption.TopDirectoryOnly)
+            .Where(path => !string.Equals(Path.GetFileName(path), "smarttour-latest.apk", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .FirstOrDefault();
+    }
+
+    private AndroidApkLatestManifest? TryReadLatestManifest(string manifestPath)
+    {
+        if (!File.Exists(manifestPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<AndroidApkLatestManifest>(File.ReadAllText(manifestPath), JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unable to parse Android latest manifest at {ManifestPath}.", manifestPath);
+            return null;
+        }
+    }
+
+    private static void UpdateLatestAliasAtomically(string sourcePath, string latestAliasPath)
+    {
+        var latestDirectory = Path.GetDirectoryName(latestAliasPath)
+                              ?? throw new InvalidOperationException("Latest alias directory is invalid.");
+        Directory.CreateDirectory(latestDirectory);
+
+        var tempPath = Path.Combine(latestDirectory, $"{Path.GetFileName(latestAliasPath)}.tmp-{Guid.NewGuid():N}");
+        File.Copy(sourcePath, tempPath, overwrite: true);
+
+        if (File.Exists(latestAliasPath))
+        {
+            File.Replace(tempPath, latestAliasPath, destinationBackupFileName: null, ignoreMetadataErrors: true);
+            return;
+        }
+
+        File.Move(tempPath, latestAliasPath);
+    }
+
+    private static string ComputeSha256(string filePath)
+    {
+        using var stream = File.OpenRead(filePath);
+        using var hash = SHA256.Create();
+        var payload = hash.ComputeHash(stream);
+        return Convert.ToHexString(payload).ToLowerInvariant();
+    }
+
+    private string BuildRelativePublicPath(string absoluteFilePath)
+    {
+        var webRoot = string.IsNullOrWhiteSpace(_environment.WebRootPath)
+            ? Path.Combine(_environment.ContentRootPath, "wwwroot")
+            : _environment.WebRootPath;
+        var relativePath = Path.GetRelativePath(webRoot, absoluteFilePath);
+        if (relativePath.StartsWith("..", StringComparison.Ordinal))
+        {
+            return ApiRoutes.PublicAndroidApkDownload.TrimStart('/');
+        }
+
+        return relativePath.Replace('\\', '/');
+    }
+
+    private static string BuildVersionedFileName(DateTime buildTimeUtc, string gitSha) =>
+        $"smarttour-{buildTimeUtc:yyyyMMdd-HHmm}-{gitSha}.apk";
+
+    private static string ResolveGitShortSha(string workingDirectory)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "git",
+                WorkingDirectory = workingDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add("rev-parse");
+            startInfo.ArgumentList.Add("--short=8");
+            startInfo.ArgumentList.Add("HEAD");
+
+            using var process = new Process { StartInfo = startInfo };
+            process.Start();
+            if (!process.WaitForExit(1500))
+            {
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                }
+
+                return "nogit";
+            }
+
+            if (process.ExitCode != 0)
+            {
+                return "nogit";
+            }
+
+            var value = process.StandardOutput.ReadToEnd().Trim();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return "nogit";
+            }
+
+            var normalized = new string(value.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+            return string.IsNullOrWhiteSpace(normalized)
+                ? "nogit"
+                : normalized[..Math.Min(8, normalized.Length)];
+        }
+        catch
+        {
+            return "nogit";
+        }
+    }
+
+    private static int CleanupOldPackages(string packageDirectory, string latestAliasPath, int retentionCount)
+    {
+        if (!Directory.Exists(packageDirectory))
+        {
+            return 0;
+        }
+
+        var latestAliasName = Path.GetFileName(latestAliasPath);
+        var candidates = Directory.EnumerateFiles(packageDirectory, "smarttour-*.apk", SearchOption.TopDirectoryOnly)
+            .Where(path => !string.Equals(Path.GetFileName(path), latestAliasName, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .ToList();
+
+        var removed = 0;
+        foreach (var stalePath in candidates.Skip(retentionCount))
+        {
+            try
+            {
+                File.Delete(stalePath);
+                removed++;
+            }
+            catch
+            {
+            }
+        }
+
+        return removed;
+    }
+
     private static string EnsureTrailingDirectorySeparator(string path) =>
         path.EndsWith(Path.DirectorySeparatorChar)
             ? path
@@ -373,10 +621,11 @@ public sealed class AndroidApkPackagingService(
         string ProjectFilePath,
         string ProjectDirectory,
         string MobileConfigFilePath,
-        string PackagePath,
+        string PackageDirectory,
+        string LatestAliasPath,
         string PublishDirectory,
-        string MetadataPath,
-        string DownloadFileName,
+        string LegacyMetadataPath,
+        string LatestManifestPath,
         DateTime SourceLastWriteUtc);
 
     private sealed class AndroidMobileApiConfiguration
@@ -399,5 +648,22 @@ public sealed class AndroidApkPackagingService(
         public DateTime GeneratedAtUtc { get; set; }
 
         public string SourceApkPath { get; set; } = string.Empty;
+    }
+
+    private sealed class AndroidApkLatestManifest
+    {
+        public string FileName { get; set; } = string.Empty;
+
+        public string Version { get; set; } = string.Empty;
+
+        public DateTime BuildTimeUtc { get; set; }
+
+        public string GitSha { get; set; } = string.Empty;
+
+        public string Sha256 { get; set; } = string.Empty;
+
+        public long FileSizeBytes { get; set; }
+
+        public string DownloadUrl { get; set; } = string.Empty;
     }
 }

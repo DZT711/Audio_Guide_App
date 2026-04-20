@@ -17,6 +17,7 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
     public DbSet<PlaybackEvent> PlaybackEvents => Set<PlaybackEvent>();
     public DbSet<LocationTrackingEvent> LocationTrackingEvents => Set<LocationTrackingEvent>();
     public DbSet<AudioListeningSession> AudioListeningSessions => Set<AudioListeningSession>();
+    public DbSet<QrLandingVisit> QrLandingVisits => Set<QrLandingVisit>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
@@ -186,6 +187,23 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
                 .WithMany(item => item.AudioListeningSessions)
                 .HasForeignKey(item => item.AudioId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<QrLandingVisit>(entity =>
+        {
+            entity.ToTable("QrLandingVisits");
+            entity.HasKey(item => item.QrLandingVisitId);
+            entity.HasIndex(item => item.OpenedAt);
+            entity.HasIndex(item => new { item.LocationId, item.OpenedAt });
+
+            entity.Property(item => item.Source).HasMaxLength(64);
+            entity.Property(item => item.UserAgent).HasMaxLength(512);
+            entity.Property(item => item.Referrer).HasMaxLength(500);
+
+            entity.HasOne(item => item.Location)
+                .WithMany()
+                .HasForeignKey(item => item.LocationId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ChangeRequest>(entity =>

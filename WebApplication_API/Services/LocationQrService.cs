@@ -104,7 +104,8 @@ public sealed class LocationQrService(
         HttpContext httpContext,
         Location location,
         Audio? defaultAudio,
-        LocationQrGenerateRequest? request = null)
+        LocationQrGenerateRequest? request = null,
+        LocationLandingInsights? insights = null)
     {
         var normalizedRequest = NormalizeRequest(request);
         var links = BuildLocationLinks(
@@ -115,13 +116,30 @@ public sealed class LocationQrService(
             normalizedRequest.Autoplay,
             normalizedRequest.AudioTrackId);
 
+        var resolvedInsights = insights ?? new LocationLandingInsights();
         var locationName = WebUtility.HtmlEncode(location.Name);
+        var categoryName = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(resolvedInsights.CategoryName) ? "Updating" : resolvedInsights.CategoryName);
+        var addressLine = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(location.Address) ? "Address is being updated." : location.Address);
+        var openingHours = WebUtility.HtmlEncode(
+            string.IsNullOrWhiteSpace(resolvedInsights.OpeningHours)
+                ? _options.LandingDefaultOpeningHours
+                : resolvedInsights.OpeningHours);
+        var heroImageUrl = ResolveLocationHeroImageUrl(httpContext, location, resolvedInsights.ImageUrl);
+        var heroImageTag = string.IsNullOrWhiteSpace(heroImageUrl)
+            ? string.Empty
+            : $"<img class=\"hero-image\" src=\"{WebUtility.HtmlEncode(heroImageUrl)}\" alt=\"{locationName}\" />";
         var deepLinkUrl = WebUtility.HtmlEncode(links.DeepLinkUrl);
         var downloadPageUrl = WebUtility.HtmlEncode(links.DownloadPageUrl);
         var deepLinkJson = JsonSerializer.Serialize(links.DeepLinkUrl);
         var downloadPageJson = JsonSerializer.Serialize(links.DownloadPageUrl);
         var fallbackDelay = Math.Max(600, _options.LandingFallbackDelayMs);
         var openDelay = Math.Max(0, _options.LandingOpenDelayMs);
+        var allTimeVisits = resolvedInsights.VisitCountAllTime;
+        var recentVisits = resolvedInsights.VisitCountLast7Days;
+        var audioPlays = resolvedInsights.AudioPlayCount;
+        var lastUpdatedLabel = resolvedInsights.LastUpdatedUtc.HasValue
+            ? resolvedInsights.LastUpdatedUtc.Value.ToString("yyyy-MM-dd HH:mm 'UTC'")
+            : "No recent updates";
 
         return $$"""
 <!DOCTYPE html>
@@ -133,13 +151,14 @@ public sealed class LocationQrService(
     <style>
         :root {
             color-scheme: light;
-            font-family: "Segoe UI", system-ui, sans-serif;
-            --bg: #f5f7fb;
+            font-family: "Segoe UI", "Poppins", system-ui, sans-serif;
+            --bg: #eef6ff;
             --panel: rgba(255,255,255,0.94);
             --text: #0f172a;
             --muted: #475569;
-            --accent: #0f766e;
-            --accent-soft: #ccfbf1;
+            --accent: #0f4c81;
+            --accent-soft: #dbeafe;
+            --accent-2: #0ea5a4;
             --border: rgba(148, 163, 184, 0.26);
         }
 
@@ -148,20 +167,22 @@ public sealed class LocationQrService(
         body {
             margin: 0;
             min-height: 100vh;
-            display: grid;
-            place-items: center;
             background:
-                radial-gradient(circle at top right, rgba(20, 184, 166, 0.16), transparent 32%),
-                linear-gradient(160deg, #f8fafc 0%, #ecfeff 100%);
+                radial-gradient(circle at top right, rgba(14, 165, 233, 0.15), transparent 36%),
+                radial-gradient(circle at bottom left, rgba(14, 165, 164, 0.15), transparent 32%),
+                linear-gradient(160deg, #f8fbff 0%, #f0f9ff 100%);
             color: var(--text);
-            padding: 1.5rem;
+            padding: 1rem;
         }
 
         main {
-            width: min(100%, 720px);
-            padding: 2rem;
+            width: min(100%, 840px);
+            margin: 0 auto;
+            display: grid;
+            gap: 1rem;
+            padding: 1.2rem;
             border: 1px solid var(--border);
-            border-radius: 28px;
+            border-radius: 24px;
             background: var(--panel);
             box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
         }
@@ -179,32 +200,85 @@ public sealed class LocationQrService(
         }
 
         h1 {
-            margin: 1rem 0 0.6rem;
-            font-size: clamp(1.9rem, 4vw, 3rem);
+            margin: 0.75rem 0 0.55rem;
+            font-size: clamp(1.6rem, 7vw, 2.4rem);
             line-height: 1.1;
         }
 
-        p {
+        p, li {
             margin: 0;
             color: var(--muted);
-            font-size: 1rem;
-            line-height: 1.7;
+            font-size: 0.98rem;
+            line-height: 1.6;
         }
 
         .status {
-            margin-top: 1.4rem;
-            padding: 1rem 1.15rem;
+            padding: 0.9rem 1rem;
             border-radius: 18px;
-            background: rgba(15, 118, 110, 0.08);
+            background: rgba(15, 76, 129, 0.08);
             color: var(--accent);
             font-weight: 600;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 0.8rem;
+        }
+
+        .hero-image {
+            width: 100%;
+            max-height: 230px;
+            object-fit: cover;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.7rem;
+        }
+
+        .chip {
+            padding: 0.72rem 0.85rem;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: white;
+        }
+
+        .chip strong {
+            display: block;
+            color: var(--accent);
+            font-size: 0.8rem;
+            margin-bottom: 0.22rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .analytics {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.65rem;
+        }
+
+        .analytics .chip {
+            text-align: center;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        }
+
+        .analytics .value {
+            display: block;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #0b3e66;
+            margin-bottom: 0.15rem;
         }
 
         .actions {
             display: flex;
             flex-wrap: wrap;
             gap: 0.85rem;
-            margin-top: 1.5rem;
         }
 
         .btn {
@@ -217,10 +291,11 @@ public sealed class LocationQrService(
             border: 1px solid transparent;
             text-decoration: none;
             font-weight: 700;
+            flex: 1 1 170px;
         }
 
         .btn-primary {
-            background: var(--accent);
+            background: linear-gradient(120deg, var(--accent) 0%, #1d4ed8 100%);
             color: white;
         }
 
@@ -229,19 +304,71 @@ public sealed class LocationQrService(
             color: var(--text);
             background: white;
         }
+
+        .footer {
+            padding: 0.7rem 0.25rem 0.1rem;
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 760px) {
+            .info-grid { grid-template-columns: 1fr; }
+            .analytics { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
     <main>
-        <span class="eyebrow">Smart Tourism</span>
-        <h1>Opening {{locationName}}</h1>
-        <p>We are trying to open the Smart Tourism app for this location. If the app is not installed yet, we will take you to the Android download page.</p>
+        <section class="hero">
+            <span class="eyebrow">Smart Tourism Location</span>
+            {{heroImageTag}}
+            <h1>{{locationName}}</h1>
+            <p>We are opening this location in the Smart Tourism app. If the app is not installed yet, use the install button below.</p>
+        </section>
+
+        <section class="info-grid">
+            <article class="chip">
+                <strong>Address</strong>
+                <span>{{addressLine}}</span>
+            </article>
+            <article class="chip">
+                <strong>Category</strong>
+                <span>{{categoryName}}</span>
+            </article>
+            <article class="chip">
+                <strong>Opening Hours</strong>
+                <span>{{openingHours}}</span>
+            </article>
+            <article class="chip">
+                <strong>Last Updated</strong>
+                <span>{{lastUpdatedLabel}}</span>
+            </article>
+        </section>
+
+        <section class="analytics">
+            <article class="chip">
+                <span class="value">{{allTimeVisits}}</span>
+                <span>Visits (all-time)</span>
+            </article>
+            <article class="chip">
+                <span class="value">{{recentVisits}}</span>
+                <span>Visits (7 days)</span>
+            </article>
+            <article class="chip">
+                <span class="value">{{audioPlays}}</span>
+                <span>Audio plays</span>
+            </article>
+        </section>
 
         <div class="status" id="status">Trying to open the app...</div>
 
         <div class="actions">
             <a class="btn btn-primary" href="{{deepLinkUrl}}">Open App Now</a>
-            <a class="btn btn-secondary" href="{{downloadPageUrl}}">Download App</a>
+            <a class="btn btn-secondary" href="{{downloadPageUrl}}">Install Android App</a>
+        </div>
+
+        <div class="footer">
+            Need help? If opening fails, install/update the app then come back and tap Open App.
         </div>
     </main>
 
@@ -860,10 +987,50 @@ public sealed class LocationQrService(
             : null;
     }
 
+    private string? ResolveLocationHeroImageUrl(HttpContext httpContext, Location location, string? overrideImageUrl)
+    {
+        var imageUrl = overrideImageUrl;
+        if (string.IsNullOrWhiteSpace(imageUrl))
+        {
+            imageUrl = location.PreferenceImageUrl
+                ?? location.Images.OrderBy(item => item.SortOrder).Select(item => item.ImageUrl).FirstOrDefault();
+        }
+
+        if (string.IsNullOrWhiteSpace(imageUrl))
+        {
+            return null;
+        }
+
+        if (Uri.TryCreate(imageUrl.Trim(), UriKind.Absolute, out var absoluteUri))
+        {
+            return absoluteUri.AbsoluteUri;
+        }
+
+        var normalized = imageUrl.Trim().TrimStart('/');
+        return BuildAbsoluteUrl(httpContext, normalized);
+    }
+
     public sealed record QrRenderedFile(
         string FileName,
         string ContentType,
         byte[] Content);
+
+    public sealed record LocationLandingInsights
+    {
+        public string? CategoryName { get; init; }
+
+        public string? OpeningHours { get; init; }
+
+        public string? ImageUrl { get; init; }
+
+        public int VisitCountAllTime { get; init; }
+
+        public int VisitCountLast7Days { get; init; }
+
+        public int AudioPlayCount { get; init; }
+
+        public DateTime? LastUpdatedUtc { get; init; }
+    }
 
     private sealed record LocationQrResolvedLinks(
         string LandingUrl,

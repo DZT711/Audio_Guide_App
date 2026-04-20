@@ -192,11 +192,11 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<DateTime>("EndedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("InterruptedReason")
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("ListeningSeconds")
                         .HasColumnType("INTEGER");
@@ -220,11 +220,11 @@ namespace WebApplication_API.Data.Migrations
 
                     b.HasIndex("AudioId");
 
+                    b.HasIndex("StartedAt");
+
                     b.HasIndex("LocationId", "StartedAt");
 
                     b.HasIndex("PoiId", "TourId", "StartedAt");
-
-                    b.HasIndex("StartedAt");
 
                     b.ToTable("AudioListeningSessions", (string)null);
                 });
@@ -529,13 +529,13 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("QrAudioTrackId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("QrAutoplay")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(true);
-
-                    b.Property<int?>("QrAudioTrackId")
-                        .HasColumnType("INTEGER");
 
                     b.Property<string>("QrFormat")
                         .IsRequired()
@@ -710,12 +710,12 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<string>("SessionId")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("TourId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("TriggerSource")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<int?>("TourId")
-                        .HasColumnType("INTEGER");
 
                     b.HasKey("PlaybackEventId");
 
@@ -728,6 +728,39 @@ namespace WebApplication_API.Data.Migrations
                     b.HasIndex("PoiId", "TourId", "EventAt");
 
                     b.ToTable("PlaybackEvents", (string)null);
+                });
+
+            modelBuilder.Entity("WebApplication_API.Model.QrLandingVisit", b =>
+                {
+                    b.Property<int>("QrLandingVisitId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LocationId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Referrer")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("QrLandingVisitId");
+
+                    b.HasIndex("OpenedAt");
+
+                    b.HasIndex("LocationId", "OpenedAt");
+
+                    b.ToTable("QrLandingVisits", (string)null);
                 });
 
             modelBuilder.Entity("WebApplication_API.Model.Tour", b =>
@@ -916,6 +949,17 @@ namespace WebApplication_API.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Audio");
+
+                    b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("WebApplication_API.Model.QrLandingVisit", b =>
+                {
+                    b.HasOne("WebApplication_API.Model.Location", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Location");
                 });

@@ -530,9 +530,10 @@ else
 
 @code {
     private const string DefaultReportTimezone = "Asia/Ho_Chi_Minh";
+    private static readonly TimeZoneInfo DefaultReportTimeZone = ResolveReportTimeZone(DefaultReportTimezone);
     private StatisticsOverviewDto _overview = new();
-    private DateTime? _fromDate = DateTime.UtcNow.Date.AddDays(-14);
-    private DateTime? _toDate = DateTime.UtcNow.Date;
+    private DateTime? _fromDate = GetDefaultReportToday().AddDays(-14);
+    private DateTime? _toDate = GetDefaultReportToday();
     private readonly List<MapSearchResult> _mapSearchResults = new();
     private string _selectedTourValue = "";
     private string _selectedWard = "";
@@ -624,8 +625,9 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
 
     private async Task ResetFiltersAsync()
     {
-        _fromDate = DateTime.UtcNow.Date.AddDays(-14);
-        _toDate = DateTime.UtcNow.Date;
+        var reportToday = GetDefaultReportToday();
+        _fromDate = reportToday.AddDays(-14);
+        _toDate = reportToday;
         _selectedTourValue = "";
         _selectedWard = "";
         _searchText = "";
@@ -643,11 +645,12 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
 
         try
         {
+            var reportTimezone = DefaultReportTimezone;
             _overview = await ApiClient.GetStatisticsAsync(new StatisticsQueryDto
             {
-                From = ToUtcFromDate(_fromDate),
-                To = ToUtcToDate(_toDate),
-                Timezone = DefaultReportTimezone,
+                From = ToUtcFromDate(_fromDate, reportTimezone),
+                To = ToUtcToDate(_toDate, reportTimezone),
+                Timezone = reportTimezone,
                 TourId = int.TryParse(_selectedTourValue, out var tourId) ? tourId : null,
                 Ward = string.IsNullOrWhiteSpace(_selectedWard) ? null : _selectedWard,
                 Search = string.IsNullOrWhiteSpace(_searchText) ? null : _searchText.Trim()
@@ -915,15 +918,78 @@ StringComparison.OrdinalIgnoreCase))
     private static string JoinItems(IReadOnlyList<string> items) => items.Count == 0 ? "No linked content" : string.Join(", ", items);
     private static string GetRouteLabel(StatisticsRouteHistoryDto route) => route.SessionId ?? route.DeviceId ??
 route.SessionKey;
-    private static DateTime? ToUtcFromDate(DateTime? value) =>
-        value.HasValue
-            ? DateTime.SpecifyKind(value.Value.Date, DateTimeKind.Utc)
-            : null;
+    private static DateTime? ToUtcFromDate(DateTime? value, string reportTimezone)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
 
-    private static DateTime? ToUtcToDate(DateTime? value) =>
-        value.HasValue
-            ? DateTime.SpecifyKind(value.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc)
-            : null;
+        var reportTimeZone = ResolveReportTimeZone(reportTimezone);
+        var reportLocalStart = DateTime.SpecifyKind(value.Value.Date, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(reportLocalStart, reportTimeZone);
+    }
+
+    private static DateTime? ToUtcToDate(DateTime? value, string reportTimezone)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        var reportTimeZone = ResolveReportTimeZone(reportTimezone);
+        var reportLocalEnd = DateTime.SpecifyKind(value.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(reportLocalEnd, reportTimeZone);
+    }
+
+    private static DateTime GetDefaultReportToday() =>
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, DefaultReportTimeZone).Date;
+
+    private static TimeZoneInfo ResolveReportTimeZone(string? timezone)
+    {
+        var candidate = string.IsNullOrWhiteSpace(timezone)
+            ? DefaultReportTimezone
+            : timezone.Trim();
+
+        if (TryFindTimeZone(candidate, out var reportTimeZone))
+        {
+            return reportTimeZone;
+        }
+
+        if (TimeZoneInfo.TryConvertIanaIdToWindowsId(candidate, out var windowsId)
+            && !string.IsNullOrWhiteSpace(windowsId)
+            && TryFindTimeZone(windowsId, out reportTimeZone))
+        {
+            return reportTimeZone;
+        }
+
+        if (string.Equals(candidate, DefaultReportTimezone, StringComparison.OrdinalIgnoreCase)
+            && TryFindTimeZone("SE Asia Standard Time", out reportTimeZone))
+        {
+            return reportTimeZone;
+        }
+
+        return TimeZoneInfo.Utc;
+    }
+
+    private static bool TryFindTimeZone(string timeZoneId, out TimeZoneInfo timeZoneInfo)
+    {
+        try
+        {
+            timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            return true;
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            timeZoneInfo = TimeZoneInfo.Utc;
+            return false;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            timeZoneInfo = TimeZoneInfo.Utc;
+            return false;
+        }
+    }
 
     private string? GetPoiImageUrl(string? imagePath) => ApiClient.ResolveImageUrl(imagePath);
     private static string FormatDistance(double value) => $"{value.ToString("0.00", CultureInfo.InvariantCulture)} km";
