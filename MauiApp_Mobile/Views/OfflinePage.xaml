@@ -193,8 +193,8 @@
 
         <!-- List -->
         <Grid Grid.Row="3"
-              Padding="0,0,0,140">
-            <Grid RowDefinitions="Auto,*">
+              Padding="0,0,0,0">
+            <Grid RowDefinitions="Auto,*,Auto">
                 <Grid Grid.Row="0"
                       ColumnDefinitions="*,Auto"
                       Margin="16,4,16,10">
@@ -595,6 +595,11 @@
                     </VerticalStackLayout>
                 </ScrollView>
             </Border>
+
+            <controls:MiniPlayerView Grid.Row="2"
+                                     UseTransparentChrome="True"
+                                     VerticalOptions="End"
+                                     ZIndex="40" />
             </Grid>
         </Grid>
 
@@ -1017,9 +1022,5 @@
             </Border>
         </Grid>
 
-        <controls:MiniPlayerView Grid.Row="1"
-                                 UseTransparentChrome="True"
-                                 VerticalOptions="End"
-                                 ZIndex="40" />
     </Grid>
 </ContentPage>

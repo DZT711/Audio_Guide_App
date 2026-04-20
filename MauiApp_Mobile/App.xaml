@@ -13,8 +13,10 @@
             <Color x:Key="CardBg">#FFFFFF</Color>
             <Color x:Key="SurfaceAlt">#F8FAFC</Color>
             <Color x:Key="InputBg">#FFFFFF</Color>
-            <Color x:Key="PopupBg">#FFFFFF</Color>
-            <Color x:Key="BottomSheetBg">#FFFFFF</Color>
+            <Color x:Key="PopupBg">#B3FFFFFF</Color>
+            <Color x:Key="BottomSheetBg">#B3FFFFFF</Color>
+            <Color x:Key="GlassSurfaceBg">#B3FFFFFF</Color>
+            <Color x:Key="GlassSurfaceStroke">#CCFFFFFF</Color>
             <Color x:Key="MutedText">#8A94A6</Color>
             <Color x:Key="BodyText">#1E3250</Color>
             <Color x:Key="TitleText">#0F172A</Color>

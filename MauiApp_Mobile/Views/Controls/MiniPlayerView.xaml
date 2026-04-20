@@ -9,8 +9,8 @@
 
     <Border Margin="16,0,16,12"
             Padding="14,12"
-            BackgroundColor="#80FFFFFF"
-            Stroke="#A0FFFFFF"
+            BackgroundColor="{DynamicResource GlassSurfaceBg}"
+            Stroke="{DynamicResource GlassSurfaceStroke}"
             StrokeThickness="1"
             StrokeShape="RoundRectangle 22">
         <VerticalStackLayout Spacing="10">
@@ -33,7 +33,8 @@
                         BackgroundColor="{DynamicResource SurfaceAlt}"
                         StrokeThickness="0"
                         StrokeShape="RoundRectangle 17"
-                        VerticalOptions="Center">
+                        VerticalOptions="Center"
+                        IsVisible="{Binding HasQueueItems, Source={x:Reference ThisControl}}">
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Tapped="OnQueueTapped" />
                     </Border.GestureRecognizers>
@@ -41,8 +42,8 @@
                            FontSize="14"
                            FontAttributes="Bold"
                            HorizontalOptions="Center"
-                            TextColor="{DynamicResource BodyText}"
-                            VerticalOptions="Center" />
+                           TextColor="{DynamicResource BodyText}"
+                           VerticalOptions="Center" />
                 </Border>
 
                 <Border Grid.Column="2"
@@ -169,7 +170,7 @@
                 </Grid>
             </VerticalStackLayout>
 
-            <Border IsVisible="{Binding HasQueueItems, Source={x:Reference ThisControl}}"
+            <Border IsVisible="{Binding IsQueueVisible, Source={x:Reference ThisControl}}"
                     Margin="0,12,0,0"
                     Padding="12"
                     BackgroundColor="{DynamicResource PopupBg}"
