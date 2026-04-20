@@ -111,10 +111,12 @@
             </Grid>
 
             <VerticalStackLayout x:Name="EmptyStateLayout"
-                                 Grid.Row="1"
+                                 Grid.Row="2"
                                  IsVisible="{Binding ViewModel.ShowEmptyState}"
                                  Spacing="8"
-                                 Padding="0,8,0,8">
+                                 Padding="0,8,0,8"
+                                 VerticalOptions="Center"
+                                 ZIndex="6">
                 <Label Text="🔎"
                        FontSize="34"
                        HorizontalOptions="Center" />
@@ -232,11 +234,11 @@
                                                 <Frame Padding="10,4"
                                                        CornerRadius="10"
                                                        HasShadow="False"
-                                                       BackgroundColor="{Binding CategoryColor}"
+                                                       BackgroundColor="{Binding DisplayCategoryColor}"
                                                        BorderColor="Transparent">
                                                     <Label Text="{Binding Category}"
                                                            FontSize="12"
-                                                           TextColor="{Binding CategoryTextColor}" />
+                                                           TextColor="{Binding DisplayCategoryTextColor}" />
                                                 </Frame>
 
                                                 <Label Text="{Binding Rating, StringFormat='⭐ {0}'}"
@@ -245,10 +247,27 @@
                                                        VerticalOptions="Center" />
                                             </HorizontalStackLayout>
 
-                                            <Label Text="{Binding LanguageBadgeSummaryText}"
-                                                   FontSize="12"
-                                                   IsVisible="{Binding HasLanguageBadges}"
-                                                   TextColor="{DynamicResource MutedText}" />
+                                            <FlexLayout BindableLayout.ItemsSource="{Binding LanguageBadges}"
+                                                        Wrap="Wrap"
+                                                        Direction="Row"
+                                                        AlignItems="Start"
+                                                        JustifyContent="Start"
+                                                        IsVisible="{Binding HasLanguageBadges}">
+                                                <BindableLayout.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:LanguageBadgeChip">
+                                                        <Border Margin="0,0,6,6"
+                                                                Padding="8,4"
+                                                                BackgroundColor="{Binding BackgroundColor}"
+                                                                StrokeThickness="0"
+                                                                StrokeShape="RoundRectangle 10">
+                                                            <Label Text="{Binding Label}"
+                                                                   FontSize="11"
+                                                                   FontAttributes="Bold"
+                                                                   TextColor="{Binding TextColor}" />
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </BindableLayout.ItemTemplate>
+                                            </FlexLayout>
                                         </VerticalStackLayout>
                                     </Grid>
 
@@ -989,7 +1008,9 @@
             </Border>
         </Grid>
 
-        <controls:MiniPlayerView Grid.Row="2"
+        <controls:MiniPlayerView Grid.Row="1"
+                                 UseTransparentChrome="True"
+                                 VerticalOptions="End"
                                  ZIndex="40" />
     </Grid>
 </ContentPage>

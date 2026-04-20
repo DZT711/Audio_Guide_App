@@ -31,13 +31,20 @@ public partial class PlaybackQueuePage : ContentPage
 
     private async void OnBackTapped(object? sender, TappedEventArgs e)
     {
-        if (Shell.Current is not null)
+        try
         {
-            await Shell.Current.GoToAsync("..");
-            return;
-        }
+            if (Shell.Current is not null)
+            {
+                await Shell.Current.GoToAsync("..");
+                return;
+            }
 
-        await Navigation.PopModalAsync();
+            await Navigation.PopModalAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Playback queue back navigation error: {ex}");
+        }
     }
 
     private void OnRemoveTapped(object? sender, TappedEventArgs e)

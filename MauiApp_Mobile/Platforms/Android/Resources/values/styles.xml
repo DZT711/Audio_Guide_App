@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <style name="Maui.MainTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+  <style name="SmartTour.MainTheme" parent="Maui.MainTheme">
     <item name="android:statusBarColor">@color/colorPrimaryDark</item>
     <item name="android:navigationBarColor">@color/colorPrimaryDark</item>
     <item name="android:windowBackground">@android:color/white</item>
   </style>
 
-  <style name="Maui.MainTheme.NoActionBar" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+  <style name="SmartTour.MainTheme.NoActionBar" parent="Maui.MainTheme.NoActionBar">
     <item name="android:statusBarColor">@color/colorPrimaryDark</item>
     <item name="android:navigationBarColor">@color/colorPrimaryDark</item>
     <item name="android:windowBackground">@android:color/white</item>
   </style>
 
-  <style name="Maui.SplashTheme" parent="Maui.MainTheme.NoActionBar">
-    <item name="android:windowBackground">@android:color/white</item>
+  <!-- Keep MAUI's built-in splash/base theme chain intact. Overriding Maui.* directly
+       strips required MaterialComponent theme attributes and crashes Shell tab rendering. -->
+  <style name="SmartTour.SplashTheme" parent="Maui.SplashTheme">
     <item name="android:statusBarColor">@color/colorPrimaryDark</item>
     <item name="android:navigationBarColor">@color/colorPrimaryDark</item>
   </style>

@@ -9,6 +9,7 @@ public sealed class UserLocationService : INotifyPropertyChanged
 {
     public static UserLocationService Instance { get; } = new();
 
+    private readonly SemaphoreSlim _headingTrackingLock = new(1, 1);
     private Location? _lastKnownLocation;
     private double? _headingDegrees;
     private bool _headingMonitoringStarted;
@@ -85,7 +86,20 @@ public sealed class UserLocationService : INotifyPropertyChanged
         {
         }
 
-        location ??= await Geolocation.Default.GetLastKnownLocationAsync();
+        if (location is null)
+        {
+            try
+            {
+                location = await Geolocation.Default.GetLastKnownLocationAsync();
+            }
+            catch (Exception ex) when (
+                ex is FeatureNotEnabledException or
+                FeatureNotSupportedException or
+                PermissionException)
+            {
+            }
+        }
+
         if (location is not null)
         {
             UpdateLocation(location);
@@ -101,23 +115,58 @@ public sealed class UserLocationService : INotifyPropertyChanged
         LocationUpdated?.Invoke(this, location);
     }
 
-    public void EnsureHeadingTracking()
+    public async Task EnsureHeadingTrackingAsync(CancellationToken cancellationToken = default)
     {
         if (_headingMonitoringStarted)
         {
             return;
         }
 
+        var permissionStatus = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+        if (permissionStatus != PermissionStatus.Granted)
+        {
+            Log("heading-tracking-skipped:foreground-location-not-granted");
+            return;
+        }
+
+        if (!await _headingTrackingLock.WaitAsync(0, cancellationToken))
+        {
+            return;
+        }
+
         try
         {
+            if (_headingMonitoringStarted)
+            {
+                return;
+            }
+
             Compass.Default.ReadingChanged -= OnCompassReadingChanged;
             Compass.Default.ReadingChanged += OnCompassReadingChanged;
             Compass.Default.Start(SensorSpeed.UI);
             _headingMonitoringStarted = true;
+            Log("heading-tracking-started");
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
+        catch (Exception ex)
+        {
+            Log($"heading-tracking-failed:{ex.Message}");
+        }
+        finally
+        {
+            _headingTrackingLock.Release();
+        }
+    }
+
+    private static void Log(string message)
+    {
+        var payload = $"[UserLocationService] {message}";
+        System.Diagnostics.Debug.WriteLine(payload);
+#if ANDROID
+        Android.Util.Log.Info("SmartTour.Location", payload);
+#endif
     }
 
     private void OnCompassReadingChanged(object? sender, CompassChangedEventArgs e)

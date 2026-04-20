@@ -13,8 +13,10 @@
             <Color x:Key="CardBg">#FFFFFF</Color>
             <Color x:Key="SurfaceAlt">#F8FAFC</Color>
             <Color x:Key="InputBg">#FFFFFF</Color>
-            <Color x:Key="PopupBg">#FFFFFF</Color>
-            <Color x:Key="BottomSheetBg">#FFFFFF</Color>
+            <Color x:Key="PopupBg">#B3FFFFFF</Color>
+            <Color x:Key="BottomSheetBg">#B3FFFFFF</Color>
+            <Color x:Key="GlassSurfaceBg">#B3FFFFFF</Color>
+            <Color x:Key="GlassSurfaceStroke">#CCFFFFFF</Color>
             <Color x:Key="MutedText">#8A94A6</Color>
             <Color x:Key="BodyText">#1E3250</Color>
             <Color x:Key="TitleText">#0F172A</Color>
@@ -35,8 +37,8 @@
             <Color x:Key="SkeletonHighlightColor">#F4F6F8</Color>
             <Color x:Key="HeroBubbleColor">#49D16F</Color>
             <Color x:Key="HeroBubbleAltColor">#A7F3C5</Color>
-            <Color x:Key="MapButtonBg">#FFFFFF</Color>
-            <Color x:Key="MapButtonRing">#D6FAE3</Color>
+            <Color x:Key="MapButtonBg">#20FFFFFF</Color>
+            <Color x:Key="MapButtonRing">#CCFFFFFF</Color>
             <Color x:Key="TabBarBackgroundColor">#FFFFFF</Color>
             <Color x:Key="TabBarUnselectedColor">#98A2B3</Color>
             <Color x:Key="HeaderGradientStart">#109245</Color>

@@ -1,34 +1,65 @@
 using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
+using System.Net.Http;
 using System.Text.Json;
-using Microsoft.Maui.Devices;
 using Microsoft.Maui.Storage;
 using Project_SharedClassLibrary.Constants;
-using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Storage;
 
 namespace MauiApp_Mobile.Services;
 
 public static class MobileApiOptions
 {
-    private const string ApiBaseUrlPreferenceKey = "mobile_api_base_url";
-    private const string LastKnownWorkingBaseUrlPreferenceKey = "mobile_api_last_working_base_url";
-    private const int DefaultApiPort = 5123;
-    private const string DefaultAndroidEmulatorBaseUrl = "http://10.0.2.2:5123/";
-    private const string DefaultDesktopBaseUrl = "http://localhost:5123/";
+    private const string ConfigFileName = "mobile-api.json";
     private const string PlaceholderBaseUrl = "http://smarttour.invalid/";
-    private static readonly SemaphoreSlim DiscoverySemaphore = new(1, 1);
+    private const string BaseUrlPreferenceKey = "smarttour.mobile.api.base-url";
+    private const string LastKnownWorkingBaseUrlPreferenceKey = "smarttour.mobile.api.last-known-working-base-url";
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly SemaphoreSlim ConfigurationSemaphore = new(1, 1);
+    private static readonly HttpClient ProbeHttpClient = new()
+    {
+        Timeout = TimeSpan.FromSeconds(2)
+    };
+    private static readonly object StateLock = new();
+    private static MobileApiRuntimeConfiguration _runtimeConfiguration = new();
+    private static string _currentBaseUrl = GetDefaultBaseUrl();
+    private static bool _runtimeConfigurationLoaded;
 
-    public static string BaseUrl => GetRequestBaseUrl();
-    public static Uri BaseUri => new(GetRequestBaseUrl(), UriKind.Absolute);
+    public static string BaseUrl
+    {
+        get
+        {
+            lock (StateLock)
+            {
+                return _currentBaseUrl;
+            }
+        }
+    }
+
+    public static Uri BaseUri => new(BaseUrl, UriKind.Absolute);
     public static Uri PlaceholderBaseUri => new(PlaceholderBaseUrl, UriKind.Absolute);
 
-    public static void SetBaseUrl(string baseUrl) =>
-        Preferences.Default.Set(ApiBaseUrlPreferenceKey, NormalizeBaseUrl(baseUrl));
+    public static void SetBaseUrl(string baseUrl)
+    {
+        var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
+        if (normalizedBaseUrl is null)
+        {
+            return;
+        }
 
-    public static void SetLastKnownWorkingBaseUrl(string baseUrl) =>
-        Preferences.Default.Set(LastKnownWorkingBaseUrlPreferenceKey, NormalizeBaseUrl(baseUrl));
+        Preferences.Default.Set(BaseUrlPreferenceKey, normalizedBaseUrl);
+        UpdateCurrentBaseUrl(normalizedBaseUrl);
+    }
+
+    public static void SetLastKnownWorkingBaseUrl(string baseUrl)
+    {
+        var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
+        if (normalizedBaseUrl is null)
+        {
+            return;
+        }
+
+        Preferences.Default.Set(LastKnownWorkingBaseUrlPreferenceKey, normalizedBaseUrl);
+    }
 
     public static Uri RewriteToCurrentBaseUri(Uri requestUri)
     {
@@ -51,104 +82,18 @@ public static class MobileApiOptions
 
     public static async Task<string> EnsureResolvedBaseUrlAsync(CancellationToken cancellationToken = default)
     {
-        if (!NeedsSubnetDiscovery())
-        {
-            return GetRequestBaseUrl();
-        }
-
-        await TryDiscoverAndRememberBaseUrlAsync(cancellationToken);
-        return GetRequestBaseUrl();
+        await EnsureRuntimeConfigurationLoadedAsync(cancellationToken);
+        var resolvedBaseUrl = await ResolvePreferredBaseUrlAsync(cancellationToken);
+        UpdateCurrentBaseUrl(resolvedBaseUrl);
+        return resolvedBaseUrl;
     }
 
     public static async Task<string?> TryDiscoverAndRememberBaseUrlAsync(CancellationToken cancellationToken = default)
     {
-        if (!NeedsSubnetDiscovery())
-        {
-            return GetStoredBaseUrlOrNull();
-        }
-
-        await DiscoverySemaphore.WaitAsync(cancellationToken);
-        try
-        {
-            var existingBaseUrl = GetStoredBaseUrlOrNull();
-            if (!string.IsNullOrWhiteSpace(existingBaseUrl))
-            {
-                return existingBaseUrl;
-            }
-
-            var subnetPrefix = GetCurrentPrivateSubnetPrefix();
-            if (string.IsNullOrWhiteSpace(subnetPrefix))
-            {
-                return null;
-            }
-
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(6));
-            using var probeClient = new HttpClient
-            {
-                Timeout = TimeSpan.FromMilliseconds(550)
-            };
-
-            var hostCandidates = BuildHostScanOrder(subnetPrefix, GetCurrentDeviceIpv4()).ToList();
-            var maxParallelism = 18;
-            string? discoveredBaseUrl = null;
-
-            await Parallel.ForEachAsync(
-                hostCandidates,
-                new ParallelOptions
-                {
-                    CancellationToken = timeoutCts.Token,
-                    MaxDegreeOfParallelism = maxParallelism
-                },
-                async (host, probeCancellationToken) =>
-                {
-                    if (!string.IsNullOrWhiteSpace(discoveredBaseUrl))
-                    {
-                        return;
-                    }
-
-                    var candidateBaseUrl = $"http://{host}:{DefaultApiPort}/";
-                    var requestUri = new Uri(new Uri(candidateBaseUrl, UriKind.Absolute), ApiRoutes.PublicServerInfo);
-
-                    try
-                    {
-                        using var response = await probeClient.GetAsync(requestUri, probeCancellationToken);
-                        if (!response.IsSuccessStatusCode)
-                        {
-                            return;
-                        }
-
-                        await using var responseStream = await response.Content.ReadAsStreamAsync(probeCancellationToken);
-                        var payload = await JsonSerializer.DeserializeAsync<PublicServerInfoDto>(responseStream, cancellationToken: probeCancellationToken);
-                        if (!string.Equals(payload?.Status, "Online", StringComparison.OrdinalIgnoreCase))
-                        {
-                            return;
-                        }
-
-                        if (Interlocked.CompareExchange(ref discoveredBaseUrl, candidateBaseUrl, null) is null)
-                        {
-                            SetLastKnownWorkingBaseUrl(candidateBaseUrl);
-                            timeoutCts.Cancel();
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                    }
-                    catch
-                    {
-                    }
-                });
-
-            return discoveredBaseUrl;
-        }
-        catch (OperationCanceledException)
-        {
-            return null;
-        }
-        finally
-        {
-            DiscoverySemaphore.Release();
-        }
+        await EnsureRuntimeConfigurationLoadedAsync(cancellationToken);
+        var resolvedBaseUrl = await ResolvePreferredBaseUrlAsync(cancellationToken);
+        UpdateCurrentBaseUrl(resolvedBaseUrl);
+        return resolvedBaseUrl;
     }
 
     public static string ResolveImageUrl(string? imageUrl) =>
@@ -156,78 +101,6 @@ public static class MobileApiOptions
 
     public static string ResolveAudioUrl(string? audioUrl) =>
         ResolveArchiveUrl(audioUrl, SharedStoragePaths.NormalizePublicAudioPath);
-
-    private static string GetRequestBaseUrl()
-    {
-        var storedBaseUrl = GetStoredBaseUrlOrNull();
-        if (!string.IsNullOrWhiteSpace(storedBaseUrl))
-        {
-            return storedBaseUrl;
-        }
-
-        return GetDefaultBaseUrl();
-    }
-
-    private static string? GetStoredBaseUrlOrNull()
-    {
-        var configuredBaseUrl = Preferences.Default.Get(ApiBaseUrlPreferenceKey, string.Empty);
-        if (!string.IsNullOrWhiteSpace(configuredBaseUrl))
-        {
-            return NormalizeBaseUrl(configuredBaseUrl);
-        }
-
-        var lastKnownWorkingBaseUrl = Preferences.Default.Get(LastKnownWorkingBaseUrlPreferenceKey, string.Empty);
-        if (!string.IsNullOrWhiteSpace(lastKnownWorkingBaseUrl))
-        {
-            return NormalizeBaseUrl(lastKnownWorkingBaseUrl);
-        }
-
-        return null;
-    }
-
-    private static string GetDefaultBaseUrl()
-    {
-        if (DeviceInfo.Platform == DevicePlatform.Android)
-        {
-            return DeviceInfo.DeviceType == DeviceType.Virtual
-                ? DefaultAndroidEmulatorBaseUrl
-                : DefaultDesktopBaseUrl;
-        }
-
-        return DefaultDesktopBaseUrl;
-    }
-
-    private static bool NeedsSubnetDiscovery() =>
-        DeviceInfo.Platform == DevicePlatform.Android &&
-        DeviceInfo.DeviceType != DeviceType.Virtual &&
-        string.IsNullOrWhiteSpace(GetStoredBaseUrlOrNull());
-
-    private static string NormalizeBaseUrl(string baseUrl)
-    {
-        var fallback = GetDefaultBaseUrl();
-
-        if (string.IsNullOrWhiteSpace(baseUrl))
-        {
-            return fallback;
-        }
-
-        var trimmedBaseUrl = baseUrl.Trim();
-        if (!Uri.TryCreate(trimmedBaseUrl, UriKind.Absolute, out var uri))
-        {
-            trimmedBaseUrl = trimmedBaseUrl.Trim('/');
-            trimmedBaseUrl = $"http://{trimmedBaseUrl}/";
-            return trimmedBaseUrl;
-        }
-
-        var builder = new UriBuilder(uri)
-        {
-            Path = string.IsNullOrWhiteSpace(uri.AbsolutePath) || uri.AbsolutePath == "/"
-                ? "/"
-                : $"{uri.AbsolutePath.TrimEnd('/')}/"
-        };
-
-        return builder.Uri.ToString();
-    }
 
     private static string ResolveArchiveUrl(string? rawUrl, Func<string?, string?> normalizeManagedPath)
     {
@@ -251,6 +124,13 @@ public static class MobileApiOptions
                 return absoluteUri.AbsoluteUri;
             }
 
+            var managedPathFromAbsoluteUri = normalizeManagedPath(absoluteUri.AbsolutePath);
+            if (!string.IsNullOrWhiteSpace(managedPathFromAbsoluteUri) &&
+                managedPathFromAbsoluteUri.StartsWith("/", StringComparison.Ordinal))
+            {
+                return new Uri(BaseUri, managedPathFromAbsoluteUri.TrimStart('/')).AbsoluteUri;
+            }
+
             if (IsLoopbackDevelopmentHost(absoluteUri.Host) || IsPlaceholderHost(absoluteUri.Host))
             {
                 return RewriteToCurrentBaseUri(absoluteUri).AbsoluteUri;
@@ -272,117 +152,205 @@ public static class MobileApiOptions
         return new Uri(BaseUri, normalizedValue.TrimStart('/')).AbsoluteUri;
     }
 
-    private static IEnumerable<string> BuildHostScanOrder(string subnetPrefix, string? deviceIpv4)
+    private static async Task EnsureRuntimeConfigurationLoadedAsync(CancellationToken cancellationToken)
     {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var priorityLastOctets = new[] { 1, 2, 3, 4, 5, 10, 11, 20, 50, 100, 101, 110, 120, 150, 200, 254 };
-
-        foreach (var lastOctet in priorityLastOctets)
+        if (_runtimeConfigurationLoaded)
         {
-            var candidate = $"{subnetPrefix}.{lastOctet}";
-            if (string.Equals(candidate, deviceIpv4, StringComparison.OrdinalIgnoreCase) || !seen.Add(candidate))
-            {
-                continue;
-            }
-
-            yield return candidate;
+            return;
         }
 
-        for (var lastOctet = 1; lastOctet <= 254; lastOctet++)
+        await ConfigurationSemaphore.WaitAsync(cancellationToken);
+        try
         {
-            var candidate = $"{subnetPrefix}.{lastOctet}";
-            if (string.Equals(candidate, deviceIpv4, StringComparison.OrdinalIgnoreCase) || !seen.Add(candidate))
+            if (_runtimeConfigurationLoaded)
             {
-                continue;
+                return;
             }
 
-            yield return candidate;
+            try
+            {
+                using var stream = await FileSystem.OpenAppPackageFileAsync(ConfigFileName);
+                var configuration = await JsonSerializer.DeserializeAsync<MobileApiRuntimeConfiguration>(
+                    stream,
+                    JsonOptions,
+                    cancellationToken);
+
+                _runtimeConfiguration = configuration ?? new MobileApiRuntimeConfiguration();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MobileApi] Failed to load {ConfigFileName}: {ex.Message}");
+                _runtimeConfiguration = new MobileApiRuntimeConfiguration();
+            }
+
+            _runtimeConfigurationLoaded = true;
+        }
+        finally
+        {
+            ConfigurationSemaphore.Release();
         }
     }
 
-    private static string? GetCurrentPrivateSubnetPrefix()
+    private static async Task<string> ResolvePreferredBaseUrlAsync(CancellationToken cancellationToken)
     {
-        var deviceIpv4 = GetCurrentDeviceIpv4();
-        if (string.IsNullOrWhiteSpace(deviceIpv4))
+        var candidates = BuildCandidateBaseUrls().ToList();
+        if (candidates.Count == 0)
+        {
+            return GetDefaultBaseUrl();
+        }
+
+        foreach (var candidate in candidates)
+        {
+            if (await CanReachBaseUrlAsync(candidate, cancellationToken))
+            {
+                Preferences.Default.Set(LastKnownWorkingBaseUrlPreferenceKey, candidate);
+                return candidate;
+            }
+        }
+
+        return candidates[0];
+    }
+
+    private static IEnumerable<string> BuildCandidateBaseUrls()
+    {
+        var candidates = new List<string>();
+
+        AddCandidate(candidates, Preferences.Default.Get(BaseUrlPreferenceKey, string.Empty));
+        AddCandidate(candidates, Environment.GetEnvironmentVariable("SMARTTOUR_API_BASE_URL"));
+        AddCandidate(candidates, Environment.GetEnvironmentVariable("SMARTTOUR_PUBLIC_BASE_URL"));
+        AddCandidate(candidates, _runtimeConfiguration.BaseUrl);
+        AddCandidate(candidates, _runtimeConfiguration.PublicBaseUrl);
+        AddCandidate(candidates, Preferences.Default.Get(LastKnownWorkingBaseUrlPreferenceKey, string.Empty));
+
+        foreach (var fallbackBaseUrl in _runtimeConfiguration.FallbackBaseUrls)
+        {
+            AddCandidate(candidates, fallbackBaseUrl);
+        }
+
+        if (_runtimeConfiguration.AllowLocalhostFallback)
+        {
+            foreach (var fallbackBaseUrl in GetDefaultFallbackBaseUrls())
+            {
+                AddCandidate(candidates, fallbackBaseUrl);
+            }
+        }
+
+        return candidates;
+    }
+
+    private static async Task<bool> CanReachBaseUrlAsync(string baseUrl, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                new Uri(new Uri(baseUrl, UriKind.Absolute), ApiRoutes.PublicServerInfo));
+            using var response = await ProbeHttpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MobileApi] API probe failed for {baseUrl}: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static void AddCandidate(List<string> candidates, string? baseUrl)
+    {
+        var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
+        if (normalizedBaseUrl is null)
+        {
+            return;
+        }
+
+        if (!candidates.Contains(normalizedBaseUrl, StringComparer.OrdinalIgnoreCase))
+        {
+            candidates.Add(normalizedBaseUrl);
+        }
+    }
+
+    private static string? NormalizeBaseUrl(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
         {
             return null;
         }
 
-        var parts = deviceIpv4.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return parts.Length == 4 ? string.Join(".", parts.Take(3)) : null;
-    }
-
-    private static string? GetCurrentDeviceIpv4()
-    {
-        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+        if (!Uri.TryCreate(baseUrl.Trim(), UriKind.Absolute, out var uri))
         {
-            if (networkInterface.OperationalStatus != OperationalStatus.Up ||
-                networkInterface.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
-                networkInterface.NetworkInterfaceType == NetworkInterfaceType.Tunnel)
-            {
-                continue;
-            }
-
-            IPInterfaceProperties? properties;
-            try
-            {
-                properties = networkInterface.GetIPProperties();
-            }
-            catch
-            {
-                continue;
-            }
-
-            foreach (var addressInformation in properties.UnicastAddresses)
-            {
-                var address = addressInformation.Address;
-                if (address.AddressFamily != AddressFamily.InterNetwork ||
-                    IPAddress.IsLoopback(address))
-                {
-                    continue;
-                }
-
-                var value = address.ToString();
-                if (IsPrivateIpv4(value))
-                {
-                    return value;
-                }
-            }
+            return null;
         }
 
-        return null;
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return uri.AbsoluteUri.EndsWith("/", StringComparison.Ordinal)
+            ? uri.AbsoluteUri
+            : $"{uri.AbsoluteUri}/";
     }
 
-    private static bool IsPrivateIpv4(string address)
+    private static void UpdateCurrentBaseUrl(string baseUrl)
     {
-        if (string.IsNullOrWhiteSpace(address))
+        lock (StateLock)
+        {
+            _currentBaseUrl = baseUrl;
+        }
+    }
+
+    private static string GetDefaultBaseUrl() =>
+        GetDefaultFallbackBaseUrls().First();
+
+    private static IReadOnlyList<string> GetDefaultFallbackBaseUrls()
+    {
+        var fallbacks = new List<string>();
+
+#if ANDROID
+        fallbacks.Add("http://10.0.2.2:5123/");
+#endif
+        fallbacks.Add("http://localhost:5123/");
+
+        return fallbacks;
+    }
+
+    private static bool IsLoopbackDevelopmentHost(string? host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
         {
             return false;
         }
 
-        return address.StartsWith("10.", StringComparison.Ordinal) ||
-               address.StartsWith("192.168.", StringComparison.Ordinal) ||
-               address.StartsWith("172.16.", StringComparison.Ordinal) ||
-               address.StartsWith("172.17.", StringComparison.Ordinal) ||
-               address.StartsWith("172.18.", StringComparison.Ordinal) ||
-               address.StartsWith("172.19.", StringComparison.Ordinal) ||
-               address.StartsWith("172.20.", StringComparison.Ordinal) ||
-               address.StartsWith("172.21.", StringComparison.Ordinal) ||
-               address.StartsWith("172.22.", StringComparison.Ordinal) ||
-               address.StartsWith("172.23.", StringComparison.Ordinal) ||
-               address.StartsWith("172.24.", StringComparison.Ordinal) ||
-               address.StartsWith("172.25.", StringComparison.Ordinal) ||
-               address.StartsWith("172.26.", StringComparison.Ordinal) ||
-               address.StartsWith("172.27.", StringComparison.Ordinal) ||
-               address.StartsWith("172.28.", StringComparison.Ordinal) ||
-               address.StartsWith("172.29.", StringComparison.Ordinal) ||
-               address.StartsWith("172.30.", StringComparison.Ordinal) ||
-               address.StartsWith("172.31.", StringComparison.Ordinal);
+        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(host, "0.0.0.0", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(host, "10.0.2.2", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!IPAddress.TryParse(host, out var address))
+        {
+            return false;
+        }
+
+        return IPAddress.IsLoopback(address) || IsPrivateIpv4(address);
     }
 
-    private static bool IsLoopbackDevelopmentHost(string? host) =>
-        string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(host, "0.0.0.0", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(host, "10.0.2.2", StringComparison.OrdinalIgnoreCase);
+    private static bool IsPrivateIpv4(IPAddress address)
+    {
+        if (address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            return false;
+        }
+
+        var bytes = address.GetAddressBytes();
+        return bytes[0] == 10 ||
+               (bytes[0] == 172 && bytes[1] is >= 16 and <= 31) ||
+               (bytes[0] == 192 && bytes[1] == 168);
+    }
 }

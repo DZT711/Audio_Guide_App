@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using MauiApp_Mobile.Services.Geofencing;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Devices;
 using Microsoft.Maui.Devices.Sensors;
@@ -49,6 +50,9 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+
+    public string DeviceId => _deviceId;
+    public string SessionId => _sessionId;
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
@@ -101,6 +105,12 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
 
     public async Task<Location?> GetCurrentLocationAsync(bool forForegroundMap = true, CancellationToken cancellationToken = default)
     {
+        var foregroundStatus = await GetForegroundPermissionStatusAsync();
+        if (foregroundStatus != PermissionStatus.Granted)
+        {
+            return LastKnownLocation;
+        }
+
         var request = CreateRequest();
 
         try
@@ -116,7 +126,18 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
         {
         }
 
-        var lastKnown = await Geolocation.Default.GetLastKnownLocationAsync();
+        Location? lastKnown = null;
+        try
+        {
+            lastKnown = await Geolocation.Default.GetLastKnownLocationAsync();
+        }
+        catch (Exception ex) when (
+            ex is FeatureNotEnabledException or
+            FeatureNotSupportedException or
+            PermissionException)
+        {
+        }
+
         if (lastKnown is not null)
         {
             await PublishLocationAsync(lastKnown, isForeground: forForegroundMap, cancellationToken);
@@ -159,6 +180,7 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
         if (AppSettingsService.Instance.BatterySaverEnabled || !AppSettingsService.Instance.BackgroundTrackingEnabled)
         {
             await StartForegroundTrackingAsync(cancellationToken);
+            await RefreshGeofencingAsync(cancellationToken);
             return;
         }
 
@@ -171,10 +193,12 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
         if (backgroundStatus == PermissionStatus.Granted)
         {
             await StartBackgroundTrackingAsync(cancellationToken);
+            await RefreshGeofencingAsync(cancellationToken);
             return;
         }
 
         await StartForegroundTrackingAsync(cancellationToken);
+        await RefreshGeofencingAsync(cancellationToken);
     }
 
     public Task StopAsync()
@@ -316,6 +340,17 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private static async Task RefreshGeofencingAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await GeofenceOrchestratorService.Instance.WarmStartAsync(cancellationToken);
+        }
+        catch
+        {
+        }
     }
 }
 

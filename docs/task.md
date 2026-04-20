@@ -111,7 +111,7 @@ ui/ux header
 
 tour app sync on api
 
-improve media player notification map category✅
+improve media player notification map category ✅
 
 fix audio play button cant stop immediately when user want to stop after play
 
@@ -119,17 +119,31 @@ sync whenever audio stop(leaving app/stop on notification/stop by press stop on 
 
 dont show poi information property like:active radius,standby radius and debouce sec
 
-reuse real tour guide between poi from web
+reuse real tour guide between poi from web✅
 
-stop play while someone calling
+stop play while someone calling✅
 
-auto low volume down about 70% while user have other notification and turn back to normal volume after notification end
+auto low volume down about 70% while user have other notification and turn back to normal volume after notification end✅
 
 auto clear up media in sever storage that poi dont use
 
-add audio type filter in audio list
+add audio type filter in audio list admin
 
 auto close media notification if the app have been closed
+
+QR manage for admin
+
+main function for QR if user dont have app auto install apk and setup app to auto open poi detail and auto play audio
+
+sua bam k focus vao poi sau khi bam show poi on map
+
+sua loc theo ngon ngu
+
+sua app lag
+
+k the nhap -1 cho viec tat tu dong focus tren map
+
+sua mau cua thanh dieu huong
 
 ## (extend task)-MVP
 

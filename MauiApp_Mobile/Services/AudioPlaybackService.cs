@@ -132,15 +132,19 @@ public sealed partial class AudioPlaybackService
         }
         catch
         {
-            await PlatformStopAudioAsync();
-            StopProgressLoop();
-            CurrentTrack = null;
-            IsLoading = false;
-            IsPlaying = false;
-            IsPaused = false;
-            ResetProgressState();
-            RaisePlaybackStateChanged();
-            RaisePlaybackProgressChanged();
+            if (IsPlaybackSessionCurrent(playbackSession))
+            {
+                await PlatformStopAudioAsync();
+                StopProgressLoop();
+                CurrentTrack = null;
+                IsLoading = false;
+                IsPlaying = false;
+                IsPaused = false;
+                ResetProgressState();
+                RaisePlaybackStateChanged();
+                RaisePlaybackProgressChanged();
+            }
+
             throw;
         }
     }
@@ -180,6 +184,29 @@ public sealed partial class AudioPlaybackService
         RaisePlaybackProgressChanged();
 
         await PlatformStopAudioAsync();
+    }
+
+    public async Task ShutdownForAppTerminationAsync()
+    {
+        try
+        {
+            await StopAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Playback termination cleanup failed: {ex.Message}");
+        }
+
+#if ANDROID
+        try
+        {
+            AndroidAudioPlaybackNotificationManager.Instance.Cancel();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Playback notification termination cleanup failed: {ex.Message}");
+        }
+#endif
     }
 
     public async Task PauseAsync(bool requestedByAudioFocus = false)
@@ -737,6 +764,9 @@ public sealed partial class AudioPlaybackService
         AndroidAudioPlaybackNotificationManager.Instance.Refresh(this);
 #endif
     }
+
+    private bool IsPlaybackSessionCurrent(int playbackSession) =>
+        playbackSession == Interlocked.CompareExchange(ref _playbackSessionVersion, 0, 0);
 
     private void MarkPlaybackStarted()
     {

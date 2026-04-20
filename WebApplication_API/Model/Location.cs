@@ -51,6 +51,15 @@ public class Location
 
     public int Status { get; set; } = 1;
 
+    [MaxLength(8)]
+    public string QrFormat { get; set; } = "png";
+
+    public int QrSize { get; set; } = 512;
+
+    public bool QrAutoplay { get; set; } = true;
+
+    public int? QrAudioTrackId { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }

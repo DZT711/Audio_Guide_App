@@ -163,8 +163,8 @@ public sealed class ThemeService : INotifyPropertyChanged
             CardBg = Color.FromArgb("#112230"),
             SurfaceAlt = Color.FromArgb("#152A39"),
             InputBg = Color.FromArgb("#173242"),
-            PopupBg = Color.FromArgb("#112230"),
-            BottomSheetBg = Color.FromArgb("#10202D"),
+            PopupBg = Color.FromArgb("#B3112230"),
+            BottomSheetBg = Color.FromArgb("#B310202D"),
             MutedText = Color.FromArgb("#9BB3C7"),
             BodyText = Color.FromArgb("#ECF7F1"),
             TitleText = Color.FromArgb("#F8FEFA"),
@@ -204,8 +204,8 @@ public sealed class ThemeService : INotifyPropertyChanged
             CardBg = Color.FromArgb("#FFF9F2"),
             SurfaceAlt = Color.FromArgb("#FFF6EC"),
             InputBg = Color.FromArgb("#FFFDF8"),
-            PopupBg = Color.FromArgb("#FFF9F2"),
-            BottomSheetBg = Color.FromArgb("#FFF9F2"),
+            PopupBg = Color.FromArgb("#B3FFF9F2"),
+            BottomSheetBg = Color.FromArgb("#B3FFF9F2"),
             MutedText = Color.FromArgb("#8F6F5B"),
             BodyText = Color.FromArgb("#472B1C"),
             TitleText = Color.FromArgb("#30180E"),
@@ -245,8 +245,8 @@ public sealed class ThemeService : INotifyPropertyChanged
             CardBg = Color.FromArgb("#FFFFFF"),
             SurfaceAlt = Color.FromArgb("#F8FAFC"),
             InputBg = Color.FromArgb("#FFFFFF"),
-            PopupBg = Color.FromArgb("#FFFFFF"),
-            BottomSheetBg = Color.FromArgb("#FFFFFF"),
+            PopupBg = Color.FromArgb("#B3FFFFFF"),
+            BottomSheetBg = Color.FromArgb("#B3FFFFFF"),
             MutedText = Color.FromArgb("#8A94A6"),
             BodyText = Color.FromArgb("#1E3250"),
             TitleText = Color.FromArgb("#0F172A"),
@@ -332,7 +332,10 @@ public sealed class ThemeService : INotifyPropertyChanged
         var decorView = window.DecorView;
         if (decorView is not null)
         {
-            decorView.SystemUiVisibility &= ~((StatusBarVisibility)SystemUiFlags.LightStatusBar);
+#pragma warning disable CS0618
+            var visibility = decorView.SystemUiVisibility;
+            decorView.SystemUiVisibility = visibility & ~((StatusBarVisibility)SystemUiFlags.LightStatusBar);
+#pragma warning restore CS0618
         }
     }
 

@@ -26,26 +26,36 @@ public sealed class AudioPlaybackActionReceiver : BroadcastReceiver
 
         _ = MainThread.InvokeOnMainThreadAsync(async () =>
         {
-            switch (action)
+            try
             {
-                case AndroidAudioPlaybackNotificationManager.ActionToggle:
-                    await PlaybackCoordinatorService.Instance.TogglePauseResumeAsync();
-                    break;
-                case AndroidAudioPlaybackNotificationManager.ActionStop:
-                    await PlaybackCoordinatorService.Instance.StopAsync();
-                    break;
-                case AndroidAudioPlaybackNotificationManager.ActionPrevious:
-                    await PlaybackCoordinatorService.Instance.PlayPreviousAsync();
-                    break;
-                case AndroidAudioPlaybackNotificationManager.ActionNext:
-                    await PlaybackCoordinatorService.Instance.PlayNextAsync();
-                    break;
-                case AndroidAudioPlaybackNotificationManager.ActionSeekBackward:
-                    await PlaybackCoordinatorService.Instance.SeekByAsync(TimeSpan.FromSeconds(-5));
-                    break;
-                case AndroidAudioPlaybackNotificationManager.ActionSeekForward:
-                    await PlaybackCoordinatorService.Instance.SeekByAsync(TimeSpan.FromSeconds(5));
-                    break;
+                switch (action)
+                {
+                    case AndroidAudioPlaybackNotificationManager.ActionToggle:
+                        await PlaybackCoordinatorService.Instance.TogglePauseResumeAsync();
+                        break;
+                    case AndroidAudioPlaybackNotificationManager.ActionStop:
+                        await PlaybackCoordinatorService.Instance.StopAsync();
+                        break;
+                    case AndroidAudioPlaybackNotificationManager.ActionPrevious:
+                        await PlaybackCoordinatorService.Instance.PlayPreviousAsync();
+                        break;
+                    case AndroidAudioPlaybackNotificationManager.ActionNext:
+                        await PlaybackCoordinatorService.Instance.PlayNextAsync();
+                        break;
+                    case AndroidAudioPlaybackNotificationManager.ActionSeekBackward:
+                        await PlaybackCoordinatorService.Instance.SeekByAsync(TimeSpan.FromSeconds(-5));
+                        break;
+                    case AndroidAudioPlaybackNotificationManager.ActionSeekForward:
+                        await PlaybackCoordinatorService.Instance.SeekByAsync(TimeSpan.FromSeconds(5));
+                        break;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Audio playback notification action error: {ex}");
             }
         });
     }

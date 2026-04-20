@@ -26,6 +26,16 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SmartTour uses your location to detect nearby places and play the right audio guide.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>SmartTour needs background location access so automatic POI audio can keep working while you walk.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>SmartTour uses background location to monitor nearby attractions and trigger audio guides automatically.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
 </dict>

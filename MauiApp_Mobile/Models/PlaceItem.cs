@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-
+using MauiApp_Mobile.Services;
 using Project_SharedClassLibrary.Contracts;
 
 namespace MauiApp_Mobile.Models;
@@ -34,8 +34,18 @@ public class PlaceItem : INotifyPropertyChanged
     public IReadOnlyList<string> AvailableVoiceGenders { get; set; } = Array.Empty<string>();
     public string LanguageBadgeSummaryText { get; set; } = "";
     public DateTimeOffset? HistoryAddedAt { get; set; }
+    public DateTimeOffset? LastPlaybackTriggeredAt { get; set; }
+    public double? LastTriggerDistanceMeters { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
+    public double ActivationRadiusMeters { get; set; }
+    public double NearRadiusMeters { get; set; }
+    public int Priority { get; set; }
+    public int DebounceSeconds { get; set; }
+    public int Status { get; set; }
+    public bool IsGpsTriggerEnabled { get; set; }
+    public string LastPlaybackSource { get; set; } = "";
+    public string LastPlaybackTrigger { get; set; } = "";
     public Color CategoryColor { get; set; } = Colors.LightGray;
     public Color CategoryTextColor { get; set; } = Colors.Black;
 
@@ -85,8 +95,11 @@ public class PlaceItem : INotifyPropertyChanged
     }
 
     public string PlayIcon => IsPlaying ? "❚❚" : "▶";
-    public bool HasLanguageBadges => !string.IsNullOrWhiteSpace(LanguageBadgeSummaryText);
+    public IReadOnlyList<LanguageBadgeChip> LanguageBadges => LanguageBadgeService.BuildItems(AudioTracks, LanguageBadgeSummaryText);
+    public bool HasLanguageBadges => LanguageBadges.Count > 0;
     public bool HasCategory => !string.IsNullOrWhiteSpace(Category);
+    public Color DisplayCategoryColor => ResolveCategoryPalette(Category).Background;
+    public Color DisplayCategoryTextColor => ResolveCategoryPalette(Category).Foreground;
 
     public string HistoryRelativeTimeText
     {
@@ -121,5 +134,33 @@ public class PlaceItem : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private static (Color Background, Color Foreground) ResolveCategoryPalette(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return (Color.FromArgb("#E5E7EB"), Color.FromArgb("#374151"));
+        }
+
+        var normalized = category.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            var value when value.Contains("ăn") || value.Contains("food") =>
+                (Color.FromArgb("#FFE3E3"), Color.FromArgb("#E53935")),
+            var value when value.Contains("quán") || value.Contains("restaurant") =>
+                (Color.FromArgb("#FFF7D6"), Color.FromArgb("#CA8A04")),
+            var value when value.Contains("uống") || value.Contains("drink") || value.Contains("cafe") =>
+                (Color.FromArgb("#E6F4FF"), Color.FromArgb("#2563EB")),
+            var value when value.Contains("history") || value.Contains("heritage") || value.Contains("historical") || value.Contains("lịch sử") =>
+                (Color.FromArgb("#FDECEC"), Color.FromArgb("#DC2626")),
+            var value when value.Contains("landmark") || value.Contains("mốc") =>
+                (Color.FromArgb("#E5F4F1"), Color.FromArgb("#0F766E")),
+            var value when value.Contains("văn hóa") || value.Contains("culture") =>
+                (Color.FromArgb("#F3E8FF"), Color.FromArgb("#7C3AED")),
+            var value when value.Contains("tiện ích") || value.Contains("utility") =>
+                (Color.FromArgb("#DCFCE7"), Color.FromArgb("#15803D")),
+            _ => (Color.FromArgb("#E5F4F1"), Color.FromArgb("#0F766E"))
+        };
     }
 }

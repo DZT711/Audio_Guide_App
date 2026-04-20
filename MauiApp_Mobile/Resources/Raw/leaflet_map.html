@@ -132,6 +132,12 @@ __LEAFLET_JS__
             height: 100%;
             border-radius: 999px;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2), transparent 48%),
+                linear-gradient(135deg, rgba(255,255,255,0.12), rgba(15,23,42,0.12));
         }
 
         .poi-marker__image {
@@ -142,6 +148,22 @@ __LEAFLET_JS__
             object-fit: cover;
             object-position: center center;
             background: #dce8dd;
+        }
+
+        .poi-marker__initials {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 8px;
+            text-align: center;
+            color: #ffffff;
+            font-size: 21px;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: 0.04em;
+            text-shadow: 0 3px 10px rgba(15, 23, 42, 0.32);
         }
 
         .poi-marker__halo {
@@ -399,7 +421,7 @@ __LEAFLET_JS__
                     '</div>';
             }
 
-            var noOpJson = JSON.stringify({ found: false, title: "", distanceMeters: 0 });
+            var noOpJson = JSON.stringify({ found: false, matchCount: 0, title: "", distanceMeters: 0 });
             window.setPlaces = function() { return false; };
             window.focusPlaceById = function() { return noOpJson; };
             window.resetMapView = function() { return false; };
@@ -743,9 +765,6 @@ __LEAFLET_JS__
 
         function createPoiMarkerIcon(place) {
             var palette = getThemePalette();
-            var imageSource = getResolvedPlaceImage(place.image || (place.galleryImages && place.galleryImages.length
-                ? place.galleryImages[0]
-                : ""), place.title);
             var borderColor = place.isNearest ? palette.nearestStroke : palette.poiStroke;
             var badgeColor = place.isNearest ? palette.nearestFill : palette.poiFill;
             var haloStyle = place.isNearest
@@ -753,13 +772,16 @@ __LEAFLET_JS__
                 : "";
             var markerClass = place.isNearest ? "poi-marker poi-marker--nearest" : "poi-marker";
             var badgeText = escapeHtml(getMarkerBadgeText(place));
-            var fallbackImage = createPoiThumbnail(place.title);
+            var initials = escapeHtml(getInitials(place.title).substring(0, 3));
+            var frameBackground = place.isNearest
+                ? "linear-gradient(135deg, " + palette.nearestFill + ", " + palette.nearestStroke + ")"
+                : "linear-gradient(135deg, " + palette.poiFill + ", " + palette.poiStroke + ")";
             var html =
                 '<div class="poi-marker-shell">' +
                 '<div class="poi-marker__halo"' + haloStyle + "></div>" +
                 '<div class="' + markerClass + '" style="border-color:' + borderColor + ';">' +
-                '<div class="poi-marker__frame">' +
-                '<img class="poi-marker__image" src="' + escapeHtml(imageSource) + '" alt="' + escapeHtml(place.title) + '" onerror="this.onerror=null;this.src=\'' + escapeHtml(fallbackImage) + '\';">' +
+                '<div class="poi-marker__frame" style="background:' + frameBackground + ';">' +
+                '<span class="poi-marker__initials">' + initials + "</span>" +
                 "</div>" +
                 "</div>" +
                 '<div class="poi-marker__badge" style="background:' + badgeColor + ';">' + badgeText + "</div>" +
@@ -911,35 +933,15 @@ __LEAFLET_JS__
             var detailAction = place.id
                 ? '<a class="poi-popup-action" href="smarttour://place/' + encodeURIComponent(place.id) + '">' + escapeHtml(mapStrings.viewDetails) + "</a>"
                 : "";
-            var galleryImages = (place.galleryImages && place.galleryImages.length
-                ? place.galleryImages
-                : [place.image])
-                .filter(function(image) {
-                    return typeof image === "string" && image.trim().length > 0;
-                });
-            if (!galleryImages.length) {
-                galleryImages = [fallbackImage];
-            }
-            var galleryId = encodeURIComponent(place.id || place.title || "poi");
-            var gallerySlides = galleryImages.map(function(image, index) {
-                var activeClass = index === 0 ? " is-active" : "";
-                return (
-                    '<div class="poi-popup-slide' + activeClass + '">' +
-                    '<img src="' + escapeHtml(image) + '" alt="' + escapeHtml(place.title) + '" onerror="this.onerror=null;this.src=\'' + escapeHtml(fallbackImage) + '\';">' +
-                    "</div>"
-                );
-            }).join("");
-            var galleryDots = galleryImages.length > 1
-                ? galleryImages.map(function(_, index) {
-                    var activeClass = index === 0 ? " is-active" : "";
-                    return '<button type="button" class="poi-popup-dot' + activeClass + '" onclick="window.setPopupGallerySlide(\'' + galleryId + '\', ' + index + '); return false;"></button>';
-                }).join("")
-                : "";
+            var primaryImage = typeof place.image === "string" && place.image.trim().length > 0
+                ? place.image
+                : fallbackImage;
             var gallery =
-                '<div class="poi-popup-gallery" data-gallery-id="' + galleryId + '" data-current-index="0" data-slide-count="' + galleryImages.length + '">' +
-                gallerySlides +
+                '<div class="poi-popup-gallery" data-gallery-id="" data-current-index="0" data-slide-count="1">' +
+                '<div class="poi-popup-slide is-active">' +
+                '<img loading="lazy" decoding="async" src="' + escapeHtml(primaryImage) + '" alt="' + escapeHtml(place.title) + '" onerror="this.onerror=null;this.src=\'' + escapeHtml(fallbackImage) + '\';">' +
+                "</div>" +
                 '<div class="poi-popup-overlay"><div class="poi-popup-overlay-text">' + escapeHtml(place.category || mapStrings.searchResultTitle) + "</div></div>" +
-                (galleryDots ? '<div class="poi-popup-pagination">' + galleryDots + "</div>" : "") +
                 "</div>";
 
             return (
@@ -1022,6 +1024,16 @@ __LEAFLET_JS__
             var normalizedId = String(placeId || "").trim().toLowerCase();
             return mapMarkers.find(function(item) {
                 return String(item.place.id || "").trim().toLowerCase() === normalizedId;
+            });
+        }
+
+        function buildFocusPlaceResponse(found, matchCount, title, distanceMeters, error) {
+            return JSON.stringify({
+                found: !!found,
+                matchCount: Number(matchCount || 0),
+                title: title || "",
+                distanceMeters: Number(distanceMeters || 0),
+                error: error || ""
             });
         }
 
@@ -1127,7 +1139,7 @@ __LEAFLET_JS__
                       category: place.category || place.Category || "",
                       radiusMeters: Number(place.radiusMeters || place.RadiusMeters || mapBehavior.poiRadiusMeters || 0),
                       image: getResolvedPlaceImage(imageSource, title),
-                      galleryImages: buildPlaceGalleryImages(place, imageSource, providedGalleryImages),
+                      galleryImages: [],
                       isNearest: false
                   };
             }).filter(function(place) {
@@ -1244,6 +1256,12 @@ __LEAFLET_JS__
             }
 
             window.showCurrentLocation(eventArgs.latlng.lat, eventArgs.latlng.lng, currentHeadingDegrees, true);
+            var devLocationUrl =
+                "smarttour://dev-location?lat=" +
+                encodeURIComponent(eventArgs.latlng.lat.toFixed(7)) +
+                "&lng=" +
+                encodeURIComponent(eventArgs.latlng.lng.toFixed(7));
+            window.location.href = devLocationUrl;
         });
 
         window.setPlaces = function(nextPlaces) {
@@ -1253,39 +1271,56 @@ __LEAFLET_JS__
         };
 
         window.focusPlaceById = function(placeId) {
-            if (!placeId) {
-                return JSON.stringify({
-                    found: false,
-                    matchCount: 0,
-                    title: ""
+            try {
+                if (!placeId) {
+                    return buildFocusPlaceResponse(false, 0, "", 0, "missing-place-id");
+                }
+
+                var normalizedId = String(placeId).trim().toLowerCase();
+                var match = mapMarkers.find(function(item) {
+                    return String(item.place.id || "").trim().toLowerCase() === normalizedId;
                 });
+
+                if (!match || !match.place) {
+                    return buildFocusPlaceResponse(false, 0, "", 0, "place-not-found");
+                }
+
+                var targetLat = Number(match.place.lat);
+                var targetLon = Number(match.place.lon);
+                var distanceMeters = lastCurrentLocation
+                    ? getDistanceInMeters(lastCurrentLocation.lat, lastCurrentLocation.lon, targetLat, targetLon)
+                    : 0;
+
+                if (!Number.isFinite(targetLat) || !Number.isFinite(targetLon)) {
+                    return buildFocusPlaceResponse(false, 1, match.place.title || "", distanceMeters, "invalid-place-coordinates");
+                }
+
+                if (!match.marker) {
+                    return buildFocusPlaceResponse(false, 1, match.place.title || "", distanceMeters, "marker-not-found");
+                }
+
+                lastFocusedPlaceId = match.place.id || "";
+                smoothCameraTo(targetLat, targetLon, 16, true);
+
+                if (typeof match.marker.openPopup === "function") {
+                    match.marker.openPopup();
+                }
+
+                window.setTimeout(function() {
+                    if (match.marker && typeof match.marker.getPopup === "function") {
+                        startPopupGalleryForPopup(match.marker.getPopup());
+                    }
+                }, 0);
+
+                return buildFocusPlaceResponse(true, 1, match.place.title || "", distanceMeters, "");
+            } catch (error) {
+                return buildFocusPlaceResponse(
+                    false,
+                    0,
+                    "",
+                    0,
+                    error && error.message ? error.message : "focusPlaceById-error");
             }
-
-            var normalizedId = String(placeId).trim().toLowerCase();
-            var match = mapMarkers.find(function(item) {
-                return String(item.place.id).trim().toLowerCase() === normalizedId;
-            });
-
-            if (!match) {
-                return JSON.stringify({
-                    found: false,
-                    matchCount: 0,
-                    title: ""
-                });
-            }
-
-              lastFocusedPlaceId = match.place.id || "";
-              smoothCameraTo(match.place.lat, match.place.lon, 16, true);
-              match.marker.openPopup();
-            window.setTimeout(function() {
-                startPopupGalleryForPopup(match.marker.getPopup());
-            }, 0);
-
-            return JSON.stringify({
-                found: true,
-                matchCount: 1,
-                title: match.place.title
-            });
         };
 
         window.resetMapView = function() {
@@ -1408,7 +1443,10 @@ __LEAFLET_JS__
         window.applyMapBehavior = function(behavior) {
             mapBehavior = Object.assign({}, mapBehavior, behavior || {});
             places.forEach(function(place) {
-                place.radiusMeters = Number(mapBehavior.poiRadiusMeters || place.radiusMeters || 0);
+                var placeRadius = Number(place.radiusMeters || 0);
+                if (!Number.isFinite(placeRadius) || placeRadius <= 0) {
+                    place.radiusMeters = Number(mapBehavior.poiRadiusMeters || 0);
+                }
             });
             renderPlaces();
             scheduleIdleAutoFocus();

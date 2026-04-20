@@ -7,6 +7,7 @@ using System.Text.Json;
 using MauiApp_Mobile.Models;
 using Project_SharedClassLibrary.Constants;
 using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Geofencing;
 
 namespace MauiApp_Mobile.Services;
 
@@ -31,6 +32,8 @@ public sealed class PlaceCatalogService
     private PlaceCatalogService()
     {
     }
+
+    public event EventHandler? CatalogChanged;
 
     public IReadOnlyList<PlaceItem> GetPlaces() => _places.ToList();
 
@@ -195,7 +198,9 @@ public sealed class PlaceCatalogService
                 Category = item.Category,
                 Latitude = item.Latitude,
                 Longitude = item.Longitude,
-                RadiusMeters = AppSettingsService.Instance.TriggerRadiusMeters,
+                RadiusMeters = item.ActivationRadiusMeters > 0d
+                    ? item.ActivationRadiusMeters
+                    : AppSettingsService.Instance.TriggerRadiusMeters,
                 Image = string.IsNullOrWhiteSpace(item.PreferenceImage) ? item.Image : item.PreferenceImage,
                 GalleryImages = SelectMapGalleryImages(item)
             })
@@ -287,9 +292,36 @@ public sealed class PlaceCatalogService
             LanguageBadgeSummaryText = LanguageBadgeService.BuildSummary(audioTracks),
             Latitude = location.Latitude,
             Longitude = location.Longitude,
+            ActivationRadiusMeters = SanitizeActivationRadius(location.Radius),
+            NearRadiusMeters = SanitizeNearRadius(location.Radius, location.StandbyRadius),
+            Priority = location.Priority,
+            DebounceSeconds = Math.Max(0, location.DebounceSeconds),
+            Status = location.Status,
+            IsGpsTriggerEnabled = location.IsGpsTriggerEnabled,
             CategoryColor = categoryColors.Background,
             CategoryTextColor = categoryColors.Foreground
         };
+    }
+
+    public IReadOnlyList<PoiGeofenceDefinition> GetGeofenceDefinitions()
+    {
+        return _places
+            .Where(item =>
+                item.Status == 1 &&
+                item.IsGpsTriggerEnabled &&
+                !string.IsNullOrWhiteSpace(item.Id) &&
+                IsFiniteCoordinate(item.Latitude) &&
+                IsFiniteCoordinate(item.Longitude))
+            .Select(item => new PoiGeofenceDefinition(
+                item.Id,
+                item.Latitude,
+                item.Longitude,
+                SanitizeActivationRadius(item.ActivationRadiusMeters),
+                SanitizeNearRadius(item.ActivationRadiusMeters, item.NearRadiusMeters),
+                item.Priority,
+                Math.Max(0, item.DebounceSeconds),
+                item.IsGpsTriggerEnabled))
+            .ToList();
     }
 
     private static IReadOnlyList<string> SelectMapGalleryImages(PlaceItem item)
@@ -404,19 +436,23 @@ public sealed class PlaceCatalogService
 
     private static int GetSearchScore(PlaceItem item, string keyword)
     {
-        if (item.Name.Equals(keyword, StringComparison.OrdinalIgnoreCase))
+        var name = item.Name ?? string.Empty;
+        var category = item.Category ?? string.Empty;
+        var description = item.Description ?? string.Empty;
+
+        if (name.Equals(keyword, StringComparison.OrdinalIgnoreCase))
             return 300;
 
-        if (item.Name.StartsWith(keyword, StringComparison.OrdinalIgnoreCase))
+        if (name.StartsWith(keyword, StringComparison.OrdinalIgnoreCase))
             return 220;
 
-        if (item.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        if (name.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             return 180;
 
-        if (item.Category.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        if (category.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             return 120;
 
-        if (item.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        if (description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             return 90;
 
         return 0;
@@ -479,6 +515,8 @@ public sealed class PlaceCatalogService
 
             return MapToPlaceItem(location, audioTracks);
         }));
+
+        CatalogChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async Task<CachedCatalogData> LoadCatalogWithFallbackAsync(bool forceRefresh, CancellationToken cancellationToken)
@@ -931,6 +969,26 @@ public sealed class PlaceCatalogService
             "HYBRID" => 1,
             _ => 2
         };
+
+    private static double SanitizeActivationRadius(double radiusMeters)
+    {
+        var configuredTriggerRadius = Math.Clamp(AppSettingsService.Instance.TriggerRadiusMeters, 10d, 500d);
+        var poiRadius = radiusMeters > 0d ? radiusMeters : configuredTriggerRadius;
+        return Math.Clamp(Math.Max(poiRadius, configuredTriggerRadius), 10d, 500d);
+    }
+
+    private static double SanitizeNearRadius(double activationRadiusMeters, double nearRadiusMeters)
+    {
+        var activationRadius = SanitizeActivationRadius(activationRadiusMeters);
+        var candidateNearRadius = nearRadiusMeters > 0d
+            ? nearRadiusMeters
+            : Math.Min(activationRadius, Math.Max(10d, AppSettingsService.Instance.AlertRadiusMeters / 2d));
+
+        return Math.Clamp(candidateNearRadius, 5d, activationRadius);
+    }
+
+    private static bool IsFiniteCoordinate(double value) =>
+        !double.IsNaN(value) && !double.IsInfinity(value);
 
     private static IEnumerable<string?> GetImageCandidates(LocationDto location)
     {

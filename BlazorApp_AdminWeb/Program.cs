@@ -21,6 +21,7 @@ builder.Services.AddDataProtection()
 builder.Services.Configure<AdminApiOptions>(builder.Configuration.GetSection(AdminApiOptions.SectionName));
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<AdminSessionState>();
+builder.Services.AddScoped<AdminUiLanguageService>();
 builder.Services.AddScoped<AdminShellState>();
 builder.Services.AddScoped<InboxState>();
 builder.Services.AddScoped<ModerationState>();

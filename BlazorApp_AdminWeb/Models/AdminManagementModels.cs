@@ -15,6 +15,16 @@ public sealed class BufferedUploadFile
     public byte[] Content { get; set; } = [];
 }
 
+public sealed record DownloadedAdminFile(
+    string FileName,
+    string ContentType,
+    byte[] Content,
+    IReadOnlyDictionary<string, string> Headers)
+{
+    public string? GetHeader(string name) =>
+        Headers.TryGetValue(name, out var value) ? value : null;
+}
+
 public sealed class AdminCredentialsModel
 {
     [Required(ErrorMessage = "Username is required.")]
@@ -127,6 +137,18 @@ public sealed class LocationFormModel : IValidatableObject
     [Range(0, 1)]
     public int Status { get; set; } = 1;
 
+    [Range(128, 2048)]
+    public int QrSize { get; set; } = 512;
+
+    [Required]
+    [RegularExpression("^(png|jpg|jpeg|svg)$", ErrorMessage = "Format must be png, jpg, jpeg, or svg.")]
+    public string QrFormat { get; set; } = QrCodeFormats.Png;
+
+    public bool QrAutoplay { get; set; } = true;
+
+    [Range(1, int.MaxValue)]
+    public int? QrAudioTrackId { get; set; }
+
     public string ExistingPreferenceImageUrl { get; set; } = "";
 
     public BufferedUploadFile? PreferenceImageFile { get; set; }
@@ -160,6 +182,10 @@ public sealed class LocationFormModel : IValidatableObject
             Phone = dto.Phone ?? "",
             Email = dto.Email ?? "",
             Status = dto.Status,
+            QrSize = dto.QrSize,
+            QrFormat = dto.QrFormat,
+            QrAutoplay = dto.QrAutoplay,
+            QrAudioTrackId = dto.QrAudioTrackId,
             ExistingPreferenceImageUrl = preferenceImageUrl,
             ExistingImageUrls = dto.ImageUrls
                 .Where(item => !string.Equals(item, preferenceImageUrl, StringComparison.OrdinalIgnoreCase))

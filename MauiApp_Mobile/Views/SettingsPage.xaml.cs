@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using MauiApp_Mobile.Services;
+using Microsoft.Maui.ApplicationModel;
 
 namespace MauiApp_Mobile.Views;
 
@@ -22,6 +23,7 @@ public partial class SettingsPage : ContentPage
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
         ThemeService.Instance.PropertyChanged += OnThemeChanged;
         AppDataModeService.Instance.PropertyChanged += OnAppDataModeChanged;
+        AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
     }
 
     protected override void OnAppearing()
@@ -67,7 +69,6 @@ public partial class SettingsPage : ContentPage
             GpsAccuracyLabel,
             TriggerRadiusLabel,
             AlertRadiusLabel,
-            WaitTimeLabel,
             ShowPoiRadiusLabel,
             AutoFocusIdleLabel,
             AutoFocusIdleHintLabel,
@@ -78,6 +79,7 @@ public partial class SettingsPage : ContentPage
             ApiModeLabel,
             DeveloperModeLabel,
             LanguagePopupTitleLabel,
+            ScanQrButton,
             SaveSettingsButton);
         UpdateLanguageSelectionUI();
         UpdateApiModeUI();
@@ -97,6 +99,16 @@ public partial class SettingsPage : ContentPage
         }
 
         MainThread.BeginInvokeOnMainThread(UpdateApiModeUI);
+    }
+
+    private void OnSettingsSaved(object? sender, AppSettingsSnapshot snapshot)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            LoadSavedSettings();
+            UpdateApiModeUI();
+            UpdateSliderLabels();
+        });
     }
 
     private void ApplyTexts()
@@ -127,7 +139,6 @@ public partial class SettingsPage : ContentPage
         GpsAccuracyLabel.Text = LocalizationService.Instance.T("Settings.Accuracy");
         TriggerRadiusLabel.Text = LocalizationService.Instance.T("Settings.TriggerRadius");
         AlertRadiusLabel.Text = LocalizationService.Instance.T("Settings.AlertRadius");
-        WaitTimeLabel.Text = LocalizationService.Instance.T("Settings.WaitTime");
         ShowPoiRadiusLabel.Text = "Hiện bán kính POI trên bản đồ";
         AutoFocusIdleLabel.Text = "Tự focus POI sau khi không chạm bản đồ";
         AutoFocusIdleHintLabel.Text = "s, -1 để tắt";
@@ -140,6 +151,7 @@ public partial class SettingsPage : ContentPage
         DeveloperModeLabel.Text = "Hiện nút dev trên bản đồ";
         MiniPlayerLabel.Text = "Hiện thanh phát mini";
         SaveSettingsButton.Text = LocalizationService.Instance.T("Settings.Save");
+        ScanQrButton.Text = LocalizationService.Instance.T("Settings.ScanQr");
 
         LanguagePopupTitleLabel.Text = LocalizationService.Instance.T("Settings.ChooseLanguage");
 
@@ -269,7 +281,6 @@ public partial class SettingsPage : ContentPage
         VolumeValueLabel.Text = $"{Math.Round(VolumeSlider.Value):0}%";
         TriggerRadiusValueLabel.Text = $"{Math.Round(TriggerRadiusSlider.Value):0}m";
         AlertRadiusValueLabel.Text = $"{Math.Round(AlertRadiusSlider.Value):0}m";
-        WaitTimeValueLabel.Text = $"{Math.Round(WaitTimeSlider.Value):0}s";
     }
 
     private void UpdateApiModeUI()
@@ -288,7 +299,6 @@ public partial class SettingsPage : ContentPage
         VolumeSlider.Value = settings.VolumePercent;
         TriggerRadiusSlider.Value = settings.TriggerRadiusMeters;
         AlertRadiusSlider.Value = settings.AlertRadiusMeters;
-        WaitTimeSlider.Value = settings.WaitTimeSeconds;
         AutoPlaySwitch.IsToggled = settings.AutoPlayEnabled;
         NotifyNearSwitch.IsToggled = settings.NotifyNearEnabled;
         BackgroundTrackingSwitch.IsToggled = settings.BackgroundTrackingEnabled;
@@ -306,7 +316,6 @@ public partial class SettingsPage : ContentPage
     private void OnVolumeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnTriggerRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
     private void OnAlertRadiusChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
-    private void OnWaitTimeChanged(object sender, ValueChangedEventArgs e) => UpdateSliderLabels();
 
     private void OnGpsAccuracyChanged(object sender, EventArgs e)
     {
@@ -395,7 +404,6 @@ public partial class SettingsPage : ContentPage
                 VolumeSlider.Value,
                 TriggerRadiusSlider.Value,
                 AlertRadiusSlider.Value,
-                WaitTimeSlider.Value,
                 AutoPlaySwitch.IsToggled,
                 NotifyNearSwitch.IsToggled,
                 BackgroundTrackingSwitch.IsToggled,
@@ -433,6 +441,51 @@ public partial class SettingsPage : ContentPage
     private void OnApiModeToggled(object sender, ToggledEventArgs e)
     {
         AppDataModeService.Instance.IsApiEnabled = !e.Value;
+    }
+
+    private async void OnScanQrClicked(object sender, EventArgs e)
+    {
+#if !ANDROID
+        await DisplayAlertAsync(
+            LocalizationService.Instance.T("QrScanner.Title"),
+            LocalizationService.Instance.T("QrScanner.AndroidOnly"),
+            "OK");
+        return;
+#else
+        try
+        {
+            var permissionStatus = await Permissions.CheckStatusAsync<Permissions.Camera>();
+            if (permissionStatus != PermissionStatus.Granted)
+            {
+                permissionStatus = await Permissions.RequestAsync<Permissions.Camera>();
+            }
+
+            if (permissionStatus == PermissionStatus.Granted)
+            {
+                await Shell.Current.GoToAsync("qr-scanner");
+                return;
+            }
+
+            var openSettings = await DisplayAlertAsync(
+                LocalizationService.Instance.T("QrScanner.PermissionTitle"),
+                LocalizationService.Instance.T("QrScanner.PermissionMessage"),
+                LocalizationService.Instance.T("QrScanner.OpenSettings"),
+                LocalizationService.Instance.T("QrScanner.Cancel"));
+
+            if (openSettings)
+            {
+                AppInfo.ShowSettingsUI();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[QrScanner] Failed to open scanner: {ex}");
+            await DisplayAlertAsync(
+                LocalizationService.Instance.T("QrScanner.Title"),
+                LocalizationService.Instance.T("QrScanner.OpenFailed"),
+                "OK");
+        }
+#endif
     }
 
     private int ParseAutoFocusIdleSeconds()

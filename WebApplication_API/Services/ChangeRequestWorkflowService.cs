@@ -239,6 +239,10 @@ public sealed partial class ChangeRequestWorkflowService(
                 Phone = Normalize(request.Phone),
                 EstablishedYear = request.EstablishedYear,
                 Status = request.Status,
+                QrSize = request.QrSize,
+                QrFormat = QrCodeFormats.Normalize(request.QrFormat),
+                QrAutoplay = request.QrAutoplay,
+                QrAudioTrackId = request.QrAudioTrackId,
                 OwnerId = owner.UserId,
                 OwnerName = owner.FullName ?? owner.Username,
                 PreferenceImageUrl = preferenceImageUrl,
@@ -705,6 +709,10 @@ public sealed partial class ChangeRequestWorkflowService(
                 PhoneContact = payload.Phone,
                 EstablishedYear = payload.EstablishedYear,
                 Status = payload.Status,
+                QrSize = payload.QrSize,
+                QrFormat = QrCodeFormats.Normalize(payload.QrFormat),
+                QrAutoplay = payload.QrAutoplay,
+                QrAudioTrackId = payload.QrAudioTrackId,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -752,6 +760,10 @@ public sealed partial class ChangeRequestWorkflowService(
         liveLocation.PhoneContact = payload.Phone;
         liveLocation.EstablishedYear = payload.EstablishedYear;
         liveLocation.Status = payload.Status;
+        liveLocation.QrSize = payload.QrSize;
+        liveLocation.QrFormat = QrCodeFormats.Normalize(payload.QrFormat);
+        liveLocation.QrAutoplay = payload.QrAutoplay;
+        liveLocation.QrAudioTrackId = payload.QrAudioTrackId;
         liveLocation.UpdatedAt = DateTime.UtcNow;
 
         return await SyncLocationImagesAsync(liveLocation, payload.PreferenceImageUrl, payload.ImageUrls, cancellationToken);
@@ -1195,6 +1207,10 @@ public sealed partial class ChangeRequestWorkflowService(
             Phone = liveLocation.PhoneContact,
             EstablishedYear = liveLocation.EstablishedYear ?? DateTime.UtcNow.Year,
             Status = liveLocation.Status,
+            QrSize = liveLocation.QrSize,
+            QrFormat = string.IsNullOrWhiteSpace(liveLocation.QrFormat) ? QrCodeFormats.Png : liveLocation.QrFormat,
+            QrAutoplay = liveLocation.QrAutoplay,
+            QrAudioTrackId = liveLocation.QrAudioTrackId,
             ImageUrls = liveLocation.Images
                 .OrderBy(item => item.SortOrder)
                 .ThenBy(item => item.ImageId)
@@ -1538,6 +1554,10 @@ public sealed partial class ChangeRequestWorkflowService(
         public string? Phone { get; set; }
         public int EstablishedYear { get; set; }
         public int Status { get; set; } = 1;
+        public int QrSize { get; set; } = 512;
+        public string QrFormat { get; set; } = QrCodeFormats.Png;
+        public bool QrAutoplay { get; set; } = true;
+        public int? QrAudioTrackId { get; set; }
         public List<string> ImageUrls { get; set; } = [];
         public int AudioCount { get; set; }
         public List<string> AvailableVoiceGenders { get; set; } = [];

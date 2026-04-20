@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @inject AdminShellState ShellState
 @inject AdminSessionState SessionState
+@inject AdminUiLanguageService Language
 @implements IDisposable
 
 @if (!_authChecked)
@@ -25,7 +26,7 @@ else if (_isAuthenticated)
 
         <div class="offcanvas offcanvas-start admin-shell__drawer" tabindex="-1" id="admin-sidebar-drawer" aria-labelledby="admin-sidebar-drawer-label">
             <div class="offcanvas-header admin-shell__drawer-header">
-                <h2 class="offcanvas-title" id="admin-sidebar-drawer-label">Navigation</h2>
+                <h2 class="offcanvas-title" id="admin-sidebar-drawer-label">@Language.T("sidebar.navigation", "Navigation")</h2>
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body p-0">
@@ -76,6 +77,7 @@ else if (_isAuthenticated)
         }
 
         SessionState.Changed += HandleSessionChanged;
+        Language.Changed += HandleLanguageChanged;
 
         try
         {
@@ -108,8 +110,11 @@ else if (_isAuthenticated)
         _ = InvokeAsync(StateHasChanged);
     }
 
+    private void HandleLanguageChanged() => _ = InvokeAsync(StateHasChanged);
+
     public void Dispose()
     {
         SessionState.Changed -= HandleSessionChanged;
+        Language.Changed -= HandleLanguageChanged;
     }
 }

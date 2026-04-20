@@ -3,17 +3,18 @@
     x:Class="MauiApp_Mobile.Views.Controls.MiniPlayerView"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:services="clr-namespace:MauiApp_Mobile.Services"
     x:Name="ThisControl"
     IsVisible="{Binding IsMiniPlayerVisible, Source={x:Reference ThisControl}}">
 
     <Border Margin="16,0,16,12"
             Padding="14,12"
-            BackgroundColor="{DynamicResource PopupBg}"
-            Stroke="{DynamicResource BorderColor}"
+            BackgroundColor="{DynamicResource GlassSurfaceBg}"
+            Stroke="{DynamicResource GlassSurfaceStroke}"
             StrokeThickness="1"
             StrokeShape="RoundRectangle 22">
         <VerticalStackLayout Spacing="10">
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
                 <VerticalStackLayout Spacing="2">
                     <Label Text="{Binding TitleText, Source={x:Reference ThisControl}}"
                            FontAttributes="Bold"
@@ -32,7 +33,8 @@
                         BackgroundColor="{DynamicResource SurfaceAlt}"
                         StrokeThickness="0"
                         StrokeShape="RoundRectangle 17"
-                        VerticalOptions="Center">
+                        VerticalOptions="Center"
+                        IsVisible="{Binding HasQueueItems, Source={x:Reference ThisControl}}">
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Tapped="OnQueueTapped" />
                     </Border.GestureRecognizers>
@@ -47,6 +49,31 @@
                 <Border Grid.Column="2"
                         WidthRequest="34"
                         HeightRequest="34"
+                        BackgroundColor="{DynamicResource SurfaceAlt}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 17"
+                        VerticalOptions="Center">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCollapseTapped" />
+                    </Border.GestureRecognizers>
+                    <Image Source="triangle_down_filled.svg"
+                           WidthRequest="14"
+                           HeightRequest="10"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center">
+                        <Image.Triggers>
+                            <DataTrigger TargetType="Image"
+                                         Binding="{Binding IsExpanded, Source={x:Reference ThisControl}}"
+                                         Value="True">
+                                <Setter Property="Source" Value="triangle_up_filled.svg" />
+                            </DataTrigger>
+                        </Image.Triggers>
+                    </Image>
+                </Border>
+
+                <Border Grid.Column="3"
+                        WidthRequest="34"
+                        HeightRequest="34"
                         BackgroundColor="#FEECEC"
                         StrokeThickness="0"
                         StrokeShape="RoundRectangle 17"
@@ -58,14 +85,15 @@
                            FontSize="12"
                            FontAttributes="Bold"
                            HorizontalOptions="Center"
-                           TextColor="#C62828"
-                           VerticalOptions="Center" />
+                            TextColor="#C62828"
+                            VerticalOptions="Center" />
                 </Border>
             </Grid>
 
             <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto"
                   ColumnSpacing="8"
-                  HorizontalOptions="Center">
+                  HorizontalOptions="Center"
+                  IsVisible="{Binding IsExpanded, Source={x:Reference ThisControl}}">
                 <Border WidthRequest="40" HeightRequest="40" BackgroundColor="{DynamicResource SurfaceAlt}" StrokeThickness="0" StrokeShape="RoundRectangle 20" Opacity="{Binding PreviousOpacity, Source={x:Reference ThisControl}}">
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Tapped="OnPreviousTapped" />
@@ -125,7 +153,8 @@
                 </Border>
             </Grid>
 
-            <VerticalStackLayout Spacing="4">
+            <VerticalStackLayout Spacing="4"
+                                 IsVisible="{Binding IsExpanded, Source={x:Reference ThisControl}}">
                 <ProgressBar Progress="{Binding ProgressRatio, Source={x:Reference ThisControl}}"
                              HeightRequest="6"
                              BackgroundColor="{DynamicResource DividerColor}"
@@ -140,6 +169,88 @@
                            TextColor="{DynamicResource MutedText}" />
                 </Grid>
             </VerticalStackLayout>
+
+            <Border IsVisible="{Binding IsQueueVisible, Source={x:Reference ThisControl}}"
+                    Margin="0,12,0,0"
+                    Padding="12"
+                    BackgroundColor="{DynamicResource PopupBg}"
+                    Stroke="{DynamicResource BorderColor}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 14">
+                <Grid RowDefinitions="Auto,*"
+                      RowSpacing="8">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="8">
+                        <Label Text="📋"
+                               FontSize="14"
+                               VerticalOptions="Center" />
+                        <Label Grid.Column="1"
+                               Text="Queue"
+                               FontAttributes="Bold"
+                               FontSize="12"
+                               TextColor="{DynamicResource BodyText}"
+                               VerticalOptions="Center" />
+                        <Border Grid.Column="2"
+                                Padding="6,3"
+                                BackgroundColor="{DynamicResource PrimaryGreen}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 10">
+                            <Label Text="{Binding QueueCountText, Source={x:Reference ThisControl}}"
+                                   FontAttributes="Bold"
+                                   FontSize="10"
+                                   TextColor="White"
+                                   VerticalOptions="Center" />
+                        </Border>
+                    </Grid>
+
+                    <CollectionView Grid.Row="1"
+                                    ItemsSource="{Binding Queue, Source={x:Reference ThisControl}}"
+                                    SelectionMode="None"
+                                    MaximumHeightRequest="140">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="services:PlaybackQueueItem">
+                                <Border Margin="0,0,0,6"
+                                        Padding="10"
+                                        BackgroundColor="{DynamicResource PopupBg}"
+                                        Stroke="{DynamicResource DividerColor}"
+                                        StrokeThickness="1"
+                                        StrokeShape="RoundRectangle 10">
+                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                          ColumnSpacing="8">
+                                        <Label Text="♫"
+                                               FontSize="13"
+                                               TextColor="{DynamicResource PrimaryGreen}"
+                                               VerticalOptions="Center" />
+                                        <VerticalStackLayout Grid.Column="1"
+                                                             Spacing="2">
+                                            <Label Text="{Binding Track.Title}"
+                                                   FontAttributes="Bold"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource BodyText}"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1" />
+                                            <Label Text="{Binding Subtitle}"
+                                                   FontSize="9"
+                                                   TextColor="{DynamicResource MutedText}"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1" />
+                                        </VerticalStackLayout>
+                                        <Label Grid.Column="2"
+                                               Text="✕"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource MutedText}"
+                                               VerticalOptions="Center">
+                                            <Label.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnRemoveQueuedItemTapped" />
+                                            </Label.GestureRecognizers>
+                                        </Label>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </Grid>
+            </Border>
         </VerticalStackLayout>
     </Border>
 </ContentView>
