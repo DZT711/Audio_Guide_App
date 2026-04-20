@@ -98,8 +98,8 @@
 
 ### 🔗 QR Code Direct Play (PoC)
 
-- [ ] Implement QR code scanning in-app
-- [ ] Link QR code to specific POI audio (bypass GPS requirement)
+- [x] Implement QR code scanning in-app
+- [x] Link QR code to specific POI audio (bypass GPS requirement)
 - [ ] Target use case: bus stops in **Khánh Hội, Xóm Chiều, Vĩnh Hội** (Hồ Chí Minh City)
 
 ---
