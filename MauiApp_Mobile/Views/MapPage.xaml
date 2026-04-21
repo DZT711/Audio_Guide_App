@@ -454,10 +454,10 @@
             </VerticalStackLayout>
 
             <Border IsVisible="{Binding IsTourPanelVisible}"
-                    BackgroundColor="Transparent"
+                    BackgroundColor="{DynamicResource PopupBg}"
                     Margin="16,120,16,92"
                     Padding="14"
-                    Stroke="{DynamicResource BorderColor}"
+                    Stroke="{DynamicResource GlassSurfaceStroke}"
                     StrokeThickness="1"
                     StrokeShape="RoundRectangle 22"
                     VerticalOptions="End"
@@ -525,8 +525,8 @@
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate>
                                         <Border Padding="12"
-                                                BackgroundColor="Transparent"
-                                                Stroke="{DynamicResource DividerColor}"
+                                                BackgroundColor="{DynamicResource PopupBg}"
+                                                Stroke="{DynamicResource GlassSurfaceStroke}"
                                                 StrokeThickness="1"
                                                 StrokeShape="RoundRectangle 16">
                                             <VerticalStackLayout Spacing="10">
@@ -610,8 +610,8 @@
 
                         <VerticalStackLayout IsVisible="{Binding IsTourDetailVisible}"
                                              Spacing="10">
-                            <Border BackgroundColor="Transparent"
-                                    Stroke="{DynamicResource DividerColor}"
+                            <Border BackgroundColor="{DynamicResource PopupBg}"
+                                    Stroke="{DynamicResource GlassSurfaceStroke}"
                                     StrokeThickness="1"
                                     StrokeShape="RoundRectangle 16"
                                     Padding="12">
