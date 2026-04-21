@@ -8,7 +8,7 @@
 
 - [ ] Generate QR code for app installation link (deep link / store link)
 - [x] Configure app for online/offline mode detection
-  - [ ] Online → connect to SQL Server
+  - Online → connect to SQL Server
   - [x] Online → connect to sqlite asp server
   - [x] Offline → use local SQLite database
 - [x] Set up `.NET MAUI` project (Android + iOS targets)
@@ -54,7 +54,7 @@
 - [x] Implement **Recorded Audio playback**:
   - [x] Professional/natural voice quality
   - Note: higher memory usage vs TTS
-- [x ] Build **Audio Queue Manager**:
+- [x] Build **Audio Queue Manager**:
   - [x] Multi-process scheduling
   - [x] No audio repetition logic
   - [x] Auto-stop / pause when OS notification arrives
@@ -90,7 +90,7 @@
 - [x] Set up **SQLite** database (via EF Core or sqlite-net)
 - [x] Store POI data locally for offline use
 - [x] Pre-load audio files for offline playback
-- [] Implement background sync from SQL Server when connection is available
+-  Implement background sync from SQL Server when connection is available
 - [x] Implement background sync from sqlite asp server when connection is available
 - [x] Handle conflict resolution (server wins / last-write-wins policy)
 
@@ -100,7 +100,7 @@
 
 - [x] Implement QR code scanning in-app
 - [x] Link QR code to specific POI audio (bypass GPS requirement)
-- [ ] Target use case: bus stops in **Khánh Hội, Xóm Chiều, Vĩnh Hội** (Hồ Chí Minh City)
+- Target use case: bus stops in **Khánh Hội, Xóm Chiều, Vĩnh Hội** (Hồ Chí Minh City)
 
 ---
 
@@ -138,7 +138,7 @@
 
 ### 🏗️ Backend / Server
 
-- [ ] Set up **SQL Server** (online data source)
+- Set up **SQL Server** (online data source)
 - [x] Set up **ASP.NET Core Server** (online data source)
 - [x] Design schema: POIs, audio files, tours, playback history, translations
 - [] Build REST API endpoints for:
