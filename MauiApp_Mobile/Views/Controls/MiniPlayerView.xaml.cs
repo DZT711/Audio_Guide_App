@@ -48,7 +48,7 @@ public partial class MiniPlayerView : ContentView
     public double SeekOpacity => PlaybackCoordinatorService.Instance.CanSeek ? 1d : 0.45d;
     public bool IsExpanded => !MiniPlayerPresentationService.Instance.IsCollapsed;
     public string CollapseGlyph => IsExpanded ? "⌄" : "⌃";
-    public string CollapseIconSource => IsExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
+    public string CollapseIconSource => IsExpanded ? "triangle_down_filled.svg" : "triangle_up_filled.svg";
 
     private async void OnPlayPauseTapped(object? sender, TappedEventArgs e) =>
         await ExecutePlaybackActionAsync(() => PlaybackCoordinatorService.Instance.TogglePauseResumeAsync());

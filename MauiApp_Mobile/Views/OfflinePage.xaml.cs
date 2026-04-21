@@ -340,7 +340,7 @@ public partial class OfflinePage : ContentPage
         }
     }
 
-    public string OfflineAudioListExpandIcon => IsOfflineAudioListExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
+    public string OfflineAudioListExpandIcon => IsOfflineAudioListExpanded ? "triangle_down_filled.svg" : "triangle_up_filled.svg";
 
     private async Task RefreshOfflinePacksSilentlyAsync()
     {

@@ -62,7 +62,7 @@ public partial class HistoryPage : ContentPage
         }
     }
 
-    public string HistoryAudioListExpandIcon => IsHistoryAudioListExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
+    public string HistoryAudioListExpandIcon => IsHistoryAudioListExpanded ? "triangle_down_filled.svg" : "triangle_up_filled.svg";
     public string SelectedHistoryLanguagesText => SelectedHistoryItem == null
         ? string.Empty
         : string.Join(" • ", SelectedHistoryAudioTracks.Select(track => track.LanguageCode));

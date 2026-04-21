@@ -132,7 +132,7 @@ public partial class MainPage : ContentPage
         }
     }
 
-    public string AudioListExpandIcon => IsAudioListExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
+    public string AudioListExpandIcon => IsAudioListExpanded ? "triangle_down_filled.svg" : "triangle_up_filled.svg";
 
     public string AudioTrackSummaryText => SelectedPlaceAudioTracks.Count == 0
         ? "Chưa có audio"
