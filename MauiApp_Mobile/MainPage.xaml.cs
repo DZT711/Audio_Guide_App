@@ -34,7 +34,10 @@ public partial class MainPage : ContentPage
     private bool _isSilentRefreshing;
     private bool _subscriptionsAttached;
     private string _selectedPlaceDistanceText = "Bật định vị để xem khoảng cách";
+    private string _currentPlaceholder = "Search places...";
+    private bool _hasSearchText;
     private CancellationTokenSource? _placesLoadingCts;
+    private CancellationTokenSource? _placeholderCts;
     private IDispatcherTimer? _placeGalleryTimer;
     private IDispatcherTimer? _liveReloadTimer;
 
@@ -58,6 +61,36 @@ public partial class MainPage : ContentPage
             }
 
             _selectedPlaceDistanceText = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string CurrentPlaceholder
+    {
+        get => _currentPlaceholder;
+        private set
+        {
+            if (string.Equals(_currentPlaceholder, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _currentPlaceholder = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool HasSearchText
+    {
+        get => _hasSearchText;
+        private set
+        {
+            if (_hasSearchText == value)
+            {
+                return;
+            }
+
+            _hasSearchText = value;
             OnPropertyChanged();
         }
     }
@@ -149,6 +182,7 @@ public partial class MainPage : ContentPage
         base.OnAppearing();
         AttachSingletonSubscriptions();
         UpdateLiveReloadTimer();
+        _ = StartSearchPlaceholderAnimationAsync();
 
         if (!_hasLoadedPlaces)
         {
@@ -169,6 +203,9 @@ public partial class MainPage : ContentPage
     {
         base.OnDisappearing();
         _placesLoadingCts?.Cancel();
+        _placeholderCts?.Cancel();
+        _placeholderCts?.Dispose();
+        _placeholderCts = null;
         StopPlaceGalleryAutoplay();
         StopLiveReloadTimer();
         DetachSingletonSubscriptions();
@@ -466,7 +503,11 @@ public partial class MainPage : ContentPage
     private void ApplyTexts()
     {
         TitleLabel.Text = LocalizationService.Instance.T("Places.Title");
-        SearchEntry.Placeholder = LocalizationService.Instance.T("Places.Search");
+        CurrentPlaceholder = LocalizationService.Instance.T("Places.Search");
+        if (!HasSearchText)
+        {
+            SearchEntry.Placeholder = CurrentPlaceholder;
+        }
         EmptyTitleLabel.Text = LocalizationService.Instance.T("Places.EmptyTitle");
         EmptySubtitleLabel.Text = LocalizationService.Instance.T("Places.EmptySubtitle");
         CountHintLabel.Text = LocalizationService.Instance.T("Places.CountHint");
@@ -767,6 +808,99 @@ public partial class MainPage : ContentPage
     private void OnSearchChanged(object sender, TextChangedEventArgs e)
     {
         ViewModel.SearchText = e.NewTextValue ?? string.Empty;
+        HasSearchText = !string.IsNullOrWhiteSpace(e.NewTextValue);
+    }
+
+    private void OnClearSearchClicked(object sender, EventArgs e)
+    {
+        SearchEntry.Text = string.Empty;
+        HasSearchText = false;
+    }
+
+    private async void OnQrScannerClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            var status = await Permissions.CheckStatusAsync<Permissions.Camera>();
+
+            if (status != PermissionStatus.Granted)
+            {
+                status = await Permissions.RequestAsync<Permissions.Camera>();
+            }
+
+            if (status == PermissionStatus.Granted)
+            {
+                await Shell.Current.GoToAsync("qr-scanner");
+            }
+            else
+            {
+                await DisplayAlertAsync(
+                    "Permission Required",
+                    "Camera permission is needed to scan QR codes",
+                    "OK");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] QR scanner error: {ex.Message}");
+            await DisplayAlertAsync("Error", "Failed to open QR scanner", "OK");
+        }
+    }
+
+    private async Task StartSearchPlaceholderAnimationAsync()
+    {
+        try
+        {
+            _placeholderCts?.Cancel();
+            _placeholderCts?.Dispose();
+            _placeholderCts = new CancellationTokenSource();
+            var token = _placeholderCts.Token;
+
+            await SearchPlaceholderService.Instance.InitializeAsync();
+
+            while (!token.IsCancellationRequested)
+            {
+                var placeholderText = SearchPlaceholderService.Instance.GetRandomPlaceholder();
+                await AnimatePlaceholderTypingAsync(placeholderText, token);
+                await Task.Delay(1100, token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            System.Diagnostics.Debug.WriteLine("[MainPage] Placeholder animation cancelled");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] Placeholder error: {ex.Message}");
+        }
+    }
+
+    private async Task AnimatePlaceholderTypingAsync(string placeholderText, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(placeholderText))
+        {
+            return;
+        }
+
+        var buffer = string.Empty;
+
+        foreach (var character in placeholderText)
+        {
+            token.ThrowIfCancellationRequested();
+            buffer += character;
+            var visibleText = buffer;
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                CurrentPlaceholder = visibleText;
+                if (!HasSearchText && SearchEntry is not null)
+                {
+                    SearchEntry.Placeholder = visibleText;
+                }
+            });
+
+            await Task.Delay(55, token);
+        }
     }
 
     private void ApplyFilter()

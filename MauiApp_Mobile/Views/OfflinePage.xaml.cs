@@ -22,6 +22,8 @@ public partial class OfflinePage : ContentPage
     private string _selectedFilter = "All";
     private string _selectedCategoryValue = AllCategoryValue;
     private string _searchKeyword = string.Empty;
+    private string _currentPlaceholder = "Search places...";
+    private bool _hasSearchText;
     private bool _isDeleteConfirmVisible;
     private bool _isOfflineDetailVisible;
     private bool _isOfflineAudioListExpanded;
@@ -37,6 +39,7 @@ public partial class OfflinePage : ContentPage
     private double _offlineDetailHalfY = 180;
     private double _offlineDetailClosedY = OfflineDetailFallbackClosedOffset;
     private CancellationTokenSource? _loadingCts;
+    private CancellationTokenSource? _placeholderCts;
     private bool _subscriptionsAttached;
 
     public ObservableCollection<OfflinePackItem> FilteredItems
@@ -54,6 +57,20 @@ public partial class OfflinePage : ContentPage
     public ICommand RedownloadCommand { get; }
     public ICommand PlayTrackCommand { get; }
     public ICommand ToggleInlinePackCommand { get; }
+    public bool HasSearchText
+    {
+        get => _hasSearchText;
+        private set
+        {
+            if (_hasSearchText == value)
+            {
+                return;
+            }
+
+            _hasSearchText = value;
+            OnPropertyChanged();
+        }
+    }
 
     public string DownloadedCountText => string.Format(
         LocalizationService.Instance.T("Offline.ReadyCountFormat"),
@@ -131,6 +148,7 @@ public partial class OfflinePage : ContentPage
     {
         base.OnAppearing();
         AttachSubscriptions();
+        _ = StartSearchPlaceholderAnimationAsync();
 
         if (!_hasInitializedView)
         {
@@ -152,6 +170,9 @@ public partial class OfflinePage : ContentPage
         base.OnDisappearing();
         DetachSubscriptions();
         _loadingCts?.Cancel();
+        _placeholderCts?.Cancel();
+        _placeholderCts?.Dispose();
+        _placeholderCts = null;
     }
 
     private void AttachSubscriptions()
@@ -468,7 +489,11 @@ public partial class OfflinePage : ContentPage
 
         if (SearchEntry is not null)
         {
-            SearchEntry.Placeholder = LocalizationService.Instance.T("Offline.Search");
+            _currentPlaceholder = LocalizationService.Instance.T("Offline.Search");
+            if (!HasSearchText)
+            {
+                SearchEntry.Placeholder = _currentPlaceholder;
+            }
         }
 
         if (AllTabLabel is not null)
@@ -650,7 +675,100 @@ public partial class OfflinePage : ContentPage
     private void OnSearchChanged(object? sender, TextChangedEventArgs e)
     {
         _searchKeyword = e.NewTextValue?.Trim() ?? string.Empty;
+        HasSearchText = !string.IsNullOrWhiteSpace(_searchKeyword);
         ApplyFilter();
+    }
+
+    private void OnClearSearchClicked(object sender, EventArgs e)
+    {
+        SearchEntry.Text = string.Empty;
+        HasSearchText = false;
+    }
+
+    private async void OnQrScannerClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            var status = await Permissions.CheckStatusAsync<Permissions.Camera>();
+
+            if (status != PermissionStatus.Granted)
+            {
+                status = await Permissions.RequestAsync<Permissions.Camera>();
+            }
+
+            if (status == PermissionStatus.Granted)
+            {
+                await Shell.Current.GoToAsync("qr-scanner");
+            }
+            else
+            {
+                await DisplayAlertAsync(
+                    "Permission Required",
+                    "Camera permission is needed to scan QR codes",
+                    "OK");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[OfflinePage] QR scanner error: {ex.Message}");
+            await DisplayAlertAsync("Error", "Failed to open QR scanner", "OK");
+        }
+    }
+
+    private async Task StartSearchPlaceholderAnimationAsync()
+    {
+        try
+        {
+            _placeholderCts?.Cancel();
+            _placeholderCts?.Dispose();
+            _placeholderCts = new CancellationTokenSource();
+            var token = _placeholderCts.Token;
+
+            await SearchPlaceholderService.Instance.InitializeAsync();
+
+            while (!token.IsCancellationRequested)
+            {
+                var placeholderText = SearchPlaceholderService.Instance.GetRandomPlaceholder();
+                await AnimatePlaceholderTypingAsync(placeholderText, token);
+                await Task.Delay(1100, token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            System.Diagnostics.Debug.WriteLine("[OfflinePage] Placeholder animation cancelled");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[OfflinePage] Placeholder error: {ex.Message}");
+        }
+    }
+
+    private async Task AnimatePlaceholderTypingAsync(string placeholderText, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(placeholderText))
+        {
+            return;
+        }
+
+        var buffer = string.Empty;
+
+        foreach (var character in placeholderText)
+        {
+            token.ThrowIfCancellationRequested();
+            buffer += character;
+            var visibleText = buffer;
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                _currentPlaceholder = visibleText;
+                if (!HasSearchText && SearchEntry is not null)
+                {
+                    SearchEntry.Placeholder = visibleText;
+                }
+            });
+
+            await Task.Delay(55, token);
+        }
     }
 
     private void ApplyFilterSummary()
