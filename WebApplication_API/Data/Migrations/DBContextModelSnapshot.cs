@@ -841,6 +841,50 @@ namespace WebApplication_API.Data.Migrations
                     b.ToTable("TourLocations", (string)null);
                 });
 
+            modelBuilder.Entity("WebApplication_API.Model.UsageEventEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DurationSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenceId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventType");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("DeviceId", "Timestamp");
+
+                    b.HasIndex("ReferenceId", "Timestamp");
+
+                    b.ToTable("UsageEvents", (string)null);
+                });
+
             modelBuilder.Entity("WebApplication_API.Model.ActivityLog", b =>
                 {
                     b.HasOne("WebApplication_API.Model.DashboardUser", "User")

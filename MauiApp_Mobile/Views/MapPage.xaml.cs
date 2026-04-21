@@ -133,6 +133,7 @@ public partial class MapPage : ContentPage
         _isPageActive = true;
         _isPageDisposing = false;
         AttachEventHandlers();
+        FireAndForgetMapTask("TrackViewMapOnAppearing", () => AnalyticsService.Instance.TrackEventAsync(UsageEventType.ViewMap));
 
         if (!_hasAnimatedChrome)
         {

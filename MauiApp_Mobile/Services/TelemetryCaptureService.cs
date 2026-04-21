@@ -1,6 +1,7 @@
 using Microsoft.Maui.Networking;
 using Microsoft.Maui.Devices;
 using Microsoft.Maui.Devices.Sensors;
+using System.Globalization;
 using Project_SharedClassLibrary.Contracts;
 
 namespace MauiApp_Mobile.Services;
@@ -271,6 +272,14 @@ public sealed class TelemetryCaptureService
                     completed ? null : "interrupted",
                     state.Context)
             ]);
+
+            await AnalyticsService.Instance.TrackEventAsync(
+                UsageEventType.PlayAudio,
+                referenceId: state.PoiId?.ToString(CultureInfo.InvariantCulture),
+                durationSeconds: listenedSeconds,
+                details: completed
+                    ? "{\"state\":\"completed\",\"source\":\"playback\"}"
+                    : "{\"state\":\"interrupted\",\"source\":\"playback\"}");
 
             await TelemetrySyncService.Instance.TriggerSyncAsync();
         }

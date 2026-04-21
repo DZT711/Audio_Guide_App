@@ -323,7 +323,7 @@ public sealed class ThemeService : INotifyPropertyChanged
 #if ANDROID
     private static void ApplyStatusBarColor(Color color)
     {
-        var window = Platform.CurrentActivity?.Window;
+        var window = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity?.Window;
         if (window is null)
             return;
 

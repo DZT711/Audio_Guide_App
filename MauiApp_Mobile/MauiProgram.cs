@@ -34,6 +34,8 @@ public static class MauiProgram
         builder.Services.AddSingleton(_ => TelemetryAnonymizerService.Instance);
         builder.Services.AddSingleton(_ => TelemetryCaptureService.Instance);
         builder.Services.AddSingleton(_ => TelemetrySyncService.Instance);
+        builder.Services.AddSingleton<IAnalyticsService>(_ => AnalyticsService.Instance);
+        builder.Services.AddSingleton(_ => AnalyticsService.Instance);
 
 #if ANDROID
         builder.Services.AddSingleton<ILocationForegroundServiceController, AndroidLocationForegroundServiceController>();

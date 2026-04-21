@@ -1,4 +1,5 @@
 @page "/usage"
+@implements IAsyncDisposable
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject AdminSessionState SessionState
@@ -197,6 +198,11 @@ else
     private string _selectedEventType = "";
     private string? _loadError;
     private const int PageSize = 12;
+    private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(10);
+    private readonly SemaphoreSlim _loadLock = new(1, 1);
+    private CancellationTokenSource? _autoRefreshCts;
+    private Task? _autoRefreshTask;
+    private bool _isDisposed;
 
     private bool CanView => SessionState.HasPermission(AdminPermissions.UsageHistoryView);
     private IEnumerable<UsageHistoryItemDto> FilteredItems => _overview.Items
@@ -232,28 +238,82 @@ else
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
+        StartAutoRefreshLoop();
     }
 
     private async Task RefreshAsync() => await LoadAsync();
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(bool isAutoRefresh = false)
     {
-        _isLoading = true;
-        _loadError = null;
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        if (!await _loadLock.WaitAsync(0))
+        {
+            return;
+        }
 
         try
         {
+            if (!isAutoRefresh)
+            {
+                _isLoading = true;
+                _loadError = null;
+            }
+
             _overview = await ApiClient.GetUsageHistoryAsync();
+            _loadError = null;
+            _currentPage = Math.Min(_currentPage, TotalPages);
+
+            if (isAutoRefresh)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
         }
         catch (Exception ex)
         {
-            _loadError = ex.Message;
-            Notifications.Error(ex.Message, "Usage history load failed");
+            if (!isAutoRefresh)
+            {
+                _loadError = ex.Message;
+                Notifications.Error(ex.Message, "Usage history load failed");
+            }
         }
         finally
         {
-            _isLoading = false;
-            _currentPage = Math.Min(_currentPage, TotalPages);
+            if (!isAutoRefresh)
+            {
+                _isLoading = false;
+            }
+
+            _loadLock.Release();
+        }
+    }
+
+    private void StartAutoRefreshLoop()
+    {
+        if (!CanView || _isDisposed || _autoRefreshTask is not null)
+        {
+            return;
+        }
+
+        _autoRefreshCts = new CancellationTokenSource();
+        _autoRefreshTask = RunAutoRefreshLoopAsync(_autoRefreshCts.Token);
+    }
+
+    private async Task RunAutoRefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(AutoRefreshInterval);
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(() => LoadAsync(isAutoRefresh: true));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
@@ -288,4 +348,33 @@ else
             : seconds < 60
                 ? $"{seconds} sec"
                 : $"{seconds / 60} min {seconds % 60} sec";
+
+    public async ValueTask DisposeAsync()
+    {
+        _isDisposed = true;
+        if (_autoRefreshCts is not null)
+        {
+            try
+            {
+                await _autoRefreshCts.CancelAsync();
+            }
+            catch
+            {
+            }
+        }
+
+        if (_autoRefreshTask is not null)
+        {
+            try
+            {
+                await _autoRefreshTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        _autoRefreshCts?.Dispose();
+        _loadLock.Dispose();
+    }
 }

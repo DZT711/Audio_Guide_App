@@ -19,7 +19,7 @@ public sealed partial class GeofencePlatformMonitor
     {
         try
         {
-            var context = (Context?)Platform.CurrentActivity ?? AndroidAppApplication.Context;
+            var context = (Context?)Microsoft.Maui.ApplicationModel.Platform.CurrentActivity ?? AndroidAppApplication.Context;
             return context?.GetSystemService(Context.LocationService) is LocationManager;
         }
         catch (Exception ex)
@@ -52,7 +52,7 @@ public sealed partial class GeofencePlatformMonitor
 
         return await Task.Run(() =>
         {
-            var context = (Context?)Platform.CurrentActivity ?? AndroidAppApplication.Context;
+            var context = (Context?)Microsoft.Maui.ApplicationModel.Platform.CurrentActivity ?? AndroidAppApplication.Context;
             var locationManager = (LocationManager?)context.GetSystemService(Context.LocationService);
             if (locationManager is null)
             {
@@ -105,7 +105,7 @@ public sealed partial class GeofencePlatformMonitor
     {
         return Task.Run(() =>
         {
-            var context = (Context?)Platform.CurrentActivity ?? AndroidAppApplication.Context;
+            var context = (Context?)Microsoft.Maui.ApplicationModel.Platform.CurrentActivity ?? AndroidAppApplication.Context;
             var locationManager = (LocationManager?)context.GetSystemService(Context.LocationService);
             if (locationManager is not null)
             {

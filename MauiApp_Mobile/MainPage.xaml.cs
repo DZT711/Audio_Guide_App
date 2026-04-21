@@ -1049,6 +1049,10 @@ public partial class MainPage : ContentPage
         PlaceDetailSheet.TranslationY = _placeDetailClosedY;
         PlaceDetailCarousel.Position = 0;
         StartPlaceGalleryAutoplay();
+        _ = AnalyticsService.Instance.TrackEventAsync(
+            UsageEventType.ViewPoi,
+            referenceId: item.Id,
+            details: "{\"source\":\"place-detail\"}");
         await PlaceDetailSheet.TranslateToAsync(0, _placeDetailHalfY, 300, Easing.CubicOut);
 
         _ = LoadSelectedPlaceAudioTracksSafelyAsync(item);

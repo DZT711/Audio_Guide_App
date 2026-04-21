@@ -1,4 +1,4 @@
-@WebURL = http://localhost:5123
+@WebURL = https://unearth-ranked-viper.ngrok-free.dev
 
 ### ========== CATEGORY CRUD ==========
 

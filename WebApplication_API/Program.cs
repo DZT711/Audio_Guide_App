@@ -67,6 +67,7 @@ builder.Services.AddSingleton<ServerRuntimeInfoService>();
 builder.Services.AddScoped<AdminRequestAuthorizationService>();
 builder.Services.AddScoped<ChangeRequestWorkflowService>();
 builder.Services.AddScoped<ActivityLogService>();
+builder.Services.AddScoped<IUsageAnalyticsService, UsageAnalyticsService>();
 builder.Services.AddSingleton<AnalyticsDataFilterService>();
 builder.Services.AddSingleton<LocationQrService>();
 builder.Services.AddSingleton<AndroidApkPackagingService>();

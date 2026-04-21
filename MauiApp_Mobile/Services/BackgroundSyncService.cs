@@ -62,6 +62,9 @@ public sealed class BackgroundSyncService
     public Task TriggerTelemetrySyncAsync(CancellationToken cancellationToken = default) =>
         TelemetrySyncService.Instance.TriggerSyncAsync(cancellationToken);
 
+    public Task TriggerUsageAnalyticsSyncAsync(CancellationToken cancellationToken = default) =>
+        AnalyticsService.Instance.SyncEventsToServerAsync(cancellationToken);
+
     private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
     {
         if (e.NetworkAccess != NetworkAccess.Internet)
@@ -71,5 +74,6 @@ public sealed class BackgroundSyncService
 
         _ = TriggerCatalogSyncAsync();
         _ = TriggerTelemetrySyncAsync();
+        _ = TriggerUsageAnalyticsSyncAsync();
     }
 }

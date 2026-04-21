@@ -1,9 +1,8 @@
 {
-  "baseUrl": "http://olympics-steadfast-skimmed.ngrok-free.dev/",
-  "publicBaseUrl": "http://olympics-steadfast-skimmed.ngrok-free.dev/",
-  "allowLocalhostFallback": true,
+  "baseUrl": "https://unearth-ranked-viper.ngrok-free.dev/",
+  "publicBaseUrl": "https://unearth-ranked-viper.ngrok-free.dev/",
+  "allowLocalhostFallback": false,
   "fallbackBaseUrls": [
-    "http://10.0.2.2:5123/",
-    "http://localhost:5123/"
+    "https://unearth-ranked-viper.ngrok-free.dev/"
   ]
 }

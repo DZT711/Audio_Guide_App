@@ -256,14 +256,13 @@ public sealed class AndroidApkPackagingService(
 
         configuration.BaseUrl = context.PublicBaseUrl;
         configuration.PublicBaseUrl = context.PublicBaseUrl;
-        configuration.AllowLocalhostFallback = true;
+        configuration.AllowLocalhostFallback = false;
 
         if (configuration.FallbackBaseUrls.Count == 0)
         {
             configuration.FallbackBaseUrls =
             [
-                "http://10.0.2.2:5123/",
-                "http://localhost:5123/"
+                context.PublicBaseUrl
             ];
         }
 

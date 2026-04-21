@@ -7,7 +7,7 @@ namespace MauiApp_Mobile.Services;
 
 public sealed class MobileDatabaseService
 {
-    private const int CurrentSchemaVersion = 2;
+    private const int CurrentSchemaVersion = 3;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
     private SQLiteAsyncConnection? _connection;
@@ -363,6 +363,36 @@ public sealed class MobileDatabaseService
         });
     }
 
+    public async Task EnqueueUsageEventsAsync(
+        IReadOnlyList<UsageEventQueueRecord> items,
+        CancellationToken cancellationToken = default)
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var connection = await GetConnectionAsync(cancellationToken);
+        await connection.RunInTransactionAsync(transaction =>
+        {
+            foreach (var item in items)
+            {
+                transaction.Insert(new UsageEventQueueEntity
+                {
+                    EventId = (item.EventId == Guid.Empty ? Guid.NewGuid() : item.EventId).ToString("D"),
+                    DeviceId = item.DeviceId,
+                    EventType = (int)item.EventType,
+                    ReferenceId = item.ReferenceId,
+                    Details = item.Details,
+                    DurationSeconds = Math.Max(0, item.DurationSeconds),
+                    TimestampUtc = item.TimestampUtc.ToString("O", CultureInfo.InvariantCulture),
+                    LastAttemptAtUtc = null,
+                    RetryCount = 0
+                });
+            }
+        });
+    }
+
     public async Task<IReadOnlyList<RouteTelemetryPendingItem>> GetPendingRouteTelemetryAsync(
         int limit,
         CancellationToken cancellationToken = default)
@@ -447,6 +477,36 @@ public sealed class MobileDatabaseService
             .ToList();
     }
 
+    public async Task<IReadOnlyList<UsageEventPendingItem>> GetPendingUsageEventsAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 500);
+        var connection = await GetConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<UsageEventQueueEntity>(
+            "SELECT * FROM UsageEventQueue ORDER BY QueueId LIMIT ?;",
+            safeLimit);
+
+        return rows
+            .Select(item =>
+            {
+                var parsedEventType = Enum.IsDefined(typeof(UsageEventType), item.EventType)
+                    ? (UsageEventType)item.EventType
+                    : UsageEventType.Unknown;
+
+                return new UsageEventPendingItem(
+                    item.QueueId,
+                    Guid.TryParse(item.EventId, out var eventId) ? eventId : Guid.NewGuid(),
+                    item.DeviceId,
+                    parsedEventType,
+                    item.ReferenceId,
+                    item.Details,
+                    item.DurationSeconds,
+                    ParseDateTimeOffset(item.TimestampUtc) ?? DateTimeOffset.UtcNow);
+            })
+            .ToList();
+    }
+
     public Task DeleteRouteTelemetryAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
         DeleteQueuedRowsAsync("RouteTelemetryQueue", "QueueId", queueIds, cancellationToken);
 
@@ -456,6 +516,9 @@ public sealed class MobileDatabaseService
     public Task DeleteAudioListeningSessionsAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
         DeleteQueuedRowsAsync("AudioListeningSessionQueue", "QueueId", queueIds, cancellationToken);
 
+    public Task DeleteUsageEventsAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
+        DeleteQueuedRowsAsync("UsageEventQueue", "QueueId", queueIds, cancellationToken);
+
     public Task MarkRouteTelemetryAttemptFailedAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
         MarkQueuedRowsAttemptFailedAsync("RouteTelemetryQueue", "QueueId", queueIds, cancellationToken);
 
@@ -464,6 +527,9 @@ public sealed class MobileDatabaseService
 
     public Task MarkAudioListeningSessionsAttemptFailedAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
         MarkQueuedRowsAttemptFailedAsync("AudioListeningSessionQueue", "QueueId", queueIds, cancellationToken);
+
+    public Task MarkUsageEventsAttemptFailedAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
+        MarkQueuedRowsAttemptFailedAsync("UsageEventQueue", "QueueId", queueIds, cancellationToken);
 
     public async Task SetPlaybackCooldownAsync(string deviceId, int locationId, DateTimeOffset lastPlayedAtUtc, DateTimeOffset cooldownUntilUtc, CancellationToken cancellationToken = default)
     {
@@ -805,6 +871,28 @@ public sealed class MobileDatabaseService
             await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_AudioListeningSessionQueue_PoiTour ON AudioListeningSessionQueue(PoiId, TourId);");
         }
 
+        if (version < 3)
+        {
+            await connection.ExecuteAsync("""
+                CREATE TABLE IF NOT EXISTS UsageEventQueue (
+                    QueueId INTEGER PRIMARY KEY AUTOINCREMENT,
+                    EventId TEXT NOT NULL,
+                    DeviceId TEXT NOT NULL,
+                    EventType INTEGER NOT NULL,
+                    ReferenceId TEXT NULL,
+                    Details TEXT NULL,
+                    DurationSeconds INTEGER NOT NULL DEFAULT 0,
+                    TimestampUtc TEXT NOT NULL,
+                    LastAttemptAtUtc TEXT NULL,
+                    RetryCount INTEGER NOT NULL DEFAULT 0
+                );
+                """);
+
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_UsageEventQueue_TimestampUtc ON UsageEventQueue(TimestampUtc);");
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_UsageEventQueue_EventType ON UsageEventQueue(EventType);");
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_UsageEventQueue_DeviceId ON UsageEventQueue(DeviceId);");
+        }
+
         await connection.ExecuteAsync($"PRAGMA user_version = {CurrentSchemaVersion};");
     }
 
@@ -1054,6 +1142,22 @@ public sealed class MobileDatabaseService
         public int RetryCount { get; set; }
     }
 
+    [Table("UsageEventQueue")]
+    private sealed class UsageEventQueueEntity
+    {
+        [PrimaryKey, AutoIncrement]
+        public int QueueId { get; set; }
+        public string EventId { get; set; } = Guid.NewGuid().ToString("D");
+        public string DeviceId { get; set; } = string.Empty;
+        public int EventType { get; set; }
+        public string? ReferenceId { get; set; }
+        public string? Details { get; set; }
+        public int DurationSeconds { get; set; }
+        public string TimestampUtc { get; set; } = string.Empty;
+        public string? LastAttemptAtUtc { get; set; }
+        public int RetryCount { get; set; }
+    }
+
     private sealed class PlaybackHistoryRow
     {
         public int HistoryId { get; set; }
@@ -1173,3 +1277,22 @@ public sealed record AudioListeningSessionPendingItem(
     bool IsCompleted,
     string? InterruptedReason,
     string? Context);
+
+public sealed record UsageEventQueueRecord(
+    Guid EventId,
+    string DeviceId,
+    UsageEventType EventType,
+    string? ReferenceId,
+    string? Details,
+    int DurationSeconds,
+    DateTimeOffset TimestampUtc);
+
+public sealed record UsageEventPendingItem(
+    int QueueId,
+    Guid EventId,
+    string DeviceId,
+    UsageEventType EventType,
+    string? ReferenceId,
+    string? Details,
+    int DurationSeconds,
+    DateTimeOffset TimestampUtc);

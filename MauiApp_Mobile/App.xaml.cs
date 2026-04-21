@@ -2,6 +2,7 @@ using MauiApp_Mobile.Services;
 using MauiApp_Mobile.Services.Geofencing;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Xaml;
+using Project_SharedClassLibrary.Contracts;
 
 namespace MauiApp_Mobile;
 
@@ -139,6 +140,9 @@ public partial class App : Application
             await RunStartupStepAsync("geofence-warm-start", () => GeofenceOrchestratorService.Instance.WarmStartAsync());
             RunStartupStep("background-sync-start", () => BackgroundSyncService.Instance.Start());
             RunStartupStep("telemetry-capture-start", () => TelemetryCaptureService.Instance.Start());
+            await RunStartupStepAsync("analytics-track-app-open", () => AnalyticsService.Instance.TrackEventAsync(
+                UsageEventType.AppOpen,
+                details: "{\"source\":\"app-start\"}"));
             await RunStartupStepAsync("background-services-start", StartBackgroundServicesAsync);
 
             LogStartup("initialize-application:complete");
@@ -157,6 +161,7 @@ public partial class App : Application
             await BackgroundSyncService.Instance.TriggerCatalogSyncAsync();
             LogStartup("background-services:catalog-sync:complete");
             await BackgroundSyncService.Instance.TriggerTelemetrySyncAsync();
+            await BackgroundSyncService.Instance.TriggerUsageAnalyticsSyncAsync();
 
             var locationPermission = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
             LogStartup($"background-services:foreground-location={locationPermission}");

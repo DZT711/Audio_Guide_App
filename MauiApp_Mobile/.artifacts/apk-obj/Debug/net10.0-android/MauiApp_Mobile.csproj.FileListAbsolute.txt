@@ -1,0 +1,4 @@
+C:\Users\LENOVO\Smart-Tourism-MAUI\MauiApp_Mobile\.artifacts\apk-obj\Debug\net10.0-android\.NETCoreApp,Version=v10.0.AssemblyAttributes.cs
+C:\Users\LENOVO\Smart-Tourism-MAUI\MauiApp_Mobile\.artifacts\apk-obj\Debug\net10.0-android\build.props
+C:\Users\LENOVO\Smart-Tourism-MAUI\MauiApp_Mobile\.artifacts\apk-obj\Debug\net10.0-android\adb.props
+C:\Users\LENOVO\Smart-Tourism-MAUI\MauiApp_Mobile\.artifacts\apk-obj\Debug\net10.0-android\_CompileBindingJava.FileList.txt
