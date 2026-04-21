@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Project_SharedClassLibrary.Contracts;
 using WebApplication_API.Data;
 using WebApplication_API.Model;
+using WebApplication_API.Services;
 
 namespace WebApplication_API.Controller;
 
@@ -57,6 +58,12 @@ public class TelemetryController(
                 Context = NormalizeContext(sample.Context),
                 CapturedAt = EnsureUtc(sample.CapturedAtUtc)
             });
+
+            AnalyticsOnlineGuestService.TouchGuest(
+                sample.SessionHash,
+                sample.DeviceHash,
+                sample.PoiId,
+                DateTime.UtcNow);
         }
 
         if (acceptedItems.Count > 0)
@@ -118,6 +125,12 @@ public class TelemetryController(
                 Context = NormalizeContext(playEvent.Context),
                 EventAt = EnsureUtc(playEvent.PlayedAtUtc)
             });
+
+            AnalyticsOnlineGuestService.TouchGuest(
+                playEvent.SessionHash,
+                playEvent.DeviceHash,
+                playEvent.PoiId,
+                DateTime.UtcNow);
         }
 
         if (acceptedItems.Count > 0)
@@ -196,6 +209,12 @@ public class TelemetryController(
                 Context = NormalizeContext(session.Context),
                 CreatedAt = DateTime.UtcNow
             });
+
+            AnalyticsOnlineGuestService.TouchGuest(
+                session.SessionHash,
+                session.DeviceHash,
+                session.PoiId,
+                DateTime.UtcNow);
         }
 
         if (acceptedItems.Count > 0)
@@ -209,6 +228,28 @@ public class TelemetryController(
         {
             AcceptedCount = acceptedItems.Count,
             RejectedCount = rejected
+        });
+    }
+
+    [AllowAnonymous]
+    [HttpPost("v1/heartbeat")]
+    public ActionResult<TelemetryIngestResultDto> IngestHeartbeat([FromBody] TelemetryHeartbeatRequest request)
+    {
+        if (request is null || !IsValidHash(request.DeviceHash))
+        {
+            return BadRequest("A valid hashed device identity is required.");
+        }
+
+        AnalyticsOnlineGuestService.TouchGuest(
+            request.SessionHash,
+            request.DeviceHash,
+            request.PoiId,
+            DateTime.UtcNow);
+
+        return Ok(new TelemetryIngestResultDto
+        {
+            AcceptedCount = 1,
+            RejectedCount = 0
         });
     }
 

@@ -1180,6 +1180,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         {
             TotalEvents = totalCount > 0 ? totalCount : mappedItems.Count,
             UniqueGuests = summary.UniqueUsers > 0 ? summary.UniqueUsers : fallbackUniqueGuests,
+            OnlineGuests = summary.OnlineUsers,
             DistinctLocations = distinctLocations,
             AverageListeningSeconds = listeningSamples.Count == 0
                 ? 0d
@@ -1220,6 +1221,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
                 TotalTrackingPoints = filteredEvents.Count(item => item.EventType == UsageEventType.ViewMap),
                 RouteSessions = 0,
                 UniqueGuests = uniqueGuests > 0 ? uniqueGuests : summary.UniqueUsers,
+                OnlineGuests = summary.OnlineUsers,
                 VisiblePois = topPoiRows.Count,
                 AverageListeningSeconds = listeningSamples.Count == 0
                     ? 0d

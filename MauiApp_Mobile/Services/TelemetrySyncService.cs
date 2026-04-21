@@ -8,8 +8,11 @@ namespace MauiApp_Mobile.Services;
 public sealed class TelemetrySyncService
 {
     private const int BatchSize = 120;
+    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(5);
     private static readonly HttpClient HttpClient = MobileApiHttpClientFactory.Create(TimeSpan.FromSeconds(20), 4);
     private readonly SemaphoreSlim _syncLock = new(1, 1);
+    private CancellationTokenSource? _heartbeatCts;
+    private Task? _heartbeatTask;
     private bool _started;
 
     public static TelemetrySyncService Instance { get; } = new();
@@ -26,6 +29,8 @@ public sealed class TelemetrySyncService
         }
 
         Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
+        _heartbeatCts = new CancellationTokenSource();
+        _heartbeatTask = RunHeartbeatLoopAsync(_heartbeatCts.Token);
         _started = true;
     }
 
@@ -37,6 +42,21 @@ public sealed class TelemetrySyncService
         }
 
         Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
+        if (_heartbeatCts is not null)
+        {
+            try
+            {
+                _heartbeatCts.Cancel();
+            }
+            catch
+            {
+            }
+
+            _heartbeatCts.Dispose();
+            _heartbeatCts = null;
+        }
+
+        _heartbeatTask = null;
         _started = false;
     }
 
@@ -225,5 +245,52 @@ public sealed class TelemetrySyncService
         }
 
         _ = TriggerSyncAsync();
+        _ = SendHeartbeatAsync();
+    }
+
+    private async Task RunHeartbeatLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(HeartbeatInterval);
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await SendHeartbeatAsync(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private static async Task SendHeartbeatAsync(CancellationToken cancellationToken = default)
+    {
+        if (!AppDataModeService.Instance.IsApiEnabled || Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+        {
+            return;
+        }
+
+        try
+        {
+            var identity = TelemetryAnonymizerService.Instance.CreateIdentitySnapshot();
+            var locationId = PlaybackCoordinatorService.Instance.CurrentTrack?.LocationId;
+            var payload = new TelemetryHeartbeatRequest
+            {
+                DeviceHash = identity.DeviceHash,
+                SessionHash = identity.SessionHash,
+                PoiId = locationId is > 0 ? locationId : null,
+                TourId = null,
+                Context = "mobile-heartbeat"
+            };
+
+            await TryPostAsync(ApiRoutes.TelemetryHeartbeatV1, payload, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+        }
     }
 }

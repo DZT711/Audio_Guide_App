@@ -105,10 +105,15 @@ else
                             <div><strong class="management-stat__value">@_overview.Summary.RouteSessions</strong><span
                                 class="management-stat__label">Anonymous Routes</span></div>
                             </article>
-                            <article class="management-stat" data-reveal>
-                                <span class="management-stat__icon"><i class="bi bi-people"></i></span>
-                                <div><strong class="management-stat__value">@_overview.Summary.UniqueGuests</strong><span
-                                    class="management-stat__label">Anonymous Guests</span></div>
+                                <article class="management-stat" data-reveal>
+                                    <span class="management-stat__icon"><i class="bi bi-people"></i></span>
+                                    <div><strong class="management-stat__value">@_overview.Summary.UniqueGuests</strong><span
+                                        class="management-stat__label">Anonymous Guests</span></div>
+                                </article>
+                                <article class="management-stat" data-reveal>
+                                    <span class="management-stat__icon"><i class="bi bi-broadcast-pin"></i></span>
+                                    <div><strong class="management-stat__value">@_overview.Summary.OnlineGuests</strong><span
+                                        class="management-stat__label">Online Guests</span></div>
                                 </article>
                                 <article class="management-stat" data-reveal>
                                     <span class="management-stat__icon"><i class="bi bi-hourglass-split"></i></span>
@@ -556,7 +561,7 @@ else
     private bool _isHeatmapExpanded;
     private bool? _bodyScrollLockState;
     private bool _clearPinnedHeatmapSlotHeightPending;
-    private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(12);
+    private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(3);
     private readonly SemaphoreSlim _loadLock = new(1, 1);
     private CancellationTokenSource? _autoRefreshCts;
     private Task? _autoRefreshTask;

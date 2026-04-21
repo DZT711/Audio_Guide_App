@@ -17,6 +17,7 @@ public sealed class StatisticsSummaryDto
     public int TotalTrackingPoints { get; init; }
     public int RouteSessions { get; init; }
     public int UniqueGuests { get; init; }
+    public int OnlineGuests { get; init; }
     public int VisiblePois { get; init; }
     public double AverageListeningSeconds { get; init; }
 }

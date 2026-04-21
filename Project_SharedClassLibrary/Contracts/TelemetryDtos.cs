@@ -63,6 +63,15 @@ public sealed class AudioListeningSessionBatchIngestRequest
     public IReadOnlyList<AudioListeningSessionIngestDto> Sessions { get; init; } = [];
 }
 
+public sealed class TelemetryHeartbeatRequest
+{
+    public string DeviceHash { get; init; } = "";
+    public string? SessionHash { get; init; }
+    public int? PoiId { get; init; }
+    public int? TourId { get; init; }
+    public string? Context { get; init; }
+}
+
 public sealed class TelemetryIngestResultDto
 {
     public int AcceptedCount { get; init; }

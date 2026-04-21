@@ -261,6 +261,7 @@ public sealed class UsageHistoryOverviewDto
 {
     public int TotalEvents { get; init; }
     public int UniqueGuests { get; init; }
+    public int OnlineGuests { get; init; }
     public int DistinctLocations { get; init; }
     public double AverageListeningSeconds { get; init; }
     public IReadOnlyList<UsageHistoryItemDto> Items { get; init; } = [];

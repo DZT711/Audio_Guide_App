@@ -50,6 +50,15 @@ public sealed class UsageAnalyticsService(
         {
             context.UsageEvents.AddRange(acceptedItems);
             await context.SaveChangesAsync(cancellationToken);
+
+            foreach (var acceptedItem in acceptedItems)
+            {
+                AnalyticsOnlineGuestService.TouchGuest(
+                    sessionId: null,
+                    deviceId: acceptedItem.DeviceId,
+                    locationId: TryParsePositiveInt(acceptedItem.ReferenceId),
+                    seenAtUtc: DateTime.UtcNow);
+            }
         }
 
         if (rejected > 0)
@@ -82,6 +91,10 @@ public sealed class UsageAnalyticsService(
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Distinct()
             .CountAsync(cancellationToken);
+        var onlineUsersTask = AnalyticsOnlineGuestService.CountOnlineUsageUsersAsync(
+            context,
+            AnalyticsOnlineGuestService.ResolveDefaultThresholdUtc(),
+            cancellationToken);
         var topPoiTask = query
             .Where(item => !string.IsNullOrWhiteSpace(item.ReferenceId)
                            && (item.EventType == UsageEventType.PlayAudio
@@ -99,13 +112,14 @@ public sealed class UsageAnalyticsService(
             .Take(10)
             .ToListAsync(cancellationToken);
 
-        await Task.WhenAll(totalAudioPlaysTask, totalMapViewsTask, uniqueUsersTask, topPoiTask);
+        await Task.WhenAll(totalAudioPlaysTask, totalMapViewsTask, uniqueUsersTask, onlineUsersTask, topPoiTask);
 
         return new UsageStatisticsDto
         {
             TotalAudioPlays = totalAudioPlaysTask.Result,
             TotalMapViews = totalMapViewsTask.Result,
             UniqueUsers = uniqueUsersTask.Result,
+            OnlineUsers = onlineUsersTask.Result,
             TopPoiInteractions = topPoiTask.Result
         };
     }
@@ -216,4 +230,7 @@ public sealed class UsageAnalyticsService(
             ? trimmed[..maxLength]
             : trimmed;
     }
+
+    private static int? TryParsePositiveInt(string? value) =>
+        int.TryParse(value, out var parsed) && parsed > 0 ? parsed : null;
 }

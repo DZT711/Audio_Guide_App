@@ -48,6 +48,8 @@ public sealed class UsageStatisticsDto
 
     public int UniqueUsers { get; init; }
 
+    public int OnlineUsers { get; init; }
+
     public IReadOnlyList<TopPoiInteractionDto> TopPoiInteractions { get; init; } = [];
 }
 

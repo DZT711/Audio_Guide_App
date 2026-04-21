@@ -38,6 +38,7 @@ public static class ApiRoutes
     public const string TelemetryIngestRouteHistoryV1 = "Telemetry/v1/route-history";
     public const string TelemetryIngestAudioPlayEventsV1 = "Telemetry/v1/audio-play-events";
     public const string TelemetryIngestAudioListeningSessionsV1 = "Telemetry/v1/audio-listening-sessions";
+    public const string TelemetryHeartbeatV1 = "Telemetry/v1/heartbeat";
     public const string AnalyticsIngestEventsV1 = "api/v1/analytics/events";
     public const string AdminAnalyticsStatisticsV1 = "api/v1/admin/analytics/statistics";
     public const string AdminAnalyticsHistoryV1 = "api/v1/admin/analytics/history";

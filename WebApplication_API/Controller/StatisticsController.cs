@@ -206,6 +206,14 @@ public class StatisticsController(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
 
+        var onlineGuests = await AnalyticsOnlineGuestService.CountScopedOnlineGuestsAsync(
+            context,
+            analyticsDataFilter,
+            scopedLocationIds,
+            query.IncludeSynthetic,
+            AnalyticsOnlineGuestService.ResolveDefaultThresholdUtc(),
+            HttpContext.RequestAborted);
+
         return new StatisticsOverviewDto
         {
             AppliedFilters = new StatisticsQueryDto
@@ -228,6 +236,7 @@ public class StatisticsController(
                 TotalTrackingPoints = trackingItems.Count,
                 RouteSessions = routeHistory.Count,
                 UniqueGuests = guestKeys,
+                OnlineGuests = onlineGuests,
                 VisiblePois = filteredLocations.Count,
                 AverageListeningSeconds = listeningSamples.Count == 0
                     ? 0d
@@ -808,10 +817,10 @@ public class StatisticsController(
                 : $"tracking-{item.TrackingEventId}";
 
     private static string? GetGuestKey(string? sessionId, string? deviceId) =>
-        !string.IsNullOrWhiteSpace(sessionId)
-            ? sessionId
-            : !string.IsNullOrWhiteSpace(deviceId)
-                ? deviceId
+        !string.IsNullOrWhiteSpace(deviceId)
+            ? deviceId
+            : !string.IsNullOrWhiteSpace(sessionId)
+                ? sessionId
                 : null;
 
     private static bool Contains(string? value, string search) =>
