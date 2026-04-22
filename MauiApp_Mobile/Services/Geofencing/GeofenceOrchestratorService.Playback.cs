@@ -63,9 +63,24 @@ public sealed partial class GeofenceOrchestratorService
             {
                 var currentPlaybackTitle = PlaybackCoordinatorService.Instance.CurrentTitle;
                 var fallbackTitle = string.IsNullOrWhiteSpace(currentPlaybackTitle) ? "another POI" : currentPlaybackTitle;
+
+#if ANDROID
+                // Android: queue geofence-triggered POIs instead of hard-blocking when a queue session is active.
+                if (hasExistingQueueSession)
+                {
+                    LogSkip("Playback active - will queue instead", ("poiId", trigger.Definition.Id), ("currentTitle", fallbackTitle));
+                }
+                else
+                {
+                    await ShowTransientNotificationSafeAsync($"Audio is playing ({fallbackTitle}). Stop it to trigger this POI.", cancellationToken);
+                    LogSkip("Playback active", ("poiId", trigger.Definition.Id), ("currentTitle", fallbackTitle));
+                    return;
+                }
+#else
                 await ShowTransientNotificationSafeAsync($"Audio is playing ({fallbackTitle}). Stop it to trigger this POI.", cancellationToken);
                 LogSkip("Playback active", ("poiId", trigger.Definition.Id), ("currentTitle", fallbackTitle));
                 return;
+#endif
             }
 
             var currentPriority = ResolveCurrentPlaybackPriority(currentTrack);
@@ -102,17 +117,9 @@ public sealed partial class GeofenceOrchestratorService
                 return;
             }
 
-            var queueItems = await BuildPlaybackQueueItemsAsync(place, audioTracks, sourceTrack.Id, lookupCts.Token);
-            if (queueItems.Count == 0)
-            {
-                LogSkip("Audio queue empty", ("poiId", place.Id), ("eventType", trigger.EventType));
-                return;
-            }
-
             var historyItem = CreateHistoryItem(place, trigger);
             var playbackSource = trigger.EventType == GeofenceTriggerEvent.EnteredRadius ? EnterPlaybackSource : NearPlaybackSource;
             var startedAtUtc = DateTimeOffset.UtcNow;
-            var queueStartIndex = FindQueueIndex(queueItems, sourceTrack.Id);
             var cooldownUntilUtc = startedAtUtc.Add(trigger.CooldownWindow);
             var poiName = string.IsNullOrWhiteSpace(place.Name) ? "POI" : place.Name;
 
@@ -125,8 +132,10 @@ public sealed partial class GeofenceOrchestratorService
 
                 if (hasExistingQueueSession)
                 {
+                    var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(sourceTrack, cancellationToken);
                     var queueCountBefore = PlaybackCoordinatorService.Instance.QueueCount;
-                    PlaybackCoordinatorService.Instance.EnqueueRange(queueItems);
+                    // Reuse the same enqueue path as POI detail "add to list".
+                    PlaybackCoordinatorService.Instance.Enqueue(playableTrack, place.Name, sourceTrack.Title ?? string.Empty);
                     var queuedCount = Math.Max(0, PlaybackCoordinatorService.Instance.QueueCount - queueCountBefore);
                     if (queuedCount > 0)
                     {
@@ -136,11 +145,19 @@ public sealed partial class GeofenceOrchestratorService
                         "playback-queued",
                         ("poiId", place.Id),
                         ("eventType", trigger.EventType.ToString()),
-                        ("queuedCount", queueItems.Count),
+                        ("queuedCount", queuedCount),
                         ("queueCount", PlaybackCoordinatorService.Instance.QueueCount));
                     return;
                 }
 
+                var queueItems = await BuildPlaybackQueueItemsAsync(place, audioTracks, sourceTrack.Id, lookupCts.Token);
+                if (queueItems.Count == 0)
+                {
+                    LogSkip("Audio queue empty", ("poiId", place.Id), ("eventType", trigger.EventType));
+                    return;
+                }
+
+                var queueStartIndex = FindQueueIndex(queueItems, sourceTrack.Id);
                 await PlaybackCoordinatorService.Instance.PlayQueueAsync(
                     queueItems,
                     queueStartIndex,

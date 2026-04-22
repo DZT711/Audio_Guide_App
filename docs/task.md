@@ -15,9 +15,9 @@ dashboard static✅
 
 user manage & set role for user✅
 
-manage geofencing auto display audio area in mobile
+manage geofencing auto display audio area in mobile✅
 
-<!-- dropdown select for ward, district,city in VN ✅ -->
+<!-- dropdown select for ward, district,city in VN  -->
 
 improve user requesting admin/dev can view details what they doing✅
 
@@ -87,7 +87,7 @@ add icons to increase usability
 
 let mobile connect to asp sever / reason can't connect now is required authentication in api
 
-merge new app ui
+make new app ui✅
 
 fix all poi blank /deleted media data category ✅
 
@@ -97,7 +97,7 @@ fix button stop when click again while audio is playing
 
 fix refeshview dont working it always in status loading also instantly refesh data✅
 
-fix notification content
+fix notification content✅
 
 sync all text in one lang only except poi data
 
@@ -107,17 +107,17 @@ add arrow position in map to show user direction map category✅
 
 decrease spacing each setting content
 
-ui/ux header
+ui/ux header✅
 
-tour app sync on api
+tour app sync on api✅
 
 improve media player notification map category ✅
 
-fix audio play button cant stop immediately when user want to stop after play
+fix audio play button cant stop immediately when user want to stop after play✅
 
-sync whenever audio stop(leaving app/stop on notification/stop by press stop on media container/...) the button immediately change to play button and stop audio without delay
+sync whenever audio stop(leaving app/stop on notification/stop by press stop on media container/...) the button immediately change to play button and stop audio without delay✅
 
-dont show poi information property like:active radius,standby radius and debouce sec
+dont show poi information property like:active radius,standby radius and debouce sec✅
 
 reuse real tour guide between poi from web✅
 
@@ -131,19 +131,19 @@ add audio type filter in audio list admin
 
 auto close media notification if the app have been closed
 
-QR manage for admin
+QR manage for admin✅
 
-main function for QR if user dont have app auto install apk and setup app to auto open poi detail and auto play audio
+main function for QR if user dont have app auto install apk and setup app to auto open poi detail and auto play audio✅
 
-sua bam k focus vao poi sau khi bam show poi on map
+sua bam k focus vao poi sau khi bam show poi on map✅
 
 sua loc theo ngon ngu
 
 sua app lag
 
-k the nhap -1 cho viec tat tu dong focus tren map
+k the nhap -1 cho viec tat tu dong focus tren map✅
 
-sua mau cua thanh dieu huong
+sua mau cua thanh dieu huong✅
 
 ## (extend task)-MVP
 

@@ -81,6 +81,19 @@ public partial class App : Application
     private void OnWindowDestroying(object? sender, EventArgs e)
     {
         Debug.WriteLine("[App] Window.Destroying event: Starting cleanup");
+
+#if ANDROID
+        try
+        {
+            Debug.WriteLine("[App.Cleanup.Android] App is terminating. Clearing playback notification.");
+            AndroidAudioPlaybackNotificationManager.Instance.Cancel();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[App.Cleanup.Android] Notification cancel failed - {ex.GetType().Name}: {ex.Message}");
+        }
+#endif
+
         _ = Task.Run(CleanupAsync);
     }
 
