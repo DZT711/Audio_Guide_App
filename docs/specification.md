@@ -127,10 +127,10 @@
 ### 📊 Data Analytics (MVP)
 
 - [ ] Save anonymous user route history
-- [ ] Report: Top POIs by audio play count
+- [x] Report: Top POIs by audio play count
 - [x] Report: Average listening time per POI
-- [ ] Build **heatmap** of user positions
-- [ ] Dashboard charts & filters (date range, tour, ward)
+- [x] Build **heatmap** of user positions
+- [x] Dashboard charts & filters (date range, tour, ward)
 
 ---
 
