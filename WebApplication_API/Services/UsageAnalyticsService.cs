@@ -50,15 +50,6 @@ public sealed class UsageAnalyticsService(
         {
             context.UsageEvents.AddRange(acceptedItems);
             await context.SaveChangesAsync(cancellationToken);
-
-            foreach (var acceptedItem in acceptedItems)
-            {
-                AnalyticsOnlineGuestService.TouchGuest(
-                    sessionId: null,
-                    deviceId: acceptedItem.DeviceId,
-                    locationId: TryParsePositiveInt(acceptedItem.ReferenceId),
-                    seenAtUtc: DateTime.UtcNow);
-            }
         }
 
         if (rejected > 0)
@@ -230,7 +221,4 @@ public sealed class UsageAnalyticsService(
             ? trimmed[..maxLength]
             : trimmed;
     }
-
-    private static int? TryParsePositiveInt(string? value) =>
-        int.TryParse(value, out var parsed) && parsed > 0 ? parsed : null;
 }

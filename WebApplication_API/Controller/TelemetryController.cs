@@ -59,11 +59,6 @@ public class TelemetryController(
                 CapturedAt = EnsureUtc(sample.CapturedAtUtc)
             });
 
-            AnalyticsOnlineGuestService.TouchGuest(
-                sample.SessionHash,
-                sample.DeviceHash,
-                sample.PoiId,
-                DateTime.UtcNow);
         }
 
         if (acceptedItems.Count > 0)
@@ -126,11 +121,6 @@ public class TelemetryController(
                 EventAt = EnsureUtc(playEvent.PlayedAtUtc)
             });
 
-            AnalyticsOnlineGuestService.TouchGuest(
-                playEvent.SessionHash,
-                playEvent.DeviceHash,
-                playEvent.PoiId,
-                DateTime.UtcNow);
         }
 
         if (acceptedItems.Count > 0)
@@ -210,11 +200,6 @@ public class TelemetryController(
                 CreatedAt = DateTime.UtcNow
             });
 
-            AnalyticsOnlineGuestService.TouchGuest(
-                session.SessionHash,
-                session.DeviceHash,
-                session.PoiId,
-                DateTime.UtcNow);
         }
 
         if (acceptedItems.Count > 0)

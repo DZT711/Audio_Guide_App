@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
-using Microsoft.EntityFrameworkCore;
 using WebApplication_API.Data;
-using WebApplication_API.Model;
 
 namespace WebApplication_API.Services;
 
@@ -12,6 +10,8 @@ public static class AnalyticsOnlineGuestService
         new(StringComparer.OrdinalIgnoreCase);
 
     public static DateTime ResolveDefaultThresholdUtc() => DateTime.UtcNow - DefaultOnlineWindow;
+
+    public static void ResetPresenceForTesting() => PresenceByGuestKey.Clear();
 
     public static void TouchGuest(
         string? sessionId,
@@ -41,33 +41,17 @@ public static class AnalyticsOnlineGuestService
         }
     }
 
-    public static async Task<int> CountOnlineUsageUsersAsync(
+    public static Task<int> CountOnlineUsageUsersAsync(
         DBContext context,
         DateTime thresholdUtc,
         CancellationToken cancellationToken = default)
     {
-        var onlineKeys = await context.UsageEvents
-            .AsNoTracking()
-            .Where(item => item.Timestamp >= thresholdUtc)
-            .Select(item => item.DeviceId)
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Distinct()
-            .ToListAsync(cancellationToken);
-
-        var normalizedOnlineKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var key in onlineKeys)
-        {
-            if (!string.IsNullOrWhiteSpace(key))
-            {
-                normalizedOnlineKeys.Add(key.Trim());
-            }
-        }
-
-        normalizedOnlineKeys.UnionWith(CollectActivePresenceGuestKeys(thresholdUtc));
-        return normalizedOnlineKeys.Count;
+        _ = context;
+        _ = cancellationToken;
+        return Task.FromResult(CollectActivePresenceGuestKeys(thresholdUtc).Count);
     }
 
-    public static async Task<int> CountScopedOnlineGuestsAsync(
+    public static Task<int> CountScopedOnlineGuestsAsync(
         DBContext context,
         AnalyticsDataFilterService analyticsDataFilter,
         IReadOnlyCollection<int> scopedLocationIds,
@@ -77,61 +61,15 @@ public static class AnalyticsOnlineGuestService
     {
         if (scopedLocationIds.Count == 0)
         {
-            return 0;
+            return Task.FromResult(0);
         }
 
         var locationIds = scopedLocationIds.Distinct().ToArray();
-        var playbackGuestsTask = analyticsDataFilter
-            .ApplyPlaybackFilter(
-                context.PlaybackEvents
-                    .AsNoTracking()
-                    .Where(item => item.LocationId.HasValue && locationIds.Contains(item.LocationId.Value)),
-                includeSynthetic)
-            .Where(item => item.EventAt >= thresholdUtc)
-            .Select(item => new GuestIdentity
-            {
-                SessionId = item.SessionId,
-                DeviceId = item.DeviceId
-            })
-            .ToListAsync(cancellationToken);
-
-        var trackingGuestsTask = analyticsDataFilter
-            .ApplyTrackingFilter(
-                context.LocationTrackingEvents
-                    .AsNoTracking()
-                    .Where(item => item.PoiId.HasValue && locationIds.Contains(item.PoiId.Value)),
-                includeSynthetic)
-            .Where(item => item.CapturedAt >= thresholdUtc)
-            .Select(item => new GuestIdentity
-            {
-                SessionId = item.SessionId,
-                DeviceId = item.DeviceId
-            })
-            .ToListAsync(cancellationToken);
-
-        var listeningGuestsTask = analyticsDataFilter
-            .ApplyListeningFilter(
-                context.AudioListeningSessions
-                    .AsNoTracking()
-                    .Where(item => item.LocationId.HasValue && locationIds.Contains(item.LocationId.Value)),
-                includeSynthetic)
-            .Where(item => item.EndedAt >= thresholdUtc || item.StartedAt >= thresholdUtc)
-            .Select(item => new GuestIdentity
-            {
-                SessionId = item.SessionId,
-                DeviceId = item.DeviceId
-            })
-            .ToListAsync(cancellationToken);
-
-        await Task.WhenAll(playbackGuestsTask, trackingGuestsTask, listeningGuestsTask);
-
-        var onlineKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        AddGuestKeys(onlineKeys, playbackGuestsTask.Result);
-        AddGuestKeys(onlineKeys, trackingGuestsTask.Result);
-        AddGuestKeys(onlineKeys, listeningGuestsTask.Result);
-        onlineKeys.UnionWith(CollectActivePresenceGuestKeys(thresholdUtc, locationIds));
-
-        return onlineKeys.Count;
+        _ = context;
+        _ = analyticsDataFilter;
+        _ = includeSynthetic;
+        _ = cancellationToken;
+        return Task.FromResult(CollectActivePresenceGuestKeys(thresholdUtc, locationIds).Count);
     }
 
     private static HashSet<string> CollectActivePresenceGuestKeys(
@@ -178,18 +116,6 @@ public static class AnalyticsOnlineGuestService
         return activeKeys;
     }
 
-    private static void AddGuestKeys(HashSet<string> target, IReadOnlyCollection<GuestIdentity> identities)
-    {
-        foreach (var identity in identities)
-        {
-            var key = GetGuestKey(identity.SessionId, identity.DeviceId);
-            if (!string.IsNullOrWhiteSpace(key))
-            {
-                target.Add(key);
-            }
-        }
-    }
-
     private static string? GetGuestKey(string? sessionId, string? deviceId)
     {
         // Device hash is the stable anonymous identity across telemetry feeds.
@@ -213,12 +139,6 @@ public static class AnalyticsOnlineGuestService
         return value.Kind == DateTimeKind.Unspecified
             ? DateTime.SpecifyKind(value, DateTimeKind.Utc)
             : value.ToUniversalTime();
-    }
-
-    private sealed class GuestIdentity
-    {
-        public string? SessionId { get; init; }
-        public string? DeviceId { get; init; }
     }
 
     private sealed class PresenceEntry
