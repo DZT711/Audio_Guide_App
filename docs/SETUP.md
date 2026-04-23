@@ -27,7 +27,7 @@ Complete step-by-step guide for setting up Smart Tourism MAUI development enviro
 
 ### Required Software
 
-- **.NET 8 SDK** or later ([download](https://dotnet.microsoft.com/download/dotnet))
+- **.NET 10 SDK** or later ([download](https://dotnet.microsoft.com/download/dotnet))
 - **Visual Studio 2022 Community/Pro** (or VS Code + .NET CLI)
 - **Git** 2.25+
 - **Android SDK** (for mobile development)
@@ -58,14 +58,18 @@ dotnet workload list
 ### 2. Install Visual Studio 2022
 
 **Windows:**
+
 1. Download [Visual Studio 2022 Community](https://visualstudio.microsoft.com/downloads/)
+
 2. Run installer, select workloads:
-   - ✅ `.NET MAUI` 
+
+   - ✅ `.NET MAUI`
    - ✅ `ASP.NET Core development`
    - ✅ `Desktop development with C++` (for Android NDK)
    - ✅ `Mobile development with .NET`
 
 **VS Code Alternative:**
+
 ```bash
 # Install .NET CLI tools
 dotnet workload install maui
@@ -75,10 +79,12 @@ dotnet workload install android
 ### 3. Install Android SDK
 
 **Windows with Visual Studio:**
+
 - Already included in ".NET MAUI" workload
 - Location: `%LOCALAPPDATA%\Android\sdk`
 
 **Manual Installation (VS Code):**
+
 ```bash
 dotnet workload install android
 # Installs to: ~/.dotnet/android
@@ -88,6 +94,7 @@ dotnet workload install android
 ```
 
 **Set Environment Variables:**
+
 ```powershell
 # PowerShell (Admin)
 [Environment]::SetEnvironmentVariable("ANDROID_HOME", "$env:LOCALAPPDATA\Android\sdk", "User")
