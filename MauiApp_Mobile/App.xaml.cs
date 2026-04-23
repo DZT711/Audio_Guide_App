@@ -354,4 +354,106 @@ public partial class App : Application
                 return null;
             }
 
-            var service =
+            var service = _serviceProvider.GetService<T>();
+            if (service == null)
+            {
+                Debug.WriteLine($"[App] GetService<{typeof(T).Name}>: Service not registered");
+                return null;
+            }
+
+            return service;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[App] GetService<{typeof(T).Name}>: Exception - {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
+    }
+
+    private Window CreateStartupFallbackWindow(string errorMessage)
+    {
+        try
+        {
+            var titleLabel = new Label
+            {
+                Text = "Startup Error",
+                FontSize = 18,
+                FontAttributes = FontAttributes.Bold,
+                TextColor = Colors.Red,
+                HorizontalOptions = LayoutOptions.Center
+            };
+
+            var messageLabel = new Label
+            {
+                Text = errorMessage,
+                FontSize = 14,
+                TextColor = Colors.DarkRed,
+                Padding = 10,
+                LineBreakMode = LineBreakMode.WordWrap
+            };
+
+            var retryButton = new Button
+            {
+                Text = "Retry",
+                Command = new Command(() =>
+                {
+                    MainThread.BeginInvokeOnMainThread(() =>
+                    {
+                        Application.Current?.Quit();
+                    });
+                })
+            };
+
+            var container = new VerticalStackLayout
+            {
+                Padding = 20,
+                Spacing = 15,
+                VerticalOptions = LayoutOptions.Center,
+                Children = { titleLabel, messageLabel, retryButton }
+            };
+
+            var contentPage = new ContentPage
+            {
+                Content = container,
+                BackgroundColor = Colors.White
+            };
+
+            return new Window(contentPage);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[App] CreateFallbackWindow failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    private void CreateMinimalResources()
+    {
+        try
+        {
+            Debug.WriteLine("[App] Creating minimal resource dictionary...");
+            Resources = new ResourceDictionary
+            {
+                { "PrimaryGreen", Color.FromArgb("#18A94B") },
+                { "SecondaryGreen", Color.FromArgb("#1DB954") },
+                { "TabBarBackgroundColor", Colors.White },
+                { "TabBarUnselectedColor", Color.FromArgb("#98A2B3") },
+                { "BodyText", Color.FromArgb("#1E3250") },
+                { "TitleText", Color.FromArgb("#0F172A") },
+                { "MutedText", Color.FromArgb("#8A94A6") },
+                { "PageBackgroundColor", Color.FromArgb("#FAFAFA") }
+            };
+            Debug.WriteLine("[App] Minimal resources created");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[App] Failed to create minimal resources: {ex.Message}");
+        }
+    }
+
+    private static bool IsMissingXamlResource(XamlParseException ex)
+    {
+        return ex.Message?.Contains("resource", StringComparison.OrdinalIgnoreCase) == true ||
+               ex.Message?.Contains("DynamicResource", StringComparison.OrdinalIgnoreCase) == true;
+    }
+}
