@@ -139,6 +139,10 @@ public class StatisticsController(
 
         var filteredLocationIds = FilterLocationIds(query, locations, audios, tourLinks, wardLookup, tourNamesByLocation);
         var scopedLocationIds = HasContextFilters(query) ? filteredLocationIds : locationIds;
+        var selectedTourRoute = await BuildSelectedTourRouteAsync(
+            query,
+            locationIds,
+            HttpContext.RequestAborted);
 
         var playbackItems = await BuildPlaybackQuery(query, scopedLocationIds)
             .Include(item => item.Location)
@@ -274,10 +278,59 @@ public class StatisticsController(
                 })
                 .ToList(),
             HeatmapPoints = BuildHeatmapPoints(heatmapItems, wardLookup, locations),
+            SelectedTourRoute = selectedTourRoute,
             RouteHistory = routeHistory,
             TopPoisByPlayCount = BuildTopPoiReport(playCountItems, playbackItems, listeningSessionItems, wardLookup, tourNamesByLocation),
             AverageListeningByPoi = BuildAverageListeningReport(listeningSessionItems, locationLookup, wardLookup, tourNamesByLocation)
         };
+    }
+
+    private async Task<IReadOnlyList<StatisticsRoutePointDto>> BuildSelectedTourRouteAsync(
+        StatisticsQueryDto query,
+        IReadOnlyCollection<int> accessibleLocationIds,
+        CancellationToken cancellationToken)
+    {
+        if (!query.TourId.HasValue
+            || query.TourId.Value <= 0
+            || accessibleLocationIds.Count == 0)
+        {
+            return [];
+        }
+
+        var stopPoints = await context.TourLocations
+            .AsNoTracking()
+            .Where(item =>
+                item.TourId == query.TourId.Value
+                && accessibleLocationIds.Contains(item.LocationId))
+            .Join(
+                context.Locations
+                    .AsNoTracking()
+                    .Where(item => item.Status == 1),
+                stop => stop.LocationId,
+                location => location.LocationId,
+                (stop, location) => new
+                {
+                    stop.SequenceOrder,
+                    stop.LocationId,
+                    location.Latitude,
+                    location.Longitude
+                })
+            .OrderBy(item => item.SequenceOrder)
+            .ThenBy(item => item.LocationId)
+            .ToListAsync(cancellationToken);
+
+        if (stopPoints.Count == 0)
+        {
+            return [];
+        }
+        return stopPoints
+            .Select(item => new StatisticsRoutePointDto
+            {
+                Latitude = item.Latitude,
+                Longitude = item.Longitude,
+                CapturedAt = DateTime.UnixEpoch
+            })
+            .ToList();
     }
 
     private IQueryable<Location> BuildLocationScopeQuery(DashboardUser currentUser)

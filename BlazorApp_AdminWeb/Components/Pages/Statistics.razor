@@ -558,6 +558,8 @@ else
     private bool _isLocationTrackingBusy;
     private string? _loadError;
     private string? _mapSearchError;
+    private IReadOnlyList<StatisticsRoutePointDto> _selectedTourRouteForMap = [];
+    private string _selectedTourRouteForMapKey = "";
     private ElementReference _statisticsMapElement;
     private ElementReference _heatmapPanelElement;
     private ElementReference _heatmapSlotElement;
@@ -691,6 +693,7 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
                 Ward = string.IsNullOrWhiteSpace(_selectedWard) ? null : _selectedWard,
                 Search = string.IsNullOrWhiteSpace(_searchText) ? null : _searchText.Trim()
             });
+            _selectedTourRouteForMap = await ResolveSelectedTourRouteForMapAsync(_overview.SelectedTourRoute);
 
             _selectedSessionKey = _overview.RouteHistory.Any(item => string.Equals(item.SessionKey, _selectedSessionKey,
 StringComparison.OrdinalIgnoreCase))
@@ -1124,6 +1127,90 @@ route.SessionKey;
         }
     }
 
+    private async Task<IReadOnlyList<StatisticsRoutePointDto>> ResolveSelectedTourRouteForMapAsync(
+        IReadOnlyList<StatisticsRoutePointDto> selectedTourRoute)
+    {
+        var routeKey = BuildSelectedTourRouteKey(selectedTourRoute);
+        if (string.IsNullOrWhiteSpace(routeKey))
+        {
+            _selectedTourRouteForMapKey = string.Empty;
+            return [];
+        }
+
+        if (string.Equals(routeKey, _selectedTourRouteForMapKey, StringComparison.Ordinal))
+        {
+            return _selectedTourRouteForMap;
+        }
+
+        var fallbackRoute = selectedTourRoute
+            .Select(item => new StatisticsRoutePointDto
+            {
+                Latitude = item.Latitude,
+                Longitude = item.Longitude,
+                CapturedAt = DateTime.UnixEpoch
+            })
+            .ToList();
+
+        if (fallbackRoute.Count <= 1)
+        {
+            _selectedTourRouteForMapKey = routeKey;
+            return fallbackRoute;
+        }
+
+        if (fallbackRoute.Count > 12)
+        {
+            _selectedTourRouteForMapKey = routeKey;
+            return fallbackRoute;
+        }
+
+        var previewStops = fallbackRoute
+            .Select((item, index) => new TourRoutePreviewStopRequest
+            {
+                LocationId = index + 1,
+                SequenceOrder = index + 1,
+                Latitude = item.Latitude,
+                Longitude = item.Longitude
+            })
+            .ToList();
+
+        try
+        {
+            var preview = await ApiClient.PreviewTourRouteAsync(new TourRoutePreviewRequest
+            {
+                Stops = previewStops
+            });
+
+            var routedPath = preview.Path
+                .Where(item => double.IsFinite(item.Latitude) && double.IsFinite(item.Longitude))
+                .Select(item => new StatisticsRoutePointDto
+                {
+                    Latitude = item.Latitude,
+                    Longitude = item.Longitude,
+                    CapturedAt = DateTime.UnixEpoch
+                })
+                .ToList();
+
+            if (routedPath.Count > 1)
+            {
+                _selectedTourRouteForMapKey = routeKey;
+                return routedPath;
+            }
+        }
+        catch
+        {
+            // Keep statistics responsive and fall back to the tour stop line if route preview fails.
+        }
+
+        _selectedTourRouteForMapKey = routeKey;
+        return fallbackRoute;
+    }
+
+    private static string BuildSelectedTourRouteKey(IReadOnlyList<StatisticsRoutePointDto> selectedTourRoute) =>
+        selectedTourRoute.Count == 0
+            ? string.Empty
+            : string.Join("|", selectedTourRoute.Select(item =>
+                $"{Math.Round(item.Latitude, 6).ToString(CultureInfo.InvariantCulture)},{Math.Round(item.Longitude, 6).ToString(CultureInfo.InvariantCulture)}"));
+
     private object CreateStatisticsMapState() => new
     {
         view = _savedStatisticsMapView is null
@@ -1152,6 +1239,11 @@ route.SessionKey;
             ward = item.Ward,
             preferenceImageUrl = GetPoiImageUrl(item.PreferenceImageUrl),
             ownerName = item.OwnerName
+        }).ToList(),
+        selectedTourRoute = _selectedTourRouteForMap.Select(item => new
+        {
+            latitude = item.Latitude,
+            longitude = item.Longitude
         }).ToList(),
         selectedRoute = SelectedRoute is null
             ? null

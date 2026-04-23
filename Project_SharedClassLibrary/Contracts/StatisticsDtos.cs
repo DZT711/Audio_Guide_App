@@ -112,6 +112,7 @@ public sealed class StatisticsOverviewDto
     public IReadOnlyList<StatisticsChartPointDto> PlaysByTour { get; init; } = [];
     public IReadOnlyList<StatisticsLocationDto> Locations { get; init; } = [];
     public IReadOnlyList<StatisticsHeatPointDto> HeatmapPoints { get; init; } = [];
+    public IReadOnlyList<StatisticsRoutePointDto> SelectedTourRoute { get; init; } = [];
     public IReadOnlyList<StatisticsRouteHistoryDto> RouteHistory { get; init; } = [];
     public IReadOnlyList<StatisticsPoiReportRowDto> TopPoisByPlayCount { get; init; } = [];
     public IReadOnlyList<StatisticsPoiReportRowDto> AverageListeningByPoi { get; init; } = [];

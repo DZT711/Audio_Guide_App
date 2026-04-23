@@ -1120,9 +1120,10 @@
     };
 
     const getStatisticsBoundsLatLngs = (state) => {
-        const routeLatLngs = normalizeStatisticsLatLngs(state?.selectedRoute?.points);
-        if (routeLatLngs.length) {
-            return routeLatLngs;
+        const selectedRouteLatLngs = normalizeStatisticsLatLngs(state?.selectedRoute?.points);
+        const selectedTourRouteLatLngs = normalizeStatisticsLatLngs(state?.selectedTourRoute);
+        if (selectedRouteLatLngs.length || selectedTourRouteLatLngs.length) {
+            return [...selectedRouteLatLngs, ...selectedTourRouteLatLngs];
         }
 
         const heatLatLngs = normalizeStatisticsLatLngs(state?.heatPoints);
@@ -1177,13 +1178,115 @@
         };
     };
 
+    const normalizeLatLngPairs = (pairs) => (Array.isArray(pairs) ? pairs : [])
+        .filter((pair) =>
+            Array.isArray(pair)
+            && pair.length >= 2
+            && Number.isFinite(Number(pair[0]))
+            && Number.isFinite(Number(pair[1])))
+        .map((pair) => [Number(pair[0]), Number(pair[1])]);
+
+    const buildStatisticsSelectedTourRouteKey = (points) =>
+        normalizeStatisticsLatLngs(points)
+            .map((pair) => `${roundCoordinate(pair[0])},${roundCoordinate(pair[1])}`)
+            .join("|");
+
+    const buildStatisticsSelectedTourRouteStops = (points) =>
+        normalizeStatisticsLatLngs(points)
+            .map((pair, index) => ({
+                locationId: index + 1,
+                sequenceOrder: index + 1,
+                latitude: pair[0],
+                longitude: pair[1]
+            }));
+
+    const drawStatisticsSelectedTourRoute = (statisticsMap, latLngs) => {
+        if (!statisticsMap?.tourRouteLayer) {
+            return;
+        }
+
+        const normalizedLatLngs = normalizeLatLngPairs(latLngs);
+        statisticsMap.tourRouteLayer.clearLayers();
+        if (normalizedLatLngs.length < 2) {
+            return;
+        }
+
+        statisticsMap.tourRouteLayer.addLayer(L.polyline(normalizedLatLngs, {
+            color: "#2c8780",
+            weight: 4,
+            opacity: 0.9,
+            lineCap: "round",
+            lineJoin: "round",
+            className: "statistics-map__selected-tour-route"
+        }));
+    };
+
+    const resolveStatisticsSelectedTourRouteAsync = async (
+        statisticsMap,
+        selectedTourRoutePoints,
+        selectedTourRouteKey) => {
+        if (!statisticsMap?.tourRouteLayer) {
+            return;
+        }
+
+        const requestId = (Number(statisticsMap.selectedTourRouteRequestId) || 0) + 1;
+        statisticsMap.selectedTourRouteRequestId = requestId;
+        statisticsMap.selectedTourRoutePendingKey = selectedTourRouteKey;
+
+        const baseRouteLatLngs = normalizeStatisticsLatLngs(selectedTourRoutePoints);
+        let resolvedRouteLatLngs = baseRouteLatLngs;
+
+        const shouldResolveRoadRoute = baseRouteLatLngs.length > 1 && baseRouteLatLngs.length <= 12;
+        if (shouldResolveRoadRoute) {
+            try {
+                const routeStops = normalizeRouteStops(buildStatisticsSelectedTourRouteStops(selectedTourRoutePoints));
+                if (routeStops.length > 1) {
+                    const roadRoute = await requestRoadRouteAsync(routeStops);
+                    if (roadRoute) {
+                        const preview = buildRoadRoutePreview(routeStops, null, 5, roadRoute);
+                        const previewPath = Array.isArray(preview?.Path)
+                            ? preview.Path
+                            : Array.isArray(preview?.path)
+                                ? preview.path
+                                : [];
+                        const routedLatLngs = normalizeStatisticsLatLngs(previewPath);
+                        if (routedLatLngs.length > 1) {
+                            resolvedRouteLatLngs = routedLatLngs;
+                        }
+                    }
+                }
+            } catch {
+                // Fall back to stop-to-stop line if browser road routing is unavailable.
+            }
+        }
+
+        if (Number(statisticsMap.selectedTourRouteRequestId) !== requestId) {
+            return;
+        }
+
+        const activeRouteKey = buildStatisticsSelectedTourRouteKey(statisticsMap.state?.selectedTourRoute);
+        if (activeRouteKey !== selectedTourRouteKey) {
+            return;
+        }
+
+        statisticsMap.selectedTourRoutePendingKey = "";
+        statisticsMap.selectedTourRouteCacheKey = selectedTourRouteKey;
+        statisticsMap.selectedTourRouteResolvedLatLngs = resolvedRouteLatLngs;
+        drawStatisticsSelectedTourRoute(statisticsMap, resolvedRouteLatLngs);
+        redrawStatisticsHexLayer(statisticsMap);
+    };
+
     const renderStatisticsMap = (statisticsMap, state, fitBounds) => {
         const heatPoints = normalizeStatisticsHeatPoints(state?.heatPoints);
         const locations = Array.isArray(state?.locations) ? state.locations : [];
+        const selectedTourRoutePoints = Array.isArray(state?.selectedTourRoute) ? state.selectedTourRoute : [];
         const routePoints = Array.isArray(state?.selectedRoute?.points) ? state.selectedRoute.points : [];
         statisticsMap.state = state;
 
         statisticsMap.routeLayer.clearLayers();
+        if (statisticsMap.tourRouteLayer) {
+            statisticsMap.tourRouteLayer.clearLayers();
+        }
         statisticsMap.poiLayer.clearLayers();
         statisticsMap.fallbackHeatLayer.clearLayers();
 
@@ -1192,6 +1295,29 @@
             hexLayer.data(heatPoints);
         } else {
             renderStatisticsHeatFallback(statisticsMap, heatPoints);
+        }
+
+        const selectedTourRouteKey = buildStatisticsSelectedTourRouteKey(selectedTourRoutePoints);
+        if (!selectedTourRouteKey) {
+            statisticsMap.selectedTourRouteRequestId = (Number(statisticsMap.selectedTourRouteRequestId) || 0) + 1;
+            statisticsMap.selectedTourRoutePendingKey = "";
+            statisticsMap.selectedTourRouteCacheKey = "";
+            statisticsMap.selectedTourRouteResolvedLatLngs = [];
+            drawStatisticsSelectedTourRoute(statisticsMap, []);
+        } else {
+            const cachedRouteLatLngs = statisticsMap.selectedTourRouteCacheKey === selectedTourRouteKey
+                ? normalizeLatLngPairs(statisticsMap.selectedTourRouteResolvedLatLngs)
+                : [];
+
+            if (cachedRouteLatLngs.length > 1) {
+                drawStatisticsSelectedTourRoute(statisticsMap, cachedRouteLatLngs);
+            } else if (statisticsMap.selectedTourRoutePendingKey !== selectedTourRouteKey) {
+                drawStatisticsSelectedTourRoute(statisticsMap, []);
+                void resolveStatisticsSelectedTourRouteAsync(
+                    statisticsMap,
+                    selectedTourRoutePoints,
+                    selectedTourRouteKey);
+            }
         }
 
         const routeLatLngs = normalizeStatisticsLatLngs(routePoints);
@@ -1691,16 +1817,22 @@
                 hexLayerEventsBound: false,
                 fallbackHeatLayer: null,
                 routeLayer: null,
+                tourRouteLayer: null,
                 poiLayer: null,
                 searchFocusMarker: null,
                 currentLocationMarker: null,
                 currentLocationAccuracyCircle: null,
                 trackingWatchId: null,
-                hasCenteredOnCurrentLocation: false
+                hasCenteredOnCurrentLocation: false,
+                selectedTourRouteRequestId: 0,
+                selectedTourRoutePendingKey: "",
+                selectedTourRouteCacheKey: "",
+                selectedTourRouteResolvedLatLngs: []
             };
 
             ensureStatisticsHexLayer(statisticsMap);
             statisticsMap.fallbackHeatLayer = L.layerGroup().addTo(map);
+            statisticsMap.tourRouteLayer = L.layerGroup().addTo(map);
             statisticsMap.routeLayer = L.layerGroup().addTo(map);
             statisticsMap.poiLayer = L.layerGroup().addTo(map);
 
