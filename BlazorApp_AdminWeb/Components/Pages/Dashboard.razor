@@ -3,15 +3,16 @@
 @inject NotificationService Notifications
 @inject IJSRuntime JS
 @inject AdminSessionState SessionState
+@inject AdminUiLanguageService LanguageService
 
-<PageTitle>Dashboard</PageTitle>
+<PageTitle>@L("page.dashboard", "Dashboard")</PageTitle>
 
 @if (!CanView)
 {
     <div class="dashboard-page">
         <div class="management-error">
-            <strong>Access denied.</strong>
-            <div>Your current role cannot view the dashboard.</div>
+            <strong>@L("dashboard.access.denied.title", "Access denied.")</strong>
+            <div>@L("dashboard.access.denied.desc", "Your current role cannot view the dashboard.")</div>
         </div>
     </div>
 }
@@ -78,7 +79,7 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
 {
     <div class="dashboard-page">
         <div class="management-error">
-            <strong>Unable to load dashboard data.</strong>
+            <strong>@L("dashboard.load.failed.title", "Unable to load dashboard data.")</strong>
             <div>@_loadError</div>
         </div>
     </div>
@@ -88,52 +89,49 @@ else
 <div class="dashboard-page">
     <section class="dashboard-hero" data-reveal>
         <div class="dashboard-hero__content">
-            <span class="dashboard-hero__eyebrow">Overview</span>
-            <h1>Admin Dashboard</h1>
-            <p>
-                Track content health, moderation, and platform activity with clearer hierarchy,
-                smoother reveals, and more polished feedback states.
-            </p>
+            <span class="dashboard-hero__eyebrow">@L("dashboard.hero.eyebrow", "Overview")</span>
+            <h1>@L("dashboard.hero.title", "Admin Dashboard")</h1>
+            <p>@L("dashboard.hero.desc", "Track content health, moderation, and platform activity with clearer hierarchy, smoother reveals, and more polished feedback states.")</p>
 
             <div class="dashboard-hero__actions">
                 @if (CanViewUsage)
                 {
                     <a class="btn btn-light btn-lg" href="/usage">
                         <i class="bi bi-clock-history me-2"></i>
-                        Usage History
+                        @L("dashboard.action.usage", "Usage History")
                     </a>
                 }
                 @if (CanViewStatistics)
                 {
                     <a class="btn btn-outline-light btn-lg" href="/statistics">
                         <i class="bi bi-graph-up-arrow me-2"></i>
-                        Statistics
+                        @L("dashboard.action.statistics", "Statistics")
                     </a>
                 }
                 @if (CanViewTours)
                 {
                     <a class="btn btn-outline-light btn-lg" href="/tours">
                         <i class="bi bi-signpost-split me-2"></i>
-                        Tour Management
+                        @L("dashboard.action.tours", "Tour Management")
                     </a>
                 }
                 @if (CanViewUsers)
                 {
                     <a class="btn btn-light btn-lg" href="/users">
                         <i class="bi bi-people me-2"></i>
-                        Manage Users
+                        @L("dashboard.action.users", "Manage Users")
                     </a>
                 }
                 else
                 {
                     <button class="btn btn-light btn-lg" type="button" @onclick="ShowUserAccessNotice">
                         <i class="bi bi-people me-2"></i>
-                        Manage Users
+                        @L("dashboard.action.users", "Manage Users")
                     </button>
                 }
                 <button class="btn btn-outline-light btn-lg" type="button" disabled="@(!CanExport || _isExporting)" @onclick="ExportSnapshotAsync">
                     <i class="bi bi-download me-2"></i>
-                    @(_isExporting ? "Exporting..." : "Export Snapshot")
+                    @(_isExporting ? L("dashboard.action.exporting", "Exporting...") : L("dashboard.action.export", "Export Snapshot"))
                 </button>
             </div>
         </div>
@@ -141,15 +139,15 @@ else
         <div class="dashboard-hero__stats" data-stagger data-stagger-step="90">
             <article class="hero-stat" data-reveal>
                 <strong>94%</strong>
-                <span>Review SLA met this week</span>
+                <span>@L("dashboard.hero.stat.sla", "Review SLA met this week")</span>
             </article>
             <article class="hero-stat" data-reveal>
                 <strong>28</strong>
-                <span>New guides drafted today</span>
+                <span>@L("dashboard.hero.stat.guides", "New guides drafted today")</span>
             </article>
             <article class="hero-stat" data-reveal>
                 <strong>3.8k</strong>
-                <span>Audio plays in the last 24 hours</span>
+                <span>@L("dashboard.hero.stat.audio-plays", "Audio plays in the last 24 hours")</span>
             </article>
         </div>
     </section>
@@ -164,12 +162,12 @@ else
                             <span class="metric-icon">
                                 <i class="bi @metric.Icon"></i>
                             </span>
-                            <span class="@GetTrendClass(metric.TrendTone)">@metric.Trend</span>
+                            <span class="@GetTrendClass(metric.TrendTone)">@TranslateDashboardText(metric.Trend)</span>
                         </div>
 
                         <div class="metric-value">@metric.Value</div>
-                        <h2 class="metric-title">@metric.Title</h2>
-                        <p class="metric-copy">@metric.Description</p>
+                        <h2 class="metric-title">@TranslateDashboardText(metric.Title)</h2>
+                        <p class="metric-copy">@TranslateDashboardText(metric.Description)</p>
                     </div>
                 </article>
             </div>
@@ -181,16 +179,16 @@ else
             <section class="dashboard-panel dashboard-panel--table" data-reveal>
                 <div class="dashboard-panel__header">
                     <div>
-                        <span class="dashboard-panel__eyebrow">Live Feed</span>
-                        <h2>Recent Activity</h2>
+                        <span class="dashboard-panel__eyebrow">@L("dashboard.feed.eyebrow", "Live Feed")</span>
+                        <h2>@L("dashboard.feed.title", "Recent Activity")</h2>
                     </div>
                     @if (CanViewModeration)
                     {
-                        <a class="btn btn-outline-secondary btn-sm" href="/moderation">View All</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/moderation">@L("dashboard.feed.action.view-all", "View All")</a>
                     }
                     else
                     {
-                        <a class="btn btn-outline-secondary btn-sm" href="/audio">View Audio</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/audio">@L("dashboard.feed.action.view-audio", "View Audio")</a>
                     }
                 </div>
 
@@ -198,11 +196,11 @@ else
                     <table class="table dashboard-table align-middle mb-0">
                         <thead>
                             <tr>
-                                <th>User</th>
-                                <th>Action</th>
-                                <th>Target</th>
-                                <th>Time</th>
-                                <th>Status</th>
+                                <th>@L("dashboard.table.user", "User")</th>
+                                <th>@L("dashboard.table.action", "Action")</th>
+                                <th>@L("dashboard.table.target", "Target")</th>
+                                <th>@L("dashboard.table.time", "Time")</th>
+                                <th>@L("dashboard.table.status", "Status")</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -214,15 +212,15 @@ else
                                             <div class="activity-avatar">@act.UserInitials</div>
                                             <div>
                                                 <strong class="d-block">@act.UserName</strong>
-                                                <span class="text-muted small">Admin workspace</span>
+                                                <span class="text-muted small">@L("dashboard.table.workspace", "Admin workspace")</span>
                                             </div>
                                         </div>
                                     </td>
-                                    <td>@act.Action</td>
+                                    <td>@TranslateDashboardText(act.Action)</td>
                                     <td>@act.TargetName</td>
-                                    <td>@act.TimeAgo</td>
+                                    <td>@TranslateDashboardText(act.TimeAgo)</td>
                                     <td>
-                                        <span class="@GetStatusBadgeClass(act.Status)">@act.Status</span>
+                                        <span class="@GetStatusBadgeClass(act.Status)">@TranslateDashboardText(act.Status)</span>
                                     </td>
                                 </tr>
                             }
@@ -236,8 +234,8 @@ else
             <section class="dashboard-panel dashboard-panel--stack" data-reveal>
                 <div class="dashboard-panel__header">
                     <div>
-                        <span class="dashboard-panel__eyebrow">Focus Area</span>
-                        <h2>Team Priorities</h2>
+                        <span class="dashboard-panel__eyebrow">@L("dashboard.focus.eyebrow", "Focus Area")</span>
+                        <h2>@L("dashboard.focus.title", "Team Priorities")</h2>
                     </div>
                 </div>
 
@@ -250,10 +248,10 @@ else
                             </div>
                             <div class="focus-card__body">
                                 <div class="focus-card__top">
-                                    <h3>@item.Title</h3>
+                                    <h3>@TranslateDashboardText(item.Title)</h3>
                                     <span>@item.Progress%</span>
                                 </div>
-                                <p>@item.Description</p>
+                                <p>@TranslateDashboardText(item.Description)</p>
                                 <div class="focus-progress">
                                     <span style="@($"width: {item.Progress}%")"></span>
                                 </div>
@@ -268,6 +266,7 @@ else
 }
 
 @code {
+    private string L(string key, string fallback) => LanguageService.T(key, fallback);
     private List<DashboardMetricDto> Metrics { get; set; } = [];
     private List<DashboardActivityDto> Activities { get; set; } = [];
     private List<FocusItemDto> FocusItems { get; set; } = [];
@@ -302,7 +301,7 @@ else
         catch (Exception ex)
         {
             _loadError = ex.Message;
-            Notifications.Error(ex.Message, "Dashboard load failed");
+            Notifications.Error(ex.Message, L("dashboard.load.failed.toast", "Dashboard load failed"));
         }
         finally
         {
@@ -314,7 +313,9 @@ else
     {
         if (!CanExport)
         {
-            Notifications.Warning("Your role can view the dashboard but cannot export it.", "Export blocked");
+            Notifications.Warning(
+                L("dashboard.export.blocked.message", "Your role can view the dashboard but cannot export it."),
+                L("dashboard.export.blocked.title", "Export blocked"));
             return;
         }
 
@@ -329,11 +330,13 @@ else
 
             var fileName = $"smart-tourism-snapshot-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
             await JS.InvokeVoidAsync("smartTourAdmin.download.text", fileName, payload, "application/json");
-            Notifications.Success("The dashboard snapshot was exported as JSON.", "Export ready");
+            Notifications.Success(
+                L("dashboard.export.success.message", "The dashboard snapshot was exported as JSON."),
+                L("dashboard.export.success.title", "Export ready"));
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Export failed");
+            Notifications.Error(ex.Message, L("dashboard.export.failed.title", "Export failed"));
         }
         finally
         {
@@ -343,7 +346,52 @@ else
 
     private void ShowUserAccessNotice()
     {
-        Notifications.Info("Your current role can open the dashboard but cannot access the user management screen.", "Limited access");
+        Notifications.Info(
+            L("dashboard.users.limited.message", "Your current role can open the dashboard but cannot access the user management screen."),
+            L("dashboard.users.limited.title", "Limited access"));
+    }
+
+    private string TranslateDashboardText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value switch
+        {
+            "Total POIs" => L("dashboard.metric.total-pois", "Total POIs"),
+            "Total Audios" => L("dashboard.metric.total-audios", "Total Audios"),
+            "Curated Tours" => L("dashboard.metric.curated-tours", "Curated Tours"),
+            "Dashboard Users" => L("dashboard.metric.dashboard-users", "Dashboard Users"),
+            "Telemetry Events" => L("dashboard.metric.telemetry-events", "Telemetry Events"),
+            "Published and draft points of interest in the POC database." => L("dashboard.metric.total-pois.desc", "Published and draft points of interest in the POC database."),
+            "Narration items supporting GPS, QR, and manual playback." => L("dashboard.metric.total-audios.desc", "Narration items supporting GPS, QR, and manual playback."),
+            "Route collections connecting active POIs into guided journeys." => L("dashboard.metric.curated-tours.desc", "Route collections connecting active POIs into guided journeys."),
+            "Accounts divided by role and status for the admin web." => L("dashboard.metric.dashboard-users.desc", "Accounts divided by role and status for the admin web."),
+            "Playback and GPS tracking entries collected for the POC analytics layer." => L("dashboard.metric.telemetry-events.desc", "Playback and GPS tracking entries collected for the POC analytics layer."),
+            "4 active" => L("dashboard.metric.total-pois.trend", "4 active"),
+            "18 active" => L("dashboard.metric.total-audios.trend", "18 active"),
+            "3 active" => L("dashboard.metric.curated-tours.trend", "3 active"),
+            "5 active" => L("dashboard.metric.dashboard-users.trend", "5 active"),
+            "54 playback logs" => L("dashboard.metric.telemetry-events.trend", "54 playback logs"),
+            "Resolve ownership conflicts" => L("dashboard.focus.ownership.title", "Resolve ownership conflicts"),
+            "Verify category ownership for six pending POI submissions before moderation closes." => L("dashboard.focus.ownership.desc", "Verify category ownership for six pending POI submissions before moderation closes."),
+            "Publish evening audio updates" => L("dashboard.focus.audio.title", "Publish evening audio updates"),
+            "Coordinate with the audio team to publish revised bilingual narration packs." => L("dashboard.focus.audio.desc", "Coordinate with the audio team to publish revised bilingual narration packs."),
+            "Review route telemetry drift" => L("dashboard.focus.route.title", "Review route telemetry drift"),
+            "Investigate tracking gaps on ward routes with low completion in the last 48 hours." => L("dashboard.focus.route.desc", "Investigate tracking gaps on ward routes with low completion in the last 48 hours."),
+            "Completed" => L("dashboard.status.completed", "Completed"),
+            "Processing" => L("dashboard.status.processing", "Processing"),
+            "Pending" => L("dashboard.status.pending", "Pending"),
+            "Failed" => L("dashboard.status.failed", "Failed"),
+            "Create" => L("dashboard.action-type.create", "Create"),
+            "Edit" => L("dashboard.action-type.edit", "Edit"),
+            "Delete" => L("dashboard.action-type.delete", "Delete"),
+            "Approve" => L("dashboard.action-type.approve", "Approve"),
+            "Reject" => L("dashboard.action-type.reject", "Reject"),
+            _ => value
+        };
     }
 
     private string GetMetricStyle(DashboardMetricDto metric) => $"--metric-start:{metric.AccentStart}; --metric-end:{metric.AccentEnd};";

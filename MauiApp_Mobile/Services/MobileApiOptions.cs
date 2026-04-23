@@ -329,7 +329,7 @@ public static class MobileApiOptions
     {
         return
         [
-            "https://retype-roundworm-platter.ngrok-free.dev/"
+            "https://flirt-zeppelin-dimness.ngrok-free.dev/"
         ];
     }
 
