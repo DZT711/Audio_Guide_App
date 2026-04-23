@@ -33,6 +33,7 @@ public sealed partial class AudioPlaybackService
     private TaskCompletionSource<bool>? _activePlaybackCompletionSource;
     private CancellationTokenSource? _progressLoopCts;
     private int _playbackSessionVersion;
+    private bool _pauseRequestedByAudioFocus;
 
 #if ANDROID
     private MediaPlayer? _androidPlayer;
@@ -40,7 +41,6 @@ public sealed partial class AudioPlaybackService
     private AudioManager? _androidAudioManager;
     private PlaybackAudioFocusChangeListener? _androidAudioFocusChangeListener;
     private AudioFocusRequestClass? _androidAudioFocusRequest;
-    private bool _pauseRequestedByAudioFocus;
     private bool _androidPlaybackDucked;
 #endif
 
@@ -668,7 +668,7 @@ public sealed partial class AudioPlaybackService
         _windowsPlayer.MediaEnded += (_, _) =>
         {
             completionSource.TrySetResult();
-            MainThread.BeginInvokeOnMainThread(async () => await OnPlaybackCompletedAsync());
+            MainThread.BeginInvokeOnMainThread(async () => await OnPlaybackCompletedAsync(playbackSession));
         };
         _windowsPlayer.MediaFailed += (_, args) =>
         {
@@ -682,7 +682,7 @@ public sealed partial class AudioPlaybackService
         catch
         {
             await Launcher.Default.OpenAsync(new Uri(source));
-            await OnPlaybackCompletedAsync();
+            await OnPlaybackCompletedAsync(playbackSession);
             return;
         }
 

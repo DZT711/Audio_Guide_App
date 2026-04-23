@@ -64,7 +64,14 @@
                             <DataTrigger TargetType="Image"
                                          Binding="{Binding IsExpanded, Source={x:Reference ThisControl}}"
                                          Value="True">
-                                <Setter Property="Source" Value="triangle_up_filled.svg" />
+                                <Setter Property="Source"
+                                        Value="triangle_down_filled.svg"/>
+                            </DataTrigger>
+                            <DataTrigger TargetType="Image"
+                                         Binding="{Binding IsExpanded, Source={x:Reference ThisControl}}"
+                                         Value="False">
+                                <Setter Property="Source"
+                                        Value="triangle_up_filled.svg"/>
                             </DataTrigger>
                         </Image.Triggers>
                     </Image>

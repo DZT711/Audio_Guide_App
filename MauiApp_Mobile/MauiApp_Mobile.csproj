@@ -47,6 +47,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<!-- Force XAML code generation for startup views used during window creation. -->
+		<MauiXaml Update="App.xaml" Generator="MSBuild:Compile" />
+		<MauiXaml Update="AppShell.xaml" Generator="MSBuild:Compile" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />

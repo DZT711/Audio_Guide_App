@@ -437,7 +437,7 @@
                               <Grid ColumnDefinitions="*,Auto"
                                     ColumnSpacing="12">
                                   <Entry x:Name="AutoFocusIdleEntry"
-                                         Keyboard="Numeric"
+                                         Keyboard="Text"
                                          Placeholder="60"
                                          TextColor="{DynamicResource BodyText}"
                                          PlaceholderColor="{DynamicResource MutedText}"
