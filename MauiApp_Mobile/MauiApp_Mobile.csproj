@@ -33,6 +33,8 @@
 
 	<PropertyGroup Condition="'$(Configuration)' == 'Debug' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
 		<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+		<AndroidLinkMode>None</AndroidLinkMode>
+		<DebugType>portable</DebugType>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -49,6 +51,7 @@
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
 		<PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
+		<PackageReference Include="SkiaSharp.Extended.UI.Maui" Version="3.0.0" />
 		
 		<PackageReference Include="ZXing.Net.MAUI" Version="0.4.0" />
 		<PackageReference Include="ZXing.Net.MAUI.Controls" Version="0.4.0" />
@@ -57,5 +60,11 @@
 	<ItemGroup>
 		<ProjectReference Include="..\Project_SharedClassLibrary\Shared_ClassLibrary.csproj" />
 	</ItemGroup>
+
+	<Target Name="UpdateAndroidNetworkSecurityConfig"
+	        BeforeTargets="BeforeBuild"
+	        Condition="'$(TargetFramework)' == 'net10.0-android' and '$(Configuration)' == 'Debug'">
+		<Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\scripts\update-android-network-security-config.ps1&quot; -ConfigPath &quot;$(MSBuildProjectDirectory)\Platforms\Android\Resources\xml\network_security_config.xml&quot; -MobileApiConfigPath &quot;$(MSBuildProjectDirectory)\Resources\Raw\mobile-api.json&quot; -Port 5123" />
+	</Target>
 
 </Project>

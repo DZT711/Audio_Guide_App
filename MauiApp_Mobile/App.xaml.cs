@@ -1,36 +1,44 @@
-using MauiApp_Mobile.Services;
-using MauiApp_Mobile.Services.Geofencing;
+using System.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Xaml;
 using Project_SharedClassLibrary.Contracts;
+using MauiApp_Mobile.Services;
+using MauiApp_Mobile.Services.Geofencing;
 
 namespace MauiApp_Mobile;
 
+/// <summary>
+/// Application lifecycle management with safe DI service resolution.
+/// </summary>
 public partial class App : Application
 {
     private int _hasStartedInitialization;
+    private IServiceProvider? _serviceProvider;
 
     public App()
     {
         try
         {
+            Debug.WriteLine("[App] InitializeComponent starting...");
             InitializeComponent();
+            Debug.WriteLine("[App] InitializeComponent completed");
+        }
+        catch (XamlParseException ex) when (ex.Message?.Contains("DynamicResource", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            Debug.WriteLine($"[App] DynamicResource binding issue: {ex.Message}");
+            CreateMinimalResources();
         }
         catch (XamlParseException ex) when (IsMissingXamlResource(ex))
         {
-            LogStartup("initializecomponent:missing-xaml-resource", ex);
+            Debug.WriteLine($"[App] Missing XAML resource: {ex.Message}");
             Resources ??= new ResourceDictionary();
-        }
-
-        try
-        {
-            LogStartup("theme-init:begin");
-            ThemeService.Instance.Initialize();
-            LogStartup("theme-init:complete");
+            CreateMinimalResources();
         }
         catch (Exception ex)
         {
-            LogStartup("theme-init:failed", ex);
+            Debug.WriteLine($"[App] InitializeComponent error: {ex.GetType().Name}: {ex.Message}");
+            CreateMinimalResources();
         }
     }
 
@@ -38,30 +46,42 @@ public partial class App : Application
     {
         try
         {
+            Debug.WriteLine("[App] CreateWindow: Creating AppShell...");
             var window = new Window(new AppShell());
             window.Created += OnWindowCreated;
             window.Destroying += OnWindowDestroying;
+            Debug.WriteLine("[App] CreateWindow completed");
             return window;
         }
         catch (Exception ex)
         {
-            LogStartup("create-window:failed", ex);
-            return CreateStartupFallbackWindow(ex.Message);
+            Debug.WriteLine($"[App] CreateWindow failed: {ex.GetType().Name}: {ex.Message}");
+            return CreateStartupFallbackWindow($"Window creation failed: {ex.Message}");
         }
     }
 
     private void OnWindowCreated(object? sender, EventArgs e)
     {
-        if (Interlocked.Exchange(ref _hasStartedInitialization, 1) == 1)
+        try
         {
-            return;
-        }
+            if (Interlocked.Exchange(ref _hasStartedInitialization, 1) == 1)
+            {
+                Debug.WriteLine("[App] Initialization already in progress, skipping duplicate");
+                return;
+            }
 
-        _ = InitializeApplicationAsync();
+            Debug.WriteLine("[App] Window.Created event: Starting async initialization");
+            _ = InitializeApplicationAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[App] OnWindowCreated error: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     private void OnWindowDestroying(object? sender, EventArgs e)
     {
+        // Resolve: Kết hợp un-subscribe event của Rebuild và hàm CleanupAsync gọn gàng của main
         Interlocked.Exchange(ref _hasStartedInitialization, 0);
         if (sender is Window window)
         {
@@ -69,214 +89,269 @@ public partial class App : Application
             window.Destroying -= OnWindowDestroying;
         }
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await AudioPlaybackService.Instance.ShutdownForAppTerminationAsync();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"App shutdown playback cleanup failed: {ex.Message}");
-            }
-
-            try
-            {
-                await GeofenceOrchestratorService.Instance.StopAsync();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"App shutdown geofence cleanup failed: {ex.Message}");
-            }
-
-            try
-            {
-                await TelemetryCaptureService.Instance.StopAsync();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"App shutdown telemetry cleanup failed: {ex.Message}");
-            }
-
-        });
+        Debug.WriteLine("[App] Window.Destroying event: Starting cleanup");
+        _ = Task.Run(CleanupAsync);
     }
 
-    private static async Task InitializeApplicationAsync()
+    private async Task InitializeApplicationAsync()
     {
         try
         {
-            LogStartup("initialize-application:begin");
+            Debug.WriteLine("[App] ========== APPLICATION INITIALIZATION START ==========");
 
-            if (!await RunStartupStepAsync("mobile-database-init", () => MobileDatabaseService.Instance.InitializeAsync()))
+            _serviceProvider = Application.Current?.Handler?.MauiContext?.Services;
+            if (_serviceProvider == null)
             {
+                Debug.WriteLine("[App] CRITICAL: ServiceProvider is null");
                 return;
             }
 
-            if (!await RunStartupStepAsync("app-settings-init", () => AppSettingsService.Instance.InitializeAsync()))
-            {
-                return;
-            }
+            Debug.WriteLine("[App] ServiceProvider resolved from DI container");
 
-            if (!await RunStartupStepAsync("api-base-url-resolve", () => MobileApiOptions.EnsureResolvedBaseUrlAsync()))
-            {
-                return;
-            }
-
-            if (!await RunStartupStepAsync("location-tracking-init", () => LocationTrackingService.Instance.InitializeAsync()))
-            {
-                return;
-            }
-
-            if (!await RunStartupStepAsync("telemetry-anonymizer-init", () => TelemetryAnonymizerService.Instance.InitializeAsync()))
-            {
-                return;
-            }
-
-            if (!await RunStartupStepAsync("history-init", () => HistoryService.Instance.InitializeAsync()))
-            {
-                return;
-            }
-
-            await RunStartupStepAsync("geofence-warm-start", () => GeofenceOrchestratorService.Instance.WarmStartAsync());
-            RunStartupStep("background-sync-start", () => BackgroundSyncService.Instance.Start());
-            RunStartupStep("telemetry-capture-start", () => TelemetryCaptureService.Instance.Start());
-            await RunStartupStepAsync("analytics-track-app-open", () => AnalyticsService.Instance.TrackEventAsync(
-                UsageEventType.AppOpen,
-                details: "{\"source\":\"app-start\"}"));
-            await RunStartupStepAsync("background-services-start", StartBackgroundServicesAsync);
-
-            LogStartup("initialize-application:complete");
-        }
-        catch (Exception ex)
-        {
-            LogStartup("initialize-application:failed", ex);
-        }
-    }
-
-    private static async Task StartBackgroundServicesAsync()
-    {
-        try
-        {
-            LogStartup("background-services:catalog-sync:begin");
-            await BackgroundSyncService.Instance.TriggerCatalogSyncAsync();
-            LogStartup("background-services:catalog-sync:complete");
-            await BackgroundSyncService.Instance.TriggerTelemetrySyncAsync();
-            await BackgroundSyncService.Instance.TriggerUsageAnalyticsSyncAsync();
-
-            var locationPermission = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
-            LogStartup($"background-services:foreground-location={locationPermission}");
-            if (locationPermission != PermissionStatus.Granted)
-            {
-                LogStartup("background-services:skip-background-tracking:foreground-location-not-granted");
-                return;
-            }
-
-            if (!AppSettingsService.Instance.BackgroundTrackingEnabled)
-            {
-                LogStartup("background-services:skip-background-tracking:disabled-in-settings");
-                return;
-            }
-
-            var backgroundPermission = await LocationTrackingService.Instance.GetBackgroundPermissionStatusAsync();
-            LogStartup($"background-services:background-location={backgroundPermission}");
-            if (backgroundPermission != PermissionStatus.Granted)
-            {
-                LogStartup("background-services:skip-background-tracking:background-location-not-granted");
-                return;
-            }
-
-            LogStartup("background-services:start-background-tracking:begin");
-            await LocationTrackingService.Instance.StartBackgroundTrackingAsync();
-            LogStartup("background-services:start-background-tracking:complete");
-        }
-        catch (Exception ex)
-        {
-            LogStartup("background-services:failed", ex);
-        }
-    }
-
-    private static async Task<bool> RunStartupStepAsync(string stepName, Func<Task> action)
-    {
-        LogStartup($"{stepName}:begin");
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-        try
-        {
-            await action();
-            LogStartup($"{stepName}:complete:{stopwatch.ElapsedMilliseconds}ms");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            LogStartup($"{stepName}:failed:{stopwatch.ElapsedMilliseconds}ms", ex);
-            return false;
-        }
-    }
-
-    private static bool RunStartupStep(string stepName, Action action)
-    {
-        LogStartup($"{stepName}:begin");
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-        try
-        {
-            action();
-            LogStartup($"{stepName}:complete:{stopwatch.ElapsedMilliseconds}ms");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            LogStartup($"{stepName}:failed:{stopwatch.ElapsedMilliseconds}ms", ex);
-            return false;
-        }
-    }
-
-    private static void LogStartup(string message, Exception? ex = null)
-    {
-        var payload = ex is null
-            ? $"[Startup] {message}"
-            : $"[Startup] {message}: {ex}";
-
-        System.Diagnostics.Debug.WriteLine(payload);
-
-#if ANDROID
-        Android.Util.Log.Info("SmartTour.Startup", payload);
-#endif
-    }
-
-    private static bool IsMissingXamlResource(XamlParseException ex) =>
-        ex.Message.Contains("No embeddedresource found", StringComparison.OrdinalIgnoreCase);
-
-    private static Window CreateStartupFallbackWindow(string details)
-    {
-        var content = new VerticalStackLayout
-        {
-            Padding = new Thickness(20),
-            Spacing = 10,
-            Children =
-            {
-                new Label
+            if (!await RunInitStepAsync("mobile-database", async () =>
                 {
-                    Text = "Startup recovery mode",
-                    FontSize = 20,
-                    FontAttributes = FontAttributes.Bold
-                },
-                new Label
+                    var service = GetService<MobileDatabaseService>();
+                    if (service == null) throw new InvalidOperationException("MobileDatabaseService not registered");
+                    await service.InitializeAsync();
+                }))
+            {
+                return;
+            }
+
+            if (!await RunInitStepAsync("app-settings", async () =>
                 {
-                    Text = "The app recovered from a startup load error. Rebuild and reinstall to restore full UI resources.",
-                    FontSize = 14
-                },
-                new Label
+                    var service = GetService<AppSettingsService>();
+                    if (service == null) throw new InvalidOperationException("AppSettingsService not registered");
+                    await service.InitializeAsync();
+                }))
+            {
+                return;
+            }
+
+            await RunInitStepAsync("api-base-url-resolve", () => MobileApiOptions.EnsureResolvedBaseUrlAsync());
+
+            await RunInitStepAsync("theme-service", () =>
+            {
+                var service = GetService<ThemeService>();
+                if (service == null) throw new InvalidOperationException("ThemeService not registered");
+                service.Initialize();
+                return Task.CompletedTask;
+            });
+
+            // Resolve: Đã đổi cách gọi từ Singleton sang DI cho tính năng Telemetry (từ nhánh Rebuild)
+            await RunInitStepAsync("telemetry-anonymizer-init", async () =>
+            {
+                var service = GetService<TelemetryAnonymizerService>();
+                if (service != null) await service.InitializeAsync();
+            });
+
+            await RunInitStepAsync("localization-service", () =>
+            {
+                var service = GetService<LocalizationService>();
+                if (service == null) throw new InvalidOperationException("LocalizationService not registered");
+                _ = service.Language;
+                return Task.CompletedTask;
+            });
+
+            await RunInitStepAsync("app-data-mode", () =>
+            {
+                var service = GetService<AppDataModeService>();
+                if (service == null) throw new InvalidOperationException("AppDataModeService not registered");
+                service.Initialize(service.IsApiEnabled);
+                return Task.CompletedTask;
+            });
+
+            await RunInitStepAsync("location-tracking", async () =>
+            {
+                var service = GetService<LocationTrackingService>();
+                if (service == null) throw new InvalidOperationException("LocationTrackingService not registered");
+                await service.InitializeAsync();
+            });
+
+            await RunInitStepAsync("geofence-orchestrator", async () =>
+            {
+                var service = GetService<GeofenceOrchestratorService>();
+                if (service == null) throw new InvalidOperationException("GeofenceOrchestratorService not registered");
+                await service.WarmStartAsync();
+            });
+
+            await RunInitStepAsync("history-service", async () =>
+            {
+                var service = GetService<HistoryService>();
+                if (service == null) throw new InvalidOperationException("HistoryService not registered");
+                await service.InitializeAsync();
+            });
+
+            await RunInitStepAsync("background-sync-start", () =>
+            {
+                var service = GetService<BackgroundSyncService>();
+                if (service == null) throw new InvalidOperationException("BackgroundSyncService not registered");
+                service.Start();
+                return Task.CompletedTask;
+            });
+
+            // Resolve: Cấu hình Telemetry và Analytics từ nhánh Rebuild nhưng sử dụng DI Container
+            await RunInitStepAsync("telemetry-capture-start", () =>
+            {
+                var service = GetService<TelemetryCaptureService>();
+                service?.Start();
+                return Task.CompletedTask;
+            });
+
+            await RunInitStepAsync("analytics-track-app-open", async () =>
+            {
+                var service = GetService<AnalyticsService>();
+                if (service != null)
                 {
-                    Text = details,
-                    FontSize = 12
+                    // Lỗi ở thuộc tính enum UsageEventType sẽ cần đảm bảo SharedLibrary của bạn có định nghĩa này.
+                    await service.TrackEventAsync(UsageEventType.AppOpen, details: "{\"source\":\"app-start\"}");
                 }
-            }
-        };
+            });
 
-        return new Window(new ContentPage
+            await RunInitStepAsync("background-services-start", StartBackgroundServicesAsync);
+
+            await RunInitStepAsync("place-catalog", async () =>
+            {
+                var service = GetService<PlaceCatalogService>();
+                if (service == null) throw new InvalidOperationException("PlaceCatalogService not registered");
+                await service.EnsureLoadedAsync(false);
+            });
+
+            Debug.WriteLine("[App] ========== APPLICATION INITIALIZATION COMPLETE ==========");
+        }
+        catch (Exception ex)
         {
-            Content = content
-        });
+            Debug.WriteLine($"[App] FATAL: Initialization failed: {ex.GetType().Name}: {ex.Message}");
+            Debug.WriteLine($"[App] Stack: {ex.StackTrace}");
+        }
     }
-}
+
+    private async Task StartBackgroundServicesAsync()
+    {
+        var backgroundSyncService = GetService<BackgroundSyncService>();
+        var appSettingsService = GetService<AppSettingsService>();
+        var locationTrackingService = GetService<LocationTrackingService>();
+
+        if (backgroundSyncService == null || appSettingsService == null || locationTrackingService == null)
+        {
+            throw new InvalidOperationException("Background startup dependencies are not registered");
+        }
+
+        Debug.WriteLine("[App] background-services:catalog-sync:begin");
+        await backgroundSyncService.TriggerCatalogSyncAsync();
+        Debug.WriteLine("[App] background-services:catalog-sync:complete");
+
+        // Resolve: Thêm các Sync trigger từ nhánh Rebuild
+        await backgroundSyncService.TriggerTelemetrySyncAsync();
+        await backgroundSyncService.TriggerUsageAnalyticsSyncAsync();
+
+        var locationPermission = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+        if (locationPermission != PermissionStatus.Granted)
+        {
+            Debug.WriteLine("[App] Foreground location permission is not granted");
+            return;
+        }
+
+        if (!appSettingsService.BackgroundTrackingEnabled)
+        {
+            Debug.WriteLine("[App] Background tracking disabled in settings");
+            return;
+        }
+
+        var backgroundPermission = await locationTrackingService.GetBackgroundPermissionStatusAsync();
+        if (backgroundPermission != PermissionStatus.Granted)
+        {
+            Debug.WriteLine("[App] Background location permission is not granted");
+            return;
+        }
+
+        await locationTrackingService.StartBackgroundTrackingAsync();
+    }
+
+    private async Task<bool> RunInitStepAsync(string stepName, Func<Task> step)
+    {
+        try
+        {
+            Debug.WriteLine($"[App.Init] {stepName}: starting...");
+            var sw = Stopwatch.StartNew();
+            await step();
+            sw.Stop();
+            Debug.WriteLine($"[App.Init] {stepName}: completed in {sw.ElapsedMilliseconds}ms");
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            Debug.WriteLine($"[App.Init] {stepName}: cancelled");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[App.Init] {stepName}: failed - {ex.GetType().Name}: {ex.Message}");
+            return false;
+        }
+    }
+
+    private async Task CleanupAsync()
+    {
+        try
+        {
+            Debug.WriteLine("[App] ========== APPLICATION CLEANUP START ==========");
+
+            await SafeStopServiceAsync("playback-coordinator", () =>
+                GetService<PlaybackCoordinatorService>()?.StopAsync() ?? Task.CompletedTask);
+
+            await SafeStopServiceAsync("audio-playback", () =>
+                GetService<AudioPlaybackService>()?.ShutdownForAppTerminationAsync() ?? Task.CompletedTask);
+
+            await SafeStopServiceAsync("geofence-orchestrator", () =>
+                GetService<GeofenceOrchestratorService>()?.StopAsync() ?? Task.CompletedTask);
+
+            await SafeStopServiceAsync("location-tracking", () =>
+                GetService<LocationTrackingService>()?.StopAsync() ?? Task.CompletedTask);
+
+            await SafeStopServiceAsync("background-sync", () =>
+            {
+                var service = GetService<BackgroundSyncService>();
+                service?.Stop();
+                return Task.CompletedTask;
+            });
+
+            // Resolve: Đảm bảo Telemetry của nhánh Rebuild được tắt an toàn khi App đóng
+            await SafeStopServiceAsync("telemetry-capture", async () =>
+            {
+                var service = GetService<TelemetryCaptureService>();
+                if (service != null) await service.StopAsync();
+            });
+
+            Debug.WriteLine("[App] ========== APPLICATION CLEANUP COMPLETE ==========");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[App] Cleanup error: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private async Task SafeStopServiceAsync(string serviceName, Func<Task> stopAction)
+    {
+        try
+        {
+            await stopAction();
+            Debug.WriteLine($"[App.Cleanup] {serviceName}: stopped");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[App.Cleanup] {serviceName}: warning during stop - {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private T? GetService<T>() where T : class
+    {
+        try
+        {
+            if (_serviceProvider == null)
+            {
+                Debug.WriteLine($"[App] GetService<{typeof(T).Name}>: ServiceProvider not available");
+                return null;
+            }
+
+            var service =

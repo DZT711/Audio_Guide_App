@@ -6,6 +6,7 @@
     xmlns:controls="clr-namespace:MauiApp_Mobile.Views.Controls"
     xmlns:local="clr-namespace:MauiApp_Mobile.Views"
     xmlns:models="clr-namespace:MauiApp_Mobile.Models"
+    xmlns:skia="clr-namespace:SkiaSharp.Extended.UI.Controls;assembly=SkiaSharp.Extended.UI"
     x:Name="ThisPage"
     BackgroundColor="{DynamicResource LightBg}"
     Shell.NavBarIsVisible="False">
@@ -38,20 +39,58 @@
                             Style="{StaticResource TopHeaderActionButtonStyle}" />
                 </Grid>
 
-                <Frame Style="{StaticResource TopHeaderSearchFrameStyle}">
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                        <Label Text="🔍"
-                               Style="{StaticResource TopHeaderSearchIconStyle}" />
-                        <Entry x:Name="SearchEntry"
-                               Grid.Column="1"
-                               Placeholder="Tìm kiếm pack offline..."
-                               PlaceholderColor="{DynamicResource MutedText}"
-                               BackgroundColor="Transparent"
-                               TextColor="{DynamicResource BodyText}"
-                               ClearButtonVisibility="WhileEditing"
-                               TextChanged="OnSearchChanged" />
-                    </Grid>
-                </Frame>
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="10">
+                    <Frame Grid.Column="0"
+                           Style="{StaticResource TopHeaderSearchFrameStyle}"
+                           BackgroundColor="#24FFFFFF"
+                           BorderColor="#24FFFFFF">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                            <Label Text="🔍"
+                                   Style="{StaticResource TopHeaderSearchIconStyle}" />
+                            <Entry x:Name="SearchEntry"
+                                   Grid.Column="1"
+                                   Placeholder="Tìm kiếm pack offline..."
+                                   PlaceholderColor="#CCCCCC"
+                                   BackgroundColor="Transparent"
+                                   TextColor="{DynamicResource BodyText}"
+                                   TextChanged="OnSearchChanged" />
+                            <Button x:Name="ClearSearchButton"
+                                    Grid.Column="2"
+                                    Text="✕"
+                                    FontSize="12"
+                                    WidthRequest="24"
+                                    HeightRequest="24"
+                                    Padding="0"
+                                    CornerRadius="12"
+                                    BackgroundColor="{DynamicResource SurfaceAlt}"
+                                    TextColor="{DynamicResource MutedText}"
+                                    Clicked="OnClearSearchClicked"
+                                    IsVisible="{Binding HasSearchText}" />
+                        </Grid>
+                    </Frame>
+
+                    <Border Grid.Column="1"
+                            BackgroundColor="#FFFFFF"
+                            HeightRequest="44"
+                            Padding="4"
+                            Stroke="#F2F5FA"
+                            StrokeShape="RoundRectangle 18"
+                            StrokeThickness="1"
+                            VerticalOptions="Center"
+                            WidthRequest="44">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnQrScannerClicked" />
+                        </Border.GestureRecognizers>
+
+                        <skia:SKLottieView Source="qr_scan_code.json"
+                                           RepeatCount="-1"
+                                           HeightRequest="36"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"
+                                           WidthRequest="36" />
+                    </Border>
+                </Grid>
             </VerticalStackLayout>
         </Grid>
 
@@ -193,8 +232,8 @@
 
         <!-- List -->
         <Grid Grid.Row="3"
-              Padding="0,0,0,140">
-            <Grid RowDefinitions="Auto,*">
+              Padding="0,0,0,24">
+            <Grid RowDefinitions="Auto,*,Auto">
                 <Grid Grid.Row="0"
                       ColumnDefinitions="*,Auto"
                       Margin="16,4,16,10">
@@ -595,6 +634,11 @@
                     </VerticalStackLayout>
                 </ScrollView>
             </Border>
+
+            <controls:MiniPlayerView Grid.Row="2"
+                                     UseTransparentChrome="True"
+                                     VerticalOptions="End"
+                                     ZIndex="40" />
             </Grid>
         </Grid>
 
@@ -1017,9 +1061,5 @@
             </Border>
         </Grid>
 
-        <controls:MiniPlayerView Grid.Row="1"
-                                 UseTransparentChrome="True"
-                                 VerticalOptions="End"
-                                 ZIndex="40" />
     </Grid>
 </ContentPage>

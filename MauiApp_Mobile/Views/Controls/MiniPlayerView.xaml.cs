@@ -37,6 +37,7 @@ public partial class MiniPlayerView : ContentView
         : PlaybackCoordinatorService.Instance.CurrentSubtitle;
     public IReadOnlyList<PlaybackQueueItem> Queue => PlaybackCoordinatorService.Instance.Queue;
     public bool HasQueueItems => Queue.Count > 0;
+    public bool IsQueueVisible => HasQueueItems && IsExpanded;
     public string QueueCountText => Queue.Count == 1 ? "1 item" : $"{Queue.Count} items";
     public string PlayPauseGlyph => PlaybackCoordinatorService.Instance.PlayPauseGlyph;
     public double ProgressRatio => PlaybackCoordinatorService.Instance.ProgressRatio;
@@ -47,7 +48,7 @@ public partial class MiniPlayerView : ContentView
     public double SeekOpacity => PlaybackCoordinatorService.Instance.CanSeek ? 1d : 0.45d;
     public bool IsExpanded => !MiniPlayerPresentationService.Instance.IsCollapsed;
     public string CollapseGlyph => IsExpanded ? "⌄" : "⌃";
-    public string CollapseIconSource => IsExpanded ? "triangle_up_filled.svg" : "triangle_down_filled.svg";
+    public string CollapseIconSource => IsExpanded ? "triangle_down_filled.svg" : "triangle_up_filled.svg";
 
     private async void OnPlayPauseTapped(object? sender, TappedEventArgs e) =>
         await ExecutePlaybackActionAsync(() => PlaybackCoordinatorService.Instance.TogglePauseResumeAsync());
@@ -146,6 +147,7 @@ public partial class MiniPlayerView : ContentView
         OnPropertyChanged(nameof(SubtitleText));
         OnPropertyChanged(nameof(Queue));
         OnPropertyChanged(nameof(HasQueueItems));
+        OnPropertyChanged(nameof(IsQueueVisible));
         OnPropertyChanged(nameof(QueueCountText));
         OnPropertyChanged(nameof(PlayPauseGlyph));
         OnPropertyChanged(nameof(ProgressRatio));

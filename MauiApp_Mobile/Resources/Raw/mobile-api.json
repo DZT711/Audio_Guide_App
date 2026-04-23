@@ -1,8 +1,12 @@
-{
-  "baseUrl": "https://retype-roundworm-platter.ngrok-free.dev/",
-  "publicBaseUrl": "https://retype-roundworm-platter.ngrok-free.dev/",
-  "allowLocalhostFallback": false,
-  "fallbackBaseUrls": [
-    "https://retype-roundworm-platter.ngrok-free.dev/"
-  ]
+﻿{
+    "baseUrl":  "https://retype-roundworm-platter.ngrok-free.dev/",
+    "publicBaseUrl":  "https://retype-roundworm-platter.ngrok-free.dev/",
+    "allowLocalhostFallback":  true,
+    "fallbackBaseUrls":  [
+                             "http://192.168.1.3:5123/",
+                             "http://10.0.2.2:5123/",
+                             "http://localhost:5123/",
+                             "https://olympics-steadfast-skimmed.ngrok-free.dev/",
+                             "https://retype-roundworm-platter.ngrok-free.dev/"
+                         ]
 }
