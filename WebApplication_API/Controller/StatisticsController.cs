@@ -102,6 +102,9 @@ public class StatisticsController(
     {
         var utcRange = ResolveUtcRange(query);
         var ownerScoped = IsOwnerScoped(currentUser);
+        var onlineGuestScopeLocationIds = await BuildOnlineGuestScopeQuery(currentUser)
+            .Select(item => item.LocationId)
+            .ToListAsync();
         var locations = await BuildLocationScopeQuery(currentUser)
             .Include(item => item.Owner)
             .OrderBy(item => item.Name)
@@ -224,7 +227,7 @@ public class StatisticsController(
         var onlineGuests = await AnalyticsOnlineGuestService.CountScopedOnlineGuestsAsync(
             context,
             analyticsDataFilter,
-            scopedLocationIds,
+            onlineGuestScopeLocationIds,
             query.IncludeSynthetic,
             AnalyticsOnlineGuestService.ResolveDefaultThresholdUtc(),
             HttpContext.RequestAborted);
@@ -338,6 +341,17 @@ public class StatisticsController(
         var query = context.Locations
             .AsNoTracking()
             .Where(item => item.Status == 1)
+            .AsQueryable();
+
+        return IsOwnerScoped(currentUser)
+            ? query.Where(item => item.OwnerId == currentUser.UserId)
+            : query;
+    }
+
+    private IQueryable<Location> BuildOnlineGuestScopeQuery(DashboardUser currentUser)
+    {
+        var query = context.Locations
+            .AsNoTracking()
             .AsQueryable();
 
         return IsOwnerScoped(currentUser)
@@ -641,6 +655,13 @@ public class StatisticsController(
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
+                var guestKeys = group
+                    .Select(item => GetGuestKey(item.SessionId, item.DeviceId))
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Select(item => item!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
                 var ward = group
                     .Where(item => item.LocationId.HasValue && wardLookup.ContainsKey(item.LocationId.Value))
                     .Select(item => wardLookup[item.LocationId!.Value])
@@ -652,6 +673,7 @@ public class StatisticsController(
                     ?? ResolveNearestWard(group.First(), locations);
 
                 var sessionCount = Math.Max(1, sessionKeys.Count);
+                var guestCount = Math.Max(1, guestKeys.Count);
                 var totalWeight = group.Sum(item => Math.Max(1, item.Weight));
                 var engagementScore = sessionCount > 0
                     ? Math.Round((double)totalWeight / sessionCount, 2, MidpointRounding.AwayFromZero)
@@ -661,11 +683,13 @@ public class StatisticsController(
                 {
                     Latitude = group.Key.Latitude,
                     Longitude = group.Key.Longitude,
-                    Intensity = sessionCount,
+                    Intensity = guestCount,
                     SessionCount = sessionCount,
+                    GuestCount = guestCount,
                     TotalWeight = totalWeight,
                     EngagementScore = engagementScore,
-                    Ward = ward
+                    Ward = ward,
+                    GuestKeys = guestKeys
                 };
             })
             .OrderByDescending(item => item.Intensity)

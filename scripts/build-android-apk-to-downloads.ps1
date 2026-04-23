@@ -3,7 +3,7 @@ param(
     [string]$Configuration = "Debug",
     [string]$TargetFramework = "net10.0-android",
     [string]$RuntimeIdentifier = "android-arm64",
-    [string]$PublicBaseUrl = "https://retype-roundworm-platter.ngrok-free.dev/",
+    [string]$PublicBaseUrl = "https://flirt-zeppelin-dimness.ngrok-free.dev/",
     [string]$DownloadsDir = ".\WebApplication_API\wwwroot\downloads",
     [string]$PublishCacheDir = ".\WebApplication_API\wwwroot\downloads\publish-cache",
     [int]$KeepLatest = 5,

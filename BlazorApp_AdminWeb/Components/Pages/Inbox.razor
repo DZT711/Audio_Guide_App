@@ -1,17 +1,19 @@
 @page "/inbox"
+@using System.Globalization
 @inject AdminApiClient ApiClient
 @inject InboxState InboxState
 @inject NotificationService Notifications
 @inject AdminSessionState SessionState
+@inject AdminUiLanguageService LanguageService
 
-<PageTitle>Inbox</PageTitle>
+<PageTitle>@L("page.inbox", "Inbox")</PageTitle>
 
 @if (!CanView)
 {
     <div class="management-page">
         <div class="management-error">
-            <strong>Access denied.</strong>
-            <div>Your current role cannot view inbox messages.</div>
+            <strong>@L("inbox.access.denied.title", "Access denied.")</strong>
+            <div>@L("inbox.access.denied.desc", "Your current role cannot view inbox messages.")</div>
         </div>
     </div>
 }
@@ -20,17 +22,15 @@ else
 <div class="management-page inbox-page">
     <section class="management-hero" data-reveal>
         <div>
-            <span class="management-hero__eyebrow">Inbox</span>
-            <h1>Announcements and Request Updates</h1>
-            <p>
-                Track approval updates, rejection reasons, and future system announcements in one persistent inbox.
-            </p>
+            <span class="management-hero__eyebrow">@L("inbox.hero.eyebrow", "Inbox")</span>
+            <h1>@L("inbox.hero.title", "Announcements and Request Updates")</h1>
+            <p>@L("inbox.hero.desc", "Track approval updates, rejection reasons, and future system announcements in one persistent inbox.")</p>
         </div>
 
         <div class="management-hero__actions">
             <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
                 <i class="bi bi-arrow-clockwise me-2"></i>
-                Refresh
+                @L("inbox.action.refresh", "Refresh")
             </button>
         </div>
     </section>
@@ -40,28 +40,28 @@ else
             <span class="management-stat__icon"><i class="bi bi-envelope-paper-fill"></i></span>
             <div>
                 <strong class="management-stat__value">@_result.TotalCount</strong>
-                <span class="management-stat__label">Matching Messages</span>
+                <span class="management-stat__label">@L("inbox.stats.matching", "Matching Messages")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-envelope-exclamation-fill"></i></span>
             <div>
                 <strong class="management-stat__value">@_result.UnreadCount</strong>
-                <span class="management-stat__label">Unread</span>
+                <span class="management-stat__label">@L("inbox.stats.unread", "Unread")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-check-circle-fill"></i></span>
             <div>
                 <strong class="management-stat__value">@_messages.Count(item => item.IsRead)</strong>
-                <span class="management-stat__label">Read On Page</span>
+                <span class="management-stat__label">@L("inbox.stats.read-on-page", "Read On Page")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-filter-circle-fill"></i></span>
             <div>
-                <strong class="management-stat__value">@(_unreadOnly ? "Unread" : "All")</strong>
-                <span class="management-stat__label">Current Filter</span>
+                <strong class="management-stat__value">@(_unreadOnly ? L("inbox.filter.unread", "Unread") : L("inbox.filter.all", "All"))</strong>
+                <span class="management-stat__label">@L("inbox.stats.current-filter", "Current Filter")</span>
             </div>
         </article>
     </div>
@@ -72,15 +72,15 @@ else
             <div class="inbox-broadcast">
                 <div class="management-panel__header inbox-broadcast__header">
                     <div>
-                        <span class="management-panel__eyebrow">Broadcast</span>
-                        <h2>System Announcement</h2>
-                        <p class="management-muted mb-0">Send one highlighted inbox message to every account, including Admin and Developer users.</p>
+                        <span class="management-panel__eyebrow">@L("inbox.broadcast.eyebrow", "Broadcast")</span>
+                        <h2>@L("inbox.broadcast.title", "System Announcement")</h2>
+                        <p class="management-muted mb-0">@L("inbox.broadcast.desc", "Send one highlighted inbox message to every account, including Admin and Developer users.")</p>
                     </div>
                     <div class="inbox-broadcast__actions">
-                        <span class="inbox-card__eyebrow">SYSTEM ANNOUNCEMENT</span>
+                        <span class="inbox-card__eyebrow">@L("inbox.broadcast.badge", "SYSTEM ANNOUNCEMENT")</span>
                         <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ToggleBroadcastComposer">
                             <i class="bi @(_broadcastComposerOpen ? "bi-chevron-up" : "bi-chevron-down") me-1"></i>
-                            @(_broadcastComposerOpen ? "Collapse" : "Open composer")
+                            @(_broadcastComposerOpen ? L("inbox.broadcast.collapse", "Collapse") : L("inbox.broadcast.open", "Open composer"))
                         </button>
                     </div>
                 </div>
@@ -89,20 +89,20 @@ else
                 {
                     <div class="management-form__grid inbox-broadcast__grid">
                         <div class="management-field">
-                            <label for="announcement-title">Highlighted Title</label>
+                            <label for="announcement-title">@L("inbox.broadcast.form.title.label", "Highlighted Title")</label>
                             <InputText id="announcement-title" class="form-control" @bind-Value="_announcementTitle" />
-                            <span class="management-field__hint">This title is emphasized in every recipient inbox.</span>
+                            <span class="management-field__hint">@L("inbox.broadcast.form.title.hint", "This title is emphasized in every recipient inbox.")</span>
                         </div>
 
                         <div class="management-field management-field--full">
-                            <label for="announcement-body">Message</label>
+                            <label for="announcement-body">@L("inbox.broadcast.form.message.label", "Message")</label>
                             <InputTextArea id="announcement-body" class="form-control" rows="5" @bind-Value="_announcementBody" />
                         </div>
                     </div>
 
                     <div class="management-actions">
                         <button type="button" class="btn btn-primary" disabled="@_isSendingAnnouncement" @onclick="SendAnnouncementAsync">
-                            @(_isSendingAnnouncement ? "Sending..." : "Send Announcement")
+                            @(_isSendingAnnouncement ? L("inbox.broadcast.sending", "Sending...") : L("inbox.broadcast.send", "Send Announcement"))
                         </button>
                     </div>
                 }
@@ -111,13 +111,13 @@ else
 
         <div class="management-panel__header">
             <div>
-                <span class="management-panel__eyebrow">Messages</span>
-                <h2>Inbox Feed</h2>
+                <span class="management-panel__eyebrow">@L("inbox.messages.eyebrow", "Messages")</span>
+                <h2>@L("inbox.messages.title", "Inbox Feed")</h2>
             </div>
 
             <div class="management-toolbar">
-                <button type="button" class="@GetFilterChipClass(false)" @onclick="() => SetUnreadFilterAsync(false)">All</button>
-                <button type="button" class="@GetFilterChipClass(true)" @onclick="() => SetUnreadFilterAsync(true)">Unread Only</button>
+                <button type="button" class="@GetFilterChipClass(false)" @onclick="() => SetUnreadFilterAsync(false)">@L("inbox.filter.all", "All")</button>
+                <button type="button" class="@GetFilterChipClass(true)" @onclick="() => SetUnreadFilterAsync(true)">@L("inbox.filter.unread-only", "Unread Only")</button>
             </div>
         </div>
 
@@ -137,14 +137,14 @@ else
         else if (!string.IsNullOrWhiteSpace(_loadError))
         {
             <div class="management-error">
-                <strong>Unable to load inbox messages.</strong>
+                <strong>@L("inbox.load.failed.title", "Unable to load inbox messages.")</strong>
                 <div>@_loadError</div>
             </div>
         }
         else if (_messages.Count == 0)
         {
             <div class="app-empty-state">
-                No inbox messages match the current filter.
+                @L("inbox.empty.filtered", "No inbox messages match the current filter.")
             </div>
         }
         else
@@ -158,17 +158,17 @@ else
                                 <div>
                                     @if (IsAnnouncement(message))
                                     {
-                                        <div class="inbox-card__eyebrow">SYSTEM ANNOUNCEMENT</div>
+                                        <div class="inbox-card__eyebrow">@L("inbox.broadcast.badge", "SYSTEM ANNOUNCEMENT")</div>
                                     }
                                     <div class="inbox-card__title">@message.Title</div>
                                     <small>@message.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
                                 </div>
 
                                 <div class="inbox-card__meta">
-                                    <span class="@GetMessageTagClass(message.MessageType)">@message.MessageType</span>
+                                    <span class="@GetMessageTagClass(message.MessageType)">@TranslateMessageType(message.MessageType)</span>
                                     @if (!message.IsRead)
                                     {
-                                        <span class="management-status management-status--pending">Unread</span>
+                                        <span class="management-status management-status--pending">@L("inbox.stats.unread", "Unread")</span>
                                     }
                                 </div>
                             </div>
@@ -180,11 +180,11 @@ else
                                 <div class="management-inline-actions">
                                     @if (!message.IsRead)
                                     {
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => MarkReadAsync(message)">Mark Read</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => MarkReadAsync(message)">@L("inbox.action.mark-read", "Mark Read")</button>
                                     }
                                     else
                                     {
-                                        <span class="management-muted">Read @message.ReadAt?.ToLocalTime().ToString("dd MMM HH:mm")</span>
+                                        <span class="management-muted">@L("inbox.status.read-prefix", "Read") @message.ReadAt?.ToLocalTime().ToString("dd MMM HH:mm")</span>
                                     }
                                 </div>
                             </div>
@@ -196,10 +196,10 @@ else
             @if (_result.TotalPages > 1)
             {
                 <div class="management-pagination">
-                    <span class="management-pagination__info">Page @_result.Page of @_result.TotalPages (@_result.TotalCount total messages)</span>
+                    <span class="management-pagination__info">@LF("inbox.pagination.info", "Page {0} of {1} ({2} total messages)", _result.Page, _result.TotalPages, _result.TotalCount)</span>
                     <div class="management-pagination__actions">
                         <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousPageAsync" disabled="@(_result.Page <= 1)">
-                            <i class="bi bi-chevron-left"></i> Previous
+                            <i class="bi bi-chevron-left"></i> @L("inbox.pagination.previous", "Previous")
                         </button>
                         <div class="management-pagination__pages">
                             @foreach (var pageNumber in GetVisiblePages())
@@ -213,7 +213,7 @@ else
                             }
                         </div>
                         <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPageAsync" disabled="@(_result.Page >= _result.TotalPages)">
-                            Next <i class="bi bi-chevron-right"></i>
+                            @L("inbox.pagination.next", "Next") <i class="bi bi-chevron-right"></i>
                         </button>
                     </div>
                 </div>
@@ -224,6 +224,9 @@ else
 }
 
 @code {
+    private string L(string key, string fallback) => LanguageService.T(key, fallback);
+    private string LF(string key, string fallback, params object?[] args) =>
+        string.Format(CultureInfo.CurrentCulture, L(key, fallback), args);
     private readonly List<InboxMessageDto> _messages = new();
     private InboxOverviewDto _result = new();
     private bool _isLoading = true;
@@ -296,7 +299,7 @@ else
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Unable to update inbox");
+            Notifications.Error(ex.Message, L("inbox.update.failed.title", "Unable to update inbox"));
         }
     }
 
@@ -307,13 +310,17 @@ else
 
         if (string.IsNullOrWhiteSpace(title))
         {
-            Notifications.Warning("Enter a highlighted announcement title before sending.", "Title required");
+            Notifications.Warning(
+                L("inbox.broadcast.validation.title-required.message", "Enter a highlighted announcement title before sending."),
+                L("inbox.broadcast.validation.title-required.title", "Title required"));
             return;
         }
 
         if (string.IsNullOrWhiteSpace(body))
         {
-            Notifications.Warning("Enter an announcement message before sending.", "Message required");
+            Notifications.Warning(
+                L("inbox.broadcast.validation.message-required.message", "Enter an announcement message before sending."),
+                L("inbox.broadcast.validation.message-required.title", "Message required"));
             return;
         }
 
@@ -329,12 +336,14 @@ else
 
             _announcementTitle = "";
             _announcementBody = "";
-            Notifications.Success("The system announcement was sent to every inbox.", "Announcement sent");
+            Notifications.Success(
+                L("inbox.broadcast.success.message", "The system announcement was sent to every inbox."),
+                L("inbox.broadcast.success.title", "Announcement sent"));
             await LoadAsync();
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Announcement failed");
+            Notifications.Error(ex.Message, L("inbox.broadcast.failed.title", "Announcement failed"));
         }
         finally
         {
@@ -364,7 +373,7 @@ else
         catch (Exception ex)
         {
             _loadError = ex.Message;
-            Notifications.Error(ex.Message, "Inbox load failed");
+            Notifications.Error(ex.Message, L("inbox.load.failed.toast", "Inbox load failed"));
         }
         finally
         {
@@ -397,12 +406,20 @@ else
     private static bool IsAnnouncement(InboxMessageDto message) =>
         string.Equals(message.MessageType, "Announcement", StringComparison.OrdinalIgnoreCase);
 
-    private static string GetMessageContext(InboxMessageDto message) =>
+    private string GetMessageContext(InboxMessageDto message) =>
         IsAnnouncement(message)
-            ? "System announcement for all dashboard accounts"
+            ? L("inbox.context.announcement", "System announcement for all dashboard accounts")
             : message.RelatedRequestId is null
-                ? "General announcement"
-                : $"Request #{message.RelatedRequestId}";
+                ? L("inbox.context.general", "General announcement")
+                : LF("inbox.context.request", "Request #{0}", message.RelatedRequestId);
+
+    private string TranslateMessageType(string? messageType) => messageType switch
+    {
+        "Approval" => L("inbox.message-type.approval", "Approval"),
+        "Rejection" => L("inbox.message-type.rejection", "Rejection"),
+        "Announcement" => L("inbox.message-type.announcement", "Announcement"),
+        _ => messageType ?? string.Empty
+    };
 
     private IReadOnlyList<int> GetVisiblePages()
     {

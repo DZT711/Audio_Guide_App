@@ -1,0 +1,10 @@
+C:\Users\LENOVO\Smart-Tourism-MAUI\Project_SharedClassLibrary\binverify\Shared_ClassLibrary.deps.json
+C:\Users\LENOVO\Smart-Tourism-MAUI\Project_SharedClassLibrary\binverify\Shared_ClassLibrary.dll
+C:\Users\LENOVO\Smart-Tourism-MAUI\Project_SharedClassLibrary\binverify\Shared_ClassLibrary.pdb
+C:\Users\LENOVO\Smart-Tourism-MAUI\Project_SharedClassLibrary\objverify\Debug\net10.0\Shared_ClassLibrary.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\LENOVO\Smart-Tourism-MAUI\Project_SharedClassLibrary\objverify\Debug\net10.0\Shared_ClassLibrary.csproj.CoreCompileInputs.cache
+C:\Users\LENOVO\Smart-Tourism-MAUI\Project_SharedClassLibrary\objverify\Debug\net10.0\Shared_ClassLibrary.sourcelink.json
+C:\Users\LENOVO\Smart-Tourism-MAUI\Project_SharedClassLibrary\objverify\Debug\net10.0\Shared_ClassLibrary.dll
+C:\Users\LENOVO\Smart-Tourism-MAUI\Project_SharedClassLibrary\objverify\Debug\net10.0\refint\Shared_ClassLibrary.dll
+C:\Users\LENOVO\Smart-Tourism-MAUI\Project_SharedClassLibrary\objverify\Debug\net10.0\Shared_ClassLibrary.pdb
+C:\Users\LENOVO\Smart-Tourism-MAUI\Project_SharedClassLibrary\objverify\Debug\net10.0\ref\Shared_ClassLibrary.dll

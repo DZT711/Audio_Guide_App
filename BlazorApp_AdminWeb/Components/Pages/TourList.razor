@@ -7,15 +7,16 @@
 @inject NotificationService Notifications
 @inject IJSRuntime JS
 @inject AdminSessionState SessionState
+@inject AdminUiLanguageService LanguageService
 
-<PageTitle>Tour Management</PageTitle>
+<PageTitle>@L("page.tours", "Tour Management")</PageTitle>
 
 @if (!CanView)
 {
     <div class="management-page tour-page">
         <div class="management-error">
-            <strong>Access denied.</strong>
-            <div>Your current role cannot view tours.</div>
+            <strong>@L("tours.access.denied.title", "Access denied.")</strong>
+            <div>@L("tours.access.denied.desc", "Your current role cannot view tours.")</div>
         </div>
     </div>
 }
@@ -24,16 +25,16 @@ else
 <div class="management-page tour-page">
     <section class="management-hero" data-reveal>
         <div>
-            <span class="management-hero__eyebrow">Tours</span>
-            <h1>Tour Management</h1>
-            <p>Build walking routes from POIs on the map, set the order, and calculate total distance, duration, and finish time.</p>
+            <span class="management-hero__eyebrow">@L("tours.hero.eyebrow", "Tours")</span>
+            <h1>@L("tours.hero.title", "Tour Management")</h1>
+            <p>@L("tours.hero.desc", "Build walking routes from POIs on the map, set the order, and calculate total distance, duration, and finish time.")</p>
         </div>
         <div class="management-hero__actions">
             @if (CanManage)
             {
-                <button type="button" class="btn btn-primary btn-lg" @onclick="StartCreateAsync">New Tour</button>
+                <button type="button" class="btn btn-primary btn-lg" @onclick="StartCreateAsync">@L("tours.action.new", "New Tour")</button>
             }
-            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">Refresh</button>
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">@L("tours.action.refresh", "Refresh")</button>
         </div>
     </section>
 
@@ -42,28 +43,28 @@ else
             <span class="management-stat__icon"><i class="bi bi-signpost-2"></i></span>
             <div>
                 <strong class="management-stat__value">@_tours.Count</strong>
-                <span class="management-stat__label">Visible Tours</span>
+                <span class="management-stat__label">@L("tours.stats.visible", "Visible Tours")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
             <div>
                 <strong class="management-stat__value">@_tours.Count(item => item.Status == 1)</strong>
-                <span class="management-stat__label">Active Tours</span>
+                <span class="management-stat__label">@L("tours.stats.active", "Active Tours")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-geo-alt"></i></span>
             <div>
                 <strong class="management-stat__value">@(CanManage ? PlannerLocations.Count : _tours.Sum(item => item.StopCount))</strong>
-                <span class="management-stat__label">@(CanManage ? "Planner POIs" : "Visible Stops")</span>
+                <span class="management-stat__label">@(CanManage ? L("tours.stats.planner-pois", "Planner POIs") : L("tours.stats.visible-stops", "Visible Stops"))</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-search"></i></span>
             <div>
                 <strong class="management-stat__value">@FilteredTours.Count()</strong>
-                <span class="management-stat__label">Matching Results</span>
+                <span class="management-stat__label">@L("tours.stats.matching", "Matching Results")</span>
             </div>
         </article>
     </div>
@@ -72,18 +73,18 @@ else
         <section class="management-panel" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">Directory</span>
-                    <h2>Routes</h2>
+                    <span class="management-panel__eyebrow">@L("tours.directory.eyebrow", "Directory")</span>
+                    <h2>@L("tours.directory.title", "Routes")</h2>
                 </div>
                 <div class="management-toolbar">
                     <label class="management-search">
                         <i class="bi bi-search"></i>
-                        <input class="form-control" type="search" placeholder="Search tours..." @bind="_searchText" @bind:event="oninput" />
+                        <input class="form-control" type="search" placeholder="@L("tours.search.placeholder", "Search tours...")" @bind="_searchText" @bind:event="oninput" />
                     </label>
                     <select class="form-select management-filter" @bind="_selectedStatus">
-                        <option value="">All statuses</option>
-                        <option value="1">Active</option>
-                        <option value="0">Inactive</option>
+                        <option value="">@L("tours.filter.status.all", "All statuses")</option>
+                        <option value="1">@L("status.active", "Active")</option>
+                        <option value="0">@L("status.inactive", "Inactive")</option>
                     </select>
                 </div>
             </div>
@@ -105,13 +106,13 @@ else
             else if (!string.IsNullOrWhiteSpace(_loadError))
             {
                 <div class="management-error">
-                    <strong>Unable to load tours.</strong>
+                    <strong>@L("tours.load.failed.title", "Unable to load tours.")</strong>
                     <div>@_loadError</div>
                 </div>
             }
             else if (!FilteredTours.Any())
             {
-                <div class="app-empty-state">No tours match the current filters.</div>
+                <div class="app-empty-state">@L("tours.empty.filtered", "No tours match the current filters.")</div>
             }
             else
             {
@@ -119,12 +120,12 @@ else
                     <table class="table management-table">
                         <thead>
                             <tr>
-                                <th>Tour</th>
-                                <th>Stops</th>
-                                <th>Distance</th>
-                                <th>Duration</th>
-                                <th>Status</th>
-                                <th class="text-end">Actions</th>
+                                <th>@L("tours.table.tour", "Tour")</th>
+                                <th>@L("tours.table.stops", "Stops")</th>
+                                <th>@L("tours.table.distance", "Distance")</th>
+                                <th>@L("tours.table.duration", "Duration")</th>
+                                <th>@L("tours.table.status", "Status")</th>
+                                <th class="text-end">@L("tours.table.actions", "Actions")</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -133,7 +134,7 @@ else
                                 <tr class="@GetTourRowClass(tour)" @onclick="() => SelectTour(tour)">
                                     <td>
                                         <div class="tour-name">@tour.Name</div>
-                                        <small class="management-muted">@(tour.OwnerName ?? "No owner label")</small>
+                                        <small class="management-muted">@(tour.OwnerName ?? L("tours.owner.empty", "No owner label"))</small>
                                     </td>
                                     <td>@tour.StopCount</td>
                                     <td>@tour.TotalDistanceKm.ToString("0.##") km</td>
@@ -141,8 +142,8 @@ else
                                     <td><span class="@GetStatusClass(tour.Status)">@GetStatusLabel(tour.Status)</span></td>
                                     <td class="text-end">
                                         <div class="management-inline-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(tour)">@(CanManage ? "Edit" : "View")</button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || tour.Status == 0)" @onclick="() => PromptArchiveTour(tour)">@(tour.Status == 0 ? "Inactive" : "Archive")</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(tour)">@(CanManage ? L("tours.action.edit", "Edit") : L("tours.action.view", "View"))</button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || tour.Status == 0)" @onclick="() => PromptArchiveTour(tour)">@(tour.Status == 0 ? L("status.inactive", "Inactive") : L("tours.action.archive", "Archive"))</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -158,7 +159,7 @@ else
             if (!CanManage)
             {
                 <section class="management-panel tour-editor" data-reveal>
-                    <div class="app-empty-state">Select a tour to review its route.</div>
+                    <div class="app-empty-state">@L("tours.readonly.empty", "Select a tour to review its route.")</div>
                 </section>
             }
         }
@@ -168,28 +169,28 @@ else
             <section class="management-panel tour-editor" data-reveal>
                 <div class="management-panel__header">
                     <div>
-                        <span class="management-panel__eyebrow">Read Only</span>
-                        <h2>Tour Details</h2>
+                        <span class="management-panel__eyebrow">@L("tours.readonly.eyebrow", "Read Only")</span>
+                        <h2>@L("tours.readonly.title", "Tour Details")</h2>
                     </div>
                 </div>
 
                 <div class="tour-readonly">
-                    <div class="tour-readonly__notice">Tours are read-only for your current role.</div>
+                    <div class="tour-readonly__notice">@L("tours.readonly.notice", "Tours are read-only for your current role.")</div>
                     <div class="tour-summary-grid">
                         <article class="tour-summary-card">
-                            <span>Total Distance</span>
+                            <span>@L("tours.summary.distance", "Total Distance")</span>
                             <strong>@selectedTour.TotalDistanceKm.ToString("0.##") km</strong>
-                            <small>@selectedTour.StopCount stops</small>
+                            <small>@LF("tours.summary.stops", "{0} stops", selectedTour.StopCount)</small>
                         </article>
                         <article class="tour-summary-card">
-                            <span>Estimated Duration</span>
+                            <span>@L("tours.summary.duration", "Estimated Duration")</span>
                             <strong>@FormatDuration(selectedTour.EstimatedDurationMinutes)</strong>
-                            <small>@($"{selectedTour.WalkingSpeedKph:0.##} km/h walking pace")</small>
+                            <small>@LF("tours.summary.walking-pace", "{0} km/h walking pace", selectedTour.WalkingSpeedKph.ToString("0.##", CultureInfo.InvariantCulture))</small>
                         </article>
                         <article class="tour-summary-card">
-                            <span>Route Window</span>
+                            <span>@L("tours.summary.window", "Route Window")</span>
                             <strong>@GetReadonlyScheduleLabel(selectedTour)</strong>
-                            <small>Saved walking route timing.</small>
+                            <small>@L("tours.summary.window.hint", "Saved walking route timing.")</small>
                         </article>
                     </div>
 
@@ -215,10 +216,10 @@ else
                                         <strong>@stop.LocationName</strong>
                                         <span class="@GetStatusClass(stop.Status)">@GetStatusLabel(stop.Status)</span>
                                     </div>
-                                    <div class="management-muted">@(stop.OwnerName ?? "No owner")</div>
+                                    <div class="management-muted">@(stop.OwnerName ?? L("tours.owner.empty.short", "No owner"))</div>
                                     @if (stop.SequenceOrder > 1 && stop.SegmentDistanceKm > 0)
                                     {
-                                        <div class="tour-stop-card__segment">+ @stop.SegmentDistanceKm.ToString("0.##") km from previous stop</div>
+                                        <div class="tour-stop-card__segment">+ @stop.SegmentDistanceKm.ToString("0.##") km @L("tours.stop.segment.from-previous", "from previous stop")</div>
                                     }
                                 </div>
                             </article>
@@ -236,11 +237,11 @@ else
         <section class="management-panel app-modal-panel tour-editor tour-editor--modal" role="dialog" aria-modal="true" aria-labelledby="tour-editor-title" @onclick:stopPropagation="true">
             <div class="tour-editor__topbar">
                 <div>
-                    <span class="management-panel__eyebrow">Planner</span>
-                    <h2 id="tour-editor-title">@(_editingId is null ? "Create Tour" : "Edit Tour")</h2>
-                    <div class="management-field__hint">Create and edit tours in a focused popup planner without shrinking the main table view.</div>
+                    <span class="management-panel__eyebrow">@L("tours.editor.eyebrow", "Planner")</span>
+                    <h2 id="tour-editor-title">@(_editingId is null ? L("tours.editor.create", "Create Tour") : L("tours.editor.edit", "Edit Tour"))</h2>
+                    <div class="management-field__hint">@L("tours.editor.hint", "Create and edit tours in a focused popup planner without shrinking the main table view.")</div>
                 </div>
-                <button type="button" class="btn-close" aria-label="Close planner" @onclick="CancelEditAsync"></button>
+                <button type="button" class="btn-close" aria-label="@L("tours.editor.close-aria", "Close planner")" @onclick="CancelEditAsync"></button>
             </div>
 
             <EditForm Model="_formModel" OnValidSubmit="SaveTourAsync" OnInvalidSubmit="HandleInvalidTourSubmit" class="management-form">
@@ -248,52 +249,52 @@ else
 
                 <div class="management-form__grid">
                     <div class="management-field">
-                        <label for="tour-name">Tour Name</label>
+                        <label for="tour-name">@L("tours.form.name", "Tour Name")</label>
                         <InputText id="tour-name" class="form-control" @bind-Value="_formModel.Name" />
                         <ValidationMessage For="() => _formModel.Name" />
                     </div>
 
                     <div class="management-field">
-                        <label for="tour-start">Start Time</label>
+                        <label for="tour-start">@L("tours.form.start-time", "Start Time")</label>
                         <input id="tour-start" class="form-control" type="time" step="60" value="@_startTimeInput" @onchange="HandleStartTimeChangedAsync" />
                         <ValidationMessage For="() => _formModel.StartTime" />
                     </div>
 
                     <div class="management-field management-field--full">
-                        <label for="tour-description">Description</label>
+                        <label for="tour-description">@L("tours.form.description", "Description")</label>
                         <InputTextArea id="tour-description" class="form-control" rows="3" @bind-Value="_formModel.Description" />
                         <ValidationMessage For="() => _formModel.Description" />
                     </div>
 
                     <div class="management-field">
-                        <span class="management-field__label">Status</span>
+                        <span class="management-field__label">@L("tours.form.status", "Status")</span>
                         <div class="management-chip-group">
-                            <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
-                            <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                            <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">@L("status.active", "Active")</button>
+                            <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">@L("status.inactive", "Inactive")</button>
                         </div>
                     </div>
 
                     <div class="management-field">
-                        <span class="management-field__label">Walking Pace</span>
-                        <div class="tour-editor__hint-card">Automatic @TourDefaults.DefaultWalkingSpeedKph.ToString("0.#") km/h default for every tour.</div>
+                        <span class="management-field__label">@L("tours.form.walking-pace", "Walking Pace")</span>
+                        <div class="tour-editor__hint-card">@LF("tours.form.walking-pace.hint", "Automatic {0} km/h default for every tour.", TourDefaults.DefaultWalkingSpeedKph.ToString("0.#", CultureInfo.InvariantCulture))</div>
                     </div>
 
                     <div class="management-field management-field--full">
                         <div class="tour-summary-grid">
                             <article class="tour-summary-card">
-                                <span>Total Distance</span>
+                                <span>@L("tours.summary.distance", "Total Distance")</span>
                                 <strong>@CalculatedDistanceKm.ToString("0.##") km</strong>
                                 <small>@GetDistanceSummaryHint()</small>
                             </article>
                             <article class="tour-summary-card">
-                                <span>Estimated Duration</span>
+                                <span>@L("tours.summary.duration", "Estimated Duration")</span>
                                 <strong>@FormatDuration(CalculatedDurationMinutes)</strong>
                                 <small>@GetDurationSummaryHint()</small>
                             </article>
                             <article class="tour-summary-card">
-                                <span>Expected Time</span>
+                                <span>@L("tours.summary.expected-time", "Expected Time")</span>
                                 <strong>@GetCalculatedScheduleLabel()</strong>
-                                <small>Start time and calculated finish time.</small>
+                                    <small>@L("tours.summary.expected-time.hint", "Start time and calculated finish time.")</small>
                             </article>
                         </div>
                     </div>
@@ -309,15 +310,15 @@ else
                         <div class="tour-planner">
                             <div class="tour-planner__header">
                                 <div>
-                                    <span class="management-field__label">Map Planner</span>
-                                    <div class="management-field__hint">Click a marker to add or remove a POI from the route.</div>
+                                    <span class="management-field__label">@L("tours.planner.map.label", "Map Planner")</span>
+                                    <div class="management-field__hint">@L("tours.planner.map.hint", "Click a marker to add or remove a POI from the route.")</div>
                                 </div>
                                 <div class="tour-planner__actions">
                                     @if (_isRoutePreviewLoading)
                                     {
-                                        <span class="tour-planner__status">Refreshing route...</span>
+                                        <span class="tour-planner__status">@L("tours.planner.map.refreshing", "Refreshing route...")</span>
                                     }
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="RefitMapAsync">Refit Route</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="RefitMapAsync">@L("tours.planner.map.refit", "Refit Route")</button>
                                 </div>
                             </div>
                             <div class="tour-planner__map" @ref="_mapElement"></div>
@@ -329,18 +330,18 @@ else
                             <div class="tour-stop-catalog">
                                 <div class="tour-stop-catalog__header">
                                     <div>
-                                        <span class="management-field__label">POI Catalog</span>
-                                        <div class="management-field__hint">Only active POIs can be added as new stops.</div>
+                                        <span class="management-field__label">@L("tours.planner.catalog.label", "POI Catalog")</span>
+                                        <div class="management-field__hint">@L("tours.planner.catalog.hint", "Only active POIs can be added as new stops.")</div>
                                     </div>
                                     <label class="management-search tour-stop-search">
                                         <i class="bi bi-search"></i>
-                                        <input class="form-control" type="search" placeholder="Search POIs..." value="@_locationSearchText" @oninput="HandlePlannerSearchInput" />
+                                        <input class="form-control" type="search" placeholder="@L("tours.planner.catalog.search", "Search POIs...")" value="@_locationSearchText" @oninput="HandlePlannerSearchInput" />
                                     </label>
                                 </div>
 
                                 @if (PagedPlannerLocations.Count == 0)
                                 {
-                                    <div class="app-empty-state">No POIs match the current catalog search.</div>
+                                    <div class="app-empty-state">@L("tours.planner.catalog.empty", "No POIs match the current catalog search.")</div>
                                 }
                                 else
                                 {
@@ -363,10 +364,10 @@ else
                                                 </div>
                                                 <div>
                                                     <strong>@location.Name</strong>
-                                                    <div class="management-muted">@(location.OwnerName ?? "No owner")</div>
+                                                    <div class="management-muted">@(location.OwnerName ?? L("tours.owner.empty.short", "No owner"))</div>
                                                 </div>
                                                 <button type="button" class="btn btn-sm @(isSelected ? "btn-outline-secondary" : "btn-outline-primary")" disabled="@(!isSelected && location.Status != 1)" @onclick="() => ToggleStopAsync(location.Id)">
-                                                    @(isSelected ? "Remove" : "Add")
+                                                    @(isSelected ? L("tours.action.remove-stop", "Remove") : L("tours.action.add-stop", "Add"))
                                                 </button>
                                             </article>
                                         }
@@ -376,10 +377,10 @@ else
                                 @if (TotalPlannerPages > 1)
                                 {
                                     <div class="management-pagination tour-stop-catalog__pagination">
-                                        <span class="management-pagination__info">Page @CurrentPlannerPage of @TotalPlannerPages (@FilteredPlannerLocations.Count total POIs)</span>
+                                        <span class="management-pagination__info">@LF("tours.planner.pagination.info", "Page {0} of {1} ({2} total POIs)", CurrentPlannerPage, TotalPlannerPages, FilteredPlannerLocations.Count)</span>
                                         <div class="management-pagination__actions">
                                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousPlannerPage" disabled="@(CurrentPlannerPage <= 1)">
-                                                <i class="bi bi-chevron-left"></i> Previous
+                                                <i class="bi bi-chevron-left"></i> @L("tours.pagination.previous", "Previous")
                                             </button>
                                             <div class="management-pagination__pages">
                                                 @foreach (var pageNumber in GetVisiblePlannerPages())
@@ -393,7 +394,7 @@ else
                                                 }
                                             </div>
                                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPlannerPage" disabled="@(CurrentPlannerPage >= TotalPlannerPages)">
-                                                Next <i class="bi bi-chevron-right"></i>
+                                                @L("tours.pagination.next", "Next") <i class="bi bi-chevron-right"></i>
                                             </button>
                                         </div>
                                     </div>
@@ -402,14 +403,14 @@ else
 
                             <div class="tour-stop-sequence">
                                 <div>
-                                    <span class="management-field__label">Selected Route</span>
-                                    <div class="management-field__hint">Move stops to change the route order and recalculate the walking route.</div>
+                                    <span class="management-field__label">@L("tours.planner.route.label", "Selected Route")</span>
+                                    <div class="management-field__hint">@L("tours.planner.route.hint", "Move stops to change the route order and recalculate the walking route.")</div>
                                 </div>
                                 <ValidationMessage For="() => _formModel.StopLocationIds" />
 
                                 @if (SelectedStopLocations.Count == 0)
                                 {
-                                    <div class="app-empty-state">Choose at least one POI to build a tour.</div>
+                                    <div class="app-empty-state">@L("tours.planner.route.empty", "Choose at least one POI to build a tour.")</div>
                                 }
                                 else
                                 {
@@ -437,10 +438,10 @@ else
                                                         <strong>@stop.Name</strong>
                                                         <span class="@GetStatusClass(stop.Status)">@GetStatusLabel(stop.Status)</span>
                                                     </div>
-                                                    <div class="management-muted">@(stop.OwnerName ?? "No owner")</div>
+                                                    <div class="management-muted">@(stop.OwnerName ?? L("tours.owner.empty.short", "No owner"))</div>
                                                     @if (currentIndex > 0)
                                                     {
-                                                        <div class="tour-stop-card__segment">+ @GetSegmentDistanceKm(currentIndex).ToString("0.##") km from previous stop</div>
+                                                        <div class="tour-stop-card__segment">+ @GetSegmentDistanceKm(currentIndex).ToString("0.##") km @L("tours.stop.segment.from-previous", "from previous stop")</div>
                                                     }
                                                 </div>
                                                 <div class="tour-stop-card__actions">
@@ -458,8 +459,8 @@ else
                 </div>
 
                 <div class="management-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _isRoutePreviewLoading)">@(_isSaving ? "Saving..." : _editingId is null ? "Create Tour" : "Save Changes")</button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">Cancel</button>
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSaving || _isRoutePreviewLoading)">@(_isSaving ? L("tours.save.saving", "Saving...") : _editingId is null ? L("tours.save.create", "Create Tour") : L("tours.save.update", "Save Changes"))</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@L("common.action.cancel", "Cancel")</button>
                 </div>
             </EditForm>
         </section>
@@ -467,16 +468,19 @@ else
 }
 
 <AdminConfirmDialog Visible="@(_pendingArchivedTour is not null)"
-                    Eyebrow="Archive Tour"
-                    Title="Archive this tour?"
+                    Eyebrow="@L("tours.archive.dialog.eyebrow", "Archive Tour")"
+                    Title="@L("tours.archive.dialog.title", "Archive this tour?")"
                     Message="@GetPendingArchiveTourMessage()"
-                    ConfirmLabel="Archive Tour"
+                    ConfirmLabel="@L("tours.archive.dialog.confirm", "Archive Tour")"
                     ConfirmButtonClass="btn btn-danger"
                     OnConfirm="ConfirmArchiveTourAsync"
                     OnCancel="CancelArchiveTour" />
 }
 
 @code {
+    private string L(string key, string fallback) => LanguageService.T(key, fallback);
+    private string LF(string key, string fallback, params object?[] args) =>
+        string.Format(CultureInfo.CurrentCulture, L(key, fallback), args);
     private readonly TourFormModel _formModel = new();
     private readonly List<TourDto> _tours = [];
     private readonly List<LocationDto> _locations = [];
@@ -616,7 +620,7 @@ else
         catch (Exception ex)
         {
             _loadError = ex.Message;
-            Notifications.Error(ex.Message, "Tour load failed");
+            Notifications.Error(ex.Message, L("tours.load.failed.toast", "Tour load failed"));
         }
         finally
         {
@@ -636,12 +640,16 @@ else
 
             if (!ok)
             {
-                Notifications.Warning("The tour map planner is unavailable right now.", "Map unavailable");
+                Notifications.Warning(
+                    L("tours.map.unavailable.message", "The tour map planner is unavailable right now."),
+                    L("tours.map.unavailable.title", "Map unavailable"));
             }
         }
         catch (JSException)
         {
-            Notifications.Warning("The tour map planner is unavailable right now.", "Map unavailable");
+            Notifications.Warning(
+                L("tours.map.unavailable.message", "The tour map planner is unavailable right now."),
+                L("tours.map.unavailable.title", "Map unavailable"));
         }
     }
 
@@ -711,7 +719,9 @@ else
     {
         if (!CanManage)
         {
-            Notifications.Warning("Your role can view tours but cannot save changes.", "Read-only access");
+            Notifications.Warning(
+                L("tours.save.readonly.message", "Your role can view tours but cannot save changes."),
+                L("tours.readonly.short", "Read-only access"));
             return;
         }
 
@@ -721,14 +731,18 @@ else
             if (_editingId is null)
             {
                 var createdTour = await ApiClient.CreateTourAsync(_formModel, _routePreview);
-                Notifications.Success("Tour created successfully.", "Tour saved");
+                Notifications.Success(
+                    L("tours.save.created.message", "Tour created successfully."),
+                    L("tours.save.title", "Tour saved"));
                 _selectedTour = createdTour;
                 await LoadDataAsync(createdTour.Id);
             }
             else
             {
                 await ApiClient.UpdateTourAsync(_editingId.Value, _formModel, _routePreview);
-                Notifications.Success("Tour updated successfully.", "Tour saved");
+                Notifications.Success(
+                    L("tours.save.updated.message", "Tour updated successfully."),
+                    L("tours.save.title", "Tour saved"));
                 await LoadDataAsync(_editingId.Value);
             }
 
@@ -736,7 +750,7 @@ else
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Tour save failed");
+            Notifications.Error(ex.Message, L("tours.save.failed.title", "Tour save failed"));
         }
         finally
         {
@@ -754,16 +768,18 @@ else
 
         Notifications.Warning(
             message.Count == 0
-                ? "Fix the highlighted tour fields before saving."
+                ? L("tours.validation.generic", "Fix the highlighted tour fields before saving.")
                 : string.Join(" ", message),
-            "Tour form incomplete");
+            L("tours.validation.title", "Tour form incomplete"));
     }
 
     private void PromptArchiveTour(TourDto tour)
     {
         if (!CanManage)
         {
-            Notifications.Warning("Your role can view tours but cannot archive them.", "Read-only access");
+            Notifications.Warning(
+                L("tours.archive.readonly.message", "Your role can view tours but cannot archive them."),
+                L("tours.readonly.short", "Read-only access"));
             return;
         }
 
@@ -781,7 +797,9 @@ else
         {
             var archivedId = _pendingArchivedTour.Id;
             await ApiClient.DeleteTourAsync(archivedId);
-            Notifications.Info($"'{_pendingArchivedTour.Name}' is now inactive.", "Tour archived");
+            Notifications.Info(
+                LF("tours.archive.success.message", "'{0}' is now inactive.", _pendingArchivedTour.Name),
+                L("tours.archive.success.title", "Tour archived"));
             await LoadDataAsync(_selectedTour?.Id == archivedId ? null : _selectedTour?.Id);
             if (_editingId == archivedId)
             {
@@ -790,7 +808,7 @@ else
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Archive failed");
+            Notifications.Error(ex.Message, L("tours.archive.failed.title", "Archive failed"));
         }
         finally
         {
@@ -816,7 +834,9 @@ else
 
         if (location.Status != 1)
         {
-            Notifications.Warning("Only active POIs can be added to a tour.", "POI unavailable");
+            Notifications.Warning(
+                L("tours.poi.unavailable.message", "Only active POIs can be added to a tour."),
+                L("tours.poi.unavailable.title", "POI unavailable"));
             return;
         }
 
@@ -963,7 +983,9 @@ else
 
         if (notifyWhenRemoved && removedCount > 0)
         {
-            Notifications.Warning("Inactive POIs were removed from this tour editor. Only active POIs can be edited in a route.", "Inactive POIs hidden");
+            Notifications.Warning(
+                L("tours.inactive-poi.hidden.message", "Inactive POIs were removed from this tour editor. Only active POIs can be edited in a route."),
+                L("tours.inactive-poi.hidden.title", "Inactive POIs hidden"));
         }
     }
 
@@ -1032,7 +1054,7 @@ else
             _routePreview = preview;
             if (!preview.UsesRoadRouting)
             {
-                _routePreviewMessage = "Road routing is temporarily unavailable for one or more segments, so the preview is using a straight-line fallback.";
+                _routePreviewMessage = L("tours.route-preview.warning.partial", "Road routing is temporarily unavailable for one or more segments, so the preview is using a straight-line fallback.");
             }
 
             QueueMapSync();
@@ -1048,7 +1070,7 @@ else
                 return;
             }
 
-            _routePreviewMessage = "Road routing is temporarily unavailable, so the preview is using straight-line distance until the service responds again.";
+            _routePreviewMessage = L("tours.route-preview.warning.full", "Road routing is temporarily unavailable, so the preview is using straight-line distance until the service responds again.");
             QueueMapSync();
         }
         finally
@@ -1263,7 +1285,7 @@ else
     private string GetPendingArchiveTourMessage() =>
         _pendingArchivedTour is null
             ? string.Empty
-            : $"'{_pendingArchivedTour.Name}' will become inactive. Guests can still view historical usage, but the route will no longer be active.";
+            : LF("tours.archive.dialog.message", "'{0}' will become inactive. Guests can still view historical usage, but the route will no longer be active.", _pendingArchivedTour.Name);
 
     private string GetEditorModalClass() => _isEditorOpen
         ? "tour-editor-modal tour-editor-modal--open"
@@ -1273,7 +1295,9 @@ else
         ? "management-status management-status--active"
         : "management-status management-status--inactive";
 
-    private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
+    private string GetStatusLabel(int status) => status == 1
+        ? L("status.active", "Active")
+        : L("status.inactive", "Inactive");
 
     private static string GetChipClass(int status, int currentStatus) => status == currentStatus
         ? "management-chip management-chip--selected"
@@ -1295,52 +1319,52 @@ else
         return string.Join(" ", classes);
     }
 
-    private static string GetReadonlyScheduleLabel(TourDto tour) =>
+    private string GetReadonlyScheduleLabel(TourDto tour) =>
         string.IsNullOrWhiteSpace(tour.StartTime)
             ? string.IsNullOrWhiteSpace(tour.FinishTime)
-                ? "No saved start time"
-                : $"Finishes at {tour.FinishTime}"
+                ? L("tours.schedule.empty", "No saved start time")
+                : LF("tours.schedule.finish-at", "Finishes at {0}", tour.FinishTime)
             : string.IsNullOrWhiteSpace(tour.FinishTime)
-                ? $"Starts at {tour.StartTime}"
-                : $"{tour.StartTime} to {tour.FinishTime}";
+                ? LF("tours.schedule.start-at", "Starts at {0}", tour.StartTime)
+                : LF("tours.schedule.range", "{0} to {1}", tour.StartTime, tour.FinishTime);
 
-    private static string FormatDuration(int totalMinutes)
+    private string FormatDuration(int totalMinutes)
     {
         if (totalMinutes <= 0)
         {
-            return "0 min";
+            return L("tours.duration.zero", "0 min");
         }
 
         var hours = totalMinutes / 60;
         var minutes = totalMinutes % 60;
         return hours == 0
-            ? $"{minutes} min"
+            ? LF("tours.duration.minutes", "{0} min", minutes)
             : minutes == 0
-                ? $"{hours} hr"
-                : $"{hours} hr {minutes} min";
+                ? LF("tours.duration.hours", "{0} hr", hours)
+                : LF("tours.duration.hours-minutes", "{0} hr {1} min", hours, minutes);
     }
 
     private string GetDistanceSummaryHint() =>
         _isRoutePreviewLoading
-            ? "Refreshing the walking path along nearby roads."
+            ? L("tours.summary.distance.hint.loading", "Refreshing the walking path along nearby roads.")
             : _routePreview.UsesRoadRouting
-                ? "Following the walking road path between each selected POI."
-                : "Using a straight-line fallback until road routing is available.";
+                ? L("tours.summary.distance.hint.routing", "Following the walking road path between each selected POI.")
+                : L("tours.summary.distance.hint.fallback", "Using a straight-line fallback until road routing is available.");
 
-    private static string GetDurationSummaryHint() =>
-        $"Calculated automatically with the default {TourDefaults.DefaultWalkingSpeedKph:0.#} km/h walking pace.";
+    private string GetDurationSummaryHint() =>
+        LF("tours.summary.duration.hint", "Calculated automatically with the default {0} km/h walking pace.", TourDefaults.DefaultWalkingSpeedKph.ToString("0.#", CultureInfo.InvariantCulture));
 
     private string GetCalculatedScheduleLabel()
     {
         var normalizedStartTime = NormalizeTime(_startTimeInput) ?? NormalizeTime(_routePreview.StartTime);
         if (normalizedStartTime is null)
         {
-            return "Set a valid start time";
+            return L("tours.schedule.invalid", "Set a valid start time");
         }
 
         return string.IsNullOrWhiteSpace(_routePreview.FinishTime)
-            ? $"{normalizedStartTime} - --:--"
-            : $"{normalizedStartTime} - {_routePreview.FinishTime}";
+            ? LF("tours.schedule.pending", "{0} - --:--", normalizedStartTime)
+            : LF("tours.schedule.resolved", "{0} - {1}", normalizedStartTime, _routePreview.FinishTime);
     }
 
     private double GetSegmentDistanceKm(int currentIndex)

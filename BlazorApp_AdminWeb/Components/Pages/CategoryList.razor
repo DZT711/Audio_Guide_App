@@ -1,17 +1,19 @@
 @page "/categories"
+@using System.Globalization
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
 @inject AdminSessionState SessionState
+@inject AdminUiLanguageService LanguageService
 
-<PageTitle>Category Management</PageTitle>
+<PageTitle>@L("page.categories", "Category Management")</PageTitle>
 
 @if (!CanView)
 {
     <div class="management-page category-page">
         <div class="management-error">
-            <strong>Access denied.</strong>
-            <div>Your current role cannot view categories.</div>
+            <strong>@L("categories.access.denied.title", "Access denied.")</strong>
+            <div>@L("categories.access.denied.desc", "Your current role cannot view categories.")</div>
         </div>
     </div>
 }
@@ -20,18 +22,15 @@ else
 <div class="management-page category-page">
     <section class="management-hero" data-reveal>
         <div>
-            <span class="management-hero__eyebrow">Taxonomy</span>
-            <h1>Category Management</h1>
-            <p>
-                Organize tourism content with live API-backed category management, quick editing,
-                and lightweight loading feedback while SQLite-backed data is loading.
-            </p>
+            <span class="management-hero__eyebrow">@L("categories.hero.eyebrow", "Taxonomy")</span>
+            <h1>@L("categories.hero.title", "Category Management")</h1>
+            <p>@L("categories.hero.desc", "Organize tourism content with live API-backed category management, quick editing, and lightweight loading feedback while SQLite-backed data is loading.")</p>
         </div>
 
         <div class="management-hero__actions">
             <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
                 <i class="bi bi-arrow-clockwise me-2"></i>
-                Refresh
+                @L("categories.action.refresh", "Refresh")
             </button>
         </div>
     </section>
@@ -41,28 +40,28 @@ else
             <span class="management-stat__icon"><i class="bi bi-diagram-3"></i></span>
             <div>
                 <strong class="management-stat__value">@_categories.Count</strong>
-                <span class="management-stat__label">Total Categories</span>
+                <span class="management-stat__label">@L("categories.stats.total", "Total Categories")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
             <div>
                 <strong class="management-stat__value">@_categories.Count(item => item.Status == 1)</strong>
-                <span class="management-stat__label">Active</span>
+                <span class="management-stat__label">@L("status.active", "Active")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-pause-circle"></i></span>
             <div>
                 <strong class="management-stat__value">@_categories.Count(item => item.Status == 0)</strong>
-                <span class="management-stat__label">Inactive</span>
+                <span class="management-stat__label">@L("status.inactive", "Inactive")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-search"></i></span>
             <div>
                 <strong class="management-stat__value">@FilteredCategories.Count()</strong>
-                <span class="management-stat__label">Matching Search</span>
+                <span class="management-stat__label">@L("categories.stats.matching", "Matching Search")</span>
             </div>
         </article>
     </div>
@@ -71,13 +70,13 @@ else
         <section class="management-panel" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">Directory</span>
-                    <h2>Available Categories</h2>
+                    <span class="management-panel__eyebrow">@L("categories.directory.eyebrow", "Directory")</span>
+                    <h2>@L("categories.directory.title", "Available Categories")</h2>
                 </div>
 
                 <label class="management-search">
                     <i class="bi bi-search"></i>
-                    <input class="form-control" type="search" placeholder="Search categories..." @bind="_searchText" @bind:event="oninput" />
+                    <input class="form-control" type="search" placeholder="@L("categories.search.placeholder", "Search categories...")" @bind="_searchText" @bind:event="oninput" />
                 </label>
             </div>
 
@@ -96,17 +95,17 @@ else
             }
             else if (!string.IsNullOrWhiteSpace(_loadError))
             {
-                <div class="management-error">
-                    <strong>Unable to load categories.</strong>
-                    <div>@_loadError</div>
-                </div>
-            }
-            else if (!FilteredCategories.Any())
-            {
-                <div class="app-empty-state">
-                    No categories match the current search.
-                </div>
-            }
+            <div class="management-error">
+                <strong>@L("categories.load.failed.title", "Unable to load categories.")</strong>
+                <div>@_loadError</div>
+            </div>
+        }
+        else if (!FilteredCategories.Any())
+        {
+            <div class="app-empty-state">
+                    @L("categories.empty.filtered", "No categories match the current search.")
+            </div>
+        }
             else
             {
                 <div class="management-page-swap" @key="CurrentCategoryPage">
@@ -120,17 +119,17 @@ else
                                             <span class="category-icon @CategoryVisuals.GetToneClass(category.Name)">
                                                 <i class="@CategoryVisuals.GetIconClass(category.Name)"></i>
                                             </span>
-                                            <h3>@category.Name</h3>
+                                            <h3>@TranslateCategoryName(category.Name)</h3>
                                         </div>
                                         <span class="@GetStatusClass(category.Status)">@GetStatusLabel(category.Status)</span>
                                     </div>
-                                    <p>@(string.IsNullOrWhiteSpace(category.Description) ? "No description provided yet." : category.Description)</p>
+                                    <p>@(string.IsNullOrWhiteSpace(category.Description) ? L("categories.description.empty", "No description provided yet.") : category.Description)</p>
                                 </div>
 
                                 <div class="management-inline-actions">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">@(CanManage ? "Edit" : "View")</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(category)">@(CanManage ? L("categories.action.edit", "Edit") : L("categories.action.view", "View"))</button>
                                     <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || category.Status == 0)" @onclick="() => PromptArchiveCategory(category)">
-                                        @(category.Status == 0 ? "Inactive" : "Archive")
+                                        @(category.Status == 0 ? L("status.inactive", "Inactive") : L("categories.action.archive", "Archive"))
                                     </button>
                                 </div>
                             </article>
@@ -140,17 +139,17 @@ else
 
                 @if (TotalCategoryPages > 1)
                 {
-                    <div class="management-pagination">
-                        <span class="management-pagination__info">Page @CurrentCategoryPage of @TotalCategoryPages (@FilteredCategories.Count() total categories)</span>
-                        <div class="management-pagination__actions">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousCategoryPage" disabled="@(CurrentCategoryPage <= 1)">
-                                <i class="bi bi-chevron-left"></i> Previous
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextCategoryPage" disabled="@(CurrentCategoryPage >= TotalCategoryPages)">
-                                Next <i class="bi bi-chevron-right"></i>
-                            </button>
-                        </div>
+                <div class="management-pagination">
+                    <span class="management-pagination__info">@LF("categories.pagination.info", "Page {0} of {1} ({2} total categories)", CurrentCategoryPage, TotalCategoryPages, FilteredCategories.Count())</span>
+                    <div class="management-pagination__actions">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousCategoryPage" disabled="@(CurrentCategoryPage <= 1)">
+                            <i class="bi bi-chevron-left"></i> @L("categories.pagination.previous", "Previous")
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextCategoryPage" disabled="@(CurrentCategoryPage >= TotalCategoryPages)">
+                            @L("categories.pagination.next", "Next") <i class="bi bi-chevron-right"></i>
+                        </button>
                     </div>
+                </div>
                 }
             }
         </section>
@@ -158,8 +157,8 @@ else
         <section class="management-panel category-editor" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">@(CanManage ? "Editor" : "Read Only")</span>
-                    <h2>@(CanManage ? (_editingId is null ? "Create Category" : "Edit Category") : "Category Details")</h2>
+                    <span class="management-panel__eyebrow">@(CanManage ? L("categories.editor.eyebrow", "Editor") : L("categories.readonly.eyebrow", "Read Only"))</span>
+                    <h2>@(CanManage ? (_editingId is null ? L("categories.editor.create", "Create Category") : L("categories.editor.edit", "Edit Category")) : L("categories.readonly.title", "Category Details"))</h2>
                 </div>
             </div>
 
@@ -169,37 +168,37 @@ else
                 <DataAnnotationsValidator />
 
                 <div class="management-field management-field--full">
-                    <label for="category-name">Name</label>
+                    <label for="category-name">@L("categories.form.name", "Name")</label>
                     <InputText id="category-name" class="form-control" @bind-Value="_formModel.Name" />
                     <ValidationMessage For="() => _formModel.Name" />
                 </div>
 
                 <div class="management-field management-field--full">
-                    <label for="category-description">Description</label>
+                    <label for="category-description">@L("categories.form.description", "Description")</label>
                     <InputTextArea id="category-description" class="form-control" rows="4" @bind-Value="_formModel.Description" />
                     <ValidationMessage For="() => _formModel.Description" />
                 </div>
 
                 <div class="management-field management-field--full">
-                    <span class="management-field__label">Status</span>
+                    <span class="management-field__label">@L("categories.form.status", "Status")</span>
                     <div class="management-chip-group">
-                        <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
-                        <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                        <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">@L("status.active", "Active")</button>
+                        <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">@L("status.inactive", "Inactive")</button>
                     </div>
                 </div>
 
                 <div class="management-actions">
                     <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !CanManage)">
-                        @(_isSaving ? "Saving..." : _editingId is null ? "Create Category" : "Save Changes")
+                        @(_isSaving ? L("categories.save.saving", "Saving...") : _editingId is null ? L("categories.save.create", "Create Category") : L("categories.save.update", "Save Changes"))
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(CanManage ? (_editingId is null ? "Reset" : "Cancel Edit") : "Read Only")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(CanManage ? (_editingId is null ? L("categories.action.reset", "Reset") : L("categories.action.cancel-edit", "Cancel Edit")) : L("categories.readonly.eyebrow", "Read Only"))</button>
                 </div>
             </EditForm>
             }
             else if (SelectedCategoryForDisplay is null)
             {
                 <div class="app-empty-state">
-                    Select a category to review its details.
+                    @L("categories.readonly.empty", "Select a category to review its details.")
                 </div>
             }
             else
@@ -208,23 +207,23 @@ else
 
                 <div class="category-readonly">
                     <div class="category-readonly__notice">
-                        Category changes require an Admin or Developer account.
+                        @L("categories.readonly.notice", "Category changes require an Admin or Developer account.")
                     </div>
 
                     <div class="category-detail-card">
-                        <span>Name</span>
+                        <span>@L("categories.form.name", "Name")</span>
                         <strong class="category-detail-card__name">
                             <span class="category-icon @CategoryVisuals.GetToneClass(selectedCategory.Name)">
                                 <i class="@CategoryVisuals.GetIconClass(selectedCategory.Name)"></i>
                             </span>
-                            @selectedCategory.Name
+                            @TranslateCategoryName(selectedCategory.Name)
                         </strong>
                         <small>@GetStatusLabel(selectedCategory.Status)</small>
                     </div>
 
                     <div class="category-detail-card">
-                        <span>Description</span>
-                        <strong>@(string.IsNullOrWhiteSpace(selectedCategory.Description) ? "No description provided yet." : selectedCategory.Description)</strong>
+                        <span>@L("categories.form.description", "Description")</span>
+                        <strong>@(string.IsNullOrWhiteSpace(selectedCategory.Description) ? L("categories.description.empty", "No description provided yet.") : selectedCategory.Description)</strong>
                     </div>
                 </div>
             }
@@ -233,16 +232,19 @@ else
 </div>
 
 <AdminConfirmDialog Visible="@(_pendingArchivedCategory is not null)"
-                    Eyebrow="Archive Category"
-                    Title="Archive this category?"
+                    Eyebrow="@L("categories.archive.dialog.eyebrow", "Archive Category")"
+                    Title="@L("categories.archive.dialog.title", "Archive this category?")"
                     Message="@GetPendingArchiveCategoryMessage()"
-                    ConfirmLabel="Archive Category"
+                    ConfirmLabel="@L("categories.archive.dialog.confirm", "Archive Category")"
                     ConfirmButtonClass="btn btn-danger"
                     OnConfirm="ConfirmArchiveCategoryAsync"
                     OnCancel="CancelArchiveCategory" />
 }
 
 @code {
+    private string L(string key, string fallback) => LanguageService.T(key, fallback);
+    private string LF(string key, string fallback, params object?[] args) =>
+        string.Format(CultureInfo.CurrentCulture, L(key, fallback), args);
     private readonly CategoryFormModel _formModel = new();
     private readonly List<CategoryDto> _categories = new();
     private CategoryDto? _selectedCategory;
@@ -296,7 +298,7 @@ else
         catch (Exception ex)
         {
             _loadError = ex.Message;
-            Notifications.Error(ex.Message, "Category load failed");
+            Notifications.Error(ex.Message, L("categories.load.failed.toast", "Category load failed"));
         }
         finally
         {
@@ -347,7 +349,9 @@ else
     {
         if (!CanManage)
         {
-            Notifications.Warning("Your role can view categories but cannot save changes.", "Read-only access");
+            Notifications.Warning(
+                L("categories.save.readonly.message", "Your role can view categories but cannot save changes."),
+                L("categories.readonly.title.short", "Read-only access"));
             return;
         }
 
@@ -358,12 +362,16 @@ else
             if (_editingId is null)
             {
                 await ApiClient.CreateCategoryAsync(_formModel);
-                Notifications.Success("Category created successfully.", "Category saved");
+                Notifications.Success(
+                    L("categories.save.created.message", "Category created successfully."),
+                    L("categories.save.title", "Category saved"));
             }
             else
             {
                 await ApiClient.UpdateCategoryAsync(_editingId.Value, _formModel);
-                Notifications.Success("Category updated successfully.", "Category saved");
+                Notifications.Success(
+                    L("categories.save.updated.message", "Category updated successfully."),
+                    L("categories.save.title", "Category saved"));
             }
 
             await LoadCategoriesAsync();
@@ -371,7 +379,7 @@ else
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Category save failed");
+            Notifications.Error(ex.Message, L("categories.save.failed.title", "Category save failed"));
         }
         finally
         {
@@ -389,16 +397,18 @@ else
 
         Notifications.Warning(
             message.Count == 0
-                ? "Fix the highlighted category fields before saving."
+                ? L("categories.validation.generic", "Fix the highlighted category fields before saving.")
                 : string.Join(" ", message),
-            "Category form incomplete");
+            L("categories.validation.title", "Category form incomplete"));
     }
 
     private void PromptArchiveCategory(CategoryDto category)
     {
         if (!CanManage)
         {
-            Notifications.Warning("Your role can view categories but cannot archive them.", "Read-only access");
+            Notifications.Warning(
+                L("categories.archive.readonly.message", "Your role can view categories but cannot archive them."),
+                L("categories.readonly.title.short", "Read-only access"));
             return;
         }
 
@@ -415,7 +425,9 @@ else
         try
         {
             await ApiClient.DeleteCategoryAsync(_pendingArchivedCategory.Id);
-            Notifications.Info($"'{_pendingArchivedCategory.Name}' is now inactive.", "Category archived");
+            Notifications.Info(
+                LF("categories.archive.success.message", "'{0}' is now inactive.", _pendingArchivedCategory.Name),
+                L("categories.archive.success.title", "Category archived"));
             await LoadCategoriesAsync();
 
             if (_editingId == _pendingArchivedCategory.Id)
@@ -425,7 +437,7 @@ else
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Delete failed");
+            Notifications.Error(ex.Message, L("categories.archive.failed.title", "Delete failed"));
         }
         finally
         {
@@ -475,7 +487,19 @@ else
         ? "management-status management-status--active"
         : "management-status management-status--inactive";
 
-    private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
+    private string GetStatusLabel(int status) => status == 1
+        ? L("status.active", "Active")
+        : L("status.inactive", "Inactive");
+
+    private static string TranslateCategoryName(string? categoryName) => (categoryName ?? string.Empty).Trim() switch
+    {
+        "Drinks" => "Đồ uống",
+        "Food" => "Ẩm thực",
+        "Historical Site" => "Di tích lịch sử",
+        "Landmark" => "Địa danh",
+        "Markets & Food Halls" => "Chợ & khu ẩm thực",
+        _ => categoryName ?? string.Empty
+    };
 
     private static string GetChipClass(int status, int currentStatus) => status == currentStatus
         ? "management-chip management-chip--selected"
@@ -488,7 +512,7 @@ else
     private string GetPendingArchiveCategoryMessage() =>
         _pendingArchivedCategory is null
             ? string.Empty
-            : $"'{_pendingArchivedCategory.Name}' will become inactive and will no longer be available for new or edited location assignments.";
+            : LF("categories.archive.dialog.message", "'{0}' will become inactive and will no longer be available for new or edited location assignments.", _pendingArchivedCategory.Name);
 
     private void CancelArchiveCategory() => _pendingArchivedCategory = null;
 }

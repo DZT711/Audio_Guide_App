@@ -71,30 +71,28 @@ else if (_isAuthenticated)
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
+        if (firstRender)
         {
-            return;
-        }
+            SessionState.Changed += HandleSessionChanged;
+            Language.Changed += HandleLanguageChanged;
 
-        SessionState.Changed += HandleSessionChanged;
-        Language.Changed += HandleLanguageChanged;
+            try
+            {
+                _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+            }
+            finally
+            {
+                _authChecked = true;
+            }
 
-        try
-        {
-            _isAuthenticated = await AuthService.IsAuthenticatedAsync();
-        }
-        finally
-        {
-            _authChecked = true;
-        }
+            if (!_isAuthenticated)
+            {
+                Navigation.NavigateTo("/", replace: true);
+                return;
+            }
 
-        if (!_isAuthenticated)
-        {
-            Navigation.NavigateTo("/", replace: true);
-            return;
+            StateHasChanged();
         }
-
-        StateHasChanged();
     }
 
     private void HandleSessionChanged()
