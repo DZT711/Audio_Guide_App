@@ -126,7 +126,7 @@
 
 ### 📊 Data Analytics (MVP)
 
-- [ ] Save anonymous user route history
+- [x] Save anonymous user route history
 - [x] Report: Top POIs by audio play count
 - [x] Report: Average listening time per POI
 - [x] Build **heatmap** of user positions
@@ -146,7 +146,7 @@
   - [x] Audio file upload/download
   - [x] Sync endpoint for mobile client
   - [x] Analytics ingestion
-- [ ] Implement anonymous telemetry collection (route history, heatmap data)
+- [x] Implement anonymous telemetry collection (route history, heatmap data)
 
 ---
 
