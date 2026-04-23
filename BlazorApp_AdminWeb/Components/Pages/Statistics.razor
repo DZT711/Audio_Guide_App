@@ -190,6 +190,13 @@ else
                                                         </button>
                                                         <button type="button"
                                                                 class="btn btn-outline-secondary btn-sm"
+                                                                @onclick="CenterStatisticsMapAsync"
+                                                                disabled="@(!_statisticsMapInitialized)">
+                                                            <i class="bi bi-bullseye me-1"></i>
+                                                            Center map
+                                                        </button>
+                                                        <button type="button"
+                                                                class="btn btn-outline-secondary btn-sm"
                                                                 @onclick="ToggleCurrentLocationTrackingAsync"
                                                                 disabled="@_isLocationTrackingBusy">
                                                             <i class="bi @(_isLocationTrackingBusy ? "bi-hourglass-split" : _isTrackingCurrentLocation ? "bi-pause-circle" : "bi-crosshair") me-1"></i>
@@ -561,6 +568,7 @@ else
     private bool _isHeatmapExpanded;
     private bool? _bodyScrollLockState;
     private bool _clearPinnedHeatmapSlotHeightPending;
+    private StatisticsMapViewState? _savedStatisticsMapView;
     private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(3);
     private readonly SemaphoreSlim _loadLock = new(1, 1);
     private CancellationTokenSource? _autoRefreshCts;
@@ -665,6 +673,7 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
         {
             if (!isAutoRefresh)
             {
+                _savedStatisticsMapView = await CaptureStatisticsMapViewAsync();
                 await DisposeStatisticsMapAsync();
                 _statisticsMapTrackingRefreshPending = _isTrackingCurrentLocation;
                 _isLoading = true;
@@ -1058,6 +1067,23 @@ route.SessionKey;
         }
     }
 
+    private async Task CenterStatisticsMapAsync()
+    {
+        if (!_statisticsMapInitialized)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.map.centerStatisticsMap", _statisticsMapElement);
+            _savedStatisticsMapView = await CaptureStatisticsMapViewAsync();
+        }
+        catch (JSException)
+        {
+        }
+    }
+
     private string? GetPoiImageUrl(string? imagePath) => ApiClient.ResolveImageUrl(imagePath);
     private static string FormatDistance(double value) => $"{value.ToString("0.00", CultureInfo.InvariantCulture)} km";
     private static string FormatSeconds(double value)
@@ -1100,12 +1126,22 @@ route.SessionKey;
 
     private object CreateStatisticsMapState() => new
     {
+        view = _savedStatisticsMapView is null
+            ? null
+            : new
+            {
+                latitude = _savedStatisticsMapView.Latitude,
+                longitude = _savedStatisticsMapView.Longitude,
+                zoom = _savedStatisticsMapView.Zoom
+            },
         heatPoints = _overview.HeatmapPoints.Select(item => new
         {
             latitude = item.Latitude,
             longitude = item.Longitude,
             sessionCount = item.SessionCount,
             intensity = item.Intensity,
+            totalWeight = item.TotalWeight,
+            engagementScore = item.EngagementScore,
             ward = item.Ward
         }).ToList(),
         locations = _overview.Locations.Select(item => new
@@ -1114,6 +1150,7 @@ route.SessionKey;
             longitude = item.Longitude,
             name = item.Name,
             ward = item.Ward,
+            preferenceImageUrl = GetPoiImageUrl(item.PreferenceImageUrl),
             ownerName = item.OwnerName
         }).ToList(),
         selectedRoute = SelectedRoute is null
@@ -1168,6 +1205,29 @@ route.SessionKey;
         }
         catch (JSException)
         {
+        }
+    }
+
+    private async Task<StatisticsMapViewState?> CaptureStatisticsMapViewAsync()
+    {
+        if (!_statisticsMapInitialized)
+        {
+            return _savedStatisticsMapView;
+        }
+
+        try
+        {
+            return await JS.InvokeAsync<StatisticsMapViewState?>(
+                "smartTourAdmin.map.getStatisticsMapView",
+                _statisticsMapElement);
+        }
+        catch (JSException)
+        {
+            return _savedStatisticsMapView;
+        }
+        catch (TaskCanceledException)
+        {
+            return _savedStatisticsMapView;
         }
     }
 
@@ -1308,5 +1368,17 @@ route.SessionKey;
 
         [JsonIgnore]
         public bool HasCoordinates => double.IsFinite(Latitude) && double.IsFinite(Longitude);
+    }
+
+    private sealed class StatisticsMapViewState
+    {
+        [JsonPropertyName("latitude")]
+        public double Latitude { get; init; }
+
+        [JsonPropertyName("longitude")]
+        public double Longitude { get; init; }
+
+        [JsonPropertyName("zoom")]
+        public double Zoom { get; init; }
     }
 }

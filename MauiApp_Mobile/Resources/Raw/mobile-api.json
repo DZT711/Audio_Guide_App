@@ -1,8 +1,8 @@
 {
-  "baseUrl": "https://unearth-ranked-viper.ngrok-free.dev/",
-  "publicBaseUrl": "https://unearth-ranked-viper.ngrok-free.dev/",
+  "baseUrl": "https://retype-roundworm-platter.ngrok-free.dev/",
+  "publicBaseUrl": "https://retype-roundworm-platter.ngrok-free.dev/",
   "allowLocalhostFallback": false,
   "fallbackBaseUrls": [
-    "https://unearth-ranked-viper.ngrok-free.dev/"
+    "https://retype-roundworm-platter.ngrok-free.dev/"
   ]
 }

@@ -54,6 +54,8 @@ public sealed class StatisticsHeatPointDto
     public double Longitude { get; init; }
     public int Intensity { get; init; }
     public int SessionCount { get; init; }
+    public int TotalWeight { get; init; }
+    public double EngagementScore { get; init; }
     public string Ward { get; init; } = "";
 }
 

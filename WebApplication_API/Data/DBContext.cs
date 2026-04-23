@@ -18,6 +18,7 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
     public DbSet<PlaybackEvent> PlaybackEvents => Set<PlaybackEvent>();
     public DbSet<LocationTrackingEvent> LocationTrackingEvents => Set<LocationTrackingEvent>();
     public DbSet<AudioListeningSession> AudioListeningSessions => Set<AudioListeningSession>();
+    public DbSet<HeatmapEvent> HeatmapEvents => Set<HeatmapEvent>();
     public DbSet<UsageEventEntity> UsageEvents => Set<UsageEventEntity>();
     public DbSet<QrLandingVisit> QrLandingVisits => Set<QrLandingVisit>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
@@ -188,6 +189,21 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.HasOne(item => item.Audio)
                 .WithMany(item => item.AudioListeningSessions)
                 .HasForeignKey(item => item.AudioId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<HeatmapEvent>(entity =>
+        {
+            entity.ToTable("HeatmapEvents");
+            entity.HasKey(item => item.HeatmapEventId);
+            entity.HasIndex(item => item.CapturedAt);
+            entity.HasIndex(item => new { item.LocationId, item.CapturedAt });
+            entity.HasIndex(item => new { item.LocationId, item.TourId, item.CapturedAt });
+            entity.HasIndex(item => new { item.EventType, item.CapturedAt });
+
+            entity.HasOne(item => item.Location)
+                .WithMany(item => item.HeatmapEvents)
+                .HasForeignKey(item => item.LocationId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 

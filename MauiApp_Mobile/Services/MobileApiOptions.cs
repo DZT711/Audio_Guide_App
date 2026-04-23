@@ -329,7 +329,7 @@ public static class MobileApiOptions
     {
         return
         [
-            "https://unearth-ranked-viper.ngrok-free.dev/"
+            "https://retype-roundworm-platter.ngrok-free.dev/"
         ];
     }
 

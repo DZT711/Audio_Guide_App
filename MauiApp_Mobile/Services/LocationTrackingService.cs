@@ -264,7 +264,10 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
     private async Task PublishLocationAsync(Location location, bool isForeground, CancellationToken cancellationToken)
     {
         LastKnownLocation = location;
-        UserLocationService.Instance.UpdateLocation(location);
+        if (!DeveloperLocationSessionService.Instance.IsActive)
+        {
+            UserLocationService.Instance.UpdateLocation(location);
+        }
 
         var battery = Battery.Default.ChargeLevel;
         var batteryPercent = battery > 0 ? (int)Math.Round(battery * 100d) : (int?)null;

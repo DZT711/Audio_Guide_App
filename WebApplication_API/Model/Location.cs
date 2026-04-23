@@ -73,4 +73,6 @@ public class Location
     public ICollection<PlaybackEvent> PlaybackEvents { get; set; } = [];
 
     public ICollection<AudioListeningSession> AudioListeningSessions { get; set; } = [];
+
+    public ICollection<HeatmapEvent> HeatmapEvents { get; set; } = [];
 }

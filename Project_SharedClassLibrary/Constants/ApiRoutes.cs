@@ -36,6 +36,7 @@ public static class ApiRoutes
     public const string ActivityLogs = "ActivityLog";
     public const string LocationQr = "LocationQr";
     public const string TelemetryIngestRouteHistoryV1 = "Telemetry/v1/route-history";
+    public const string TelemetryIngestHeatmapEventsV1 = "Telemetry/v1/heatmap-events";
     public const string TelemetryIngestAudioPlayEventsV1 = "Telemetry/v1/audio-play-events";
     public const string TelemetryIngestAudioListeningSessionsV1 = "Telemetry/v1/audio-listening-sessions";
     public const string TelemetryHeartbeatV1 = "Telemetry/v1/heartbeat";

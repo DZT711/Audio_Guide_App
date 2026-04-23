@@ -7,7 +7,7 @@ namespace MauiApp_Mobile.Services;
 
 public sealed class MobileDatabaseService
 {
-    private const int CurrentSchemaVersion = 3;
+    private const int CurrentSchemaVersion = 4;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
     private SQLiteAsyncConnection? _connection;
@@ -363,6 +363,44 @@ public sealed class MobileDatabaseService
         });
     }
 
+    public async Task EnqueueHeatmapEventsAsync(
+        IReadOnlyList<HeatmapEventQueueRecord> items,
+        CancellationToken cancellationToken = default)
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var connection = await GetConnectionAsync(cancellationToken);
+        await connection.RunInTransactionAsync(transaction =>
+        {
+            foreach (var item in items)
+            {
+                transaction.Insert(new HeatmapEventQueueEntity
+                {
+                    DeviceHash = item.DeviceHash,
+                    SessionHash = item.SessionHash,
+                    CapturedAtUtc = item.CapturedAtUtc.ToString("O", CultureInfo.InvariantCulture),
+                    Latitude = item.Latitude,
+                    Longitude = item.Longitude,
+                    AccuracyMeters = item.AccuracyMeters,
+                    SpeedMetersPerSecond = item.SpeedMetersPerSecond,
+                    BatteryPercent = item.BatteryPercent,
+                    IsForeground = item.IsForeground,
+                    PoiId = item.PoiId,
+                    TourId = item.TourId,
+                    EventType = item.EventType,
+                    Weight = item.Weight,
+                    TriggerSource = item.TriggerSource,
+                    Context = item.Context,
+                    LastAttemptAtUtc = null,
+                    RetryCount = 0
+                });
+            }
+        });
+    }
+
     public async Task EnqueueUsageEventsAsync(
         IReadOnlyList<UsageEventQueueRecord> items,
         CancellationToken cancellationToken = default)
@@ -477,6 +515,37 @@ public sealed class MobileDatabaseService
             .ToList();
     }
 
+    public async Task<IReadOnlyList<HeatmapEventPendingItem>> GetPendingHeatmapEventsAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 500);
+        var connection = await GetConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<HeatmapEventQueueEntity>(
+            "SELECT * FROM HeatmapEventQueue ORDER BY QueueId LIMIT ?;",
+            safeLimit);
+
+        return rows
+            .Select(item => new HeatmapEventPendingItem(
+                item.QueueId,
+                item.DeviceHash,
+                item.SessionHash,
+                ParseDateTimeOffset(item.CapturedAtUtc) ?? DateTimeOffset.UtcNow,
+                item.Latitude,
+                item.Longitude,
+                item.AccuracyMeters,
+                item.SpeedMetersPerSecond,
+                item.BatteryPercent,
+                item.IsForeground,
+                item.PoiId,
+                item.TourId,
+                item.EventType,
+                item.Weight,
+                item.TriggerSource,
+                item.Context))
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<UsageEventPendingItem>> GetPendingUsageEventsAsync(
         int limit,
         CancellationToken cancellationToken = default)
@@ -516,6 +585,9 @@ public sealed class MobileDatabaseService
     public Task DeleteAudioListeningSessionsAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
         DeleteQueuedRowsAsync("AudioListeningSessionQueue", "QueueId", queueIds, cancellationToken);
 
+    public Task DeleteHeatmapEventsAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
+        DeleteQueuedRowsAsync("HeatmapEventQueue", "QueueId", queueIds, cancellationToken);
+
     public Task DeleteUsageEventsAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
         DeleteQueuedRowsAsync("UsageEventQueue", "QueueId", queueIds, cancellationToken);
 
@@ -527,6 +599,9 @@ public sealed class MobileDatabaseService
 
     public Task MarkAudioListeningSessionsAttemptFailedAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
         MarkQueuedRowsAttemptFailedAsync("AudioListeningSessionQueue", "QueueId", queueIds, cancellationToken);
+
+    public Task MarkHeatmapEventsAttemptFailedAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
+        MarkQueuedRowsAttemptFailedAsync("HeatmapEventQueue", "QueueId", queueIds, cancellationToken);
 
     public Task MarkUsageEventsAttemptFailedAsync(IReadOnlyCollection<int> queueIds, CancellationToken cancellationToken = default) =>
         MarkQueuedRowsAttemptFailedAsync("UsageEventQueue", "QueueId", queueIds, cancellationToken);
@@ -893,6 +968,36 @@ public sealed class MobileDatabaseService
             await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_UsageEventQueue_DeviceId ON UsageEventQueue(DeviceId);");
         }
 
+        if (version < 4)
+        {
+            await connection.ExecuteAsync("""
+                CREATE TABLE IF NOT EXISTS HeatmapEventQueue (
+                    QueueId INTEGER PRIMARY KEY AUTOINCREMENT,
+                    DeviceHash TEXT NOT NULL,
+                    SessionHash TEXT NULL,
+                    CapturedAtUtc TEXT NOT NULL,
+                    Latitude REAL NOT NULL,
+                    Longitude REAL NOT NULL,
+                    AccuracyMeters REAL NULL,
+                    SpeedMetersPerSecond REAL NULL,
+                    BatteryPercent INTEGER NULL,
+                    IsForeground INTEGER NOT NULL,
+                    PoiId INTEGER NULL,
+                    TourId INTEGER NULL,
+                    EventType TEXT NOT NULL,
+                    Weight INTEGER NOT NULL,
+                    TriggerSource TEXT NOT NULL,
+                    Context TEXT NULL,
+                    LastAttemptAtUtc TEXT NULL,
+                    RetryCount INTEGER NOT NULL DEFAULT 0
+                );
+                """);
+
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_HeatmapEventQueue_CapturedAtUtc ON HeatmapEventQueue(CapturedAtUtc);");
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_HeatmapEventQueue_PoiTour ON HeatmapEventQueue(PoiId, TourId);");
+            await connection.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_HeatmapEventQueue_EventType ON HeatmapEventQueue(EventType);");
+        }
+
         await connection.ExecuteAsync($"PRAGMA user_version = {CurrentSchemaVersion};");
     }
 
@@ -1142,6 +1247,30 @@ public sealed class MobileDatabaseService
         public int RetryCount { get; set; }
     }
 
+    [Table("HeatmapEventQueue")]
+    private sealed class HeatmapEventQueueEntity
+    {
+        [PrimaryKey, AutoIncrement]
+        public int QueueId { get; set; }
+        public string DeviceHash { get; set; } = string.Empty;
+        public string? SessionHash { get; set; }
+        public string CapturedAtUtc { get; set; } = string.Empty;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double? AccuracyMeters { get; set; }
+        public double? SpeedMetersPerSecond { get; set; }
+        public int? BatteryPercent { get; set; }
+        public bool IsForeground { get; set; }
+        public int? PoiId { get; set; }
+        public int? TourId { get; set; }
+        public string EventType { get; set; } = HeatmapEventTypes.EnterPoi;
+        public int Weight { get; set; }
+        public string TriggerSource { get; set; } = "Unknown";
+        public string? Context { get; set; }
+        public string? LastAttemptAtUtc { get; set; }
+        public int RetryCount { get; set; }
+    }
+
     [Table("UsageEventQueue")]
     private sealed class UsageEventQueueEntity
     {
@@ -1276,6 +1405,41 @@ public sealed record AudioListeningSessionPendingItem(
     int ListeningSeconds,
     bool IsCompleted,
     string? InterruptedReason,
+    string? Context);
+
+public sealed record HeatmapEventQueueRecord(
+    string DeviceHash,
+    string? SessionHash,
+    DateTimeOffset CapturedAtUtc,
+    double Latitude,
+    double Longitude,
+    double? AccuracyMeters,
+    double? SpeedMetersPerSecond,
+    int? BatteryPercent,
+    bool IsForeground,
+    int? PoiId,
+    int? TourId,
+    string EventType,
+    int Weight,
+    string TriggerSource,
+    string? Context);
+
+public sealed record HeatmapEventPendingItem(
+    int QueueId,
+    string DeviceHash,
+    string? SessionHash,
+    DateTimeOffset CapturedAtUtc,
+    double Latitude,
+    double Longitude,
+    double? AccuracyMeters,
+    double? SpeedMetersPerSecond,
+    int? BatteryPercent,
+    bool IsForeground,
+    int? PoiId,
+    int? TourId,
+    string EventType,
+    int Weight,
+    string TriggerSource,
     string? Context);
 
 public sealed record UsageEventQueueRecord(

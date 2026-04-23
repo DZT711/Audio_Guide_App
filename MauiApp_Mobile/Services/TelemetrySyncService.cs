@@ -75,6 +75,7 @@ public sealed class TelemetrySyncService
         try
         {
             await SyncRouteHistoryAsync(cancellationToken);
+            await SyncHeatmapEventsAsync(cancellationToken);
             await SyncAudioPlayEventsAsync(cancellationToken);
             await SyncAudioListeningSessionsAsync(cancellationToken);
         }
@@ -164,6 +165,51 @@ public sealed class TelemetrySyncService
             else
             {
                 await MobileDatabaseService.Instance.MarkAudioPlayEventsAttemptFailedAsync(queueIds, cancellationToken);
+                return;
+            }
+        }
+    }
+
+    private static async Task SyncHeatmapEventsAsync(CancellationToken cancellationToken)
+    {
+        for (var pass = 0; pass < 6; pass++)
+        {
+            var pending = await MobileDatabaseService.Instance.GetPendingHeatmapEventsAsync(BatchSize, cancellationToken);
+            if (pending.Count == 0)
+            {
+                return;
+            }
+
+            var payload = new HeatmapEventBatchIngestRequest
+            {
+                Events = pending.Select(item => new HeatmapEventIngestDto
+                {
+                    DeviceHash = item.DeviceHash,
+                    SessionHash = item.SessionHash,
+                    CapturedAtUtc = item.CapturedAtUtc.UtcDateTime,
+                    Latitude = item.Latitude,
+                    Longitude = item.Longitude,
+                    AccuracyMeters = item.AccuracyMeters,
+                    SpeedMetersPerSecond = item.SpeedMetersPerSecond,
+                    BatteryPercent = item.BatteryPercent,
+                    IsForeground = item.IsForeground,
+                    PoiId = item.PoiId,
+                    TourId = item.TourId,
+                    EventType = item.EventType,
+                    Weight = item.Weight,
+                    TriggerSource = item.TriggerSource,
+                    Context = item.Context
+                }).ToList()
+            };
+
+            var queueIds = pending.Select(item => item.QueueId).ToList();
+            if (await TryPostAsync(ApiRoutes.TelemetryIngestHeatmapEventsV1, payload, cancellationToken))
+            {
+                await MobileDatabaseService.Instance.DeleteHeatmapEventsAsync(queueIds, cancellationToken);
+            }
+            else
+            {
+                await MobileDatabaseService.Instance.MarkHeatmapEventsAttemptFailedAsync(queueIds, cancellationToken);
                 return;
             }
         }

@@ -3,21 +3,30 @@ using Microsoft.Maui.Devices;
 using Microsoft.Maui.Devices.Sensors;
 using System.Globalization;
 using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Geofencing;
+using MauiApp_Mobile.Services.Geofencing;
 
 namespace MauiApp_Mobile.Services;
 
 public sealed class TelemetryCaptureService
 {
     private const double RouteThrottleDistanceMeters = 18d;
+    private const double DwellMovementToleranceMeters = 15d;
+    private const double DwellMaxSpeedMetersPerSecond = 5d / 3.6d;
     private static readonly TimeSpan RouteThrottleInterval = TimeSpan.FromSeconds(12);
     private static readonly TimeSpan RouteBufferFlushInterval = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan DwellMinimumStayWindow = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan StaleLocationWindow = TimeSpan.FromMinutes(2);
     private readonly List<RouteTelemetryQueueRecord> _routeBuffer = [];
     private readonly object _routeGate = new();
     private readonly object _playbackGate = new();
+    private readonly object _heatmapGate = new();
+    private readonly Dictionary<int, PendingDwellCandidate> _pendingDwellCandidates = [];
     private CancellationTokenSource? _backgroundCts;
     private bool _started;
     private DateTimeOffset? _lastAcceptedRouteAtUtc;
     private Location? _lastAcceptedRouteLocation;
+    private LocationSample? _lastLocationSample;
     private ActivePlaybackTelemetryState? _activePlayback;
 
     public static TelemetryCaptureService Instance { get; } = new();
@@ -37,6 +46,7 @@ public sealed class TelemetryCaptureService
         _started = true;
 
         LocationTrackingService.Instance.LocationUpdated += OnLocationUpdated;
+        GeofenceOrchestratorService.Instance.TriggerAccepted += OnGeofenceTriggerAccepted;
         AudioPlaybackService.Instance.PlaybackStateChanged += OnPlaybackStateChanged;
         AudioPlaybackService.Instance.PlaybackProgressChanged += OnPlaybackProgressChanged;
         _ = RunRouteBufferFlushLoopAsync(_backgroundCts.Token);
@@ -60,8 +70,15 @@ public sealed class TelemetryCaptureService
 
         _started = false;
         LocationTrackingService.Instance.LocationUpdated -= OnLocationUpdated;
+        GeofenceOrchestratorService.Instance.TriggerAccepted -= OnGeofenceTriggerAccepted;
         AudioPlaybackService.Instance.PlaybackStateChanged -= OnPlaybackStateChanged;
         AudioPlaybackService.Instance.PlaybackProgressChanged -= OnPlaybackProgressChanged;
+
+        lock (_heatmapGate)
+        {
+            _pendingDwellCandidates.Clear();
+            _lastLocationSample = null;
+        }
 
         if (_backgroundCts is not null)
         {
@@ -91,38 +108,133 @@ public sealed class TelemetryCaptureService
             return;
         }
 
+        if (DeveloperLocationSessionService.Instance.IsActive)
+        {
+            return;
+        }
+
+        List<HeatmapEventQueueRecord>? dueHeatmapEvents = null;
+        var shouldFlushRouteBuffer = false;
+
         lock (_routeGate)
         {
-            if (ShouldThrottleRouteSample(sample))
+            if (!ShouldThrottleRouteSample(sample))
             {
-                return;
-            }
+                var identity = TelemetryAnonymizerService.Instance.CreateIdentitySnapshot();
+                _lastAcceptedRouteAtUtc = sample.CapturedAtUtc;
+                _lastAcceptedRouteLocation = sample.Location;
 
-            var identity = TelemetryAnonymizerService.Instance.CreateIdentitySnapshot();
-            _lastAcceptedRouteAtUtc = sample.CapturedAtUtc;
-            _lastAcceptedRouteLocation = sample.Location;
+                _routeBuffer.Add(new RouteTelemetryQueueRecord(
+                    identity.DeviceHash,
+                    identity.SessionHash,
+                    sample.CapturedAtUtc,
+                    sample.Location.Latitude,
+                    sample.Location.Longitude,
+                    sample.Location.Accuracy,
+                    sample.Location.Speed,
+                    TryGetBatteryPercent(),
+                    sample.IsForeground,
+                    TourId: null,
+                    PoiId: ResolveCurrentPoiId(),
+                    Context: ResolvePlaybackSource()));
 
-            _routeBuffer.Add(new RouteTelemetryQueueRecord(
-                identity.DeviceHash,
-                identity.SessionHash,
-                sample.CapturedAtUtc,
-                sample.Location.Latitude,
-                sample.Location.Longitude,
-                sample.Location.Accuracy,
-                sample.Location.Speed,
-                TryGetBatteryPercent(),
-                sample.IsForeground,
-                TourId: null,
-                PoiId: ResolveCurrentPoiId(),
-                Context: ResolvePlaybackSource()));
-
-            if (_routeBuffer.Count < 8)
-            {
-                return;
+                shouldFlushRouteBuffer = _routeBuffer.Count >= 8;
             }
         }
 
-        _ = FlushRouteBufferAsync(CancellationToken.None);
+        if (shouldFlushRouteBuffer)
+        {
+            _ = FlushRouteBufferAsync(CancellationToken.None);
+        }
+
+        lock (_heatmapGate)
+        {
+            _lastLocationSample = sample;
+            dueHeatmapEvents = CollectDueDwellEventsLocked(sample);
+        }
+
+        if (dueHeatmapEvents is { Count: > 0 })
+        {
+            _ = PersistHeatmapEventsAsync(dueHeatmapEvents);
+        }
+    }
+
+    public void RecordDeveloperLocationSample(Location location, bool isForeground = true)
+    {
+        if (!_started || !IsFinite(location.Latitude) || !IsFinite(location.Longitude))
+        {
+            return;
+        }
+
+        List<HeatmapEventQueueRecord>? dueHeatmapEvents = null;
+        var sample = new LocationSample(
+            location,
+            isForeground,
+            DateTimeOffset.UtcNow,
+            TimeSpan.FromSeconds(5));
+
+        lock (_heatmapGate)
+        {
+            _lastLocationSample = sample;
+            dueHeatmapEvents = CollectDueDwellEventsLocked(sample);
+        }
+
+        if (dueHeatmapEvents is { Count: > 0 })
+        {
+            _ = PersistHeatmapEventsAsync(dueHeatmapEvents);
+        }
+    }
+
+    private void OnGeofenceTriggerAccepted(object? sender, GeofenceTriggeredEvent trigger)
+    {
+        if (trigger.EventType != GeofenceTriggerEvent.EnteredRadius
+            || !int.TryParse(trigger.Definition.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var poiId)
+            || poiId <= 0)
+        {
+            return;
+        }
+
+        var snapshot = ResolveHeatmapLocationSnapshot(poiId, trigger.Definition, trigger.OccurredAtUtc);
+        if (snapshot is null)
+        {
+            return;
+        }
+
+        var identity = TelemetryAnonymizerService.Instance.CreateIdentitySnapshot();
+
+        var heatmapEvent = new HeatmapEventQueueRecord(
+            DeviceHash: identity.DeviceHash,
+            SessionHash: identity.SessionHash,
+            CapturedAtUtc: trigger.OccurredAtUtc,
+            Latitude: snapshot.Latitude,
+            Longitude: snapshot.Longitude,
+            AccuracyMeters: snapshot.AccuracyMeters,
+            SpeedMetersPerSecond: snapshot.SpeedMetersPerSecond,
+            BatteryPercent: TryGetBatteryPercent(),
+            IsForeground: snapshot.IsForeground,
+            PoiId: poiId,
+            TourId: null,
+            EventType: HeatmapEventTypes.EnterPoi,
+            Weight: HeatmapEventTypes.ResolveWeight(HeatmapEventTypes.EnterPoi),
+            TriggerSource: ResolveHeatmapTriggerSource(trigger),
+            Context: trigger.IsNativeTransition ? "native-geofence-enter" : "distance-geofence-enter");
+
+        lock (_heatmapGate)
+        {
+            _pendingDwellCandidates[poiId] = new PendingDwellCandidate(
+                PoiId: poiId,
+                TourId: null,
+                PoiLatitude: trigger.Definition.Latitude,
+                PoiLongitude: trigger.Definition.Longitude,
+                ActivationRadiusMeters: Math.Max(1d, trigger.Definition.ActivationRadiusMeters),
+                StableSinceUtc: trigger.OccurredAtUtc,
+                AnchorLatitude: snapshot.Latitude,
+                AnchorLongitude: snapshot.Longitude,
+                TriggerSource: heatmapEvent.TriggerSource,
+                IsForeground: snapshot.IsForeground);
+        }
+
+        _ = PersistHeatmapEventsAsync([heatmapEvent]);
     }
 
     private void OnPlaybackProgressChanged(object? sender, AudioPlaybackProgressSnapshot snapshot)
@@ -222,6 +334,12 @@ public sealed class TelemetryCaptureService
                     NetworkType: ResolveNetworkType(),
                     Context: state.Context)
             ]);
+
+            var heatmapEvent = CreatePlaybackHeatmapEvent(state, playedAtUtc);
+            if (heatmapEvent is not null)
+            {
+                await MobileDatabaseService.Instance.EnqueueHeatmapEventsAsync([heatmapEvent]);
+            }
 
             await TelemetrySyncService.Instance.TriggerSyncAsync();
         }
@@ -416,6 +534,223 @@ public sealed class TelemetryCaptureService
         return locationId > 0 ? locationId : null;
     }
 
+    private List<HeatmapEventQueueRecord>? CollectDueDwellEventsLocked(LocationSample sample)
+    {
+        if (_pendingDwellCandidates.Count == 0)
+        {
+            return null;
+        }
+
+        List<HeatmapEventQueueRecord>? dueEvents = null;
+        foreach (var poiId in _pendingDwellCandidates.Keys.ToList())
+        {
+            var candidate = _pendingDwellCandidates[poiId];
+            var distanceToPoiMeters = CalculateDistanceMeters(
+                sample.Location.Latitude,
+                sample.Location.Longitude,
+                candidate.PoiLatitude,
+                candidate.PoiLongitude);
+
+            if (distanceToPoiMeters > candidate.ActivationRadiusMeters)
+            {
+                _pendingDwellCandidates.Remove(poiId);
+                continue;
+            }
+
+            var movedDistanceMeters = CalculateDistanceMeters(
+                candidate.AnchorLatitude,
+                candidate.AnchorLongitude,
+                sample.Location.Latitude,
+                sample.Location.Longitude);
+
+            var speedMetersPerSecond = ResolveEffectiveSpeedMetersPerSecond(sample, candidate);
+            if (speedMetersPerSecond > DwellMaxSpeedMetersPerSecond
+                || movedDistanceMeters > DwellMovementToleranceMeters)
+            {
+                _pendingDwellCandidates[poiId] = candidate with
+                {
+                    StableSinceUtc = sample.CapturedAtUtc,
+                    AnchorLatitude = sample.Location.Latitude,
+                    AnchorLongitude = sample.Location.Longitude,
+                    IsForeground = sample.IsForeground
+                };
+                continue;
+            }
+
+            if (sample.CapturedAtUtc - candidate.StableSinceUtc < DwellMinimumStayWindow)
+            {
+                continue;
+            }
+
+            dueEvents ??= [];
+            var identity = TelemetryAnonymizerService.Instance.CreateIdentitySnapshot();
+            dueEvents.Add(new HeatmapEventQueueRecord(
+                DeviceHash: identity.DeviceHash,
+                SessionHash: identity.SessionHash,
+                CapturedAtUtc: sample.CapturedAtUtc,
+                Latitude: sample.Location.Latitude,
+                Longitude: sample.Location.Longitude,
+                AccuracyMeters: sample.Location.Accuracy,
+                SpeedMetersPerSecond: sample.Location.Speed,
+                BatteryPercent: TryGetBatteryPercent(),
+                IsForeground: sample.IsForeground,
+                PoiId: candidate.PoiId,
+                TourId: candidate.TourId,
+                EventType: HeatmapEventTypes.DwellTime,
+                Weight: HeatmapEventTypes.ResolveWeight(HeatmapEventTypes.DwellTime),
+                TriggerSource: candidate.TriggerSource,
+                Context: "poi-dwell-time"));
+
+            _pendingDwellCandidates.Remove(poiId);
+        }
+
+        return dueEvents;
+    }
+
+    private async Task PersistHeatmapEventsAsync(IReadOnlyList<HeatmapEventQueueRecord> events)
+    {
+        if (events.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await MobileDatabaseService.Instance.EnqueueHeatmapEventsAsync(events);
+            await TelemetrySyncService.Instance.TriggerSyncAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TelemetryCapture] Failed to enqueue heatmap event(s): {ex.Message}");
+        }
+    }
+
+    private HeatmapEventQueueRecord? CreatePlaybackHeatmapEvent(ActivePlaybackTelemetryState state, DateTimeOffset playedAtUtc)
+    {
+        if (!state.PoiId.HasValue || state.PoiId.Value <= 0)
+        {
+            return null;
+        }
+
+        var snapshot = ResolveHeatmapLocationSnapshot(state.PoiId, definition: null, playedAtUtc);
+        if (snapshot is null)
+        {
+            return null;
+        }
+
+        return new HeatmapEventQueueRecord(
+            DeviceHash: state.DeviceHash,
+            SessionHash: state.SessionHash,
+            CapturedAtUtc: playedAtUtc,
+            Latitude: snapshot.Latitude,
+            Longitude: snapshot.Longitude,
+            AccuracyMeters: snapshot.AccuracyMeters,
+            SpeedMetersPerSecond: snapshot.SpeedMetersPerSecond,
+            BatteryPercent: TryGetBatteryPercent(),
+            IsForeground: snapshot.IsForeground,
+            PoiId: state.PoiId,
+            TourId: state.TourId,
+            EventType: HeatmapEventTypes.AudioPlay,
+            Weight: HeatmapEventTypes.ResolveWeight(HeatmapEventTypes.AudioPlay),
+            TriggerSource: string.IsNullOrWhiteSpace(state.TriggerSource) ? "audio-play" : state.TriggerSource,
+            Context: state.Context);
+    }
+
+    private HeatmapLocationSnapshot? ResolveHeatmapLocationSnapshot(
+        int? poiId,
+        PoiGeofenceDefinition? definition,
+        DateTimeOffset occurredAtUtc)
+    {
+        if (DeveloperLocationSessionService.Instance.TryGetActiveSession(out var developerSession)
+            && developerSession is not null
+            && IsFinite(developerSession.Location.Latitude)
+            && IsFinite(developerSession.Location.Longitude))
+        {
+            return new HeatmapLocationSnapshot(
+                developerSession.Location.Latitude,
+                developerSession.Location.Longitude,
+                developerSession.Location.Accuracy,
+                developerSession.Location.Speed,
+                true);
+        }
+
+        lock (_heatmapGate)
+        {
+            if (_lastLocationSample is { } lastSample
+                && occurredAtUtc - lastSample.CapturedAtUtc <= StaleLocationWindow
+                && IsFinite(lastSample.Location.Latitude)
+                && IsFinite(lastSample.Location.Longitude))
+            {
+                return new HeatmapLocationSnapshot(
+                    lastSample.Location.Latitude,
+                    lastSample.Location.Longitude,
+                    lastSample.Location.Accuracy,
+                    lastSample.Location.Speed,
+                    lastSample.IsForeground);
+            }
+        }
+
+        if (UserLocationService.Instance.LastKnownLocation is { } lastKnownLocation
+            && IsFinite(lastKnownLocation.Latitude)
+            && IsFinite(lastKnownLocation.Longitude))
+        {
+            return new HeatmapLocationSnapshot(
+                lastKnownLocation.Latitude,
+                lastKnownLocation.Longitude,
+                lastKnownLocation.Accuracy,
+                lastKnownLocation.Speed,
+                true);
+        }
+
+        if (definition is not null)
+        {
+            return new HeatmapLocationSnapshot(
+                definition.Latitude,
+                definition.Longitude,
+                null,
+                null,
+                true);
+        }
+
+        if (poiId.HasValue && poiId.Value > 0)
+        {
+            var place = PlaceCatalogService.Instance.FindById(poiId.Value.ToString(CultureInfo.InvariantCulture));
+            if (place is not null && IsFinite(place.Latitude) && IsFinite(place.Longitude))
+            {
+                return new HeatmapLocationSnapshot(
+                    place.Latitude,
+                    place.Longitude,
+                    null,
+                    null,
+                    true);
+            }
+        }
+
+        return null;
+    }
+
+    private static double ResolveEffectiveSpeedMetersPerSecond(LocationSample sample, PendingDwellCandidate candidate)
+    {
+        if (sample.Location.Speed is double speedMetersPerSecond
+            && IsFinite(speedMetersPerSecond)
+            && speedMetersPerSecond >= 0d)
+        {
+            return speedMetersPerSecond;
+        }
+
+        var elapsedSeconds = Math.Max(1d, (sample.CapturedAtUtc - candidate.StableSinceUtc).TotalSeconds);
+        var movedDistanceMeters = CalculateDistanceMeters(
+            candidate.AnchorLatitude,
+            candidate.AnchorLongitude,
+            sample.Location.Latitude,
+            sample.Location.Longitude);
+
+        return movedDistanceMeters / elapsedSeconds;
+    }
+
+    private static string ResolveHeatmapTriggerSource(GeofenceTriggeredEvent trigger) =>
+        trigger.IsNativeTransition ? "native-geofence-enter" : "geofence-enter";
+
     private static string ResolvePlaybackSource()
     {
         var source = PlaybackCoordinatorService.Instance.ActivePlaybackSource;
@@ -469,4 +804,23 @@ public sealed class TelemetryCaptureService
         double LastKnownPositionSeconds,
         double LastKnownDurationSeconds,
         string? Context);
+
+    private sealed record PendingDwellCandidate(
+        int PoiId,
+        int? TourId,
+        double PoiLatitude,
+        double PoiLongitude,
+        double ActivationRadiusMeters,
+        DateTimeOffset StableSinceUtc,
+        double AnchorLatitude,
+        double AnchorLongitude,
+        string TriggerSource,
+        bool IsForeground);
+
+    private sealed record HeatmapLocationSnapshot(
+        double Latitude,
+        double Longitude,
+        double? AccuracyMeters,
+        double? SpeedMetersPerSecond,
+        bool IsForeground);
 }

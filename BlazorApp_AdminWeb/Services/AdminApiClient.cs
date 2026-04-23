@@ -163,26 +163,10 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
     public async Task<StatisticsOverviewDto> GetStatisticsAsync(StatisticsQueryDto query, CancellationToken cancellationToken = default)
     {
-        if (query.IncludeSynthetic)
-        {
-            return await GetLegacyStatisticsAsync(query, cancellationToken);
-        }
-
-        try
-        {
-            var statisticsTask = GetUsageAnalyticsStatisticsV1Async(cancellationToken);
-            var historyTask = GetUsageAnalyticsHistorySnapshotV1Async(cancellationToken);
-            await Task.WhenAll(statisticsTask, historyTask);
-
-            return MapStatisticsOverviewFromV1(
-                statisticsTask.Result,
-                historyTask.Result.Items,
-                query);
-        }
-        catch
-        {
-            return await GetLegacyStatisticsAsync(query, cancellationToken);
-        }
+        // Statistics map requires coordinate-rich payloads (Locations + HeatmapPoints + RouteHistory).
+        // The V1 analytics aggregation currently does not return those map layers.
+        // Keep the legacy statistics endpoint as the source of truth for the Statistics page.
+        return await GetLegacyStatisticsAsync(query, cancellationToken);
     }
 
     public async Task<IReadOnlyList<StatisticsPoiReportRowDto>> GetTopPoisByPlayCountAsync(

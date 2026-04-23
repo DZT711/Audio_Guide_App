@@ -175,6 +175,10 @@ public class StatisticsController(
                 .ToList();
         }
 
+        var heatmapItems = await BuildHeatmapQuery(query, scopedLocationIds)
+            .OrderByDescending(item => item.CapturedAt)
+            .ToListAsync();
+
         var routeHistory = BuildRouteHistory(
             trackingItems,
             playbackBySession,
@@ -182,15 +186,22 @@ public class StatisticsController(
             tourNamesByLocation,
             locations);
 
-        var routeLookup = routeHistory.ToDictionary(
-            item => item.SessionKey,
-            item => item,
-            StringComparer.OrdinalIgnoreCase);
-
         var playCountItems = SelectPlayCountEvents(playbackItems);
         var filteredLocations = locations
             .Where(item => scopedLocationIds.Contains(item.LocationId))
             .ToList();
+
+        var activeLocationIdsInRange = ResolveActiveLocationIdsForRange(
+            playbackItems,
+            listeningSessionItems,
+            trackingItems,
+            heatmapItems);
+        if (activeLocationIdsInRange.Count > 0)
+        {
+            filteredLocations = filteredLocations
+                .Where(item => activeLocationIdsInRange.Contains(item.LocationId))
+                .ToList();
+        }
 
         var locationLookup = locations.ToDictionary(item => item.LocationId);
 
@@ -262,7 +273,7 @@ public class StatisticsController(
                         : []
                 })
                 .ToList(),
-            HeatmapPoints = BuildHeatmapPoints(trackingItems, routeLookup, locations),
+            HeatmapPoints = BuildHeatmapPoints(heatmapItems, wardLookup, locations),
             RouteHistory = routeHistory,
             TopPoisByPlayCount = BuildTopPoiReport(playCountItems, playbackItems, listeningSessionItems, wardLookup, tourNamesByLocation),
             AverageListeningByPoi = BuildAverageListeningReport(listeningSessionItems, locationLookup, wardLookup, tourNamesByLocation)
@@ -273,6 +284,7 @@ public class StatisticsController(
     {
         var query = context.Locations
             .AsNoTracking()
+            .Where(item => item.Status == 1)
             .AsQueryable();
 
         return IsOwnerScoped(currentUser)
@@ -345,6 +357,30 @@ public class StatisticsController(
         if (utcRange.ToUtcInclusive.HasValue)
         {
             items = items.Where(item => item.StartedAt <= utcRange.ToUtcInclusive.Value);
+        }
+
+        return items;
+    }
+
+    private IQueryable<HeatmapEvent> BuildHeatmapQuery(
+        StatisticsQueryDto query,
+        IReadOnlyCollection<int> scopedLocationIds)
+    {
+        var utcRange = ResolveUtcRange(query);
+        var items = analyticsDataFilter.ApplyHeatmapFilter(
+            context.HeatmapEvents
+                .AsNoTracking()
+                .Where(item => item.LocationId.HasValue && scopedLocationIds.Contains(item.LocationId.Value)),
+            query.IncludeSynthetic);
+
+        if (utcRange.FromUtcInclusive.HasValue)
+        {
+            items = items.Where(item => item.CapturedAt >= utcRange.FromUtcInclusive.Value);
+        }
+
+        if (utcRange.ToUtcInclusive.HasValue)
+        {
+            items = items.Where(item => item.CapturedAt <= utcRange.ToUtcInclusive.Value);
         }
 
         return items;
@@ -535,11 +571,11 @@ public class StatisticsController(
     }
 
     private static List<StatisticsHeatPointDto> BuildHeatmapPoints(
-        IReadOnlyCollection<LocationTrackingEvent> trackingItems,
-        IReadOnlyDictionary<string, StatisticsRouteHistoryDto> routeLookup,
+        IReadOnlyCollection<HeatmapEvent> heatmapItems,
+        IReadOnlyDictionary<int, string> wardLookup,
         IReadOnlyCollection<Location> locations)
     {
-        return trackingItems
+        return heatmapItems
             .GroupBy(item => new
             {
                 Latitude = Math.Round(item.Latitude, 4),
@@ -552,23 +588,63 @@ public class StatisticsController(
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                var ward = sessionKeys
-                    .Select(item => routeLookup.TryGetValue(item, out var route) ? route.PrimaryWard : null)
+                var ward = group
+                    .Where(item => item.LocationId.HasValue && wardLookup.ContainsKey(item.LocationId.Value))
+                    .Select(item => wardLookup[item.LocationId!.Value])
+                    .GroupBy(item => item, StringComparer.OrdinalIgnoreCase)
+                    .OrderByDescending(item => item.Count())
+                    .ThenBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(item => item.Key)
                     .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item))
                     ?? ResolveNearestWard(group.First(), locations);
+
+                var sessionCount = Math.Max(1, sessionKeys.Count);
+                var totalWeight = group.Sum(item => Math.Max(1, item.Weight));
+                var engagementScore = sessionCount > 0
+                    ? Math.Round((double)totalWeight / sessionCount, 2, MidpointRounding.AwayFromZero)
+                    : 0d;
 
                 return new StatisticsHeatPointDto
                 {
                     Latitude = group.Key.Latitude,
                     Longitude = group.Key.Longitude,
-                    Intensity = group.Count(),
-                    SessionCount = sessionKeys.Count,
+                    Intensity = sessionCount,
+                    SessionCount = sessionCount,
+                    TotalWeight = totalWeight,
+                    EngagementScore = engagementScore,
                     Ward = ward
                 };
             })
             .OrderByDescending(item => item.Intensity)
+            .ThenByDescending(item => item.TotalWeight)
             .Take(120)
             .ToList();
+    }
+
+    private static HashSet<int> ResolveActiveLocationIdsForRange(
+        IReadOnlyCollection<PlaybackEvent> playbackItems,
+        IReadOnlyCollection<AudioListeningSession> listeningSessionItems,
+        IReadOnlyCollection<LocationTrackingEvent> trackingItems,
+        IReadOnlyCollection<HeatmapEvent> heatmapItems)
+    {
+        var locationIds = playbackItems
+            .Where(item => item.LocationId.HasValue)
+            .Select(item => item.LocationId!.Value)
+            .ToHashSet();
+
+        locationIds.UnionWith(listeningSessionItems
+            .Where(item => (item.LocationId ?? item.PoiId).HasValue)
+            .Select(item => (item.LocationId ?? item.PoiId)!.Value));
+
+        locationIds.UnionWith(trackingItems
+            .Where(item => item.PoiId.HasValue)
+            .Select(item => item.PoiId!.Value));
+
+        locationIds.UnionWith(heatmapItems
+            .Where(item => item.LocationId.HasValue)
+            .Select(item => item.LocationId!.Value));
+
+        return locationIds;
     }
 
     private static List<StatisticsRouteHistoryDto> BuildRouteHistory(
@@ -816,6 +892,11 @@ public class StatisticsController(
                 ? item.DeviceId
                 : $"tracking-{item.TrackingEventId}";
 
+    private static string GetSessionKey(HeatmapEvent item) =>
+        !string.IsNullOrWhiteSpace(item.SessionId)
+            ? item.SessionId!
+            : item.DeviceId;
+
     private static string? GetGuestKey(string? sessionId, string? deviceId) =>
         !string.IsNullOrWhiteSpace(deviceId)
             ? deviceId
@@ -847,15 +928,38 @@ public class StatisticsController(
 
     private static string ResolveNearestWard(LocationTrackingEvent? trackingPoint, IReadOnlyCollection<Location> locations)
     {
-        if (trackingPoint is null || locations.Count == 0)
+        if (trackingPoint is null)
+        {
+            return "Unassigned";
+        }
+
+        return ResolveNearestWard(trackingPoint.Latitude, trackingPoint.Longitude, locations);
+    }
+
+    private static string ResolveNearestWard(HeatmapEvent? heatmapEvent, IReadOnlyCollection<Location> locations)
+    {
+        if (heatmapEvent is null)
+        {
+            return "Unassigned";
+        }
+
+        return ResolveNearestWard(heatmapEvent.Latitude, heatmapEvent.Longitude, locations);
+    }
+
+    private static string ResolveNearestWard(
+        double latitude,
+        double longitude,
+        IReadOnlyCollection<Location> locations)
+    {
+        if (locations.Count == 0)
         {
             return "Unassigned";
         }
 
         var nearestLocation = locations
             .OrderBy(item => CalculateDistanceKm(
-                trackingPoint.Latitude,
-                trackingPoint.Longitude,
+                latitude,
+                longitude,
                 item.Latitude,
                 item.Longitude))
             .FirstOrDefault();

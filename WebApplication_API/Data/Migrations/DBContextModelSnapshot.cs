@@ -379,6 +379,73 @@ namespace WebApplication_API.Data.Migrations
                     b.ToTable("DashboardUsers", (string)null);
                 });
 
+            modelBuilder.Entity("WebApplication_API.Model.HeatmapEvent", b =>
+                {
+                    b.Property<int>("HeatmapEventId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double?>("AccuracyMeters")
+                        .HasColumnType("REAL");
+
+                    b.Property<int?>("BatteryPercent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CapturedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Context")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsForeground")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("REAL");
+
+                    b.Property<int?>("LocationId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("SessionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("SpeedMetersPerSecond")
+                        .HasColumnType("REAL");
+
+                    b.Property<int?>("TourId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TriggerSource")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Weight")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("HeatmapEventId");
+
+                    b.HasIndex("CapturedAt");
+
+                    b.HasIndex("EventType", "CapturedAt");
+
+                    b.HasIndex("LocationId", "CapturedAt");
+
+                    b.HasIndex("LocationId", "TourId", "CapturedAt");
+
+                    b.ToTable("HeatmapEvents", (string)null);
+                });
+
             modelBuilder.Entity("WebApplication_API.Model.InboxMessage", b =>
                 {
                     b.Property<int>("MessageId")
@@ -934,6 +1001,16 @@ namespace WebApplication_API.Data.Migrations
                     b.Navigation("Owner");
                 });
 
+            modelBuilder.Entity("WebApplication_API.Model.HeatmapEvent", b =>
+                {
+                    b.HasOne("WebApplication_API.Model.Location", "Location")
+                        .WithMany("HeatmapEvents")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Location");
+                });
+
             modelBuilder.Entity("WebApplication_API.Model.InboxMessage", b =>
                 {
                     b.HasOne("WebApplication_API.Model.ChangeRequest", "RelatedRequest")
@@ -1072,6 +1149,8 @@ namespace WebApplication_API.Data.Migrations
                     b.Navigation("AudioContents");
 
                     b.Navigation("AudioListeningSessions");
+
+                    b.Navigation("HeatmapEvents");
 
                     b.Navigation("Images");
 

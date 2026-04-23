@@ -138,6 +138,76 @@ public class TelemetryController(
     }
 
     [AllowAnonymous]
+    [HttpPost("v1/heatmap-events")]
+    public async Task<ActionResult<TelemetryIngestResultDto>> IngestHeatmapEvents(
+        [FromBody] HeatmapEventBatchIngestRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var events = request.Events ?? [];
+        if (events.Count == 0)
+        {
+            return BadRequest("At least one heatmap event is required.");
+        }
+
+        if (events.Count > 500)
+        {
+            return BadRequest("Heatmap event batch size exceeds the limit (500).");
+        }
+
+        var acceptedItems = new List<HeatmapEvent>(events.Count);
+        var rejected = 0;
+
+        foreach (var heatmapEvent in events)
+        {
+            if (!IsValidHash(heatmapEvent.DeviceHash)
+                || !IsValidLatitude(heatmapEvent.Latitude)
+                || !IsValidLongitude(heatmapEvent.Longitude))
+            {
+                rejected++;
+                continue;
+            }
+
+            var normalizedEventType = HeatmapEventTypes.Normalize(heatmapEvent.EventType);
+            var normalizedWeight = Math.Clamp(
+                HeatmapEventTypes.ResolveWeight(normalizedEventType, heatmapEvent.Weight),
+                1,
+                9);
+
+            acceptedItems.Add(new HeatmapEvent
+            {
+                DeviceId = heatmapEvent.DeviceHash.Trim(),
+                SessionId = NormalizeHashOrNull(heatmapEvent.SessionHash),
+                LocationId = heatmapEvent.PoiId,
+                TourId = heatmapEvent.TourId,
+                EventType = normalizedEventType,
+                Weight = normalizedWeight,
+                TriggerSource = NormalizeTriggerSource(heatmapEvent.TriggerSource),
+                Latitude = heatmapEvent.Latitude,
+                Longitude = heatmapEvent.Longitude,
+                AccuracyMeters = heatmapEvent.AccuracyMeters,
+                SpeedMetersPerSecond = heatmapEvent.SpeedMetersPerSecond,
+                BatteryPercent = heatmapEvent.BatteryPercent,
+                IsForeground = heatmapEvent.IsForeground,
+                Context = NormalizeContext(heatmapEvent.Context),
+                CapturedAt = EnsureUtc(heatmapEvent.CapturedAtUtc)
+            });
+        }
+
+        if (acceptedItems.Count > 0)
+        {
+            context.HeatmapEvents.AddRange(acceptedItems);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        LogRejected("heatmap-events", acceptedItems.Count, rejected);
+        return Ok(new TelemetryIngestResultDto
+        {
+            AcceptedCount = acceptedItems.Count,
+            RejectedCount = rejected
+        });
+    }
+
+    [AllowAnonymous]
     [HttpPost("v1/audio-listening-sessions")]
     public async Task<ActionResult<TelemetryIngestResultDto>> IngestAudioListeningSessions(
         [FromBody] AudioListeningSessionBatchIngestRequest request,
