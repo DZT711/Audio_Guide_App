@@ -1261,6 +1261,7 @@ Nguồn: OpenStreetMap / MapTiler
 
    ```cmd
     dotnet run --project WebApplication_API/WebApplication_API.csproj --urls "https://0.0.0.0:5123"
+    ngrok http 5123 --host-header="localhost:5123"
    ```
 
 2. **Admin Web:**

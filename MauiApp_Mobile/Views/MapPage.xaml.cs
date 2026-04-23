@@ -51,6 +51,7 @@ public partial class MapPage : ContentPage
     private MapTourStopViewModel? _activeTourStop;
     private MapTourStopViewModel? _nextTourStop;
     private CancellationTokenSource? _activeSearchCts;
+    private CancellationTokenSource? _developerLocationSessionCts;
     private CancellationTokenSource? _mapLoadingCts;
     private CancellationTokenSource? _mapTimeoutCts;
     private Location? _lastMapLocationRendered;
@@ -58,6 +59,8 @@ public partial class MapPage : ContentPage
     private bool _isRefreshingMap;
     private int _isProcessingDevLocation;
     private const int MapLoadTimeoutSeconds = 25;
+    private static readonly TimeSpan DeveloperLocationHoldDuration = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan DeveloperLocationTickInterval = TimeSpan.FromSeconds(5);
 
     public ObservableCollection<MapTourViewModel> AvailableTours => _availableTours;
     public bool IsTourPanelVisible { get => _isTourPanelVisible; private set { if (_isTourPanelVisible == value) return; _isTourPanelVisible = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsTourDetailVisible)); } }
@@ -133,6 +136,7 @@ public partial class MapPage : ContentPage
         _isPageActive = true;
         _isPageDisposing = false;
         AttachEventHandlers();
+        FireAndForgetMapTask("TrackViewMapOnAppearing", () => AnalyticsService.Instance.TrackEventAsync(UsageEventType.ViewMap));
 
         if (!_hasAnimatedChrome)
         {
@@ -628,38 +632,28 @@ public partial class MapPage : ContentPage
             }
 
             var location = new Location(latitude, longitude);
-            await MainThread.InvokeOnMainThreadAsync(async () =>
+            try
             {
-                if (!CanUsePageUi())
-                {
-                    return;
-                }
-
-                try
-                {
-                    await GeofenceOrchestratorService.Instance.WarmStartAsync();
-                }
-                catch (Exception ex)
-                {
-                    LogMapFailure("ApplyDeveloperLocationWarmStart", ex);
-                }
-
-                UserLocationService.Instance.UpdateLocation(location);
-
-                try
-                {
-                    await UserLocationService.Instance.EnsureHeadingTrackingAsync();
-                }
-                catch (Exception ex)
-                {
-                    LogMapFailure("ApplyDeveloperLocationHeading", ex);
-                }
-            });
-
-            if (_isPageDisposing || !CanUsePageUi())
-            {
-                return;
+                await GeofenceOrchestratorService.Instance.WarmStartAsync();
             }
+            catch (Exception ex)
+            {
+                LogMapFailure("ApplyDeveloperLocationWarmStart", ex);
+            }
+
+            try
+            {
+                await UserLocationService.Instance.EnsureHeadingTrackingAsync();
+            }
+            catch (Exception ex)
+            {
+                LogMapFailure("ApplyDeveloperLocationHeading", ex);
+            }
+
+            var sessionCts = BeginDeveloperLocationSession();
+            FireAndForgetMapTask(
+                "RunDeveloperLocationSession",
+                () => RunDeveloperLocationSessionAsync(location, sessionCts));
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
@@ -669,7 +663,7 @@ public partial class MapPage : ContentPage
                 }
 
                 UpdateSearchStatus(
-                    $"Đã đặt vị trí thử nghiệm: {latitude.ToString("F6", CultureInfo.InvariantCulture)}, {longitude.ToString("F6", CultureInfo.InvariantCulture)}.");
+                    $"Đã giữ vị trí thử nghiệm trong 20 giây tại: {latitude.ToString("F6", CultureInfo.InvariantCulture)}, {longitude.ToString("F6", CultureInfo.InvariantCulture)}.");
                 return Task.CompletedTask;
             });
         }
@@ -700,6 +694,140 @@ public partial class MapPage : ContentPage
             Interlocked.Exchange(ref _isProcessingDevLocation, 0);
         }
     }
+
+    private CancellationTokenSource BeginDeveloperLocationSession()
+    {
+        CancelDeveloperLocationSession();
+        var sessionCts = new CancellationTokenSource();
+        _developerLocationSessionCts = sessionCts;
+        return sessionCts;
+    }
+
+    private void CancelDeveloperLocationSession()
+    {
+        var activeSession = _developerLocationSessionCts;
+        _developerLocationSessionCts = null;
+
+        if (activeSession is not null)
+        {
+            try
+            {
+                activeSession.Cancel();
+            }
+            catch
+            {
+            }
+
+            activeSession.Dispose();
+        }
+
+        DeveloperLocationSessionService.Instance.Stop();
+    }
+
+    private async Task RunDeveloperLocationSessionAsync(Location location, CancellationTokenSource sessionCts)
+    {
+        var cancellationToken = sessionCts.Token;
+        var session = DeveloperLocationSessionService.Instance.Start(location, DeveloperLocationHoldDuration);
+
+        try
+        {
+            await PublishDeveloperLocationTickAsync(location, cancellationToken);
+
+            using var timer = new PeriodicTimer(DeveloperLocationTickInterval);
+            while (DateTimeOffset.UtcNow < session.ExpiresAtUtc
+                   && await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (DateTimeOffset.UtcNow >= session.ExpiresAtUtc)
+                {
+                    break;
+                }
+
+                await PublishDeveloperLocationTickAsync(location, cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await RestoreRealLocationAfterDeveloperSessionAsync(location, cancellationToken);
+        }
+        finally
+        {
+            if (ReferenceEquals(_developerLocationSessionCts, sessionCts))
+            {
+                _developerLocationSessionCts = null;
+                DeveloperLocationSessionService.Instance.Stop();
+            }
+
+            sessionCts.Dispose();
+        }
+    }
+
+    private async Task PublishDeveloperLocationTickAsync(Location location, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        TelemetryCaptureService.Instance.RecordDeveloperLocationSample(location, isForeground: true);
+
+        await MainThread.InvokeOnMainThreadAsync(() =>
+        {
+            if (!CanUsePageUi())
+            {
+                return Task.CompletedTask;
+            }
+
+            UserLocationService.Instance.UpdateLocation(location);
+            return Task.CompletedTask;
+        });
+    }
+
+    private async Task RestoreRealLocationAfterDeveloperSessionAsync(Location developerLocation, CancellationToken cancellationToken)
+    {
+        DeveloperLocationSessionService.Instance.Stop();
+
+        Location? restoredLocation = null;
+        try
+        {
+            restoredLocation = await UserLocationService.Instance.RefreshLocationAsync(
+                requestPermission: false,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex) when (
+            ex is TaskCanceledException
+                or TimeoutException
+                or FeatureNotEnabledException
+                or FeatureNotSupportedException
+                or PermissionException)
+        {
+            LogMapFailure("RestoreDeveloperLocationRefresh", ex);
+        }
+
+        var trackedLocation = LocationTrackingService.Instance.LastKnownLocation;
+        if (trackedLocation is not null
+            && (restoredLocation is null || IsApproximatelySameLocation(restoredLocation, developerLocation)))
+        {
+            restoredLocation = trackedLocation;
+        }
+
+        await MainThread.InvokeOnMainThreadAsync(() =>
+        {
+            if (!CanUsePageUi())
+            {
+                return Task.CompletedTask;
+            }
+
+            if (restoredLocation is not null)
+            {
+                UserLocationService.Instance.UpdateLocation(restoredLocation);
+                UpdateSearchStatus("Đã kết thúc vị trí thử nghiệm và quay về vị trí thật.");
+            }
+            else
+            {
+                UpdateSearchStatus("Đã kết thúc vị trí thử nghiệm. Vị trí thật sẽ cập nhật lại khi GPS sẵn sàng.");
+            }
+
+            return Task.CompletedTask;
+        });
+    }
+
+    private static bool IsApproximatelySameLocation(Location left, Location right) =>
+        Location.CalculateDistance(left, right, DistanceUnits.Kilometers) * 1000d <= 5d;
 
     private static bool TryParseDeveloperLocationUri(string url, out double latitude, out double longitude)
     {
@@ -1206,6 +1334,19 @@ public partial class MapPage : ContentPage
         _isDeveloperModeEnabled = !_isDeveloperModeEnabled;
         UpdateDeveloperModeVisuals();
         await ApplyDeveloperModeAsync();
+
+        if (!_isDeveloperModeEnabled)
+        {
+            DeveloperLocationSessionService.Instance.TryGetActiveSession(out var activeDeveloperSession);
+            CancelDeveloperLocationSession();
+
+            if (activeDeveloperSession is not null)
+            {
+                FireAndForgetMapTask(
+                    "RestoreRealLocationAfterDeveloperModeDisabled",
+                    () => RestoreRealLocationAfterDeveloperSessionAsync(activeDeveloperSession.Location, CancellationToken.None));
+            }
+        }
 
         UpdateSearchStatus(_isDeveloperModeEnabled
             ? "Đã bật chế độ dev. Chạm lên bản đồ để đặt vị trí thử nghiệm."
@@ -2182,6 +2323,7 @@ public partial class MapPage : ContentPage
     private void CancelPendingOperations(bool resetMapReady)
     {
         CancelActiveSearchOperation();
+        CancelDeveloperLocationSession();
         _mapLoadingCts?.Cancel();
         _mapTimeoutCts?.Cancel();
         if (resetMapReady)

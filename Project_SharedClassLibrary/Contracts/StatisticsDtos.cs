@@ -4,9 +4,11 @@ public sealed class StatisticsQueryDto
 {
     public DateTime? From { get; init; }
     public DateTime? To { get; init; }
+    public string? Timezone { get; init; }
     public int? TourId { get; init; }
     public string? Ward { get; init; }
     public string? Search { get; init; }
+    public bool IncludeSynthetic { get; init; }
 }
 
 public sealed class StatisticsSummaryDto
@@ -15,6 +17,7 @@ public sealed class StatisticsSummaryDto
     public int TotalTrackingPoints { get; init; }
     public int RouteSessions { get; init; }
     public int UniqueGuests { get; init; }
+    public int OnlineGuests { get; init; }
     public int VisiblePois { get; init; }
     public double AverageListeningSeconds { get; init; }
 }
@@ -51,6 +54,8 @@ public sealed class StatisticsHeatPointDto
     public double Longitude { get; init; }
     public int Intensity { get; init; }
     public int SessionCount { get; init; }
+    public int TotalWeight { get; init; }
+    public double EngagementScore { get; init; }
     public string Ward { get; init; } = "";
 }
 
@@ -107,6 +112,7 @@ public sealed class StatisticsOverviewDto
     public IReadOnlyList<StatisticsChartPointDto> PlaysByTour { get; init; } = [];
     public IReadOnlyList<StatisticsLocationDto> Locations { get; init; } = [];
     public IReadOnlyList<StatisticsHeatPointDto> HeatmapPoints { get; init; } = [];
+    public IReadOnlyList<StatisticsRoutePointDto> SelectedTourRoute { get; init; } = [];
     public IReadOnlyList<StatisticsRouteHistoryDto> RouteHistory { get; init; } = [];
     public IReadOnlyList<StatisticsPoiReportRowDto> TopPoisByPlayCount { get; init; } = [];
     public IReadOnlyList<StatisticsPoiReportRowDto> AverageListeningByPoi { get; init; } = [];

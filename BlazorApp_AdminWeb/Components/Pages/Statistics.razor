@@ -105,10 +105,15 @@ else
                             <div><strong class="management-stat__value">@_overview.Summary.RouteSessions</strong><span
                                 class="management-stat__label">Anonymous Routes</span></div>
                             </article>
-                            <article class="management-stat" data-reveal>
-                                <span class="management-stat__icon"><i class="bi bi-people"></i></span>
-                                <div><strong class="management-stat__value">@_overview.Summary.UniqueGuests</strong><span
-                                    class="management-stat__label">Anonymous Guests</span></div>
+                                <article class="management-stat" data-reveal>
+                                    <span class="management-stat__icon"><i class="bi bi-people"></i></span>
+                                    <div><strong class="management-stat__value">@_overview.Summary.UniqueGuests</strong><span
+                                        class="management-stat__label">Anonymous Guests</span></div>
+                                </article>
+                                <article class="management-stat" data-reveal>
+                                    <span class="management-stat__icon"><i class="bi bi-broadcast-pin"></i></span>
+                                    <div><strong class="management-stat__value">@_overview.Summary.OnlineGuests</strong><span
+                                        class="management-stat__label">Online Guests</span></div>
                                 </article>
                                 <article class="management-stat" data-reveal>
                                     <span class="management-stat__icon"><i class="bi bi-hourglass-split"></i></span>
@@ -182,6 +187,13 @@ else
                                                                 aria-label="@(_isHeatmapExpanded ? "Close full heatmap view" : "Open heatmap in full view")">
                                                             <i class="@(_isHeatmapExpanded ? "bi bi-fullscreen-exit" : "bi bi-arrows-fullscreen") me-1"></i>
                                                             @(_isHeatmapExpanded ? "Close full view" : "Full view")
+                                                        </button>
+                                                        <button type="button"
+                                                                class="btn btn-outline-secondary btn-sm"
+                                                                @onclick="CenterStatisticsMapAsync"
+                                                                disabled="@(!_statisticsMapInitialized)">
+                                                            <i class="bi bi-bullseye me-1"></i>
+                                                            Center map
                                                         </button>
                                                         <button type="button"
                                                                 class="btn btn-outline-secondary btn-sm"
@@ -529,9 +541,11 @@ else
                                             }
 
 @code {
+    private const string DefaultReportTimezone = "Asia/Ho_Chi_Minh";
+    private static readonly TimeZoneInfo DefaultReportTimeZone = ResolveReportTimeZone(DefaultReportTimezone);
     private StatisticsOverviewDto _overview = new();
-    private DateTime? _fromDate = DateTime.UtcNow.Date.AddDays(-14);
-    private DateTime? _toDate = DateTime.UtcNow.Date;
+    private DateTime? _fromDate = GetDefaultReportToday().AddDays(-14);
+    private DateTime? _toDate = GetDefaultReportToday();
     private readonly List<MapSearchResult> _mapSearchResults = new();
     private string _selectedTourValue = "";
     private string _selectedWard = "";
@@ -544,6 +558,8 @@ else
     private bool _isLocationTrackingBusy;
     private string? _loadError;
     private string? _mapSearchError;
+    private IReadOnlyList<StatisticsRoutePointDto> _selectedTourRouteForMap = [];
+    private string _selectedTourRouteForMapKey = "";
     private ElementReference _statisticsMapElement;
     private ElementReference _heatmapPanelElement;
     private ElementReference _heatmapSlotElement;
@@ -554,6 +570,12 @@ else
     private bool _isHeatmapExpanded;
     private bool? _bodyScrollLockState;
     private bool _clearPinnedHeatmapSlotHeightPending;
+    private StatisticsMapViewState? _savedStatisticsMapView;
+    private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(3);
+    private readonly SemaphoreSlim _loadLock = new(1, 1);
+    private CancellationTokenSource? _autoRefreshCts;
+    private Task? _autoRefreshTask;
+    private bool _isDisposed;
 
     private int _currentRoutePage = 1;
     private const int RoutesPerPage = 4;
@@ -568,7 +590,11 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
         .Take(RoutesPerPage)
         .ToList();
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        StartAutoRefreshLoop();
+    }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!CanView || _isLoading || !string.IsNullOrWhiteSpace(_loadError))
@@ -623,8 +649,9 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
 
     private async Task ResetFiltersAsync()
     {
-        _fromDate = DateTime.UtcNow.Date.AddDays(-14);
-        _toDate = DateTime.UtcNow.Date;
+        var reportToday = GetDefaultReportToday();
+        _fromDate = reportToday.AddDays(-14);
+        _toDate = reportToday;
         _selectedTourValue = "";
         _selectedWard = "";
         _searchText = "";
@@ -632,24 +659,41 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
         await LoadAsync();
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(bool isAutoRefresh = false)
     {
-        await DisposeStatisticsMapAsync();
-        _statisticsMapTrackingRefreshPending = _isTrackingCurrentLocation;
-        _isLoading = true;
-        _loadError = null;
-        _currentRoutePage = 1;
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        if (!await _loadLock.WaitAsync(0))
+        {
+            return;
+        }
 
         try
         {
+            if (!isAutoRefresh)
+            {
+                _savedStatisticsMapView = await CaptureStatisticsMapViewAsync();
+                await DisposeStatisticsMapAsync();
+                _statisticsMapTrackingRefreshPending = _isTrackingCurrentLocation;
+                _isLoading = true;
+                _loadError = null;
+                _currentRoutePage = 1;
+            }
+
+            var reportTimezone = DefaultReportTimezone;
             _overview = await ApiClient.GetStatisticsAsync(new StatisticsQueryDto
             {
-                From = _fromDate?.Date,
-                To = _toDate?.Date,
+                From = ToUtcFromDate(_fromDate, reportTimezone),
+                To = ToUtcToDate(_toDate, reportTimezone),
+                Timezone = reportTimezone,
                 TourId = int.TryParse(_selectedTourValue, out var tourId) ? tourId : null,
                 Ward = string.IsNullOrWhiteSpace(_selectedWard) ? null : _selectedWard,
                 Search = string.IsNullOrWhiteSpace(_searchText) ? null : _searchText.Trim()
             });
+            _selectedTourRouteForMap = await ResolveSelectedTourRouteForMapAsync(_overview.SelectedTourRoute);
 
             _selectedSessionKey = _overview.RouteHistory.Any(item => string.Equals(item.SessionKey, _selectedSessionKey,
 StringComparison.OrdinalIgnoreCase))
@@ -658,15 +702,55 @@ StringComparison.OrdinalIgnoreCase))
 
             EnsureSelectedRouteVisibleOnCurrentPage();
             _statisticsMapSyncPending = true;
+
+            if (isAutoRefresh)
+            {
+                _loadError = null;
+                await InvokeAsync(StateHasChanged);
+            }
         }
         catch (Exception ex)
         {
-            _loadError = ex.Message;
-            Notifications.Error(ex.Message, "Statistics load failed");
+            if (!isAutoRefresh)
+            {
+                _loadError = ex.Message;
+                Notifications.Error(ex.Message, "Statistics load failed");
+            }
         }
         finally
         {
-            _isLoading = false;
+            if (!isAutoRefresh)
+            {
+                _isLoading = false;
+            }
+
+            _loadLock.Release();
+        }
+    }
+
+    private void StartAutoRefreshLoop()
+    {
+        if (!CanView || _isDisposed || _autoRefreshTask is not null)
+        {
+            return;
+        }
+
+        _autoRefreshCts = new CancellationTokenSource();
+        _autoRefreshTask = RunAutoRefreshLoopAsync(_autoRefreshCts.Token);
+    }
+
+    private async Task RunAutoRefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(AutoRefreshInterval);
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(() => LoadAsync(isAutoRefresh: true));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
@@ -913,6 +997,96 @@ StringComparison.OrdinalIgnoreCase))
     private static string JoinItems(IReadOnlyList<string> items) => items.Count == 0 ? "No linked content" : string.Join(", ", items);
     private static string GetRouteLabel(StatisticsRouteHistoryDto route) => route.SessionId ?? route.DeviceId ??
 route.SessionKey;
+    private static DateTime? ToUtcFromDate(DateTime? value, string reportTimezone)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        var reportTimeZone = ResolveReportTimeZone(reportTimezone);
+        var reportLocalStart = DateTime.SpecifyKind(value.Value.Date, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(reportLocalStart, reportTimeZone);
+    }
+
+    private static DateTime? ToUtcToDate(DateTime? value, string reportTimezone)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        var reportTimeZone = ResolveReportTimeZone(reportTimezone);
+        var reportLocalEnd = DateTime.SpecifyKind(value.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(reportLocalEnd, reportTimeZone);
+    }
+
+    private static DateTime GetDefaultReportToday() =>
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, DefaultReportTimeZone).Date;
+
+    private static TimeZoneInfo ResolveReportTimeZone(string? timezone)
+    {
+        var candidate = string.IsNullOrWhiteSpace(timezone)
+            ? DefaultReportTimezone
+            : timezone.Trim();
+
+        if (TryFindTimeZone(candidate, out var reportTimeZone))
+        {
+            return reportTimeZone;
+        }
+
+        if (TimeZoneInfo.TryConvertIanaIdToWindowsId(candidate, out var windowsId)
+            && !string.IsNullOrWhiteSpace(windowsId)
+            && TryFindTimeZone(windowsId, out reportTimeZone))
+        {
+            return reportTimeZone;
+        }
+
+        if (string.Equals(candidate, DefaultReportTimezone, StringComparison.OrdinalIgnoreCase)
+            && TryFindTimeZone("SE Asia Standard Time", out reportTimeZone))
+        {
+            return reportTimeZone;
+        }
+
+        return TimeZoneInfo.Utc;
+    }
+
+    private static bool TryFindTimeZone(string timeZoneId, out TimeZoneInfo timeZoneInfo)
+    {
+        try
+        {
+            timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            return true;
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            timeZoneInfo = TimeZoneInfo.Utc;
+            return false;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            timeZoneInfo = TimeZoneInfo.Utc;
+            return false;
+        }
+    }
+
+    private async Task CenterStatisticsMapAsync()
+    {
+        if (!_statisticsMapInitialized)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("smartTourAdmin.map.centerStatisticsMap", _statisticsMapElement);
+            _savedStatisticsMapView = await CaptureStatisticsMapViewAsync();
+        }
+        catch (JSException)
+        {
+        }
+    }
+
     private string? GetPoiImageUrl(string? imagePath) => ApiClient.ResolveImageUrl(imagePath);
     private static string FormatDistance(double value) => $"{value.ToString("0.00", CultureInfo.InvariantCulture)} km";
     private static string FormatSeconds(double value)
@@ -953,14 +1127,108 @@ route.SessionKey;
         }
     }
 
+    private async Task<IReadOnlyList<StatisticsRoutePointDto>> ResolveSelectedTourRouteForMapAsync(
+        IReadOnlyList<StatisticsRoutePointDto> selectedTourRoute)
+    {
+        var routeKey = BuildSelectedTourRouteKey(selectedTourRoute);
+        if (string.IsNullOrWhiteSpace(routeKey))
+        {
+            _selectedTourRouteForMapKey = string.Empty;
+            return [];
+        }
+
+        if (string.Equals(routeKey, _selectedTourRouteForMapKey, StringComparison.Ordinal))
+        {
+            return _selectedTourRouteForMap;
+        }
+
+        var fallbackRoute = selectedTourRoute
+            .Select(item => new StatisticsRoutePointDto
+            {
+                Latitude = item.Latitude,
+                Longitude = item.Longitude,
+                CapturedAt = DateTime.UnixEpoch
+            })
+            .ToList();
+
+        if (fallbackRoute.Count <= 1)
+        {
+            _selectedTourRouteForMapKey = routeKey;
+            return fallbackRoute;
+        }
+
+        if (fallbackRoute.Count > 12)
+        {
+            _selectedTourRouteForMapKey = routeKey;
+            return fallbackRoute;
+        }
+
+        var previewStops = fallbackRoute
+            .Select((item, index) => new TourRoutePreviewStopRequest
+            {
+                LocationId = index + 1,
+                SequenceOrder = index + 1,
+                Latitude = item.Latitude,
+                Longitude = item.Longitude
+            })
+            .ToList();
+
+        try
+        {
+            var preview = await ApiClient.PreviewTourRouteAsync(new TourRoutePreviewRequest
+            {
+                Stops = previewStops
+            });
+
+            var routedPath = preview.Path
+                .Where(item => double.IsFinite(item.Latitude) && double.IsFinite(item.Longitude))
+                .Select(item => new StatisticsRoutePointDto
+                {
+                    Latitude = item.Latitude,
+                    Longitude = item.Longitude,
+                    CapturedAt = DateTime.UnixEpoch
+                })
+                .ToList();
+
+            if (routedPath.Count > 1)
+            {
+                _selectedTourRouteForMapKey = routeKey;
+                return routedPath;
+            }
+        }
+        catch
+        {
+            // Keep statistics responsive and fall back to the tour stop line if route preview fails.
+        }
+
+        _selectedTourRouteForMapKey = routeKey;
+        return fallbackRoute;
+    }
+
+    private static string BuildSelectedTourRouteKey(IReadOnlyList<StatisticsRoutePointDto> selectedTourRoute) =>
+        selectedTourRoute.Count == 0
+            ? string.Empty
+            : string.Join("|", selectedTourRoute.Select(item =>
+                $"{Math.Round(item.Latitude, 6).ToString(CultureInfo.InvariantCulture)},{Math.Round(item.Longitude, 6).ToString(CultureInfo.InvariantCulture)}"));
+
     private object CreateStatisticsMapState() => new
     {
+        view = _savedStatisticsMapView is null
+            ? null
+            : new
+            {
+                latitude = _savedStatisticsMapView.Latitude,
+                longitude = _savedStatisticsMapView.Longitude,
+                zoom = _savedStatisticsMapView.Zoom
+            },
         heatPoints = _overview.HeatmapPoints.Select(item => new
         {
             latitude = item.Latitude,
             longitude = item.Longitude,
             sessionCount = item.SessionCount,
             intensity = item.Intensity,
+            totalWeight = item.TotalWeight,
+            engagementScore = item.EngagementScore,
             ward = item.Ward
         }).ToList(),
         locations = _overview.Locations.Select(item => new
@@ -969,7 +1237,13 @@ route.SessionKey;
             longitude = item.Longitude,
             name = item.Name,
             ward = item.Ward,
+            preferenceImageUrl = GetPoiImageUrl(item.PreferenceImageUrl),
             ownerName = item.OwnerName
+        }).ToList(),
+        selectedTourRoute = _selectedTourRouteForMap.Select(item => new
+        {
+            latitude = item.Latitude,
+            longitude = item.Longitude
         }).ToList(),
         selectedRoute = SelectedRoute is null
             ? null
@@ -1023,6 +1297,29 @@ route.SessionKey;
         }
         catch (JSException)
         {
+        }
+    }
+
+    private async Task<StatisticsMapViewState?> CaptureStatisticsMapViewAsync()
+    {
+        if (!_statisticsMapInitialized)
+        {
+            return _savedStatisticsMapView;
+        }
+
+        try
+        {
+            return await JS.InvokeAsync<StatisticsMapViewState?>(
+                "smartTourAdmin.map.getStatisticsMapView",
+                _statisticsMapElement);
+        }
+        catch (JSException)
+        {
+            return _savedStatisticsMapView;
+        }
+        catch (TaskCanceledException)
+        {
+            return _savedStatisticsMapView;
         }
     }
 
@@ -1100,6 +1397,31 @@ route.SessionKey;
 
     public async ValueTask DisposeAsync()
     {
+        _isDisposed = true;
+        if (_autoRefreshCts is not null)
+        {
+            try
+            {
+                await _autoRefreshCts.CancelAsync();
+            }
+            catch
+            {
+            }
+        }
+
+        if (_autoRefreshTask is not null)
+        {
+            try
+            {
+                await _autoRefreshTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        _autoRefreshCts?.Dispose();
+
         await DisposeStatisticsMapAsync();
 
         try
@@ -1118,6 +1440,8 @@ route.SessionKey;
         catch (TaskCanceledException)
         {
         }
+
+        _loadLock.Dispose();
     }
 
     private sealed class MapSearchResult
@@ -1136,5 +1460,17 @@ route.SessionKey;
 
         [JsonIgnore]
         public bool HasCoordinates => double.IsFinite(Latitude) && double.IsFinite(Longitude);
+    }
+
+    private sealed class StatisticsMapViewState
+    {
+        [JsonPropertyName("latitude")]
+        public double Latitude { get; init; }
+
+        [JsonPropertyName("longitude")]
+        public double Longitude { get; init; }
+
+        [JsonPropertyName("zoom")]
+        public double Zoom { get; init; }
     }
 }

@@ -264,27 +264,35 @@
 
     private async Task StopSidebarPollingAsync()
     {
-        if (_sidebarPollingCancellationSource is null)
+        var cancellationSource = Interlocked.Exchange(ref _sidebarPollingCancellationSource, null);
+        var pollingTask = Interlocked.Exchange(ref _sidebarPollingTask, null);
+
+        if (cancellationSource is null)
         {
             return;
         }
 
-        await _sidebarPollingCancellationSource.CancelAsync();
+        try
+        {
+            await cancellationSource.CancelAsync();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The component can be disposed concurrently when auth/session changes.
+        }
 
-        if (_sidebarPollingTask is not null)
+        if (pollingTask is not null)
         {
             try
             {
-                await _sidebarPollingTask;
+                await pollingTask;
             }
             catch (OperationCanceledException)
             {
             }
         }
 
-        _sidebarPollingCancellationSource.Dispose();
-        _sidebarPollingCancellationSource = null;
-        _sidebarPollingTask = null;
+        cancellationSource.Dispose();
     }
 
     public async ValueTask DisposeAsync()

@@ -233,6 +233,7 @@ public sealed partial class GeofenceOrchestratorService
 
             if (acceptedTrigger is not null && ShouldAllowTrigger(acceptedTrigger))
             {
+                RaiseTriggerAccepted(acceptedTrigger);
                 await HandleTriggerAsync(acceptedTrigger, cancellationToken);
             }
             else if (acceptedTrigger is not null)

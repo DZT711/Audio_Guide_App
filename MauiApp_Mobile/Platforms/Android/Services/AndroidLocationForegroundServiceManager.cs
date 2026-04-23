@@ -8,7 +8,7 @@ public static partial class AndroidLocationForegroundServiceManager
 {
     public static partial void Start()
     {
-        var context = (Context?)Platform.CurrentActivity ?? Android.App.Application.Context;
+        var context = (Context?)Microsoft.Maui.ApplicationModel.Platform.CurrentActivity ?? Android.App.Application.Context;
         var intent = new Intent(context, typeof(LocationForegroundService));
         if (OperatingSystem.IsAndroidVersionAtLeast(26))
         {
@@ -21,7 +21,7 @@ public static partial class AndroidLocationForegroundServiceManager
 
     public static partial void Stop()
     {
-        var context = (Context?)Platform.CurrentActivity ?? Android.App.Application.Context;
+        var context = (Context?)Microsoft.Maui.ApplicationModel.Platform.CurrentActivity ?? Android.App.Application.Context;
         var intent = new Intent(context, typeof(LocationForegroundService));
         context.StopService(intent);
     }

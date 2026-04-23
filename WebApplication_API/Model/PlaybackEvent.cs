@@ -16,4 +16,7 @@ public class PlaybackEvent
     public int? BatteryPercent { get; set; }
     public string? NetworkType { get; set; }
     public string? SessionId { get; set; }
+    public int? TourId { get; set; }
+    public int? PoiId { get; set; }
+    public string? Context { get; set; }
 }

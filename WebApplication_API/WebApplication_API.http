@@ -1,4 +1,4 @@
-@WebURL = http://localhost:5123
+@WebURL = https://retype-roundworm-platter.ngrok-free.dev
 
 ### ========== CATEGORY CRUD ==========
 

@@ -170,6 +170,65 @@ namespace WebApplication_API.Data.Migrations
                     b.ToTable("AudioContents", (string)null);
                 });
 
+            modelBuilder.Entity("WebApplication_API.Model.AudioListeningSession", b =>
+                {
+                    b.Property<int>("AudioListeningSessionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AudioId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Context")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("EndedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InterruptedReason")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ListeningSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("LocationId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("PoiId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SessionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("TourId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("AudioListeningSessionId");
+
+                    b.HasIndex("AudioId");
+
+                    b.HasIndex("StartedAt");
+
+                    b.HasIndex("LocationId", "StartedAt");
+
+                    b.HasIndex("PoiId", "TourId", "StartedAt");
+
+                    b.ToTable("AudioListeningSessions", (string)null);
+                });
+
             modelBuilder.Entity("WebApplication_API.Model.Category", b =>
                 {
                     b.Property<int>("CategoryId")
@@ -318,6 +377,73 @@ namespace WebApplication_API.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("DashboardUsers", (string)null);
+                });
+
+            modelBuilder.Entity("WebApplication_API.Model.HeatmapEvent", b =>
+                {
+                    b.Property<int>("HeatmapEventId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double?>("AccuracyMeters")
+                        .HasColumnType("REAL");
+
+                    b.Property<int?>("BatteryPercent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CapturedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Context")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsForeground")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("REAL");
+
+                    b.Property<int?>("LocationId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("SessionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("SpeedMetersPerSecond")
+                        .HasColumnType("REAL");
+
+                    b.Property<int?>("TourId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TriggerSource")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Weight")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("HeatmapEventId");
+
+                    b.HasIndex("CapturedAt");
+
+                    b.HasIndex("EventType", "CapturedAt");
+
+                    b.HasIndex("LocationId", "CapturedAt");
+
+                    b.HasIndex("LocationId", "TourId", "CapturedAt");
+
+                    b.ToTable("HeatmapEvents", (string)null);
                 });
 
             modelBuilder.Entity("WebApplication_API.Model.InboxMessage", b =>
@@ -470,13 +596,13 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("QrAudioTrackId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("QrAutoplay")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(true);
-
-                    b.Property<int?>("QrAudioTrackId")
-                        .HasColumnType("INTEGER");
 
                     b.Property<string>("QrFormat")
                         .IsRequired()
@@ -569,6 +695,9 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<DateTime>("CapturedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Context")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DeviceId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -582,15 +711,25 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<double>("Longitude")
                         .HasColumnType("REAL");
 
+                    b.Property<int?>("PoiId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("SessionId")
                         .HasColumnType("TEXT");
 
                     b.Property<double?>("SpeedMetersPerSecond")
                         .HasColumnType("REAL");
 
+                    b.Property<int?>("TourId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("TrackingEventId");
 
+                    b.HasIndex("CapturedAt");
+
                     b.HasIndex("DeviceId", "CapturedAt");
+
+                    b.HasIndex("PoiId", "TourId", "CapturedAt");
 
                     b.ToTable("LocationTrackingEvents", (string)null);
                 });
@@ -606,6 +745,9 @@ namespace WebApplication_API.Data.Migrations
 
                     b.Property<int?>("BatteryPercent")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Context")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("DeviceId")
                         .HasColumnType("TEXT");
@@ -626,11 +768,17 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<string>("NetworkType")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("PoiId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("QueuePosition")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("SessionId")
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("TourId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("TriggerSource")
                         .IsRequired()
@@ -640,9 +788,46 @@ namespace WebApplication_API.Data.Migrations
 
                     b.HasIndex("AudioId");
 
+                    b.HasIndex("EventAt");
+
                     b.HasIndex("LocationId", "EventAt");
 
+                    b.HasIndex("PoiId", "TourId", "EventAt");
+
                     b.ToTable("PlaybackEvents", (string)null);
+                });
+
+            modelBuilder.Entity("WebApplication_API.Model.QrLandingVisit", b =>
+                {
+                    b.Property<int>("QrLandingVisitId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LocationId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Referrer")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("QrLandingVisitId");
+
+                    b.HasIndex("OpenedAt");
+
+                    b.HasIndex("LocationId", "OpenedAt");
+
+                    b.ToTable("QrLandingVisits", (string)null);
                 });
 
             modelBuilder.Entity("WebApplication_API.Model.Tour", b =>
@@ -723,6 +908,50 @@ namespace WebApplication_API.Data.Migrations
                     b.ToTable("TourLocations", (string)null);
                 });
 
+            modelBuilder.Entity("WebApplication_API.Model.UsageEventEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DurationSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenceId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventType");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("DeviceId", "Timestamp");
+
+                    b.HasIndex("ReferenceId", "Timestamp");
+
+                    b.ToTable("UsageEvents", (string)null);
+                });
+
             modelBuilder.Entity("WebApplication_API.Model.ActivityLog", b =>
                 {
                     b.HasOne("WebApplication_API.Model.DashboardUser", "User")
@@ -744,6 +973,23 @@ namespace WebApplication_API.Data.Migrations
                     b.Navigation("Location");
                 });
 
+            modelBuilder.Entity("WebApplication_API.Model.AudioListeningSession", b =>
+                {
+                    b.HasOne("WebApplication_API.Model.Audio", "Audio")
+                        .WithMany("AudioListeningSessions")
+                        .HasForeignKey("AudioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("WebApplication_API.Model.Location", "Location")
+                        .WithMany("AudioListeningSessions")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Audio");
+
+                    b.Navigation("Location");
+                });
+
             modelBuilder.Entity("WebApplication_API.Model.ChangeRequest", b =>
                 {
                     b.HasOne("WebApplication_API.Model.DashboardUser", "Owner")
@@ -753,6 +999,16 @@ namespace WebApplication_API.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("WebApplication_API.Model.HeatmapEvent", b =>
+                {
+                    b.HasOne("WebApplication_API.Model.Location", "Location")
+                        .WithMany("HeatmapEvents")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Location");
                 });
 
             modelBuilder.Entity("WebApplication_API.Model.InboxMessage", b =>
@@ -818,6 +1074,17 @@ namespace WebApplication_API.Data.Migrations
                     b.Navigation("Location");
                 });
 
+            modelBuilder.Entity("WebApplication_API.Model.QrLandingVisit", b =>
+                {
+                    b.HasOne("WebApplication_API.Model.Location", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+                });
+
             modelBuilder.Entity("WebApplication_API.Model.Tour", b =>
                 {
                     b.HasOne("WebApplication_API.Model.DashboardUser", "Owner")
@@ -849,6 +1116,8 @@ namespace WebApplication_API.Data.Migrations
 
             modelBuilder.Entity("WebApplication_API.Model.Audio", b =>
                 {
+                    b.Navigation("AudioListeningSessions");
+
                     b.Navigation("PlaybackEvents");
                 });
 
@@ -878,6 +1147,10 @@ namespace WebApplication_API.Data.Migrations
             modelBuilder.Entity("WebApplication_API.Model.Location", b =>
                 {
                     b.Navigation("AudioContents");
+
+                    b.Navigation("AudioListeningSessions");
+
+                    b.Navigation("HeatmapEvents");
 
                     b.Navigation("Images");
 

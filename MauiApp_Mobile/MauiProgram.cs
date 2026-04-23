@@ -2,8 +2,11 @@ using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MauiApp_Mobile.Services;
+using MauiApp_Mobile.Services.DependencyInjection;
+using MauiApp_Mobile.Services.Platform;
 using MauiApp_Mobile.Services.Geofencing;
 using MauiApp_Mobile.Views;
+using Project_SharedClassLibrary.Contracts;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 using ZXing.Net.Maui.Controls;
 
@@ -84,6 +87,10 @@ public static class MauiProgram
             try
             {
                 var app = builder.Build();
+                
+                // Lấy từ nhánh Rebuild: Cấu hình Service Host để các class không dùng DI constructor có thể truy cập Services
+                MauiServiceHost.Configure(app.Services);
+
                 Debug.WriteLine("[MauiProgram] MAUI app built successfully");
                 Debug.WriteLine("[MauiProgram] ============ MAUI APP INITIALIZATION COMPLETE ============");
                 return app;
@@ -106,13 +113,15 @@ public static class MauiProgram
     {
         try
         {
-            RegisterPlatformServices();
+            // Resolve: Đã truyền services vào RegisterPlatformServices để tích hợp code từ Rebuild
+            RegisterPlatformServices(services); 
             RegisterCoreServices(services);
             RegisterLocationServices(services);
             RegisterGeofencingServices(services);
             RegisterAudioServices(services);
             RegisterDataServices(services);
             RegisterNavigationServices(services);
+            RegisterTelemetryServices(services); // Resolve: Nhóm mới cho Telemetry từ Rebuild
             RegisterPages(services);
 
             Debug.WriteLine("[MauiProgram.DI] All services registered successfully");
@@ -124,12 +133,22 @@ public static class MauiProgram
         }
     }
 
-    private static void RegisterPlatformServices()
+    private static void RegisterPlatformServices(IServiceCollection services)
     {
         try
         {
-            // AndroidLocationForegroundServiceManager is static utility service.
-            Debug.WriteLine("[MauiProgram.DI] Platform services: static platform managers available");
+            // Resolve: Tích hợp logic xử lý Foreground/Notification đa nền tảng của nhánh Rebuild
+#if ANDROID
+            services.AddSingleton<ILocationForegroundServiceController, AndroidLocationForegroundServiceController>();
+            services.AddSingleton<IPlatformDownloadNotificationService, AndroidPlatformDownloadNotificationService>();
+#elif IOS
+            services.AddSingleton<ILocationForegroundServiceController, IosLocationForegroundServiceController>();
+            services.AddSingleton<IPlatformDownloadNotificationService, IosPlatformDownloadNotificationService>();
+#else
+            services.AddSingleton<ILocationForegroundServiceController, DefaultLocationForegroundServiceController>();
+            services.AddSingleton<IPlatformDownloadNotificationService, DefaultPlatformDownloadNotificationService>();
+#endif
+            Debug.WriteLine("[MauiProgram.DI] Platform services registered");
         }
         catch (Exception ex)
         {
@@ -149,15 +168,31 @@ public static class MauiProgram
             services.AddSingleton(_ => ThemeService.Instance);
             services.AddSingleton(_ => SearchPlaceholderService.Instance);
 
-            // Static utility classes are used directly without DI registration:
-            // MobileApiOptions, AppNotificationService, DownloadNotificationService,
-            // FriendlyMessageService, LanguageBadgeService, UiEffectsService.
-
             Debug.WriteLine("[MauiProgram.DI] Core services registered");
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[MauiProgram.DI] Core services registration failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    private static void RegisterTelemetryServices(IServiceCollection services)
+    {
+        try
+        {
+            // Resolve: Tích hợp và gom gọn các dịch vụ Tracking từ nhánh Rebuild
+            services.AddSingleton(_ => TelemetryAnonymizerService.Instance);
+            services.AddSingleton(_ => TelemetryCaptureService.Instance);
+            services.AddSingleton(_ => TelemetrySyncService.Instance);
+            services.AddSingleton<IAnalyticsService>(_ => AnalyticsService.Instance);
+            services.AddSingleton(_ => AnalyticsService.Instance);
+
+            Debug.WriteLine("[MauiProgram.DI] Telemetry services registered");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MauiProgram.DI] Telemetry services registration failed: {ex.Message}");
             throw;
         }
     }

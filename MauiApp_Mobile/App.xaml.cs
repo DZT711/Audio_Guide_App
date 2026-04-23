@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Xaml;
+using Project_SharedClassLibrary.Contracts;
 using MauiApp_Mobile.Services;
 using MauiApp_Mobile.Services.Geofencing;
 
@@ -80,6 +81,14 @@ public partial class App : Application
 
     private void OnWindowDestroying(object? sender, EventArgs e)
     {
+        // Resolve: Kết hợp un-subscribe event của Rebuild và hàm CleanupAsync gọn gàng của main
+        Interlocked.Exchange(ref _hasStartedInitialization, 0);
+        if (sender is Window window)
+        {
+            window.Created -= OnWindowCreated;
+            window.Destroying -= OnWindowDestroying;
+        }
+
         Debug.WriteLine("[App] Window.Destroying event: Starting cleanup");
         _ = Task.Run(CleanupAsync);
     }
@@ -129,6 +138,13 @@ public partial class App : Application
                 return Task.CompletedTask;
             });
 
+            // Resolve: Đã đổi cách gọi từ Singleton sang DI cho tính năng Telemetry (từ nhánh Rebuild)
+            await RunInitStepAsync("telemetry-anonymizer-init", async () =>
+            {
+                var service = GetService<TelemetryAnonymizerService>();
+                if (service != null) await service.InitializeAsync();
+            });
+
             await RunInitStepAsync("localization-service", () =>
             {
                 var service = GetService<LocalizationService>();
@@ -174,6 +190,24 @@ public partial class App : Application
                 return Task.CompletedTask;
             });
 
+            // Resolve: Cấu hình Telemetry và Analytics từ nhánh Rebuild nhưng sử dụng DI Container
+            await RunInitStepAsync("telemetry-capture-start", () =>
+            {
+                var service = GetService<TelemetryCaptureService>();
+                service?.Start();
+                return Task.CompletedTask;
+            });
+
+            await RunInitStepAsync("analytics-track-app-open", async () =>
+            {
+                var service = GetService<AnalyticsService>();
+                if (service != null)
+                {
+                    // Lỗi ở thuộc tính enum UsageEventType sẽ cần đảm bảo SharedLibrary của bạn có định nghĩa này.
+                    await service.TrackEventAsync(UsageEventType.AppOpen, details: "{\"source\":\"app-start\"}");
+                }
+            });
+
             await RunInitStepAsync("background-services-start", StartBackgroundServicesAsync);
 
             await RunInitStepAsync("place-catalog", async () =>
@@ -203,7 +237,13 @@ public partial class App : Application
             throw new InvalidOperationException("Background startup dependencies are not registered");
         }
 
+        Debug.WriteLine("[App] background-services:catalog-sync:begin");
         await backgroundSyncService.TriggerCatalogSyncAsync();
+        Debug.WriteLine("[App] background-services:catalog-sync:complete");
+
+        // Resolve: Thêm các Sync trigger từ nhánh Rebuild
+        await backgroundSyncService.TriggerTelemetrySyncAsync();
+        await backgroundSyncService.TriggerUsageAnalyticsSyncAsync();
 
         var locationPermission = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
         if (locationPermission != PermissionStatus.Granted)
@@ -276,6 +316,13 @@ public partial class App : Application
                 return Task.CompletedTask;
             });
 
+            // Resolve: Đảm bảo Telemetry của nhánh Rebuild được tắt an toàn khi App đóng
+            await SafeStopServiceAsync("telemetry-capture", async () =>
+            {
+                var service = GetService<TelemetryCaptureService>();
+                if (service != null) await service.StopAsync();
+            });
+
             Debug.WriteLine("[App] ========== APPLICATION CLEANUP COMPLETE ==========");
         }
         catch (Exception ex)
@@ -307,106 +354,4 @@ public partial class App : Application
                 return null;
             }
 
-            var service = _serviceProvider.GetService<T>();
-            if (service == null)
-            {
-                Debug.WriteLine($"[App] GetService<{typeof(T).Name}>: Service not registered");
-                return null;
-            }
-
-            return service;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[App] GetService<{typeof(T).Name}>: Exception - {ex.GetType().Name}: {ex.Message}");
-            return null;
-        }
-    }
-
-    private Window CreateStartupFallbackWindow(string errorMessage)
-    {
-        try
-        {
-            var titleLabel = new Label
-            {
-                Text = "Startup Error",
-                FontSize = 18,
-                FontAttributes = FontAttributes.Bold,
-                TextColor = Colors.Red,
-                HorizontalOptions = LayoutOptions.Center
-            };
-
-            var messageLabel = new Label
-            {
-                Text = errorMessage,
-                FontSize = 14,
-                TextColor = Colors.DarkRed,
-                Padding = 10,
-                LineBreakMode = LineBreakMode.WordWrap
-            };
-
-            var retryButton = new Button
-            {
-                Text = "Retry",
-                Command = new Command(() =>
-                {
-                    MainThread.BeginInvokeOnMainThread(() =>
-                    {
-                        Application.Current?.Quit();
-                    });
-                })
-            };
-
-            var container = new VerticalStackLayout
-            {
-                Padding = 20,
-                Spacing = 15,
-                VerticalOptions = LayoutOptions.Center,
-                Children = { titleLabel, messageLabel, retryButton }
-            };
-
-            var contentPage = new ContentPage
-            {
-                Content = container,
-                BackgroundColor = Colors.White
-            };
-
-            return new Window(contentPage);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[App] CreateFallbackWindow failed: {ex.Message}");
-            throw;
-        }
-    }
-
-    private void CreateMinimalResources()
-    {
-        try
-        {
-            Debug.WriteLine("[App] Creating minimal resource dictionary...");
-            Resources = new ResourceDictionary
-            {
-                { "PrimaryGreen", Color.FromArgb("#18A94B") },
-                { "SecondaryGreen", Color.FromArgb("#1DB954") },
-                { "TabBarBackgroundColor", Colors.White },
-                { "TabBarUnselectedColor", Color.FromArgb("#98A2B3") },
-                { "BodyText", Color.FromArgb("#1E3250") },
-                { "TitleText", Color.FromArgb("#0F172A") },
-                { "MutedText", Color.FromArgb("#8A94A6") },
-                { "PageBackgroundColor", Color.FromArgb("#FAFAFA") }
-            };
-            Debug.WriteLine("[App] Minimal resources created");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[App] Failed to create minimal resources: {ex.Message}");
-        }
-    }
-
-    private static bool IsMissingXamlResource(XamlParseException ex)
-    {
-        return ex.Message?.Contains("resource", StringComparison.OrdinalIgnoreCase) == true ||
-               ex.Message?.Contains("DynamicResource", StringComparison.OrdinalIgnoreCase) == true;
-    }
-}
+            var service =

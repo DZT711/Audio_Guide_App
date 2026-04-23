@@ -5,11 +5,21 @@ namespace MauiApp_Mobile.Services;
 
 internal sealed class MobileApiLoggingHandler(HttpMessageHandler innerHandler) : DelegatingHandler(innerHandler)
 {
+    private const string NgrokBypassHeaderName = "ngrok-skip-browser-warning";
+    private const string NgrokBypassHeaderValue = "true";
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         if (request.RequestUri is not null && MobileApiOptions.IsPlaceholderHost(request.RequestUri.Host))
         {
             request.RequestUri = MobileApiOptions.RewriteToCurrentBaseUri(request.RequestUri);
+        }
+
+        if (request.RequestUri is not null &&
+            MobileApiOptions.IsNgrokHost(request.RequestUri.Host) &&
+            !request.Headers.Contains(NgrokBypassHeaderName))
+        {
+            request.Headers.TryAddWithoutValidation(NgrokBypassHeaderName, NgrokBypassHeaderValue);
         }
 
         var targetUri = request.RequestUri;

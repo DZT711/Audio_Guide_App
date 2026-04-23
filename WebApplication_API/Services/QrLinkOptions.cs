@@ -20,6 +20,12 @@ public sealed class QrLinkOptions
 
     public string AndroidPackageOutputRelativePath { get; set; } = "wwwroot\\downloads\\smarttour-latest.apk";
 
+    public string AndroidLatestAliasFileName { get; set; } = "smarttour-latest.apk";
+
+    public string AndroidLatestManifestFileName { get; set; } = "latest.json";
+
+    public int AndroidPackageRetentionCount { get; set; } = 5;
+
     public string AndroidBuildConfiguration { get; set; } = "Debug";
 
     public string AndroidTargetFramework { get; set; } = "net10.0-android";
@@ -39,4 +45,6 @@ public sealed class QrLinkOptions
     public int LandingOpenDelayMs { get; set; } = 120;
 
     public int LandingFallbackDelayMs { get; set; } = 1600;
+
+    public string LandingDefaultOpeningHours { get; set; } = "Opening hours are being updated.";
 }

@@ -261,9 +261,15 @@ public sealed class UsageHistoryOverviewDto
 {
     public int TotalEvents { get; init; }
     public int UniqueGuests { get; init; }
+    public int OnlineGuests { get; init; }
     public int DistinctLocations { get; init; }
     public double AverageListeningSeconds { get; init; }
     public IReadOnlyList<UsageHistoryItemDto> Items { get; init; } = [];
+}
+
+public sealed class UsageHistoryQueryDto
+{
+    public bool IncludeSynthetic { get; init; }
 }
 
 public sealed class ModerationItemDto

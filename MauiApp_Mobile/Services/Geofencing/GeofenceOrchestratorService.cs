@@ -44,6 +44,7 @@ public sealed partial class GeofenceOrchestratorService : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+    public event EventHandler<GeofenceTriggeredEvent>? TriggerAccepted;
 
     public GeofenceRunState RunState { get; private set; } = GeofenceRunState.Stopped;
     public string StatusMessage { get; private set; } = "Geofence engine is idle.";
@@ -244,4 +245,29 @@ public sealed partial class GeofenceOrchestratorService : INotifyPropertyChanged
 
     private void RaisePropertyChanged([CallerMemberName] string? propertyName = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+    private void RaiseTriggerAccepted(GeofenceTriggeredEvent trigger)
+    {
+        var handlers = TriggerAccepted;
+        if (handlers is null)
+        {
+            return;
+        }
+
+        foreach (EventHandler<GeofenceTriggeredEvent> handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                handler(this, trigger);
+            }
+            catch (Exception ex)
+            {
+                Log(
+                    "trigger-accepted-subscriber-failed",
+                    ("poiId", trigger.Definition?.Id ?? string.Empty),
+                    ("eventType", trigger.EventType.ToString()),
+                    ("error", ex.Message));
+            }
+        }
+    }
 }

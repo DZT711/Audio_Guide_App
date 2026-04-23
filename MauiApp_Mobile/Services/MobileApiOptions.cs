@@ -80,6 +80,18 @@ public static class MobileApiOptions
     public static bool IsPlaceholderHost(string? host) =>
         string.Equals(host, PlaceholderBaseUri.Host, StringComparison.OrdinalIgnoreCase);
 
+    public static bool IsNgrokHost(string? host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        return host.Contains("ngrok-free.dev", StringComparison.OrdinalIgnoreCase)
+               || host.Contains("ngrok.io", StringComparison.OrdinalIgnoreCase)
+               || host.Contains("ngrok.app", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static async Task<string> EnsureResolvedBaseUrlAsync(CancellationToken cancellationToken = default)
     {
         await EnsureRuntimeConfigurationLoadedAsync(cancellationToken);
@@ -245,6 +257,12 @@ public static class MobileApiOptions
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
                 new Uri(new Uri(baseUrl, UriKind.Absolute), ApiRoutes.PublicServerInfo));
+
+            if (IsNgrokHost(request.RequestUri.Host))
+            {
+                request.Headers.TryAddWithoutValidation("ngrok-skip-browser-warning", "true");
+            }
+
             using var response = await ProbeHttpClient.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
@@ -309,14 +327,10 @@ public static class MobileApiOptions
 
     private static IReadOnlyList<string> GetDefaultFallbackBaseUrls()
     {
-        var fallbacks = new List<string>();
-
-#if ANDROID
-        fallbacks.Add("http://10.0.2.2:5123/");
-#endif
-        fallbacks.Add("http://localhost:5123/");
-
-        return fallbacks;
+        return
+        [
+            "https://retype-roundworm-platter.ngrok-free.dev/"
+        ];
     }
 
     private static bool IsLoopbackDevelopmentHost(string? host)
