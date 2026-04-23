@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Xaml;
+using Project_SharedClassLibrary.Contracts;
 using MauiApp_Mobile.Services;
 using MauiApp_Mobile.Services.Geofencing;
 
@@ -80,6 +81,14 @@ public partial class App : Application
 
     private void OnWindowDestroying(object? sender, EventArgs e)
     {
+        // Resolve: Kết hợp un-subscribe event của Rebuild và hàm CleanupAsync gọn gàng của main
+        Interlocked.Exchange(ref _hasStartedInitialization, 0);
+        if (sender is Window window)
+        {
+            window.Created -= OnWindowCreated;
+            window.Destroying -= OnWindowDestroying;
+        }
+
         Debug.WriteLine("[App] Window.Destroying event: Starting cleanup");
 
 #if ANDROID
@@ -142,6 +151,13 @@ public partial class App : Application
                 return Task.CompletedTask;
             });
 
+            // Resolve: Đã đổi cách gọi từ Singleton sang DI cho tính năng Telemetry (từ nhánh Rebuild)
+            await RunInitStepAsync("telemetry-anonymizer-init", async () =>
+            {
+                var service = GetService<TelemetryAnonymizerService>();
+                if (service != null) await service.InitializeAsync();
+            });
+
             await RunInitStepAsync("localization-service", () =>
             {
                 var service = GetService<LocalizationService>();
@@ -187,6 +203,24 @@ public partial class App : Application
                 return Task.CompletedTask;
             });
 
+            // Resolve: Cấu hình Telemetry và Analytics từ nhánh Rebuild nhưng sử dụng DI Container
+            await RunInitStepAsync("telemetry-capture-start", () =>
+            {
+                var service = GetService<TelemetryCaptureService>();
+                service?.Start();
+                return Task.CompletedTask;
+            });
+
+            await RunInitStepAsync("analytics-track-app-open", async () =>
+            {
+                var service = GetService<AnalyticsService>();
+                if (service != null)
+                {
+                    // Lỗi ở thuộc tính enum UsageEventType sẽ cần đảm bảo SharedLibrary của bạn có định nghĩa này.
+                    await service.TrackEventAsync(UsageEventType.AppOpen, details: "{\"source\":\"app-start\"}");
+                }
+            });
+
             await RunInitStepAsync("background-services-start", StartBackgroundServicesAsync);
 
             await RunInitStepAsync("place-catalog", async () =>
@@ -216,7 +250,13 @@ public partial class App : Application
             throw new InvalidOperationException("Background startup dependencies are not registered");
         }
 
+        Debug.WriteLine("[App] background-services:catalog-sync:begin");
         await backgroundSyncService.TriggerCatalogSyncAsync();
+        Debug.WriteLine("[App] background-services:catalog-sync:complete");
+
+        // Resolve: Thêm các Sync trigger từ nhánh Rebuild
+        await backgroundSyncService.TriggerTelemetrySyncAsync();
+        await backgroundSyncService.TriggerUsageAnalyticsSyncAsync();
 
         var locationPermission = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
         if (locationPermission != PermissionStatus.Granted)
@@ -287,6 +327,13 @@ public partial class App : Application
                 var service = GetService<BackgroundSyncService>();
                 service?.Stop();
                 return Task.CompletedTask;
+            });
+
+            // Resolve: Đảm bảo Telemetry của nhánh Rebuild được tắt an toàn khi App đóng
+            await SafeStopServiceAsync("telemetry-capture", async () =>
+            {
+                var service = GetService<TelemetryCaptureService>();
+                if (service != null) await service.StopAsync();
             });
 
             Debug.WriteLine("[App] ========== APPLICATION CLEANUP COMPLETE ==========");

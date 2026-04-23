@@ -11,5 +11,8 @@ public class LocationTrackingEvent
     public double? SpeedMetersPerSecond { get; set; }
     public int? BatteryPercent { get; set; }
     public bool IsForeground { get; set; } = true;
+    public int? TourId { get; set; }
+    public int? PoiId { get; set; }
+    public string? Context { get; set; }
     public DateTime CapturedAt { get; set; } = DateTime.UtcNow;
 }

@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Net;
+using MauiApp_Mobile.Services.DependencyInjection;
+using MauiApp_Mobile.Services.Platform;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Constants;
 
@@ -138,7 +140,7 @@ public sealed class AudioDownloadService
                 var speedBytesPerSecond = downloadedBytes / elapsedSeconds;
                 var update = new AudioDownloadProgressUpdate(downloadedBytes, totalBytes, progressRatio, speedBytesPerSecond);
                 progress?.Report(update);
-                DownloadNotificationService.ShowProgress(track.Title ?? $"Track {track.Id}", update);
+                GetDownloadNotifier()?.ShowProgress(track.Title ?? $"Track {track.Id}", update);
             }
 
             await localStream.FlushAsync(cancellationToken);
@@ -172,13 +174,13 @@ public sealed class AudioDownloadService
                 totalBytes ?? fileInfo.Length,
                 entry.DownloadedAt);
             progress?.Report(new AudioDownloadProgressUpdate(snapshot.DownloadedBytes, snapshot.TotalBytes, 1d));
-            DownloadNotificationService.ShowSuccess(track.Title ?? $"Track {track.Id}");
+            GetDownloadNotifier()?.ShowSuccess(track.Title ?? $"Track {track.Id}");
             return snapshot;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             CleanupPartialDownload(tempFilePath);
-            DownloadNotificationService.ShowFailure(track.Title ?? $"Track {track.Id}", BuildFailureMessage(ex));
+            GetDownloadNotifier()?.ShowFailure(track.Title ?? $"Track {track.Id}", BuildFailureMessage(ex));
             throw new InvalidOperationException(BuildFailureMessage(ex), ex);
         }
     }
@@ -357,6 +359,9 @@ public sealed class AudioDownloadService
         Priority = track.Priority,
         IsDefault = track.IsDefault
     };
+
+    private static IPlatformDownloadNotificationService? GetDownloadNotifier() =>
+        MauiServiceHost.GetService<IPlatformDownloadNotificationService>();
 
     private sealed class DownloadedAudioEntry
     {

@@ -378,6 +378,7 @@ public sealed partial class GeofenceOrchestratorService
             Log("overlap-resolved", ("selectedPoiId", selectedTrigger.Definition.Id), ("acceptedCount", allowedTriggers.Count));
         }
 
+        RaiseTriggerAccepted(selectedTrigger);
         await HandleTriggerAsync(selectedTrigger, cancellationToken);
     }
 
@@ -385,6 +386,11 @@ public sealed partial class GeofenceOrchestratorService
     {
         try
         {
+            if (DeveloperLocationSessionService.Instance.IsActive)
+            {
+                return;
+            }
+
             if (sample.Location is null)
             {
                 LogSkip("Missing tracked location", ("source", nameof(LocationTrackingService)));

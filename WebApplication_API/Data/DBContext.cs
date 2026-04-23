@@ -1,6 +1,7 @@
 namespace WebApplication_API.Data;
 
 using Microsoft.EntityFrameworkCore;
+using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Constants;
 using WebApplication_API.Model;
 
@@ -16,6 +17,10 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
     public DbSet<LocationImage> LocationImages => Set<LocationImage>();
     public DbSet<PlaybackEvent> PlaybackEvents => Set<PlaybackEvent>();
     public DbSet<LocationTrackingEvent> LocationTrackingEvents => Set<LocationTrackingEvent>();
+    public DbSet<AudioListeningSession> AudioListeningSessions => Set<AudioListeningSession>();
+    public DbSet<HeatmapEvent> HeatmapEvents => Set<HeatmapEvent>();
+    public DbSet<UsageEventEntity> UsageEvents => Set<UsageEventEntity>();
+    public DbSet<QrLandingVisit> QrLandingVisits => Set<QrLandingVisit>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
@@ -145,6 +150,8 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.ToTable("PlaybackEvents");
             entity.HasKey(item => item.PlaybackEventId);
             entity.HasIndex(item => new { item.LocationId, item.EventAt });
+            entity.HasIndex(item => item.EventAt);
+            entity.HasIndex(item => new { item.PoiId, item.TourId, item.EventAt });
 
             entity.HasOne(item => item.Location)
                 .WithMany(item => item.PlaybackEvents)
@@ -162,6 +169,79 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.ToTable("LocationTrackingEvents");
             entity.HasKey(item => item.TrackingEventId);
             entity.HasIndex(item => new { item.DeviceId, item.CapturedAt });
+            entity.HasIndex(item => item.CapturedAt);
+            entity.HasIndex(item => new { item.PoiId, item.TourId, item.CapturedAt });
+        });
+
+        modelBuilder.Entity<AudioListeningSession>(entity =>
+        {
+            entity.ToTable("AudioListeningSessions");
+            entity.HasKey(item => item.AudioListeningSessionId);
+            entity.HasIndex(item => item.StartedAt);
+            entity.HasIndex(item => new { item.PoiId, item.TourId, item.StartedAt });
+            entity.HasIndex(item => new { item.LocationId, item.StartedAt });
+
+            entity.HasOne(item => item.Location)
+                .WithMany(item => item.AudioListeningSessions)
+                .HasForeignKey(item => item.LocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(item => item.Audio)
+                .WithMany(item => item.AudioListeningSessions)
+                .HasForeignKey(item => item.AudioId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<HeatmapEvent>(entity =>
+        {
+            entity.ToTable("HeatmapEvents");
+            entity.HasKey(item => item.HeatmapEventId);
+            entity.HasIndex(item => item.CapturedAt);
+            entity.HasIndex(item => new { item.LocationId, item.CapturedAt });
+            entity.HasIndex(item => new { item.LocationId, item.TourId, item.CapturedAt });
+            entity.HasIndex(item => new { item.EventType, item.CapturedAt });
+
+            entity.HasOne(item => item.Location)
+                .WithMany(item => item.HeatmapEvents)
+                .HasForeignKey(item => item.LocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<QrLandingVisit>(entity =>
+        {
+            entity.ToTable("QrLandingVisits");
+            entity.HasKey(item => item.QrLandingVisitId);
+            entity.HasIndex(item => item.OpenedAt);
+            entity.HasIndex(item => new { item.LocationId, item.OpenedAt });
+
+            entity.Property(item => item.Source).HasMaxLength(64);
+            entity.Property(item => item.UserAgent).HasMaxLength(512);
+            entity.Property(item => item.Referrer).HasMaxLength(500);
+
+            entity.HasOne(item => item.Location)
+                .WithMany()
+                .HasForeignKey(item => item.LocationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UsageEventEntity>(entity =>
+        {
+            entity.ToTable("UsageEvents");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).ValueGeneratedNever();
+            entity.Property(item => item.DeviceId).HasMaxLength(128).IsRequired();
+            entity.Property(item => item.EventType)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(item => item.ReferenceId).HasMaxLength(128);
+            entity.Property(item => item.Details).HasMaxLength(4000);
+            entity.Property(item => item.DurationSeconds).HasDefaultValue(0);
+
+            entity.HasIndex(item => item.EventType);
+            entity.HasIndex(item => item.Timestamp);
+            entity.HasIndex(item => new { item.DeviceId, item.Timestamp });
+            entity.HasIndex(item => new { item.ReferenceId, item.Timestamp });
         });
 
         modelBuilder.Entity<ChangeRequest>(entity =>

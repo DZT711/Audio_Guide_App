@@ -892,27 +892,29 @@
             longitude: Number(point?.longitude),
             sessionCount: Math.max(1, Number(point?.sessionCount) || 1),
             intensity: Math.max(1, Number(point?.intensity) || 1),
+            totalWeight: Math.max(1, Number(point?.totalWeight) || Math.max(1, Number(point?.intensity) || 1)),
+            engagementScore: Number(point?.engagementScore),
             ward: String(point?.ward ?? "").trim()
         }))
         .filter((point) =>
             Number.isFinite(point.latitude)
             && Number.isFinite(point.longitude));
 
-    const getStatisticsHeatTone = (sessionCount) => {
-        const normalizedCount = Number(sessionCount) || 0;
-        if (normalizedCount > 5) {
+    const getStatisticsHeatTone = (intensity) => {
+        const normalizedIntensity = Number(intensity) || 0;
+        if (normalizedIntensity >= 6) {
             return "red";
         }
 
-        if (normalizedCount > 1) {
+        if (normalizedIntensity >= 2) {
             return "yellow";
         }
 
         return "orange";
     };
 
-    const getStatisticsHeatColor = (sessionCount) => {
-        const tone = getStatisticsHeatTone(sessionCount);
+    const getStatisticsHeatColor = (intensity) => {
+        const tone = getStatisticsHeatTone(intensity);
         if (tone === "red") {
             return "#ef4444";
         }
@@ -924,13 +926,13 @@
         return "#ff9736";
     };
 
-    const getStatisticsHeatSize = (sessionCount) => {
-        const normalizedCount = Number(sessionCount) || 0;
-        if (normalizedCount > 5) {
+    const getStatisticsHeatSize = (intensity) => {
+        const normalizedIntensity = Number(intensity) || 0;
+        if (normalizedIntensity >= 6) {
             return 58;
         }
 
-        if (normalizedCount > 1) {
+        if (normalizedIntensity >= 2) {
             return 50;
         }
 
@@ -938,10 +940,10 @@
     };
 
     const createStatisticsHeatIcon = (point) => {
-        const sessionCount = Math.max(1, Number(point?.sessionCount) || 1);
-        const size = getStatisticsHeatSize(sessionCount);
-        const tone = getStatisticsHeatTone(sessionCount);
-        const label = sessionCount > 99 ? "99+" : String(sessionCount);
+        const intensity = Math.max(1, Number(point?.intensity) || 1);
+        const size = getStatisticsHeatSize(intensity);
+        const tone = getStatisticsHeatTone(intensity);
+        const label = intensity > 99 ? "99+" : String(intensity);
 
         return L.divIcon({
             className: "statistics-map__heat-icon-shell",
@@ -960,8 +962,19 @@
     const getStatisticsBinSessionCount = (bin) => bin.reduce((total, entry) =>
         total + Math.max(1, getStatisticsEntryValue(entry, "sessionCount", 1)), 0);
 
-    const getStatisticsBinIntensity = (bin) => bin.reduce((total, entry) =>
-        total + Math.max(1, getStatisticsEntryValue(entry, "intensity", 1)), 0);
+    const getStatisticsBinTotalWeight = (bin) => bin.reduce((total, entry) =>
+        total + Math.max(1, getStatisticsEntryValue(entry, "totalWeight", getStatisticsEntryValue(entry, "intensity", 1))), 0);
+
+    const getStatisticsBinIntensity = (bin) => getStatisticsBinSessionCount(bin);
+
+    const getStatisticsBinEngagementScore = (bin) => {
+        const sessionCount = getStatisticsBinSessionCount(bin);
+        if (sessionCount <= 0) {
+            return 0;
+        }
+
+        return Math.round((getStatisticsBinTotalWeight(bin) / sessionCount) * 100) / 100;
+    };
 
     const getStatisticsBinWards = (bin) => [...new Set(bin
         .map((entry) => String(entry?.o?.ward ?? entry?.ward ?? "").trim())
@@ -982,15 +995,16 @@
 
     const createStatisticsHexbinPopupContent = (bin) => {
         const totalUsers = getStatisticsBinSessionCount(bin);
-        const totalTrackingPoints = getStatisticsBinIntensity(bin);
-        const hotspotCount = Array.isArray(bin) ? bin.length : 0;
+        const totalWeight = getStatisticsBinTotalWeight(bin);
+        const engagementScore = getStatisticsBinEngagementScore(bin);
         const wardLabel = getStatisticsBinWardLabel(bin);
 
         return `
             <div class="statistics-map__popup">
                 <strong>${escapeHtml(wardLabel)}</strong>
-                <div>${escapeHtml(`${totalUsers} user(s) across ${hotspotCount} hotspot cell(s)`)}</div>
-                <div>${escapeHtml(`${totalTrackingPoints} tracking point(s) captured`)}</div>
+                <div>${escapeHtml(`Unique sessions: ${totalUsers}`)}</div>
+                <div>${escapeHtml(`Total weight: ${totalWeight}`)}</div>
+                <div>${escapeHtml(`Engagement score: ${engagementScore.toFixed(2)}`)}</div>
             </div>
         `;
     };
@@ -1017,7 +1031,7 @@
         }
 
         const dispatch = statisticsMap.hexLayer.dispatch();
-        dispatch.on("click.statistics", (event, bin) => {
+        const openPopupForBin = (bin) => {
             if (!Array.isArray(bin) || !bin.length) {
                 return;
             }
@@ -1031,6 +1045,14 @@
                 .setLatLng(popupLatLng)
                 .setContent(createStatisticsHexbinPopupContent(bin))
                 .openOn(statisticsMap.map);
+        };
+
+        dispatch.on("click.statistics", (event, bin) => {
+            openPopupForBin(bin);
+        });
+
+        dispatch.on("mouseover.statistics", (event, bin) => {
+            openPopupForBin(bin);
         });
 
         statisticsMap.hexLayerEventsBound = true;
@@ -1049,16 +1071,16 @@
             radius: 22,
             opacity: 0.88,
             duration: 220,
-            colorScaleExtent: [1, 12],
-            radiusScaleExtent: [1, 12],
+            colorScaleExtent: [1, 18],
+            radiusScaleExtent: [1, 18],
             radiusRange: [18, 26],
             pointerEvents: "visiblePainted"
         })
             .lng((item) => Number(item?.longitude))
             .lat((item) => Number(item?.latitude))
-            .colorValue((bin) => getStatisticsBinSessionCount(bin))
-            .radiusValue((bin) => getStatisticsBinSessionCount(bin))
-            .fill((bin) => getStatisticsHeatColor(getStatisticsBinSessionCount(bin)))
+            .colorValue((bin) => getStatisticsBinIntensity(bin))
+            .radiusValue((bin) => getStatisticsBinIntensity(bin))
+            .fill((bin) => getStatisticsHeatColor(getStatisticsBinIntensity(bin)))
             .hoverHandler(L.HexbinHoverHandler.resizeScale({
                 radiusScale: 0.16
             }));
@@ -1076,10 +1098,10 @@
             const marker = L.marker([point.latitude, point.longitude], {
                 icon: createStatisticsHeatIcon(point),
                 keyboard: false,
-                zIndexOffset: point.sessionCount > 5 ? 400 : 250
+                zIndexOffset: point.intensity >= 6 ? 400 : 250
             });
 
-            marker.bindTooltip(`${point.sessionCount} user(s) in this area`, {
+            marker.bindTooltip(`Sessions ${point.sessionCount} | Weight ${point.totalWeight} | Engagement ${Number(point.engagementScore ?? 0).toFixed(2)}`, {
                 direction: "top",
                 offset: [0, -10]
             });
@@ -1087,8 +1109,9 @@
             marker.bindPopup(`
                 <div class="statistics-map__popup">
                     <strong>${escapeHtml(point.ward || "Hotspot cluster")}</strong>
-                    <div>${escapeHtml(`${point.sessionCount} user(s) in this area`)}</div>
-                    <div>${escapeHtml(`${point.intensity} tracking point(s) captured here`)}</div>
+                    <div>${escapeHtml(`Unique sessions: ${point.sessionCount}`)}</div>
+                    <div>${escapeHtml(`Total weight: ${point.totalWeight}`)}</div>
+                    <div>${escapeHtml(`Engagement score: ${Number(point.engagementScore ?? 0).toFixed(2)}`)}</div>
                 </div>
             `);
 
@@ -1097,9 +1120,10 @@
     };
 
     const getStatisticsBoundsLatLngs = (state) => {
-        const routeLatLngs = normalizeStatisticsLatLngs(state?.selectedRoute?.points);
-        if (routeLatLngs.length) {
-            return routeLatLngs;
+        const selectedRouteLatLngs = normalizeStatisticsLatLngs(state?.selectedRoute?.points);
+        const selectedTourRouteLatLngs = normalizeStatisticsLatLngs(state?.selectedTourRoute);
+        if (selectedRouteLatLngs.length || selectedTourRouteLatLngs.length) {
+            return [...selectedRouteLatLngs, ...selectedTourRouteLatLngs];
         }
 
         const heatLatLngs = normalizeStatisticsLatLngs(state?.heatPoints);
@@ -1122,13 +1146,147 @@
         statisticsMap.map.fitBounds(L.latLngBounds(targetLatLngs).pad(0.18));
     };
 
+    const applyStatisticsMapView = (statisticsMap, view) => {
+        const latitude = Number(view?.latitude);
+        const longitude = Number(view?.longitude);
+        const zoom = Number(view?.zoom);
+        if (!statisticsMap?.map
+            || !Number.isFinite(latitude)
+            || !Number.isFinite(longitude)
+            || !Number.isFinite(zoom)) {
+            return false;
+        }
+
+        statisticsMap.map.setView([latitude, longitude], zoom, { animate: false });
+        return true;
+    };
+
+    const getStatisticsMapView = (statisticsMap) => {
+        if (!statisticsMap?.map) {
+            return null;
+        }
+
+        const center = statisticsMap.map.getCenter();
+        if (!center) {
+            return null;
+        }
+
+        return {
+            latitude: Number(center.lat),
+            longitude: Number(center.lng),
+            zoom: Number(statisticsMap.map.getZoom())
+        };
+    };
+
+    const normalizeLatLngPairs = (pairs) => (Array.isArray(pairs) ? pairs : [])
+        .filter((pair) =>
+            Array.isArray(pair)
+            && pair.length >= 2
+            && Number.isFinite(Number(pair[0]))
+            && Number.isFinite(Number(pair[1])))
+        .map((pair) => [Number(pair[0]), Number(pair[1])]);
+
+    const buildStatisticsSelectedTourRouteKey = (points) =>
+        normalizeStatisticsLatLngs(points)
+            .map((pair) => `${roundCoordinate(pair[0])},${roundCoordinate(pair[1])}`)
+            .join("|");
+
+    const buildStatisticsSelectedTourRouteStops = (points) =>
+        normalizeStatisticsLatLngs(points)
+            .map((pair, index) => ({
+                locationId: index + 1,
+                sequenceOrder: index + 1,
+                latitude: pair[0],
+                longitude: pair[1]
+            }));
+
+    const drawStatisticsSelectedTourRoute = (statisticsMap, latLngs) => {
+        if (!statisticsMap?.tourRouteLayer) {
+            return;
+        }
+
+        const normalizedLatLngs = normalizeLatLngPairs(latLngs);
+        statisticsMap.tourRouteLayer.clearLayers();
+        if (normalizedLatLngs.length < 2) {
+            return;
+        }
+
+        statisticsMap.tourRouteLayer.addLayer(L.polyline(normalizedLatLngs, {
+            color: "#2c8780",
+            weight: 4,
+            opacity: 0.9,
+            lineCap: "round",
+            lineJoin: "round",
+            className: "statistics-map__selected-tour-route"
+        }));
+    };
+
+    const resolveStatisticsSelectedTourRouteAsync = async (
+        statisticsMap,
+        selectedTourRoutePoints,
+        selectedTourRouteKey) => {
+        if (!statisticsMap?.tourRouteLayer) {
+            return;
+        }
+
+        const requestId = (Number(statisticsMap.selectedTourRouteRequestId) || 0) + 1;
+        statisticsMap.selectedTourRouteRequestId = requestId;
+        statisticsMap.selectedTourRoutePendingKey = selectedTourRouteKey;
+
+        const baseRouteLatLngs = normalizeStatisticsLatLngs(selectedTourRoutePoints);
+        let resolvedRouteLatLngs = baseRouteLatLngs;
+
+        const shouldResolveRoadRoute = baseRouteLatLngs.length > 1 && baseRouteLatLngs.length <= 12;
+        if (shouldResolveRoadRoute) {
+            try {
+                const routeStops = normalizeRouteStops(buildStatisticsSelectedTourRouteStops(selectedTourRoutePoints));
+                if (routeStops.length > 1) {
+                    const roadRoute = await requestRoadRouteAsync(routeStops);
+                    if (roadRoute) {
+                        const preview = buildRoadRoutePreview(routeStops, null, 5, roadRoute);
+                        const previewPath = Array.isArray(preview?.Path)
+                            ? preview.Path
+                            : Array.isArray(preview?.path)
+                                ? preview.path
+                                : [];
+                        const routedLatLngs = normalizeStatisticsLatLngs(previewPath);
+                        if (routedLatLngs.length > 1) {
+                            resolvedRouteLatLngs = routedLatLngs;
+                        }
+                    }
+                }
+            } catch {
+                // Fall back to stop-to-stop line if browser road routing is unavailable.
+            }
+        }
+
+        if (Number(statisticsMap.selectedTourRouteRequestId) !== requestId) {
+            return;
+        }
+
+        const activeRouteKey = buildStatisticsSelectedTourRouteKey(statisticsMap.state?.selectedTourRoute);
+        if (activeRouteKey !== selectedTourRouteKey) {
+            return;
+        }
+
+        statisticsMap.selectedTourRoutePendingKey = "";
+        statisticsMap.selectedTourRouteCacheKey = selectedTourRouteKey;
+        statisticsMap.selectedTourRouteResolvedLatLngs = resolvedRouteLatLngs;
+        drawStatisticsSelectedTourRoute(statisticsMap, resolvedRouteLatLngs);
+        redrawStatisticsHexLayer(statisticsMap);
+    };
+
     const renderStatisticsMap = (statisticsMap, state, fitBounds) => {
         const heatPoints = normalizeStatisticsHeatPoints(state?.heatPoints);
         const locations = Array.isArray(state?.locations) ? state.locations : [];
+        const selectedTourRoutePoints = Array.isArray(state?.selectedTourRoute) ? state.selectedTourRoute : [];
         const routePoints = Array.isArray(state?.selectedRoute?.points) ? state.selectedRoute.points : [];
         statisticsMap.state = state;
 
         statisticsMap.routeLayer.clearLayers();
+        if (statisticsMap.tourRouteLayer) {
+            statisticsMap.tourRouteLayer.clearLayers();
+        }
         statisticsMap.poiLayer.clearLayers();
         statisticsMap.fallbackHeatLayer.clearLayers();
 
@@ -1137,6 +1295,29 @@
             hexLayer.data(heatPoints);
         } else {
             renderStatisticsHeatFallback(statisticsMap, heatPoints);
+        }
+
+        const selectedTourRouteKey = buildStatisticsSelectedTourRouteKey(selectedTourRoutePoints);
+        if (!selectedTourRouteKey) {
+            statisticsMap.selectedTourRouteRequestId = (Number(statisticsMap.selectedTourRouteRequestId) || 0) + 1;
+            statisticsMap.selectedTourRoutePendingKey = "";
+            statisticsMap.selectedTourRouteCacheKey = "";
+            statisticsMap.selectedTourRouteResolvedLatLngs = [];
+            drawStatisticsSelectedTourRoute(statisticsMap, []);
+        } else {
+            const cachedRouteLatLngs = statisticsMap.selectedTourRouteCacheKey === selectedTourRouteKey
+                ? normalizeLatLngPairs(statisticsMap.selectedTourRouteResolvedLatLngs)
+                : [];
+
+            if (cachedRouteLatLngs.length > 1) {
+                drawStatisticsSelectedTourRoute(statisticsMap, cachedRouteLatLngs);
+            } else if (statisticsMap.selectedTourRoutePendingKey !== selectedTourRouteKey) {
+                drawStatisticsSelectedTourRoute(statisticsMap, []);
+                void resolveStatisticsSelectedTourRouteAsync(
+                    statisticsMap,
+                    selectedTourRoutePoints,
+                    selectedTourRouteKey);
+            }
         }
 
         const routeLatLngs = normalizeStatisticsLatLngs(routePoints);
@@ -1193,6 +1374,7 @@
             const locationName = String(location?.name ?? "").trim() || "POI";
             const ward = String(location?.ward ?? "").trim() || "Unassigned";
             const ownerName = String(location?.ownerName ?? "").trim() || "No owner";
+            const preferenceImageUrl = String(location?.preferenceImageUrl ?? "").trim();
 
             marker.bindTooltip(locationName, {
                 direction: "top",
@@ -1201,6 +1383,7 @@
 
             marker.bindPopup(`
                 <div class="statistics-map__popup">
+                    ${preferenceImageUrl ? `<div style="margin-bottom:8px;"><img src="${escapeHtml(preferenceImageUrl)}" alt="${escapeHtml(locationName)}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid rgba(15,23,42,0.14);" /></div>` : ""}
                     <strong>${escapeHtml(locationName)}</strong>
                     <div>${escapeHtml(ward)}</div>
                     <div>${escapeHtml(ownerName)}</div>
@@ -1609,7 +1792,10 @@
 
             const existingMap = statisticsMaps.get(element);
             if (existingMap) {
-                renderStatisticsMap(existingMap, state, true);
+                renderStatisticsMap(existingMap, state, false);
+                if (!applyStatisticsMapView(existingMap, state?.view)) {
+                    fitStatisticsBounds(existingMap, state);
+                }
                 invalidateLeafletMap(existingMap.map, () => redrawStatisticsHexLayer(existingMap));
                 return true;
             }
@@ -1631,16 +1817,22 @@
                 hexLayerEventsBound: false,
                 fallbackHeatLayer: null,
                 routeLayer: null,
+                tourRouteLayer: null,
                 poiLayer: null,
                 searchFocusMarker: null,
                 currentLocationMarker: null,
                 currentLocationAccuracyCircle: null,
                 trackingWatchId: null,
-                hasCenteredOnCurrentLocation: false
+                hasCenteredOnCurrentLocation: false,
+                selectedTourRouteRequestId: 0,
+                selectedTourRoutePendingKey: "",
+                selectedTourRouteCacheKey: "",
+                selectedTourRouteResolvedLatLngs: []
             };
 
             ensureStatisticsHexLayer(statisticsMap);
             statisticsMap.fallbackHeatLayer = L.layerGroup().addTo(map);
+            statisticsMap.tourRouteLayer = L.layerGroup().addTo(map);
             statisticsMap.routeLayer = L.layerGroup().addTo(map);
             statisticsMap.poiLayer = L.layerGroup().addTo(map);
 
@@ -1648,7 +1840,10 @@
             statisticsMap.handleResize = resizeHandling.handleResize;
             statisticsMap.resizeObserver = resizeHandling.resizeObserver;
 
-            renderStatisticsMap(statisticsMap, state, true);
+            renderStatisticsMap(statisticsMap, state, !state?.view);
+            if (state?.view) {
+                applyStatisticsMapView(statisticsMap, state.view);
+            }
             statisticsMaps.set(element, statisticsMap);
             invalidateLeafletMap(map, () => redrawStatisticsHexLayer(statisticsMap));
 
@@ -1661,7 +1856,7 @@
             }
 
             await waitForMapSizeAsync(element, 8, 90);
-            renderStatisticsMap(statisticsMap, state, true);
+            renderStatisticsMap(statisticsMap, state, false);
             invalidateLeafletMap(statisticsMap.map, () => redrawStatisticsHexLayer(statisticsMap));
             return true;
         },
@@ -1682,6 +1877,24 @@
             }
 
             return focusStatisticsMapLocation(statisticsMap, latitude, longitude, title, subtitle, 16);
+        },
+        centerStatisticsMap: (element) => {
+            const statisticsMap = statisticsMaps.get(element);
+            if (!statisticsMap) {
+                return false;
+            }
+
+            fitStatisticsBounds(statisticsMap, statisticsMap.state);
+            invalidateLeafletMap(statisticsMap.map, () => redrawStatisticsHexLayer(statisticsMap));
+            return true;
+        },
+        getStatisticsMapView: (element) => {
+            const statisticsMap = statisticsMaps.get(element);
+            if (!statisticsMap) {
+                return null;
+            }
+
+            return getStatisticsMapView(statisticsMap);
         },
         startStatisticsMapTracking: async (element) => {
             const statisticsMap = statisticsMaps.get(element);

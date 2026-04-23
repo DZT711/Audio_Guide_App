@@ -545,6 +545,77 @@ Proprietary — Smart Tourism MAUI Project
 
 ---
 
+### E.Cách chạy dự án
+
+1. **Backend API:**
+   - Mở `WebApplication_API` trong Visual Studio.
+   - Cấu hình chuỗi kết nối SQL Server trong `appsettings.json`.
+   - Chạy migrations để tạo database.
+   - Chạy ứng dụng (F5) → API sẽ chạy trên `https://localhost:5123`.
+
+   ```cmd
+    dotnet run --project WebApplication_API/WebApplication_API.csproj --urls "https://0.0.0.0:5123"
+    ngrok http 5123 --host-header="localhost:5123"
+   ```
+
+2. **Admin Web:**
+   - Mở `BlazorApp_AdminWeb` trong Visual Studio.
+   - Cấu hình `appsettings.json` để trỏ đến API. Mặc định project đang dùng `https://localhost:5123/`.
+   - Chạy ứng dụng → Đăng nhập bằng tài khoản admin đã seed sẵn.
+
+   ```cmd
+    dotnet run --project BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj 
+   ```
+
+   - Tài khoản thử nghiệm : username:admin/ password:admin
+
+3. **Mobile App:**
+   - Mở `MauiApp_Mobile` trong Visual Studio/VSCode.
+   - Cấu hình `ApiEndpoints.cs` để trỏ đến API.
+   - Chạy ứng dụng trên Android Emulator hoặc thiết bị thật.
+
+    Cách 1: chạy trên windows :
+
+    ```cmd
+        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-windows10.0.19041.0
+    ```
+
+    Cách 2: chạy trên Android cắm cáp usb vào máy chủ
+    - Cho phép máy tính debug trên android(bật dev mode trong setting)
+
+   ```cmd
+        adb devices (đảm bảo thiết bị ở trạng thái mở "device")
+        adb reverse tcp:5123 tcp:5123 (để chuyển tiếp cổng từ máy chủ đến thiết bị)
+        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
+   ```
+
+    - Thử gọi api: "[http://127.0.0.1:5123/location/public/catalog](http://127.0.0.1:5123/location/public/catalog)"
+    Cách 3: chạy thông qua wifi
+    - Bật Wifi Debug trên android : lấy thông tin ip và cổng kết nối
+    - Chỉnh mạng máy sever thanh private
+    - Đảm bảo sử dụng chung 1 mạng
+    - Thêm ip sever vào file cấu hình mạng của android trong MauiApp_Mobile/Platforms/Android/Resources/xml/network_security_config.xml
+
+    ```xml
+            <domain includeSubdomains="false">yourSeverIP</domain>
+    ```
+
+    ```cmd
+        adb connect ip:port (kết nối qua wifi, ví dụ adb connect 192.168.x.x:44444)
+        adb devices (đảm bảo thiết bị ở trạng thái mở "device")
+        ipconfig(lấy ipv4 của máy sever ipsever )
+        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
+    ```
+
+   -Thử gọi api: "[http://ipsever:5123/location/public/catalog](http://ipsever:5123/location/public/catalog)"
+    Lệnh pull db từ điện thoại kêt nối
+    
+    ```cmd
+        adb exec-out run-as com.companyname.mauiapp_mobile cat files/smarttour-mobile.db3 > docs\smarttour-mobile.db
+    ```
+
+*© 2026 — Nguyễn Sĩ Huy (3123411122) & Nguyễn Văn Cường (3123411045)*
+*Dự Án Thuyết Minh Phố Ẩm Thực Vĩnh Khánh — Khoa Công nghệ Thông tin*
 **Last Updated:** April 23, 2026  
 **Current Branch:** `Mobile_AppPerformance`  
 **Status:** 🟡 Active Development

@@ -12,10 +12,11 @@ namespace WebApplication_API.Controller;
 [Route("[controller]")]
 public class UsageController(
     DBContext context,
-    AdminRequestAuthorizationService authService) : ControllerBase
+    AdminRequestAuthorizationService authService,
+    AnalyticsDataFilterService analyticsDataFilter) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetUsageHistory()
+    public async Task<IActionResult> GetUsageHistory([FromQuery] UsageHistoryQueryDto? query = null)
     {
         var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.UsageHistoryView);
         if (!access.Succeeded)
@@ -23,7 +24,9 @@ public class UsageController(
             return access.ToFailureResult();
         }
 
-        var items = await BuildPlaybackQuery(access.User!)
+        var includeSynthetic = query?.IncludeSynthetic == true;
+        var items = await analyticsDataFilter
+            .ApplyPlaybackFilter(BuildPlaybackQuery(access.User!), includeSynthetic)
             .OrderByDescending(item => item.EventAt)
             .ToListAsync();
 
@@ -46,7 +49,7 @@ public class UsageController(
             .ToList();
 
         var guestKeys = usageItems
-            .Select(item => !string.IsNullOrWhiteSpace(item.SessionId) ? item.SessionId : item.DeviceId)
+            .Select(item => !string.IsNullOrWhiteSpace(item.DeviceId) ? item.DeviceId : item.SessionId)
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
@@ -56,10 +59,23 @@ public class UsageController(
             .Select(item => item.ListeningSeconds!.Value)
             .ToList();
 
+        var scopedLocationIds = await BuildLocationScopeQuery(access.User!)
+            .Select(item => item.LocationId)
+            .ToListAsync();
+
+        var onlineGuests = await AnalyticsOnlineGuestService.CountScopedOnlineGuestsAsync(
+            context,
+            analyticsDataFilter,
+            scopedLocationIds,
+            includeSynthetic,
+            AnalyticsOnlineGuestService.ResolveDefaultThresholdUtc(),
+            HttpContext.RequestAborted);
+
         return Ok(new UsageHistoryOverviewDto
         {
             TotalEvents = usageItems.Count,
             UniqueGuests = guestKeys,
+            OnlineGuests = onlineGuests,
             DistinctLocations = usageItems
                 .Where(item => item.LocationId.HasValue)
                 .Select(item => item.LocationId!.Value)
@@ -82,6 +98,17 @@ public class UsageController(
 
         return IsOwnerScoped(currentUser)
             ? query.Where(item => item.Location != null && item.Location.OwnerId == currentUser.UserId)
+            : query;
+    }
+
+    private IQueryable<Location> BuildLocationScopeQuery(DashboardUser currentUser)
+    {
+        var query = context.Locations
+            .AsNoTracking()
+            .AsQueryable();
+
+        return IsOwnerScoped(currentUser)
+            ? query.Where(item => item.OwnerId == currentUser.UserId)
             : query;
     }
 

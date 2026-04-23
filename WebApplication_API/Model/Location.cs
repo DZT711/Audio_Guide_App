@@ -71,4 +71,8 @@ public class Location
     public ICollection<TourLocation> TourStops { get; set; } = [];
 
     public ICollection<PlaybackEvent> PlaybackEvents { get; set; } = [];
+
+    public ICollection<AudioListeningSession> AudioListeningSessions { get; set; } = [];
+
+    public ICollection<HeatmapEvent> HeatmapEvents { get; set; } = [];
 }
