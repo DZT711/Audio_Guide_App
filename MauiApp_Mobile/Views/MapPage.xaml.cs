@@ -20,6 +20,8 @@ namespace MauiApp_Mobile.Views;
 public partial class MapPage : ContentPage
 {
     private static readonly HttpClient SearchHttpClient = CreateSearchHttpClient();
+    private static readonly SemaphoreSlim MapHtmlTemplateLock = new(1, 1);
+    private static string? _cachedMapHtmlTemplate;
 #if ANDROID
     private static int _androidUserAgentMappingConfigured;
 #endif
@@ -54,13 +56,24 @@ public partial class MapPage : ContentPage
     private CancellationTokenSource? _developerLocationSessionCts;
     private CancellationTokenSource? _mapLoadingCts;
     private CancellationTokenSource? _mapTimeoutCts;
+    private CancellationTokenSource? _mapInteropWarmupCts;
     private Location? _lastMapLocationRendered;
+    private Location? _pendingLocationForMapBridge;
+    private Location? _lastMapLocationBridgePush;
+    private string? _cachedMapPlacesJson;
     private int _searchRequestVersion;
     private bool _isRefreshingMap;
     private int _isProcessingDevLocation;
+    private int _isLocationBridgeFlushScheduled;
+    private bool _mapPlacesCacheDirty = true;
+    private bool _hasAppliedInitialMapPayload;
+    private DateTimeOffset _lastMapLocationBridgePushAtUtc = DateTimeOffset.MinValue;
     private const int MapLoadTimeoutSeconds = 25;
+    private const double MapLocationBridgeMinDisplacementMeters = 6d;
     private static readonly TimeSpan DeveloperLocationHoldDuration = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan DeveloperLocationTickInterval = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan MapInteropWarmDelay = TimeSpan.FromMilliseconds(240);
+    private static readonly TimeSpan MapLocationBridgeBatchWindow = TimeSpan.FromMilliseconds(220);
 
     public ObservableCollection<MapTourViewModel> AvailableTours => _availableTours;
     public bool IsTourPanelVisible { get => _isTourPanelVisible; private set { if (_isTourPanelVisible == value) return; _isTourPanelVisible = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsTourDetailVisible)); } }
@@ -161,9 +174,11 @@ public partial class MapPage : ContentPage
                 FireAndForgetMapTask("CompleteMapLoadingOnAppearing", CompleteMapLoadingStateAsync);
             }
 
-            FireAndForgetMapTask("RefreshMapPlacesOnAppearing", RefreshMapPlacesAsync);
-            FireAndForgetMapTask("TryFocusPendingPlaceOnAppearing", TryFocusPendingPlaceAsync);
-            FireAndForgetMapTask("LoadToursOnAppearing", () => LoadToursAsync());
+            FireAndForgetMapTask(
+                "RestoreMapStateOnAppearing",
+                () => ApplyMapPayloadAfterTransitionAsync(
+                    forceCatalogRefresh: false,
+                    includeTours: AvailableTours.Count == 0));
         }
 
         FireAndForgetMapTask(
@@ -190,7 +205,7 @@ public partial class MapPage : ContentPage
         {
             _isPageActive = false;
             _isPageDisposing = true;
-            CancelPendingOperations(resetMapReady: true);
+            CancelPendingOperations(resetMapReady: false);
             DetachEventHandlers();
         }
 
@@ -210,6 +225,7 @@ public partial class MapPage : ContentPage
         ThemeService.Instance.PropertyChanged += OnThemeChanged;
         AppSettingsService.Instance.PropertyChanged += OnAppSettingsChanged;
         AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
+        PlaceCatalogService.Instance.CatalogChanged += OnCatalogChanged;
         Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
         UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
         UserLocationService.Instance.HeadingUpdated += OnHeadingUpdated;
@@ -315,6 +331,7 @@ public partial class MapPage : ContentPage
                 {
                     UpdateDeveloperModeAvailability();
                     UpdateConnectionStatusChip();
+                    _mapPlacesCacheDirty = true;
                     await SyncPlacesToMapAsync();
                     await ApplyMapBehaviorAsync();
                 });
@@ -328,6 +345,20 @@ public partial class MapPage : ContentPage
             async () => await MainThread.InvokeOnMainThreadAsync(() => UpdateConnectionStatusChip()));
     }
 
+    private void OnCatalogChanged(object? sender, EventArgs e)
+    {
+        _mapPlacesCacheDirty = true;
+
+        if (!CanUsePageUi() || !_isMapReady)
+        {
+            return;
+        }
+
+        FireAndForgetMapTask(
+            "RefreshMapPlacesOnCatalogChanged",
+            () => ApplyMapPayloadAfterTransitionAsync(forceCatalogRefresh: false, includeTours: false));
+    }
+
     private void OnSettingsSaved(object? sender, AppSettingsSnapshot snapshot)
     {
         FireAndForgetMapTask(
@@ -338,6 +369,7 @@ public partial class MapPage : ContentPage
                 {
                     UpdateDeveloperModeAvailability();
                     UpdateConnectionStatusChip();
+                    _mapPlacesCacheDirty = true;
                     await SyncPlacesToMapAsync();
                     await ApplyMapThemeAsync();
                     await ApplyMapStringsAsync();
@@ -346,6 +378,68 @@ public partial class MapPage : ContentPage
                     await LoadToursAsync(forceRefresh: AppDataModeService.Instance.IsApiEnabled);
                 });
             });
+    }
+
+    private async Task ApplyMapPayloadAfterTransitionAsync(bool forceCatalogRefresh, bool includeTours)
+    {
+        if (!CanAccessVisualTree())
+        {
+            return;
+        }
+
+        var cancellationToken = ResetMapInteropWarmupToken();
+
+        try
+        {
+            await Task.Delay(MapInteropWarmDelay, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!CanUsePageUi() || !_isMapReady)
+            {
+                return;
+            }
+
+            var shouldRefreshPlaces = forceCatalogRefresh ||
+                _mapPlacesCacheDirty ||
+                !_hasAppliedInitialMapPayload ||
+                string.IsNullOrWhiteSpace(_cachedMapPlacesJson);
+
+            if (shouldRefreshPlaces)
+            {
+                await RefreshMapPlacesAsync(forceCatalogRefresh, cancellationToken);
+            }
+            else
+            {
+                await ApplyMapThemeAsync();
+            }
+
+            await ApplyMapStringsAsync();
+            await ApplyMapBehaviorAsync();
+            await ApplyDeveloperModeAsync();
+
+            if (MapLoadingOverlay.IsVisible)
+            {
+                await CompleteMapLoadingStateAsync();
+            }
+
+            await TryFocusPendingPlaceAsync();
+
+            if (includeTours || AvailableTours.Count == 0)
+            {
+                await LoadToursAsync(forceRefresh: forceCatalogRefresh && AppDataModeService.Instance.IsApiEnabled);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private CancellationToken ResetMapInteropWarmupToken()
+    {
+        _mapInteropWarmupCts?.Cancel();
+        _mapInteropWarmupCts?.Dispose();
+        _mapInteropWarmupCts = new CancellationTokenSource();
+        return _mapInteropWarmupCts.Token;
     }
 
     private async Task LoadMapAsync(bool forceReload = false)
@@ -361,21 +455,7 @@ public partial class MapPage : ContentPage
         {
             StartMapLoadingState();
 
-            using var stream = await FileSystem.OpenAppPackageFileAsync("leaflet_map.html");
-            using var reader = new StreamReader(stream);
-            var htmlContent = await reader.ReadToEndAsync();
-
-            using var leafletCssStream = await FileSystem.OpenAppPackageFileAsync("vendor/leaflet/leaflet.css");
-            using var leafletCssReader = new StreamReader(leafletCssStream);
-            var leafletCss = await leafletCssReader.ReadToEndAsync();
-
-            using var leafletJsStream = await FileSystem.OpenAppPackageFileAsync("vendor/leaflet/leaflet.js");
-            using var leafletJsReader = new StreamReader(leafletJsStream);
-            var leafletJs = await leafletJsReader.ReadToEndAsync();
-
-            htmlContent = htmlContent
-                .Replace("__LEAFLET_CSS__", leafletCss, StringComparison.Ordinal)
-                .Replace("__LEAFLET_JS__", leafletJs, StringComparison.Ordinal);
+            var htmlContent = await GetMapHtmlTemplateAsync();
 
             ConfigureAndroidWebViewUserAgent();
 
@@ -501,6 +581,13 @@ public partial class MapPage : ContentPage
         {
             _isMapLoadInProgress = false;
             _isMapReady = e.Result == WebNavigationResult.Success;
+            if (_isMapReady)
+            {
+                _hasAppliedInitialMapPayload = false;
+                _lastMapLocationRendered = null;
+                _lastMapLocationBridgePush = null;
+                _lastMapLocationBridgePushAtUtc = DateTimeOffset.MinValue;
+            }
             if (CanUsePageUi())
             {
                 SetLocateButtonState(isBusy: false, isEnabled: _isMapReady);
@@ -519,14 +606,7 @@ public partial class MapPage : ContentPage
                 return;
             }
 
-            await SyncPlacesToMapAsync();
-            await ApplyMapThemeAsync();
-            await ApplyMapStringsAsync();
-            await ApplyMapBehaviorAsync();
-            await ApplyDeveloperModeAsync();
-            await CompleteMapLoadingStateAsync();
-            await TryFocusPendingPlaceAsync();
-            await LoadToursAsync();
+            await ApplyMapPayloadAfterTransitionAsync(forceCatalogRefresh: false, includeTours: true);
 
             if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
             {
@@ -874,13 +954,26 @@ public partial class MapPage : ContentPage
                longitude is >= -180d and <= 180d;
     }
 
-    private async Task SyncPlacesToMapAsync()
+    private async Task SyncPlacesToMapAsync(CancellationToken cancellationToken = default)
     {
         if (!CanExecuteMapScript())
             return;
 
-        var mapPlacesJson = JsonSerializer.Serialize(await BuildMapInteropPointsAsync(), JsonInteropOptions);
-        await EvaluateMapScriptAsync($"window.setPlaces && window.setPlaces({mapPlacesJson});");
+        var mapPlacesJson = _cachedMapPlacesJson;
+        if (_mapPlacesCacheDirty || string.IsNullOrWhiteSpace(mapPlacesJson))
+        {
+            mapPlacesJson = await Task.Run(async () =>
+            {
+                var mapInteropPoints = await BuildMapInteropPointsAsync();
+                return JsonSerializer.Serialize(mapInteropPoints, JsonInteropOptions);
+            }, cancellationToken);
+
+            _cachedMapPlacesJson = mapPlacesJson;
+            _mapPlacesCacheDirty = false;
+        }
+
+        await EvaluateMapScriptAsync($"window.setPlaces && window.setPlaces({mapPlacesJson});", cancellationToken);
+        _hasAppliedInitialMapPayload = true;
     }
 
     private async Task TryFocusPendingPlaceAsync()
@@ -1507,28 +1600,105 @@ public partial class MapPage : ContentPage
         return false;
     }
 
-    private async void OnUserLocationUpdated(object? sender, Location? location)
+    private void OnUserLocationUpdated(object? sender, Location? location)
     {
         if (!CanUsePageUi() || !_isMapReady || location is null)
         {
             return;
         }
 
+        QueueLocationUpdateForMapBridge(location);
+    }
+
+    private void QueueLocationUpdateForMapBridge(Location location)
+    {
+        _pendingLocationForMapBridge = location;
+
+        if (Interlocked.Exchange(ref _isLocationBridgeFlushScheduled, 1) == 1)
+        {
+            return;
+        }
+
+        FireAndForgetMapTask("FlushMapLocationBridge", FlushMapLocationBridgeAsync);
+    }
+
+    private async Task FlushMapLocationBridgeAsync()
+    {
         try
         {
-            await MainThread.InvokeOnMainThreadAsync(async () =>
+            while (CanUsePageUi() && _isMapReady)
             {
-                if (!CanUsePageUi() || !_isMapReady)
+                var elapsed = DateTimeOffset.UtcNow - _lastMapLocationBridgePushAtUtc;
+                var delay = MapLocationBridgeBatchWindow - elapsed;
+                if (delay > TimeSpan.Zero)
+                {
+                    await Task.Delay(delay);
+                }
+
+                var latestLocation = Interlocked.Exchange(ref _pendingLocationForMapBridge, null);
+                if (latestLocation is null)
                 {
                     return;
                 }
 
-                await ShowCurrentLocationOnMapAsync(location, shouldUpdateStatus: false);
-            });
+                if (!ShouldPushLocationToMapBridge(latestLocation))
+                {
+                    continue;
+                }
+
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    if (!CanUsePageUi() || !_isMapReady)
+                    {
+                        return;
+                    }
+
+                    await ShowCurrentLocationOnMapAsync(latestLocation, shouldUpdateStatus: false);
+                });
+
+                _lastMapLocationBridgePush = latestLocation;
+                _lastMapLocationBridgePushAtUtc = DateTimeOffset.UtcNow;
+
+                if (_pendingLocationForMapBridge is null)
+                {
+                    return;
+                }
+            }
         }
-        catch
+        catch (OperationCanceledException)
         {
         }
+        catch (Exception ex)
+        {
+            LogMapFailure("FlushMapLocationBridge", ex);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _isLocationBridgeFlushScheduled, 0);
+
+            if (_pendingLocationForMapBridge is not null &&
+                CanUsePageUi() &&
+                _isMapReady &&
+                Interlocked.Exchange(ref _isLocationBridgeFlushScheduled, 1) == 0)
+            {
+                FireAndForgetMapTask("FlushMapLocationBridgeRetry", FlushMapLocationBridgeAsync);
+            }
+        }
+    }
+
+    private bool ShouldPushLocationToMapBridge(Location location)
+    {
+        if (_lastMapLocationBridgePush is null)
+        {
+            return true;
+        }
+
+        var displacementMeters = Location.CalculateDistance(
+            _lastMapLocationBridgePush,
+            location,
+            DistanceUnits.Kilometers) * 1000d;
+
+        return displacementMeters >= MapLocationBridgeMinDisplacementMeters;
     }
 
     private async void OnHeadingUpdated(object? sender, double? heading)
@@ -1658,13 +1828,22 @@ public partial class MapPage : ContentPage
         return preparedPoints;
     }
 
-    private async Task RefreshMapPlacesAsync()
+    private async Task RefreshMapPlacesAsync(
+        bool forceCatalogRefresh = false,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            await PlaceCatalogService.Instance.EnsureLoadedAsync(forceRefresh: true);
-            await SyncPlacesToMapAsync();
+            if (forceCatalogRefresh)
+            {
+                _mapPlacesCacheDirty = true;
+            }
+
+            await PlaceCatalogService.Instance.EnsureLoadedAsync(forceRefresh: forceCatalogRefresh, cancellationToken);
+            await SyncPlacesToMapAsync(cancellationToken);
             await ApplyMapThemeAsync();
+            _mapPlacesCacheDirty = false;
+            _hasAppliedInitialMapPayload = true;
         }
         catch (OperationCanceledException)
         {
@@ -1737,7 +1916,7 @@ public partial class MapPage : ContentPage
                 return;
             }
 
-            await RefreshMapPlacesAsync();
+            await RefreshMapPlacesAsync(forceCatalogRefresh: AppDataModeService.Instance.IsApiEnabled);
             await LoadToursAsync(forceRefresh: AppDataModeService.Instance.IsApiEnabled);
 
             if (UserLocationService.Instance.LastKnownLocation is { } lastKnownLocation)
@@ -1763,7 +1942,11 @@ public partial class MapPage : ContentPage
     {
         _isMapReady = false;
         _isMapLoaded = false;
+        _hasAppliedInitialMapPayload = false;
+        _mapPlacesCacheDirty = true;
         _lastMapLocationRendered = null;
+        _lastMapLocationBridgePush = null;
+        _lastMapLocationBridgePushAtUtc = DateTimeOffset.MinValue;
         _isMapLoadInProgress = false;
         if (CanAccessVisualTree())
         {
@@ -2227,6 +2410,45 @@ public partial class MapPage : ContentPage
             .ToList();
     }
 
+    private static async Task<string> GetMapHtmlTemplateAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(_cachedMapHtmlTemplate))
+        {
+            return _cachedMapHtmlTemplate!;
+        }
+
+        await MapHtmlTemplateLock.WaitAsync();
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(_cachedMapHtmlTemplate))
+            {
+                return _cachedMapHtmlTemplate!;
+            }
+
+            using var stream = await FileSystem.OpenAppPackageFileAsync("leaflet_map.html");
+            using var reader = new StreamReader(stream);
+            var htmlContent = await reader.ReadToEndAsync();
+
+            using var leafletCssStream = await FileSystem.OpenAppPackageFileAsync("vendor/leaflet/leaflet.css");
+            using var leafletCssReader = new StreamReader(leafletCssStream);
+            var leafletCss = await leafletCssReader.ReadToEndAsync();
+
+            using var leafletJsStream = await FileSystem.OpenAppPackageFileAsync("vendor/leaflet/leaflet.js");
+            using var leafletJsReader = new StreamReader(leafletJsStream);
+            var leafletJs = await leafletJsReader.ReadToEndAsync();
+
+            _cachedMapHtmlTemplate = htmlContent
+                .Replace("__LEAFLET_CSS__", leafletCss, StringComparison.Ordinal)
+                .Replace("__LEAFLET_JS__", leafletJs, StringComparison.Ordinal);
+
+            return _cachedMapHtmlTemplate;
+        }
+        finally
+        {
+            MapHtmlTemplateLock.Release();
+        }
+    }
+
     private static HttpClient CreateSearchHttpClient()
     {
         var client = new HttpClient
@@ -2324,12 +2546,16 @@ public partial class MapPage : ContentPage
     {
         CancelActiveSearchOperation();
         CancelDeveloperLocationSession();
+        _mapInteropWarmupCts?.Cancel();
         _mapLoadingCts?.Cancel();
         _mapTimeoutCts?.Cancel();
+        _pendingLocationForMapBridge = null;
+        Interlocked.Exchange(ref _isLocationBridgeFlushScheduled, 0);
         if (resetMapReady)
         {
             _isMapReady = false;
             _isMapLoadInProgress = false;
+            _hasAppliedInitialMapPayload = false;
         }
     }
 
@@ -2346,6 +2572,7 @@ public partial class MapPage : ContentPage
         ThemeService.Instance.PropertyChanged -= OnThemeChanged;
         AppSettingsService.Instance.PropertyChanged -= OnAppSettingsChanged;
         AppSettingsService.Instance.SettingsSaved -= OnSettingsSaved;
+        PlaceCatalogService.Instance.CatalogChanged -= OnCatalogChanged;
         Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
         UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
         UserLocationService.Instance.HeadingUpdated -= OnHeadingUpdated;
@@ -2541,10 +2768,41 @@ public partial class MapPage : ContentPage
             if (handler.PlatformView is Android.Webkit.WebView webView)
             {
                 webView.Settings.UserAgentString = "SmartTourismMaui/1.0";
+                webView.SetLayerType(Android.Views.LayerType.Hardware, null);
+                TrySetAndroidRenderPriorityHigh(webView.Settings);
             }
         });
 #endif
     }
+
+#if ANDROID
+    private static void TrySetAndroidRenderPriorityHigh(Android.Webkit.WebSettings settings)
+    {
+        try
+        {
+            var setRenderPriorityMethod = settings.GetType().GetMethod("SetRenderPriority");
+            if (setRenderPriorityMethod is null)
+            {
+                return;
+            }
+
+            var priorityType = setRenderPriorityMethod
+                .GetParameters()
+                .FirstOrDefault()
+                ?.ParameterType;
+            var highValue = priorityType?.GetField("High")?.GetValue(null);
+            if (highValue is null)
+            {
+                return;
+            }
+
+            setRenderPriorityMethod.Invoke(settings, new[] { highValue });
+        }
+        catch
+        {
+        }
+    }
+#endif
 
     private static string GetPreferredSearchLanguageTag()
     {

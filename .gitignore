@@ -84,3 +84,4 @@ Project_SharedClassLibrary.Tests/
 .runtime/
 .tools/
 .artifacts/ 
+artifacts/ 

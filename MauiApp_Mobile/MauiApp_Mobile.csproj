@@ -16,6 +16,7 @@
 		<SingleProject>true</SingleProject>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<EnableAndroidRuntimeTuning Condition="'$(EnableAndroidRuntimeTuning)' == ''">true</EnableAndroidRuntimeTuning>
 
 		<ApplicationTitle>SmartTour App</ApplicationTitle>
 		<ApplicationId>com.companyname.mauiapp_mobile</ApplicationId>
@@ -35,6 +36,14 @@
 		<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
 		<AndroidLinkMode>None</AndroidLinkMode>
 		<DebugType>portable</DebugType>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableAndroidRuntimeTuning)' == 'true' and '$(Configuration)' == 'Release' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<Optimize>true</Optimize>
+		<AndroidLinkMode>SdkOnly</AndroidLinkMode>
+		<RunAOTCompilation>true</RunAOTCompilation>
+		<AndroidEnableProfiledAot>true</AndroidEnableProfiledAot>
+		<AndroidEnableMarshalMethods>true</AndroidEnableMarshalMethods>
 	</PropertyGroup>
 
 	<ItemGroup>

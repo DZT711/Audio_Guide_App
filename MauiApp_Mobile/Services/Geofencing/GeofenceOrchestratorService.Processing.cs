@@ -9,6 +9,8 @@ namespace MauiApp_Mobile.Services.Geofencing;
 
 public sealed partial class GeofenceOrchestratorService
 {
+    private static readonly TimeSpan MaxSampleCoalescingDelay = TimeSpan.FromMilliseconds(180);
+
     private async Task ProcessingLoopAsync(CancellationToken cancellationToken)
     {
         if (_locationChannel is null)
@@ -42,6 +44,7 @@ public sealed partial class GeofenceOrchestratorService
 
                 try
                 {
+                    latestSample = await CoalesceRapidSamplesAsync(latestSample, cancellationToken);
                     await ProcessLocationSampleAsync(latestSample, cancellationToken);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -58,6 +61,60 @@ public sealed partial class GeofenceOrchestratorService
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
+    }
+
+    private async Task<GeofenceLocationSample> CoalesceRapidSamplesAsync(
+        GeofenceLocationSample latestSample,
+        CancellationToken cancellationToken)
+    {
+        if (_locationChannel is null || !_lastProcessedAtUtc.HasValue || !_lastProcessedSample.HasValue)
+        {
+            return latestSample;
+        }
+
+        var elapsed = latestSample.CapturedAtUtc - _lastProcessedAtUtc.Value;
+        if (elapsed >= _engineOptions.MinimumEvaluationInterval)
+        {
+            return latestSample;
+        }
+
+        var movedDistanceMeters = HaversineDistanceCalculator.CalculateMeters(
+            _lastProcessedSample.Value.Latitude,
+            _lastProcessedSample.Value.Longitude,
+            latestSample.Latitude,
+            latestSample.Longitude);
+
+        if (movedDistanceMeters >= _engineOptions.MinimumMovementMeters)
+        {
+            return latestSample;
+        }
+
+        var remainingDelay = _engineOptions.MinimumEvaluationInterval - elapsed;
+        if (remainingDelay <= TimeSpan.Zero)
+        {
+            return latestSample;
+        }
+
+        var coalescingDelay = remainingDelay < MaxSampleCoalescingDelay
+            ? remainingDelay
+            : MaxSampleCoalescingDelay;
+
+        await Task.Delay(coalescingDelay, cancellationToken);
+
+        var additionalCollapsedCount = 0;
+        while (_locationChannel.Reader.TryRead(out var newerSample))
+        {
+            latestSample = newerSample;
+            additionalCollapsedCount++;
+        }
+
+        if (additionalCollapsedCount > 0)
+        {
+            Interlocked.Add(ref _droppedLocationEvents, additionalCollapsedCount);
+            AdjustQueueDepth(-additionalCollapsedCount);
+        }
+
+        return latestSample;
     }
 
     private async Task WatchdogLoopAsync(CancellationToken cancellationToken)

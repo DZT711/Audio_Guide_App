@@ -37,11 +37,11 @@ public partial class PlacesViewModel : ObservableObject
 
     public BatchObservableCollection<PlaceItem> Places { get; } = new();
 
-    public ObservableCollection<CategoryFilterOption> CategoryFilters { get; } = [];
+    public BatchObservableCollection<CategoryFilterOption> CategoryFilters { get; } = new();
 
-    public ObservableCollection<CategoryFilterOption> VoiceFilters { get; } = [];
+    public BatchObservableCollection<CategoryFilterOption> VoiceFilters { get; } = new();
 
-    public ObservableCollection<CategoryFilterOption> LanguageFilters { get; } = [];
+    public BatchObservableCollection<CategoryFilterOption> LanguageFilters { get; } = new();
 
     public IReadOnlyList<PlaceItem> AllPlaces => _allPlaces;
 
@@ -135,7 +135,7 @@ public partial class PlacesViewModel : ObservableObject
         SyncCategoryFilters(categories);
         SyncVoiceFilters();
         SyncLanguageFilters();
-        ApplyFilter();
+        QueueApplyFilterDebounced();
     }
 
     public bool HasCatalogChanged(IReadOnlyList<PlaceItem> places, IReadOnlyList<CategoryDto> categories)
@@ -208,24 +208,28 @@ public partial class PlacesViewModel : ObservableObject
             _selectedCategoryValue = AllCategoryValue;
         }
 
-        CategoryFilters.Clear();
-        CategoryFilters.Add(new CategoryFilterOption
+        var newCategoryFilters = new List<CategoryFilterOption>(categoryNames.Count + 1)
         {
-            Value = AllCategoryValue,
-            DisplayName = LocalizationService.Instance.T("Filter.All"),
-            Icon = "📍",
-            IsAllOption = true
-        });
+            new CategoryFilterOption
+            {
+                Value = AllCategoryValue,
+                DisplayName = LocalizationService.Instance.T("Filter.All"),
+                Icon = "📍",
+                IsAllOption = true
+            }
+        };
 
         foreach (var categoryName in categoryNames)
         {
-            CategoryFilters.Add(new CategoryFilterOption
+            newCategoryFilters.Add(new CategoryFilterOption
             {
                 Value = categoryName,
                 DisplayName = categoryName,
                 Icon = ResolveCategoryIcon(categoryName)
             });
         }
+
+        CategoryFilters.ReplaceAll(newCategoryFilters);   // single Reset event
 
         UpdateCategorySelectionState();
     }
@@ -242,32 +246,33 @@ public partial class PlacesViewModel : ObservableObject
             _selectedVoiceValue = AllVoiceValue;
         }
 
-        VoiceFilters.Clear();
-        VoiceFilters.Add(new CategoryFilterOption
-        {
-            Value = AllVoiceValue,
-            DisplayName = LocalizationService.Instance.T("Filter.All"),
-            Icon = "🎙",
-            IsAllOption = true
-        });
-        VoiceFilters.Add(new CategoryFilterOption
-        {
-            Value = AudioAvailableVoiceValue,
-            DisplayName = LocalizationService.Instance.T("Filter.WithAudio"),
-            Icon = "🔊"
-        });
-        VoiceFilters.Add(new CategoryFilterOption
-        {
-            Value = MaleVoiceValue,
-            DisplayName = LocalizationService.Instance.T("Filter.VoiceMale"),
-            Icon = "♂"
-        });
-        VoiceFilters.Add(new CategoryFilterOption
-        {
-            Value = FemaleVoiceValue,
-            DisplayName = LocalizationService.Instance.T("Filter.VoiceFemale"),
-            Icon = "♀"
-        });
+        VoiceFilters.ReplaceAll([
+            new CategoryFilterOption
+            {
+                Value = AllVoiceValue,
+                DisplayName = LocalizationService.Instance.T("Filter.All"),
+                Icon = "🎙",
+                IsAllOption = true
+            },
+            new CategoryFilterOption
+            {
+                Value = AudioAvailableVoiceValue,
+                DisplayName = LocalizationService.Instance.T("Filter.WithAudio"),
+                Icon = "🔊"
+            },
+            new CategoryFilterOption
+            {
+                Value = MaleVoiceValue,
+                DisplayName = LocalizationService.Instance.T("Filter.VoiceMale"),
+                Icon = "♂"
+            },
+            new CategoryFilterOption
+            {
+                Value = FemaleVoiceValue,
+                DisplayName = LocalizationService.Instance.T("Filter.VoiceFemale"),
+                Icon = "♀"
+            }
+        ]);
 
         UpdateVoiceSelectionState();
     }
@@ -289,24 +294,28 @@ public partial class PlacesViewModel : ObservableObject
             _selectedLanguageValue = AllLanguageValue;
         }
 
-        LanguageFilters.Clear();
-        LanguageFilters.Add(new CategoryFilterOption
+        var newLanguageFilters = new List<CategoryFilterOption>(languages.Count + 1)
         {
-            Value = AllLanguageValue,
-            DisplayName = LocalizationService.Instance.T("Filter.All"),
-            Icon = "🌐",
-            IsAllOption = true
-        });
+            new CategoryFilterOption
+            {
+                Value = AllLanguageValue,
+                DisplayName = LocalizationService.Instance.T("Filter.All"),
+                Icon = "🌐",
+                IsAllOption = true
+            }
+        };
 
         foreach (var language in languages)
         {
-            LanguageFilters.Add(new CategoryFilterOption
+            newLanguageFilters.Add(new CategoryFilterOption
             {
                 Value = language,
                 DisplayName = ResolveLanguageDisplayName(language),
                 Icon = ResolveLanguageIcon(language)
             });
         }
+
+        LanguageFilters.ReplaceAll(newLanguageFilters);   // single Reset event
 
         UpdateLanguageSelectionState();
     }

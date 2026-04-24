@@ -4,6 +4,7 @@ using Project_SharedClassLibrary.Constants;
 using Project_SharedClassLibrary.Contracts;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
+using System.Collections.Concurrent;
 using MauiTextToSpeech = Microsoft.Maui.Media.TextToSpeech;
 
 #if ANDROID
@@ -28,6 +29,7 @@ public sealed partial class AudioPlaybackService
     private static readonly HttpClient SpeechHttpClient = MobileApiHttpClientFactory.Create(
         TimeSpan.FromSeconds(45),
         6);
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> AndroidPlaybackCacheLocks = new(StringComparer.OrdinalIgnoreCase);
 
     private CancellationTokenSource? _ttsCancellationTokenSource;
     private TaskCompletionSource<bool>? _activePlaybackCompletionSource;
@@ -166,9 +168,7 @@ public sealed partial class AudioPlaybackService
     public async Task StopAsync()
     {
         Interlocked.Increment(ref _playbackSessionVersion);
-        _ttsCancellationTokenSource?.Cancel();
-        _ttsCancellationTokenSource?.Dispose();
-        _ttsCancellationTokenSource = null;
+        CancelAndDisposeCancellationTokenSource(ref _ttsCancellationTokenSource);
 
         var activePlaybackCompletionSource = Interlocked.Exchange(ref _activePlaybackCompletionSource, null);
         activePlaybackCompletionSource?.TrySetCanceled();
@@ -614,7 +614,7 @@ public sealed partial class AudioPlaybackService
             }
 
             completionSource.TrySetResult(true);
-            MainThread.BeginInvokeOnMainThread(async () => await OnPlaybackCompletedAsync(playbackSession));
+            _ = CompletePlaybackSessionAsync(playbackSession);
         };
         player.Prepared += (_, _) =>
         {
@@ -624,9 +624,16 @@ public sealed partial class AudioPlaybackService
                 return;
             }
 
-            player.Start();
-            UpdateAndroidProgressSnapshot();
-            MarkPlaybackStarted();
+            try
+            {
+                player.Start();
+                UpdateAndroidProgressSnapshot();
+                MarkPlaybackStarted();
+            }
+            catch (Java.Lang.IllegalStateException ex)
+            {
+                completionSource.TrySetException(new InvalidOperationException("Android audio player entered an invalid state.", ex));
+            }
         };
         player.Error += (_, args) =>
         {
@@ -642,7 +649,7 @@ public sealed partial class AudioPlaybackService
         };
 
         player.PrepareAsync();
-        using var registration = cancellationToken.Register(() => MainThread.BeginInvokeOnMainThread(async () => await StopAsync()));
+        using var registration = cancellationToken.Register(() => _ = StopAsync());
         try
         {
             await completionSource.Task;
@@ -668,7 +675,7 @@ public sealed partial class AudioPlaybackService
         _windowsPlayer.MediaEnded += (_, _) =>
         {
             completionSource.TrySetResult();
-            MainThread.BeginInvokeOnMainThread(async () => await OnPlaybackCompletedAsync(playbackSession));
+            _ = CompletePlaybackSessionAsync(playbackSession);
         };
         _windowsPlayer.MediaFailed += (_, args) =>
         {
@@ -686,7 +693,7 @@ public sealed partial class AudioPlaybackService
             return;
         }
 
-        using var registration = cancellationToken.Register(() => MainThread.BeginInvokeOnMainThread(async () => await StopAsync()));
+        using var registration = cancellationToken.Register(() => _ = StopAsync());
         await completionSource.Task;
         return;
 #else
@@ -821,9 +828,40 @@ public sealed partial class AudioPlaybackService
 
     private void StopProgressLoop()
     {
-        _progressLoopCts?.Cancel();
-        _progressLoopCts?.Dispose();
-        _progressLoopCts = null;
+        CancelAndDisposeCancellationTokenSource(ref _progressLoopCts);
+    }
+
+    private async Task CompletePlaybackSessionAsync(int playbackSession)
+    {
+        try
+        {
+            await OnPlaybackCompletedAsync(playbackSession);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Playback completion cleanup failed: {ex.Message}");
+        }
+    }
+
+    private static void CancelAndDisposeCancellationTokenSource(ref CancellationTokenSource? cancellationTokenSource)
+    {
+        var current = Interlocked.Exchange(ref cancellationTokenSource, null);
+        if (current is null)
+        {
+            return;
+        }
+
+        try
+        {
+            current.Cancel();
+        }
+        catch
+        {
+        }
+        finally
+        {
+            current.Dispose();
+        }
     }
 
     private void RefreshProgressSnapshot()
@@ -862,38 +900,48 @@ public sealed partial class AudioPlaybackService
         }
 
         var cachedFilePath = ResolveCachedPlaybackFilePath(sourceUri);
-        if (File.Exists(cachedFilePath) && new FileInfo(cachedFilePath).Length > 0)
-        {
-            return cachedFilePath;
-        }
-
-        Directory.CreateDirectory(Path.GetDirectoryName(cachedFilePath)!);
-        var partialFilePath = $"{cachedFilePath}.download";
+        var cacheLock = AndroidPlaybackCacheLocks.GetOrAdd(cachedFilePath, _ => new SemaphoreSlim(1, 1));
+        await cacheLock.WaitAsync(cancellationToken);
 
         try
         {
+            if (File.Exists(cachedFilePath) && new FileInfo(cachedFilePath).Length > 0)
+            {
+                return cachedFilePath;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(cachedFilePath)!);
+            var partialFilePath = $"{cachedFilePath}.download.{Guid.NewGuid():N}";
             using var response = await SpeechHttpClient.GetAsync(sourceUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             response.EnsureSuccessStatusCode();
 
             await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
             await using var tempStream = File.Create(partialFilePath);
             await responseStream.CopyToAsync(tempStream, cancellationToken);
+            await tempStream.FlushAsync(cancellationToken);
 
             if (File.Exists(cachedFilePath))
             {
-                File.Delete(cachedFilePath);
+                File.Replace(partialFilePath, cachedFilePath, null, true);
+            }
+            else
+            {
+                File.Move(partialFilePath, cachedFilePath);
             }
 
-            File.Move(partialFilePath, cachedFilePath);
             return cachedFilePath;
         }
         catch
         {
             try
             {
-                if (File.Exists(partialFilePath))
+                var partialFilePattern = $"{cachedFilePath}.download.*";
+                foreach (var partialFilePath in Directory.GetFiles(Path.GetDirectoryName(cachedFilePath)!, Path.GetFileName(partialFilePattern)))
                 {
-                    File.Delete(partialFilePath);
+                    if (File.Exists(partialFilePath))
+                    {
+                        File.Delete(partialFilePath);
+                    }
                 }
             }
             catch
@@ -901,6 +949,10 @@ public sealed partial class AudioPlaybackService
             }
 
             throw;
+        }
+        finally
+        {
+            cacheLock.Release();
         }
     }
 
@@ -1076,7 +1128,7 @@ public sealed partial class AudioPlaybackService
             case AudioFocus.Loss:
             case AudioFocus.LossTransient:
                 _androidPlaybackDucked = false;
-                _ = MainThread.InvokeOnMainThreadAsync(async () => await PauseAsync(requestedByAudioFocus: true));
+                _ = PauseAsync(requestedByAudioFocus: true);
                 break;
             case AudioFocus.LossTransientCanDuck:
                 if (_androidPlayer is not null)
@@ -1087,7 +1139,7 @@ public sealed partial class AudioPlaybackService
                 }
                 else
                 {
-                    _ = MainThread.InvokeOnMainThreadAsync(async () => await PauseAsync(requestedByAudioFocus: true));
+                    _ = PauseAsync(requestedByAudioFocus: true);
                 }
                 break;
             case AudioFocus.Gain:

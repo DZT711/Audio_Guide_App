@@ -10,8 +10,11 @@ public sealed class MobileDatabaseService
     private const int CurrentSchemaVersion = 4;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
+    private readonly SemaphoreSlim _catalogSnapshotWarmupLock = new(1, 1);
+    private readonly object _catalogSnapshotCacheGate = new();
     private SQLiteAsyncConnection? _connection;
     private bool _initialized;
+    private PublicCatalogSnapshotDto? _catalogSnapshotMemoryCache;
 
     public static MobileDatabaseService Instance { get; } = new();
 
@@ -48,6 +51,27 @@ public sealed class MobileDatabaseService
         }
     }
 
+    public async Task WarmCatalogSnapshotAsync(CancellationToken cancellationToken = default)
+    {
+        if (TryGetCatalogSnapshotFromMemoryCache() is not null)
+        {
+            return;
+        }
+
+        await _catalogSnapshotWarmupLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (TryGetCatalogSnapshotFromMemoryCache() is null)
+            {
+                _ = await LoadCatalogSnapshotAsync(cancellationToken);
+            }
+        }
+        finally
+        {
+            _catalogSnapshotWarmupLock.Release();
+        }
+    }
+
     public async Task<string?> GetSettingAsync(string key, CancellationToken cancellationToken = default)
     {
         var connection = await GetConnectionAsync(cancellationToken);
@@ -70,6 +94,67 @@ public sealed class MobileDatabaseService
 
     public async Task SaveCatalogSnapshotAsync(PublicCatalogSnapshotDto snapshot, CancellationToken cancellationToken = default)
     {
+        var serializedSnapshot = await Task.Run(() => new
+        {
+            Categories = snapshot.Categories.Select(category => new CachedCategoryEntity
+            {
+                Id = category.Id,
+                Name = category.Name,
+                Description = category.Description,
+                Status = category.Status,
+                CreatedAtUtc = category.CreatedAt,
+                UpdatedAtUtc = category.UpdatedAt
+            }).ToList(),
+            Locations = snapshot.Locations.Select(location => new CachedLocationEntity
+            {
+                Id = location.Id,
+                CategoryId = location.CategoryId,
+                Category = location.Category,
+                OwnerId = location.OwnerId,
+                OwnerName = location.OwnerName,
+                Name = location.Name,
+                Description = location.Description,
+                Latitude = location.Latitude,
+                Longitude = location.Longitude,
+                Radius = location.Radius,
+                StandbyRadius = location.StandbyRadius,
+                Priority = location.Priority,
+                DebounceSeconds = location.DebounceSeconds,
+                IsGpsTriggerEnabled = location.IsGpsTriggerEnabled,
+                Address = location.Address,
+                PreferenceImageUrl = location.PreferenceImageUrl,
+                CoverImageUrl = location.CoverImageUrl,
+                ImageUrlsJson = JsonSerializer.Serialize(location.ImageUrls, JsonOptions),
+                WebURL = location.WebURL,
+                Email = location.Email,
+                Phone = location.Phone,
+                EstablishedYear = location.EstablishedYear,
+                AudioCount = location.AudioCount,
+                AvailableVoiceGendersJson = JsonSerializer.Serialize(location.AvailableVoiceGenders, JsonOptions),
+                Status = location.Status,
+                CreatedAtUtc = location.CreatedAt,
+                UpdatedAtUtc = location.UpdatedAt
+            }).ToList(),
+            AudioTracks = snapshot.AudioTracks.Select(audioTrack => new CachedAudioTrackEntity
+            {
+                Id = audioTrack.Id,
+                LocationId = audioTrack.LocationId,
+                LocationName = audioTrack.LocationName,
+                Language = audioTrack.Language,
+                LanguageName = audioTrack.LanguageName,
+                Title = audioTrack.Title,
+                Description = audioTrack.Description,
+                SourceType = audioTrack.SourceType,
+                Script = audioTrack.Script,
+                AudioURL = audioTrack.AudioURL,
+                Duration = audioTrack.Duration,
+                VoiceName = audioTrack.VoiceName,
+                VoiceGender = audioTrack.VoiceGender,
+                Priority = audioTrack.Priority,
+                IsDefault = audioTrack.IsDefault
+            }).ToList()
+        }, cancellationToken);
+
         var connection = await GetConnectionAsync(cancellationToken);
         await connection.RunInTransactionAsync(transaction =>
         {
@@ -77,73 +162,19 @@ public sealed class MobileDatabaseService
             transaction.DeleteAll<CachedLocationEntity>();
             transaction.DeleteAll<CachedAudioTrackEntity>();
 
-            foreach (var category in snapshot.Categories)
+            foreach (var category in serializedSnapshot.Categories)
             {
-                transaction.InsertOrReplace(new CachedCategoryEntity
-                {
-                    Id = category.Id,
-                    Name = category.Name,
-                    Description = category.Description,
-                    Status = category.Status,
-                    CreatedAtUtc = category.CreatedAt,
-                    UpdatedAtUtc = category.UpdatedAt
-                });
+                transaction.InsertOrReplace(category);
             }
 
-            foreach (var location in snapshot.Locations)
+            foreach (var location in serializedSnapshot.Locations)
             {
-                transaction.InsertOrReplace(new CachedLocationEntity
-                {
-                    Id = location.Id,
-                    CategoryId = location.CategoryId,
-                    Category = location.Category,
-                    OwnerId = location.OwnerId,
-                    OwnerName = location.OwnerName,
-                    Name = location.Name,
-                    Description = location.Description,
-                    Latitude = location.Latitude,
-                    Longitude = location.Longitude,
-                    Radius = location.Radius,
-                    StandbyRadius = location.StandbyRadius,
-                    Priority = location.Priority,
-                    DebounceSeconds = location.DebounceSeconds,
-                    IsGpsTriggerEnabled = location.IsGpsTriggerEnabled,
-                    Address = location.Address,
-                    PreferenceImageUrl = location.PreferenceImageUrl,
-                    CoverImageUrl = location.CoverImageUrl,
-                    ImageUrlsJson = JsonSerializer.Serialize(location.ImageUrls, JsonOptions),
-                    WebURL = location.WebURL,
-                    Email = location.Email,
-                    Phone = location.Phone,
-                    EstablishedYear = location.EstablishedYear,
-                    AudioCount = location.AudioCount,
-                    AvailableVoiceGendersJson = JsonSerializer.Serialize(location.AvailableVoiceGenders, JsonOptions),
-                    Status = location.Status,
-                    CreatedAtUtc = location.CreatedAt,
-                    UpdatedAtUtc = location.UpdatedAt
-                });
+                transaction.InsertOrReplace(location);
             }
 
-            foreach (var audioTrack in snapshot.AudioTracks)
+            foreach (var audioTrack in serializedSnapshot.AudioTracks)
             {
-                transaction.InsertOrReplace(new CachedAudioTrackEntity
-                {
-                    Id = audioTrack.Id,
-                    LocationId = audioTrack.LocationId,
-                    LocationName = audioTrack.LocationName,
-                    Language = audioTrack.Language,
-                    LanguageName = audioTrack.LanguageName,
-                    Title = audioTrack.Title,
-                    Description = audioTrack.Description,
-                    SourceType = audioTrack.SourceType,
-                    Script = audioTrack.Script,
-                    AudioURL = audioTrack.AudioURL,
-                    Duration = audioTrack.Duration,
-                    VoiceName = audioTrack.VoiceName,
-                    VoiceGender = audioTrack.VoiceGender,
-                    Priority = audioTrack.Priority,
-                    IsDefault = audioTrack.IsDefault
-                });
+                transaction.InsertOrReplace(audioTrack);
             }
         });
 
@@ -152,10 +183,17 @@ public sealed class MobileDatabaseService
             snapshot.RefreshedAtUtc == default ? DateTimeOffset.UtcNow : new DateTimeOffset(snapshot.RefreshedAtUtc, TimeSpan.Zero),
             snapshot.RefreshedAtUtc == default ? DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture) : snapshot.RefreshedAtUtc.ToString("O", CultureInfo.InvariantCulture),
             cancellationToken);
+
+        SetCatalogSnapshotMemoryCache(snapshot);
     }
 
     public async Task<PublicCatalogSnapshotDto> LoadCatalogSnapshotAsync(CancellationToken cancellationToken = default)
     {
+        if (TryGetCatalogSnapshotFromMemoryCache() is { } cachedSnapshot)
+        {
+            return cachedSnapshot;
+        }
+
         var connection = await GetConnectionAsync(cancellationToken);
         var categories = await connection.Table<CachedCategoryEntity>().OrderBy(item => item.Name).ToListAsync();
         var locations = await connection.Table<CachedLocationEntity>().OrderBy(item => item.Name).ToListAsync();
@@ -168,7 +206,7 @@ public sealed class MobileDatabaseService
             .Where(item => item.SyncScope == "catalog")
             .FirstOrDefaultAsync();
 
-        return new PublicCatalogSnapshotDto
+        var snapshot = await Task.Run(() => new PublicCatalogSnapshotDto
         {
             RefreshedAtUtc = ParseDateTime(syncState?.LastFullSyncAtUtc) ?? DateTime.UtcNow,
             Categories = categories.Select(item => new CategoryDto
@@ -228,7 +266,10 @@ public sealed class MobileDatabaseService
                 Priority = item.Priority,
                 IsDefault = item.IsDefault
             }).ToList()
-        };
+        }, cancellationToken);
+
+        SetCatalogSnapshotMemoryCache(snapshot);
+        return snapshot;
     }
 
     public async Task LogTrackingEventAsync(LocationTrackingRecord record, CancellationToken cancellationToken = default)
@@ -1029,6 +1070,22 @@ public sealed class MobileDatabaseService
         return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
             ? parsed
             : null;
+    }
+
+    private PublicCatalogSnapshotDto? TryGetCatalogSnapshotFromMemoryCache()
+    {
+        lock (_catalogSnapshotCacheGate)
+        {
+            return _catalogSnapshotMemoryCache;
+        }
+    }
+
+    private void SetCatalogSnapshotMemoryCache(PublicCatalogSnapshotDto snapshot)
+    {
+        lock (_catalogSnapshotCacheGate)
+        {
+            _catalogSnapshotMemoryCache = snapshot;
+        }
     }
 
     public async Task SavePlaybackHistoryAsync(string placeId, string placePayloadJson, DateTimeOffset playedAtUtc, CancellationToken cancellationToken = default)
