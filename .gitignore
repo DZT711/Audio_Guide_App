@@ -85,3 +85,4 @@ Project_SharedClassLibrary.Tests/
 .tools/
 .artifacts/ 
 artifacts/ 
+*.apk
