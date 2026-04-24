@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$ApkPath,
-    [string]$PublicBaseUrl = "https://flirt-zeppelin-dimness.ngrok-free.dev/",
+    # [string]$PublicBaseUrl = "https://retype-roundworm-platter.ngrok-free.dev/",
+    [string]$PublicBaseUrl = "https://expletive-cried-decimeter.ngrok-free.dev",
     [string]$DownloadsDir = ".\WebApplication_API\wwwroot\downloads",
     [int]$KeepLatest = 5,
     [string]$GitSha = ""

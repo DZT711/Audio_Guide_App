@@ -1,7 +1,8 @@
 param(
     [string]$ConfigPath,
     [string]$MobileApiConfigPath,
-    [int]$Port = 5123
+    [int]$Port = 5123,
+    [string]$NgrokBaseUrl = "https://expletive-cried-decimeter.ngrok-free.dev"
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,13 +26,13 @@ function Get-PreferredLocalIpv4 {
 
     try {
         $route = Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue |
-            Sort-Object RouteMetric |
-            Select-Object -First 1
+        Sort-Object RouteMetric |
+        Select-Object -First 1
 
         if ($route) {
             $ip = Get-NetIPAddress -InterfaceIndex $route.InterfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-                Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
-                Select-Object -First 1 -ExpandProperty IPAddress
+            Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
+            Select-Object -First 1 -ExpandProperty IPAddress
 
             if (-not [string]::IsNullOrWhiteSpace($ip)) {
                 return $ip
@@ -39,8 +40,8 @@ function Get-PreferredLocalIpv4 {
         }
 
         $ip = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-            Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
-            Select-Object -First 1 -ExpandProperty IPAddress
+        Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
+        Select-Object -First 1 -ExpandProperty IPAddress
 
         if (-not [string]::IsNullOrWhiteSpace($ip)) {
             return $ip
@@ -144,12 +145,12 @@ function Update-MobileApiConfig {
     param(
         [string]$Path,
         [string]$LocalIp,
-        [int]$ApiPort
+        [int]$ApiPort,
+        [string]$PrimaryBaseUrl
     )
 
     if ([string]::IsNullOrWhiteSpace($Path) -or
-        -not (Test-Path -LiteralPath $Path) -or
-        [string]::IsNullOrWhiteSpace($LocalIp)) {
+        -not (Test-Path -LiteralPath $Path)) {
         return
     }
 
@@ -169,8 +170,17 @@ function Update-MobileApiConfig {
     Ensure-Property -Object $config -Name "fallbackBaseUrls" -DefaultValue @()
 
     $resolvedLocalBaseUrl = Normalize-Url -Url "http://$($LocalIp):$ApiPort"
-    $config.baseUrl = $resolvedLocalBaseUrl
-    $config.publicBaseUrl = $resolvedLocalBaseUrl
+    $resolvedNgrokBaseUrl = Normalize-Url -Url $PrimaryBaseUrl
+
+    if (-not [string]::IsNullOrWhiteSpace($resolvedNgrokBaseUrl)) {
+        # Prefer ngrok as primary API endpoint in packaged mobile config.
+        $config.baseUrl = $resolvedNgrokBaseUrl
+        $config.publicBaseUrl = $resolvedNgrokBaseUrl
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($resolvedLocalBaseUrl)) {
+        $config.baseUrl = $resolvedLocalBaseUrl
+        $config.publicBaseUrl = $resolvedLocalBaseUrl
+    }
 
     $knownUrls = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $fallbacks = [System.Collections.Generic.List[string]]::new()
@@ -188,6 +198,7 @@ function Update-MobileApiConfig {
         }
     }
 
+    # Fallback priority: local network first, then emulator, then localhost.
     Add-FallbackUrl -Url $resolvedLocalBaseUrl
     Add-FallbackUrl -Url "http://10.0.2.2:$ApiPort"
     Add-FallbackUrl -Url "http://localhost:$ApiPort"
@@ -209,4 +220,4 @@ function Update-MobileApiConfig {
 $resolvedIp = Get-PreferredLocalIpv4
 
 Update-NetworkSecurityConfig -Path $ConfigPath -LocalIp $resolvedIp
-Update-MobileApiConfig -Path $MobileApiConfigPath -LocalIp $resolvedIp -ApiPort $Port
+Update-MobileApiConfig -Path $MobileApiConfigPath -LocalIp $resolvedIp -ApiPort $Port -PrimaryBaseUrl $NgrokBaseUrl

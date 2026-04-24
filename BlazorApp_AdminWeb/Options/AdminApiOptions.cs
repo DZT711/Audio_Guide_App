@@ -4,5 +4,8 @@ public sealed class AdminApiOptions
 {
     public const string SectionName = "AdminApi";
 
-    public string BaseUrl { get; set; } = "https://flirt-zeppelin-dimness.ngrok-free.dev/";
+    public string BaseUrl { get; set; } = "https://expletive-cried-decimeter.ngrok-free.dev/";
+    public string BaseUrlNgrok { get; set; } = "https://retype-roundworm-platter.ngrok-free.dev/";
+    public string BaseUrlLocal { get; set; } = "http://localhost:5123/";
 }
+
