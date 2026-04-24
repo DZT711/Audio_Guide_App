@@ -3,7 +3,9 @@ param(
     [string]$Serial,
     [switch]$ClearBeforeStart,
     [switch]$WaitForDevice,
-    [int]$WaitTimeoutSec = 60                                                         
+    [int]$WaitTimeoutSec = 60,
+    [switch]$AppOnly,
+    [string]$PackageName = "com.companyname.mauiapp_mobile"
 )
 
 Set-StrictMode -Version Latest
@@ -53,6 +55,77 @@ function Get-AdbDevices {
     }
 
     return $devices
+}
+
+function Get-AppProcessId {
+    param(
+        [string]$AdbPath,
+        [string]$SerialValue,
+        [string]$Package
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Package)) {
+        return $null
+    }
+
+    $pidArgs = Get-AdbArgs -SerialValue $SerialValue -CommandArgs @("shell", "pidof", "-s", $Package)
+    $pidOutput = & $AdbPath @pidArgs
+    if ($LASTEXITCODE -ne 0) {
+        return $null
+    }
+
+    $pid = ($pidOutput | Select-Object -First 1).Trim()
+    if ([string]::IsNullOrWhiteSpace($pid)) {
+        return $null
+    }
+
+    return $pid
+}
+
+function Get-AppUid {
+    param(
+        [string]$AdbPath,
+        [string]$SerialValue,
+        [string]$Package
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Package)) {
+        return $null
+    }
+
+    $dumpsysArgs = Get-AdbArgs -SerialValue $SerialValue -CommandArgs @("shell", "dumpsys", "package", $Package)
+    $dumpsysOutput = & $AdbPath @dumpsysArgs
+    if ($LASTEXITCODE -ne 0) {
+        return $null
+    }
+
+    $userIdLine = $dumpsysOutput | Where-Object { $_ -match "userId=(\d+)" } | Select-Object -First 1
+    if ($null -eq $userIdLine) {
+        return $null
+    }
+
+    $match = [regex]::Match($userIdLine, "userId=(\d+)")
+    if (-not $match.Success) {
+        return $null
+    }
+
+    return $match.Groups[1].Value
+}
+
+function Test-LogcatUidFiltering {
+    param(
+        [string]$AdbPath,
+        [string]$SerialValue,
+        [string]$Uid
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Uid)) {
+        return $false
+    }
+
+    $probeArgs = Get-AdbArgs -SerialValue $SerialValue -CommandArgs @("logcat", "--uid", $Uid, "-d", "-t", "1")
+    & $AdbPath @probeArgs | Out-Null
+    return $LASTEXITCODE -eq 0
 }
 
 function Format-DeviceList {
@@ -139,9 +212,38 @@ try {
     Write-Host "Collecting adb logcat..."
     Write-Host "Using device: $Serial"
     Write-Host "Output file: $logFile"
+    if ($AppOnly) {
+        Write-Host "Mode: app-only logcat"
+        Write-Host "Package: $PackageName"
+    }
     Write-Host "Press Ctrl+C to stop."
 
-    $logcatArgs = Get-AdbArgs -SerialValue $Serial -CommandArgs @("logcat", "-v", "threadtime")
+    $logcatCommandArgs = @("logcat", "-v", "threadtime")
+    if ($AppOnly) {
+        $appUid = Get-AppUid -AdbPath $adb -SerialValue $Serial -Package $PackageName
+        if (-not [string]::IsNullOrWhiteSpace($appUid) -and (Test-LogcatUidFiltering -AdbPath $adb -SerialValue $Serial -Uid $appUid)) {
+            Write-Host "Filtering by app UID: $appUid (captures all app processes/restarts)"
+            $logcatCommandArgs += @("--uid", $appUid)
+        }
+        else {
+            Write-Host "UID filtering unavailable on this adb/device. Falling back to PID filter."
+
+            $appPid = Get-AppProcessId -AdbPath $adb -SerialValue $Serial -Package $PackageName
+            while ([string]::IsNullOrWhiteSpace($appPid)) {
+                if (-not $WaitForDevice -or (Get-Date) -ge $deadline) {
+                    throw "Package '$PackageName' is not running. Launch the app and rerun, or use -WaitForDevice."
+                }
+
+                Start-Sleep -Seconds 1
+                $appPid = Get-AppProcessId -AdbPath $adb -SerialValue $Serial -Package $PackageName
+            }
+
+            Write-Host "Filtering by app PID: $appPid"
+            $logcatCommandArgs += @("--pid", $appPid)
+        }
+    }
+
+    $logcatArgs = Get-AdbArgs -SerialValue $Serial -CommandArgs $logcatCommandArgs
     & $adb @logcatArgs | Tee-Object -FilePath $logFile
 }
 catch {
