@@ -22,8 +22,8 @@ public partial class PlacesViewModel : ObservableObject
     private readonly List<PlaceItem> _allPlaces = [];
     private readonly List<CategoryDto> _categories = [];
     private bool _isSilentRefreshing;
-    private string _placesSignature = string.Empty;
-    private string _categoriesSignature = string.Empty;
+    private int _placesSignature = int.MinValue;
+    private int _categoriesSignature = int.MinValue;
     private string _selectedCategoryValue = AllCategoryValue;
     private string _selectedVoiceValue = AllVoiceValue;
     private string _selectedLanguageValue = AllLanguageValue;
@@ -35,7 +35,7 @@ public partial class PlacesViewModel : ObservableObject
         ApplyTexts();
     }
 
-    public ObservableCollection<PlaceItem> Places { get; } = [];
+    public BatchObservableCollection<PlaceItem> Places { get; } = new();
 
     public ObservableCollection<CategoryFilterOption> CategoryFilters { get; } = [];
 
@@ -143,8 +143,8 @@ public partial class PlacesViewModel : ObservableObject
         var nextPlacesSignature = ComputePlacesSignature(places);
         var nextCategoriesSignature = ComputeCategoriesSignature(categories);
 
-        return !string.Equals(_placesSignature, nextPlacesSignature, StringComparison.Ordinal)
-            || !string.Equals(_categoriesSignature, nextCategoriesSignature, StringComparison.Ordinal);
+        return _placesSignature != nextPlacesSignature
+            || _categoriesSignature != nextCategoriesSignature;
     }
 
     public bool NeedsRemoteRefresh(TimeSpan maxAge) =>
@@ -349,7 +349,7 @@ public partial class PlacesViewModel : ObservableObject
 
         var availableVoices = place.AvailableVoiceGenders.Any()
             ? place.AvailableVoiceGenders
-            : place.AudioTracks.Select(track => track.VoiceGender ?? string.Empty).ToList();
+            : place.AudioTracks.Select(track => track.VoiceGender ?? string.Empty);
 
         return availableVoices.Any(item =>
             string.Equals(NormalizeVoiceGender(item), _selectedVoiceValue, StringComparison.OrdinalIgnoreCase));
@@ -379,11 +379,7 @@ public partial class PlacesViewModel : ObservableObject
                 (string.IsNullOrWhiteSpace(keyword) || place.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
-        Places.Clear();
-        foreach (var item in filtered)
-        {
-            Places.Add(item);
-        }
+        Places.ReplaceAll(filtered);
 
         RefreshDisplayState();
     }
@@ -629,39 +625,56 @@ public partial class PlacesViewModel : ObservableObject
                code.Equals("cn", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string ComputePlacesSignature(IEnumerable<PlaceItem> places)
+    private static int ComputePlacesSignature(IEnumerable<PlaceItem> places)
     {
-        return string.Join(
-            "||",
-            places
-                .OrderBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
-                .Select(item =>
+        unchecked
+        {
+            var hash = 17;
+
+            foreach (var item in places.OrderBy(item => item.Id, StringComparer.OrdinalIgnoreCase))
+            {
+                hash = CombineHash(hash, item.Id);
+                hash = CombineHash(hash, item.Name);
+                hash = CombineHash(hash, item.Category);
+                hash = CombineHash(hash, item.Description);
+                hash = CombineHash(hash, item.Image);
+                hash = CombineHash(hash, item.AudioCountText);
+                hash = CombineHash(hash, item.PriorityText);
+                hash = CombineHash(hash, item.StatusText);
+                hash = CombineHash(hash, item.Latitude.ToString("F6", CultureInfo.InvariantCulture));
+                hash = CombineHash(hash, item.Longitude.ToString("F6", CultureInfo.InvariantCulture));
+
+                foreach (var voice in item.AvailableVoiceGenders.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
                 {
-                    var voices = string.Join(",", item.AvailableVoiceGenders.OrderBy(value => value, StringComparer.OrdinalIgnoreCase));
-                    return string.Join(
-                        "|",
-                        item.Id,
-                        item.Name,
-                        item.Category,
-                        item.Description,
-                        item.Image,
-                        item.AudioCountText,
-                        voices,
-                        item.PriorityText,
-                        item.StatusText,
-                        item.Latitude.ToString("F6", CultureInfo.InvariantCulture),
-                        item.Longitude.ToString("F6", CultureInfo.InvariantCulture));
-                }));
+                    hash = CombineHash(hash, NormalizeVoiceGender(voice));
+                }
+            }
+
+            return hash;
+        }
     }
 
-    private static string ComputeCategoriesSignature(IEnumerable<CategoryDto> categories)
+    private static int ComputeCategoriesSignature(IEnumerable<CategoryDto> categories)
     {
-        return string.Join(
-            "||",
-            categories
-                .OrderBy(item => item.Id)
-                .Select(item => $"{item.Id}|{item.Name}|{item.Status}"));
+        unchecked
+        {
+            var hash = 17;
+            foreach (var item in categories.OrderBy(item => item.Id))
+            {
+                hash = CombineHash(hash, item.Id);
+                hash = CombineHash(hash, item.Name);
+                hash = CombineHash(hash, item.Status);
+            }
+
+            return hash;
+        }
     }
+
+    private static int CombineHash(int current, string? value) =>
+        unchecked((current * 31) + (value is null ? 0 : StringComparer.Ordinal.GetHashCode(value)));
+
+    private static int CombineHash(int current, int value) =>
+        unchecked((current * 31) + value);
 
     private static string NormalizeVoiceGender(string? voiceGender)
     {
@@ -679,5 +692,26 @@ public partial class PlacesViewModel : ObservableObject
             "NỮ" => FemaleVoiceValue,
             _ => voiceGender.Trim()
         };
+    }
+}
+
+/// <summary>
+/// ObservableCollection subclass that supports batch replace with a single Reset notification.
+/// Drop-in replacement for ObservableCollection.
+/// </summary>
+public sealed class BatchObservableCollection<T> : System.Collections.ObjectModel.ObservableCollection<T>
+{
+    public void ReplaceAll(IEnumerable<T> newItems)
+    {
+        Items.Clear();
+        foreach (var item in newItems)
+        {
+            Items.Add(item);
+        }
+
+        OnCollectionChanged(
+            new System.Collections.Specialized.NotifyCollectionChangedEventArgs(
+                System.Collections.Specialized.NotifyCollectionChangedAction.Reset));
+        OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(Count)));
     }
 }

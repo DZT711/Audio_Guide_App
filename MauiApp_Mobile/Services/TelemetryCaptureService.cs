@@ -18,9 +18,11 @@ public sealed class TelemetryCaptureService
     private static readonly TimeSpan DwellMinimumStayWindow = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan StaleLocationWindow = TimeSpan.FromMinutes(2);
     private readonly List<RouteTelemetryQueueRecord> _routeBuffer = [];
+    private readonly object _backgroundTaskGate = new();
     private readonly object _routeGate = new();
     private readonly object _playbackGate = new();
     private readonly object _heatmapGate = new();
+    private readonly List<Task> _backgroundTasks = [];
     private readonly Dictionary<int, PendingDwellCandidate> _pendingDwellCandidates = [];
     private CancellationTokenSource? _backgroundCts;
     private bool _started;
@@ -49,7 +51,7 @@ public sealed class TelemetryCaptureService
         GeofenceOrchestratorService.Instance.TriggerAccepted += OnGeofenceTriggerAccepted;
         AudioPlaybackService.Instance.PlaybackStateChanged += OnPlaybackStateChanged;
         AudioPlaybackService.Instance.PlaybackProgressChanged += OnPlaybackProgressChanged;
-        _ = RunRouteBufferFlushLoopAsync(_backgroundCts.Token);
+        TrackBackgroundTask(RunRouteBufferFlushLoopAsync(_backgroundCts.Token), "route-buffer-flush-loop");
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -92,6 +94,8 @@ public sealed class TelemetryCaptureService
             _backgroundCts.Dispose();
             _backgroundCts = null;
         }
+
+        await WaitForTrackedBackgroundTasksAsync(TimeSpan.FromSeconds(5), cancellationToken);
 
         if (activePlaybackAtStop is not null)
         {
@@ -144,7 +148,7 @@ public sealed class TelemetryCaptureService
 
         if (shouldFlushRouteBuffer)
         {
-            _ = FlushRouteBufferAsync(CancellationToken.None);
+            TrackBackgroundTask(FlushRouteBufferAsync(CancellationToken.None), "route-buffer-threshold-flush");
         }
 
         lock (_heatmapGate)
@@ -155,7 +159,7 @@ public sealed class TelemetryCaptureService
 
         if (dueHeatmapEvents is { Count: > 0 })
         {
-            _ = PersistHeatmapEventsAsync(dueHeatmapEvents);
+            TrackBackgroundTask(PersistHeatmapEventsAsync(dueHeatmapEvents), "persist-heatmap-events");
         }
     }
 
@@ -181,7 +185,7 @@ public sealed class TelemetryCaptureService
 
         if (dueHeatmapEvents is { Count: > 0 })
         {
-            _ = PersistHeatmapEventsAsync(dueHeatmapEvents);
+            TrackBackgroundTask(PersistHeatmapEventsAsync(dueHeatmapEvents), "persist-developer-heatmap-events");
         }
     }
 
@@ -234,7 +238,7 @@ public sealed class TelemetryCaptureService
                 IsForeground: snapshot.IsForeground);
         }
 
-        _ = PersistHeatmapEventsAsync([heatmapEvent]);
+        TrackBackgroundTask(PersistHeatmapEventsAsync([heatmapEvent]), "persist-enter-poi-heatmap-event");
     }
 
     private void OnPlaybackProgressChanged(object? sender, AudioPlaybackProgressSnapshot snapshot)
@@ -304,12 +308,12 @@ public sealed class TelemetryCaptureService
 
         if (endedState is not null)
         {
-            _ = PersistPlaybackEndedAsync(endedState, nowUtc);
+            TrackBackgroundTask(PersistPlaybackEndedAsync(endedState, nowUtc), "persist-playback-ended");
         }
 
         if (startedState is not null)
         {
-            _ = PersistPlaybackStartedAsync(startedState, nowUtc);
+            TrackBackgroundTask(PersistPlaybackStartedAsync(startedState, nowUtc), "persist-playback-started");
         }
     }
 
@@ -542,9 +546,13 @@ public sealed class TelemetryCaptureService
         }
 
         List<HeatmapEventQueueRecord>? dueEvents = null;
-        foreach (var poiId in _pendingDwellCandidates.Keys.ToList())
+        foreach (var poiId in _pendingDwellCandidates.Keys.ToArray())
         {
-            var candidate = _pendingDwellCandidates[poiId];
+            if (!_pendingDwellCandidates.TryGetValue(poiId, out var candidate))
+            {
+                continue;
+            }
+
             var distanceToPoiMeters = CalculateDistanceMeters(
                 sample.Location.Latitude,
                 sample.Location.Longitude,
@@ -605,6 +613,63 @@ public sealed class TelemetryCaptureService
         }
 
         return dueEvents;
+    }
+
+    private void TrackBackgroundTask(Task task, string operationName)
+    {
+        lock (_backgroundTaskGate)
+        {
+            _backgroundTasks.Add(task);
+        }
+
+        _ = task.ContinueWith(
+            completedTask =>
+            {
+                if (completedTask.IsFaulted)
+                {
+                    var error = completedTask.Exception?.GetBaseException().Message ?? "Unknown error";
+                    System.Diagnostics.Debug.WriteLine($"[TelemetryCapture] Background task '{operationName}' failed: {error}");
+                }
+
+                lock (_backgroundTaskGate)
+                {
+                    _backgroundTasks.Remove(completedTask);
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private async Task WaitForTrackedBackgroundTasksAsync(TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        Task[] pendingTasks;
+        lock (_backgroundTaskGate)
+        {
+            pendingTasks = _backgroundTasks.Where(task => !task.IsCompleted).ToArray();
+        }
+
+        if (pendingTasks.Length == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var allTasks = Task.WhenAll(pendingTasks);
+            var completedTask = await Task.WhenAny(allTasks, Task.Delay(timeout, cancellationToken));
+            if (!ReferenceEquals(completedTask, allTasks))
+            {
+                System.Diagnostics.Debug.WriteLine("[TelemetryCapture] Timed out waiting for background telemetry tasks.");
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TelemetryCapture] Failed while waiting for background tasks: {ex.Message}");
+        }
     }
 
     private async Task PersistHeatmapEventsAsync(IReadOnlyList<HeatmapEventQueueRecord> events)

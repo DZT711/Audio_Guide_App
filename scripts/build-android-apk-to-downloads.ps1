@@ -3,7 +3,9 @@ param(
     [string]$Configuration = "Debug",
     [string]$TargetFramework = "net10.0-android",
     [string]$RuntimeIdentifier = "android-arm64",
-    [string]$PublicBaseUrl = "https://retype-roundworm-platter.ngrok-free.dev/",
+    # [string]$PublicBaseUrl = "https://retype-roundworm-platter.ngrok-free.dev/",
+    [string]$PublicBaseUrl = "https://flashy-foothill-posting.ngrok-free.dev",
+    # [string]$PublicBaseUrl = "https://localhost:5123/",
     [string]$DownloadsDir = ".\WebApplication_API\wwwroot\downloads",
     [string]$PublishCacheDir = ".\WebApplication_API\wwwroot\downloads\publish-cache",
     [int]$KeepLatest = 5,
@@ -31,6 +33,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $projectFullPath = Resolve-RepoPath -PathValue $ProjectPath
 $downloadsFullPath = Resolve-RepoPath -PathValue $DownloadsDir
 $publishCacheFullPath = Resolve-RepoPath -PathValue $PublishCacheDir
+$mobileApiConfigPath = Resolve-RepoPath -PathValue ".\MauiApp_Mobile\Resources\Raw\mobile-api.json"
 $registerScriptPath = Join-Path $PSScriptRoot "register-android-apk-artifact.ps1"
 $publishDir = [System.IO.Path]::GetFullPath((Join-Path $repoRoot ".artifacts\android-publish\$Configuration"))
 $publishDirForMsBuild = if ($publishDir.EndsWith("\", [StringComparison]::Ordinal) -or $publishDir.EndsWith("/", [StringComparison]::Ordinal)) {
@@ -53,6 +56,7 @@ Write-Host "Configuration:" $Configuration
 Write-Host "Target framework:" $TargetFramework
 Write-Host "Runtime identifier:" $RuntimeIdentifier
 Write-Host "Publish dir:" $publishDir
+Write-Host "Mobile API config:" $mobileApiConfigPath
 
 if (-not $SkipRestore) {
     Write-Host "Running restore..."
@@ -125,5 +129,31 @@ if (-not $SkipPublishCacheSync) {
     -PublicBaseUrl $PublicBaseUrl `
     -DownloadsDir $downloadsFullPath `
     -KeepLatest $KeepLatest
+
+if (Test-Path -LiteralPath $mobileApiConfigPath) {
+    try {
+        $mobileApiConfig = Get-Content -LiteralPath $mobileApiConfigPath -Raw | ConvertFrom-Json
+        $primaryBaseUrl = [string]$mobileApiConfig.baseUrl
+        $publicBaseUrlFromConfig = [string]$mobileApiConfig.publicBaseUrl
+        $firstFallback = if ($mobileApiConfig.fallbackBaseUrls -and $mobileApiConfig.fallbackBaseUrls.Count -gt 0) {
+            [string]$mobileApiConfig.fallbackBaseUrls[0]
+        }
+        else {
+            ""
+        }
+
+        Write-Host ""
+        Write-Host "Mobile API runtime endpoints:"
+        Write-Host "  Primary baseUrl     : $primaryBaseUrl"
+        Write-Host "  Public baseUrl      : $publicBaseUrlFromConfig"
+        Write-Host "  First fallback URL  : $firstFallback"
+    }
+    catch {
+        Write-Warning "Unable to parse mobile API config at $mobileApiConfigPath"
+    }
+}
+else {
+    Write-Warning "Mobile API config file not found: $mobileApiConfigPath"
+}
 
 Write-Host "Done. Output folder:" $downloadsFullPath

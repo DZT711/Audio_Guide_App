@@ -1,6 +1,8 @@
 {
-  "publicBaseUrl": "https://retype-roundworm-platter.ngrok-free.dev/",
+  "publicBaseUrl1": "https://retype-roundworm-platter.ngrok-free.dev/",
+  "publicBaseUrl": "https://flashy-foothill-posting.ngrok-free.dev/",
   "sourceLastWriteUtc": "2026-04-18T00:44:39.4919186Z",
   "generatedAtUtc": "2026-04-18T00:55:21.6913256Z",
-  "sourceApkPath": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\WebApplication_API\\wwwroot\\downloads\\publish-cache\\com.companyname.mauiapp_mobile-Signed.apk"
+  "sourceApkPath1": "C:\\Users\\LENOVO\\Smart-Tourism-MAUI\\WebApplication_API\\wwwroot\\downloads\\publish-cache\\com.companyname.mauiapp_mobile-Signed.apk",
+  "sourceApkPath": "D:\\Projects\\Smart-Tourism-MAUI\\WebApplication_API\\wwwroot\\downloads\\publish-cache\\com.companyname.mauiapp_mobile-Signed.apk"
 }

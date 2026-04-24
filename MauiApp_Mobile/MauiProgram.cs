@@ -5,6 +5,7 @@ using MauiApp_Mobile.Services;
 using MauiApp_Mobile.Services.DependencyInjection;
 using MauiApp_Mobile.Services.Platform;
 using MauiApp_Mobile.Services.Geofencing;
+using MauiApp_Mobile.ViewModels;
 using MauiApp_Mobile.Views;
 using Project_SharedClassLibrary.Contracts;
 using SkiaSharp.Views.Maui.Controls.Hosting;
@@ -186,7 +187,6 @@ public static class MauiProgram
             services.AddSingleton(_ => TelemetryCaptureService.Instance);
             services.AddSingleton(_ => TelemetrySyncService.Instance);
             services.AddSingleton<IAnalyticsService>(_ => AnalyticsService.Instance);
-            services.AddSingleton(_ => AnalyticsService.Instance);
 
             Debug.WriteLine("[MauiProgram.DI] Telemetry services registered");
         }
@@ -283,6 +283,7 @@ public static class MauiProgram
     {
         try
         {
+            services.AddSingleton<PlacesViewModel>();
             services.AddSingleton<MainPage>();
             services.AddSingleton<MapPage>();
             services.AddSingleton<HistoryPage>();

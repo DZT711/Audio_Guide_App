@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text.Json;
 using System.Net;
 using MauiApp_Mobile.Services.DependencyInjection;
@@ -9,9 +10,14 @@ namespace MauiApp_Mobile.Services;
 
 public sealed class AudioDownloadService
 {
+    private const int FileCopyBufferSize = 81920;
+    private static readonly TimeSpan MissingFileCacheDuration = TimeSpan.FromSeconds(30);
     private static readonly HttpClient DownloadHttpClient = MobileApiHttpClientFactory.Create(
         TimeSpan.FromMinutes(4),
         6);
+    private static readonly ArrayPool<byte> DownloadBufferPool = ArrayPool<byte>.Shared;
+    private static readonly Dictionary<string, FileExistenceCacheEntry> FileExistenceCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly object FileExistenceCacheGate = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -35,7 +41,7 @@ public sealed class AudioDownloadService
     {
         await EnsureManifestLoadedAsync(cancellationToken);
 
-        if (!_entries.TryGetValue(track.Id, out var entry) || !File.Exists(entry.LocalFilePath))
+        if (!_entries.TryGetValue(track.Id, out var entry) || !CheckFileExistsWithCache(entry.LocalFilePath))
         {
             return AudioDownloadSnapshot.NotDownloaded(track.Id);
         }
@@ -55,7 +61,7 @@ public sealed class AudioDownloadService
         await EnsureManifestLoadedAsync(cancellationToken);
 
         return _entries.Values
-            .Where(item => item.LocationId == locationId && File.Exists(item.LocalFilePath))
+            .Where(item => item.LocationId == locationId && CheckFileExistsWithCache(item.LocalFilePath))
             .Select(item =>
             {
                 var fileInfo = new FileInfo(item.LocalFilePath);
@@ -122,35 +128,45 @@ public sealed class AudioDownloadService
         try
         {
             await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await using var localStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+            await using var localStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, FileCopyBufferSize, useAsync: true);
 
-            var buffer = new byte[81920];
+            var buffer = DownloadBufferPool.Rent(FileCopyBufferSize);
             long downloadedBytes = 0;
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            int bytesRead;
-            while ((bytesRead = await responseStream.ReadAsync(buffer, cancellationToken)) > 0)
+            try
             {
-                await localStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-                downloadedBytes += bytesRead;
+                int bytesRead;
+                while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+                {
+                    await localStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                    downloadedBytes += bytesRead;
 
-                var progressRatio = totalBytes.HasValue && totalBytes.Value > 0
-                    ? Math.Clamp(downloadedBytes / (double)totalBytes.Value, 0d, 1d)
-                    : 0d;
-                var elapsedSeconds = Math.Max(stopwatch.Elapsed.TotalSeconds, 0.25d);
-                var speedBytesPerSecond = downloadedBytes / elapsedSeconds;
-                var update = new AudioDownloadProgressUpdate(downloadedBytes, totalBytes, progressRatio, speedBytesPerSecond);
-                progress?.Report(update);
-                GetDownloadNotifier()?.ShowProgress(track.Title ?? $"Track {track.Id}", update);
+                    var progressRatio = totalBytes.HasValue && totalBytes.Value > 0
+                        ? Math.Clamp(downloadedBytes / (double)totalBytes.Value, 0d, 1d)
+                        : 0d;
+                    var elapsedSeconds = Math.Max(stopwatch.Elapsed.TotalSeconds, 0.25d);
+                    var speedBytesPerSecond = downloadedBytes / elapsedSeconds;
+                    var update = new AudioDownloadProgressUpdate(downloadedBytes, totalBytes, progressRatio, speedBytesPerSecond);
+                    progress?.Report(update);
+                    GetDownloadNotifier()?.ShowProgress(track.Title ?? $"Track {track.Id}", update);
+                }
+            }
+            finally
+            {
+                DownloadBufferPool.Return(buffer);
             }
 
             await localStream.FlushAsync(cancellationToken);
 
-            if (File.Exists(finalFilePath))
+            if (CheckFileExistsWithCache(finalFilePath))
             {
                 File.Delete(finalFilePath);
+                SetFileExistenceCache(finalFilePath, false);
             }
 
             File.Move(tempFilePath, finalFilePath);
+            SetFileExistenceCache(tempFilePath, false);
+            SetFileExistenceCache(finalFilePath, true);
 
             var fileInfo = new FileInfo(finalFilePath);
             var entry = new DownloadedAudioEntry
@@ -196,9 +212,10 @@ public sealed class AudioDownloadService
 
         try
         {
-            if (!string.IsNullOrWhiteSpace(entry.LocalFilePath) && File.Exists(entry.LocalFilePath))
+            if (!string.IsNullOrWhiteSpace(entry.LocalFilePath) && CheckFileExistsWithCache(entry.LocalFilePath))
             {
                 File.Delete(entry.LocalFilePath);
+                SetFileExistenceCache(entry.LocalFilePath, false);
             }
         }
         catch
@@ -241,11 +258,11 @@ public sealed class AudioDownloadService
 
             _entries.Clear();
 
-            if (File.Exists(ManifestFilePath))
+            if (CheckFileExistsWithCache(ManifestFilePath))
             {
                 await using var stream = File.OpenRead(ManifestFilePath);
                 var manifest = await JsonSerializer.DeserializeAsync<List<DownloadedAudioEntry>>(stream, JsonOptions, cancellationToken) ?? [];
-                foreach (var entry in manifest.Where(item => !string.IsNullOrWhiteSpace(item.LocalFilePath) && File.Exists(item.LocalFilePath)))
+                foreach (var entry in manifest.Where(item => !string.IsNullOrWhiteSpace(item.LocalFilePath) && CheckFileExistsWithCache(item.LocalFilePath)))
                 {
                     _entries[entry.TrackId] = entry;
                 }
@@ -271,6 +288,7 @@ public sealed class AudioDownloadService
                 _entries.Values.OrderBy(item => item.TrackId).ToList(),
                 JsonOptions,
                 cancellationToken);
+            SetFileExistenceCache(ManifestFilePath, true);
         }
         finally
         {
@@ -316,13 +334,53 @@ public sealed class AudioDownloadService
     {
         try
         {
-            if (File.Exists(tempFilePath))
+            if (CheckFileExistsWithCache(tempFilePath))
             {
                 File.Delete(tempFilePath);
+                SetFileExistenceCache(tempFilePath, false);
             }
         }
         catch
         {
+        }
+    }
+
+    private static bool CheckFileExistsWithCache(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return false;
+        }
+
+        var nowUtc = DateTimeOffset.UtcNow;
+        lock (FileExistenceCacheGate)
+        {
+            if (FileExistenceCache.TryGetValue(filePath, out var cached)
+                && (cached.Exists || nowUtc - cached.CheckedAtUtc <= MissingFileCacheDuration))
+            {
+                return cached.Exists;
+            }
+        }
+
+        var exists = File.Exists(filePath);
+        lock (FileExistenceCacheGate)
+        {
+            FileExistenceCache[filePath] = new FileExistenceCacheEntry(exists, nowUtc);
+        }
+
+        return exists;
+    }
+
+    private static void SetFileExistenceCache(string? filePath, bool exists)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        lock (FileExistenceCacheGate)
+        {
+            FileExistenceCache[filePath] = new FileExistenceCacheEntry(exists, DateTimeOffset.UtcNow);
         }
     }
 
@@ -377,6 +435,8 @@ public sealed class AudioDownloadService
 
         public DateTimeOffset DownloadedAt { get; set; }
     }
+
+    private readonly record struct FileExistenceCacheEntry(bool Exists, DateTimeOffset CheckedAtUtc);
 }
 
 public readonly record struct AudioDownloadSnapshot(

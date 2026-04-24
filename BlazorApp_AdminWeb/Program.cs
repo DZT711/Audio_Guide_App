@@ -26,6 +26,7 @@ builder.Services.AddScoped<AdminShellState>();
 builder.Services.AddScoped<InboxState>();
 builder.Services.AddScoped<ModerationState>();
 builder.Services.AddScoped<AdminAuthService>();
+builder.Services.AddTransient<UrlFallbackHttpMessageHandler>();
 builder.Services.AddHttpClient<AdminApiClient>((serviceProvider, client) =>
 {
     var options = serviceProvider
@@ -34,7 +35,8 @@ builder.Services.AddHttpClient<AdminApiClient>((serviceProvider, client) =>
 
     client.BaseAddress = new Uri(options.BaseUrl);
     client.Timeout = TimeSpan.FromSeconds(60);
-});
+})
+.AddHttpMessageHandler<UrlFallbackHttpMessageHandler>();
 
 var app = builder.Build();
 

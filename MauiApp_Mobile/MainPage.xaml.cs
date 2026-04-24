@@ -156,9 +156,9 @@ public partial class MainPage : ContentPage
         }
     }
 
-    public MainPage()
+    public MainPage(PlacesViewModel viewModel)
     {
-        ViewModel = new PlacesViewModel(PlaceCatalogService.Instance);
+        ViewModel = viewModel;
         RefreshPlacesCommand = new Command(async () => await RefreshPlacesAsync());
         InitializeComponent();
 

@@ -251,6 +251,16 @@ public sealed class MobileDatabaseService
                 IsForeground = record.IsForeground,
                 CapturedAtUtc = record.CapturedAtUtc.ToString("O", CultureInfo.InvariantCulture)
             });
+
+            // Prune table to the 500 most recent events to prevent unbounded growth
+            await connection.ExecuteAsync(
+                """
+                DELETE FROM LocationTrackingEvents
+                WHERE TrackingEventId NOT IN (
+                    SELECT TrackingEventId FROM LocationTrackingEvents
+                    ORDER BY TrackingEventId DESC LIMIT 500
+                );
+                """);
         }
         catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
         {
@@ -707,16 +717,12 @@ public sealed class MobileDatabaseService
             return;
         }
 
+        var distinctIds = queueIds.Distinct().ToList();
+        var placeholders = string.Join(",", distinctIds.Select(_ => "?"));
         var connection = await GetConnectionAsync(cancellationToken);
-        await connection.RunInTransactionAsync(transaction =>
-        {
-            foreach (var queueId in queueIds.Distinct())
-            {
-                transaction.Execute(
-                    $"DELETE FROM {tableName} WHERE {keyColumn} = ?;",
-                    queueId);
-            }
-        });
+        await connection.ExecuteAsync(
+            $"DELETE FROM {tableName} WHERE {keyColumn} IN ({placeholders});",
+            distinctIds.Cast<object>().ToArray());
     }
 
     private async Task MarkQueuedRowsAttemptFailedAsync(
@@ -730,18 +736,18 @@ public sealed class MobileDatabaseService
             return;
         }
 
-        var attemptedAtUtc = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+        var distinctIds = queueIds.Distinct().ToList();
+        var placeholders = string.Join(",", distinctIds.Select(_ => "?"));
+        var now = DateTimeOffset.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
         var connection = await GetConnectionAsync(cancellationToken);
-        await connection.RunInTransactionAsync(transaction =>
-        {
-            foreach (var queueId in queueIds.Distinct())
-            {
-                transaction.Execute(
-                    $"UPDATE {tableName} SET RetryCount = COALESCE(RetryCount, 0) + 1, LastAttemptAtUtc = ? WHERE {keyColumn} = ?;",
-                    attemptedAtUtc,
-                    queueId);
-            }
-        });
+
+        var parameters = new object[] { now }
+            .Concat(distinctIds.Cast<object>())
+            .ToArray();
+
+        await connection.ExecuteAsync(
+            $"UPDATE {tableName} SET RetryCount = COALESCE(RetryCount, 0) + 1, LastAttemptAtUtc = ? WHERE {keyColumn} IN ({placeholders});",
+            parameters);
     }
 
     private async Task<SQLiteAsyncConnection> GetConnectionAsync(CancellationToken cancellationToken = default)

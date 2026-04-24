@@ -50,6 +50,7 @@ obj/
 # .NET Artifacts
 **/bin/
 **/obj/
+**/.artifacts/
 
 # User-specific files
 *.user

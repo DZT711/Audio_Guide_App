@@ -8,9 +8,11 @@ namespace MauiApp_Mobile.Services;
 public sealed class TelemetrySyncService
 {
     private const int BatchSize = 120;
-    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(60);
     private static readonly HttpClient HttpClient = MobileApiHttpClientFactory.Create(TimeSpan.FromSeconds(20), 4);
     private readonly SemaphoreSlim _syncLock = new(1, 1);
+    private readonly object _backgroundTaskGate = new();
+    private readonly List<Task> _backgroundTasks = [];
     private CancellationTokenSource? _heartbeatCts;
     private Task? _heartbeatTask;
     private bool _started;
@@ -95,9 +97,11 @@ public sealed class TelemetrySyncService
                 return;
             }
 
-            var payload = new RouteHistoryBatchIngestRequest
+            var samples = new List<RouteHistorySampleIngestDto>(pending.Count);
+            var queueIds = new List<int>(pending.Count);
+            foreach (var item in pending)
             {
-                Samples = pending.Select(item => new RouteHistorySampleIngestDto
+                samples.Add(new RouteHistorySampleIngestDto
                 {
                     DeviceHash = item.DeviceHash,
                     SessionHash = item.SessionHash,
@@ -111,10 +115,15 @@ public sealed class TelemetrySyncService
                     TourId = item.TourId,
                     PoiId = item.PoiId,
                     Context = item.Context
-                }).ToList()
+                });
+                queueIds.Add(item.QueueId);
+            }
+
+            var payload = new RouteHistoryBatchIngestRequest
+            {
+                Samples = samples
             };
 
-            var queueIds = pending.Select(item => item.QueueId).ToList();
             if (await TryPostAsync(ApiRoutes.TelemetryIngestRouteHistoryV1, payload, cancellationToken))
             {
                 await MobileDatabaseService.Instance.DeleteRouteTelemetryAsync(queueIds, cancellationToken);
@@ -137,9 +146,11 @@ public sealed class TelemetrySyncService
                 return;
             }
 
-            var payload = new AudioPlayEventBatchIngestRequest
+            var events = new List<AudioPlayEventIngestDto>(pending.Count);
+            var queueIds = new List<int>(pending.Count);
+            foreach (var item in pending)
             {
-                Events = pending.Select(item => new AudioPlayEventIngestDto
+                events.Add(new AudioPlayEventIngestDto
                 {
                     DeviceHash = item.DeviceHash,
                     SessionHash = item.SessionHash,
@@ -154,10 +165,15 @@ public sealed class TelemetrySyncService
                     BatteryPercent = item.BatteryPercent,
                     NetworkType = item.NetworkType,
                     Context = item.Context
-                }).ToList()
+                });
+                queueIds.Add(item.QueueId);
+            }
+
+            var payload = new AudioPlayEventBatchIngestRequest
+            {
+                Events = events
             };
 
-            var queueIds = pending.Select(item => item.QueueId).ToList();
             if (await TryPostAsync(ApiRoutes.TelemetryIngestAudioPlayEventsV1, payload, cancellationToken))
             {
                 await MobileDatabaseService.Instance.DeleteAudioPlayEventsAsync(queueIds, cancellationToken);
@@ -180,9 +196,11 @@ public sealed class TelemetrySyncService
                 return;
             }
 
-            var payload = new HeatmapEventBatchIngestRequest
+            var events = new List<HeatmapEventIngestDto>(pending.Count);
+            var queueIds = new List<int>(pending.Count);
+            foreach (var item in pending)
             {
-                Events = pending.Select(item => new HeatmapEventIngestDto
+                events.Add(new HeatmapEventIngestDto
                 {
                     DeviceHash = item.DeviceHash,
                     SessionHash = item.SessionHash,
@@ -199,10 +217,15 @@ public sealed class TelemetrySyncService
                     Weight = item.Weight,
                     TriggerSource = item.TriggerSource,
                     Context = item.Context
-                }).ToList()
+                });
+                queueIds.Add(item.QueueId);
+            }
+
+            var payload = new HeatmapEventBatchIngestRequest
+            {
+                Events = events
             };
 
-            var queueIds = pending.Select(item => item.QueueId).ToList();
             if (await TryPostAsync(ApiRoutes.TelemetryIngestHeatmapEventsV1, payload, cancellationToken))
             {
                 await MobileDatabaseService.Instance.DeleteHeatmapEventsAsync(queueIds, cancellationToken);
@@ -225,9 +248,11 @@ public sealed class TelemetrySyncService
                 return;
             }
 
-            var payload = new AudioListeningSessionBatchIngestRequest
+            var sessions = new List<AudioListeningSessionIngestDto>(pending.Count);
+            var queueIds = new List<int>(pending.Count);
+            foreach (var item in pending)
             {
-                Sessions = pending.Select(item => new AudioListeningSessionIngestDto
+                sessions.Add(new AudioListeningSessionIngestDto
                 {
                     DeviceHash = item.DeviceHash,
                     SessionHash = item.SessionHash,
@@ -240,10 +265,15 @@ public sealed class TelemetrySyncService
                     IsCompleted = item.IsCompleted,
                     InterruptedReason = item.InterruptedReason,
                     Context = item.Context
-                }).ToList()
+                });
+                queueIds.Add(item.QueueId);
+            }
+
+            var payload = new AudioListeningSessionBatchIngestRequest
+            {
+                Sessions = sessions
             };
 
-            var queueIds = pending.Select(item => item.QueueId).ToList();
             if (await TryPostAsync(ApiRoutes.TelemetryIngestAudioListeningSessionsV1, payload, cancellationToken))
             {
                 await MobileDatabaseService.Instance.DeleteAudioListeningSessionsAsync(queueIds, cancellationToken);
@@ -290,8 +320,8 @@ public sealed class TelemetrySyncService
             return;
         }
 
-        _ = TriggerSyncAsync();
-        _ = SendHeartbeatAsync();
+        TrackBackgroundTask(TriggerSyncAsync(), "connectivity-trigger-sync");
+        TrackBackgroundTask(SendHeartbeatAsync(), "connectivity-heartbeat");
     }
 
     private async Task RunHeartbeatLoopAsync(CancellationToken cancellationToken)
@@ -338,5 +368,31 @@ public sealed class TelemetrySyncService
         catch
         {
         }
+    }
+
+    private void TrackBackgroundTask(Task task, string operationName)
+    {
+        lock (_backgroundTaskGate)
+        {
+            _backgroundTasks.Add(task);
+        }
+
+        _ = task.ContinueWith(
+            completedTask =>
+            {
+                if (completedTask.IsFaulted)
+                {
+                    var error = completedTask.Exception?.GetBaseException().Message ?? "Unknown error";
+                    System.Diagnostics.Debug.WriteLine($"[TelemetrySync] Background task '{operationName}' failed: {error}");
+                }
+
+                lock (_backgroundTaskGate)
+                {
+                    _backgroundTasks.Remove(completedTask);
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 }

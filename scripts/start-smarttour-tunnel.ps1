@@ -4,6 +4,7 @@ param(
     [string]$Configuration = "Debug",
     [string]$ApiProjectPath = "WebApplication_API/WebApplication_API.csproj",
     [string]$NgrokAuthtoken = $env:NGROK_AUTHTOKEN,
+    [string]$NgrokTokenJsonPath = "MauiApp_Mobile/Resources/Raw/mobile-api.json",
     [string]$NgrokDownloadUrl = "",
     [string]$AndroidApkFilePath = "",
     [string]$AndroidStoreUrl = "",
@@ -88,6 +89,71 @@ function Get-JsonDocument {
     }
 
     return $raw | ConvertFrom-Json
+}
+
+function Get-JsonValueByPath {
+    param(
+        [psobject]$Document,
+        [string[]]$Segments
+    )
+
+    $current = $Document
+    foreach ($segment in $Segments) {
+        if ($null -eq $current) {
+            return $null
+        }
+
+        $property = $current.PSObject.Properties[$segment]
+        if ($null -eq $property) {
+            return $null
+        }
+
+        $current = $property.Value
+    }
+
+    return $current
+}
+
+function Resolve-NgrokAuthtoken {
+    if (-not [string]::IsNullOrWhiteSpace($NgrokAuthtoken)) {
+        return $NgrokAuthtoken.Trim()
+    }
+
+    if ([string]::IsNullOrWhiteSpace($NgrokTokenJsonPath)) {
+        return $null
+    }
+
+    $tokenConfigPath = if ([System.IO.Path]::IsPathRooted($NgrokTokenJsonPath)) {
+        [System.IO.Path]::GetFullPath($NgrokTokenJsonPath)
+    }
+    else {
+        [System.IO.Path]::GetFullPath((Join-Path $repoRoot $NgrokTokenJsonPath))
+    }
+
+    if (-not (Test-Path -LiteralPath $tokenConfigPath)) {
+        return $null
+    }
+
+    $document = Get-JsonDocument -FilePath $tokenConfigPath
+    $candidatePaths = @(
+        @("ngrokAuthtoken"),
+        @("ngrokAuthToken"),
+        @("NgrokAuthtoken"),
+        @("NgrokAuthToken"),
+        @("ngrok", "authtoken"),
+        @("ngrok", "authToken"),
+        @("Ngrok", "Authtoken"),
+        @("Ngrok", "AuthToken")
+    )
+
+    foreach ($path in $candidatePaths) {
+        $value = Get-JsonValueByPath -Document $document -Segments $path
+        if (-not [string]::IsNullOrWhiteSpace([string]$value)) {
+            return ([string]$value).Trim()
+        }
+    }
+
+    return $null
 }
 
 function Save-JsonDocument {
@@ -322,13 +388,14 @@ function Ensure-NgrokAuthtoken {
         return $true
     }
 
-    if ([string]::IsNullOrWhiteSpace($NgrokAuthtoken)) {
-        Write-Warning "NGROK_AUTHTOKEN is not set. Falling back to localhost mode."
+    $resolvedNgrokAuthtoken = Resolve-NgrokAuthtoken
+    if ([string]::IsNullOrWhiteSpace($resolvedNgrokAuthtoken)) {
+        Write-Warning "NGROK_AUTHTOKEN is not set and no token was found in JSON. Falling back to localhost mode."
         return $false
     }
 
     Add-CommandLog "$NgrokPath config add-authtoken <redacted>"
-    & $NgrokPath config add-authtoken $NgrokAuthtoken | Out-Null
+    & $NgrokPath config add-authtoken $resolvedNgrokAuthtoken | Out-Null
     return $true
 }
 
