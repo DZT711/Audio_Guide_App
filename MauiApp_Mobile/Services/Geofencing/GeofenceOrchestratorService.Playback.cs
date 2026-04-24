@@ -122,20 +122,38 @@ public sealed partial class GeofenceOrchestratorService
             var startedAtUtc = DateTimeOffset.UtcNow;
             var cooldownUntilUtc = startedAtUtc.Add(trigger.CooldownWindow);
             var poiName = string.IsNullOrWhiteSpace(place.Name) ? "POI" : place.Name;
+            PublicAudioTrackDto? playableTrack = null;
+            IReadOnlyList<PlaybackQueueItem> queueItems = [];
+            var queueStartIndex = 0;
 
             await ShowTransientNotificationSafeAsync($"📍 Entering: {poiName}", cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
+            if (hasExistingQueueSession)
+            {
+                playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(sourceTrack, cancellationToken);
+            }
+            else
+            {
+                queueItems = await BuildPlaybackQueueItemsAsync(place, audioTracks, sourceTrack.Id, lookupCts.Token);
+                if (queueItems.Count == 0)
+                {
+                    LogSkip("Audio queue empty", ("poiId", place.Id), ("eventType", trigger.EventType));
+                    return;
+                }
+
+                queueStartIndex = FindQueueIndex(queueItems, sourceTrack.Id);
+            }
+
             await MainThread.InvokeOnMainThreadAsync(async () =>
             {
                 HistoryService.Instance.AddToHistory(historyItem, cancellationToken);
 
                 if (hasExistingQueueSession)
                 {
-                    var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(sourceTrack, cancellationToken);
                     var queueCountBefore = PlaybackCoordinatorService.Instance.QueueCount;
                     // Reuse the same enqueue path as POI detail "add to list".
-                    PlaybackCoordinatorService.Instance.Enqueue(playableTrack, place.Name, sourceTrack.Title ?? string.Empty);
+                    PlaybackCoordinatorService.Instance.Enqueue(playableTrack!, place.Name, sourceTrack.Title ?? string.Empty);
                     var queuedCount = Math.Max(0, PlaybackCoordinatorService.Instance.QueueCount - queueCountBefore);
                     if (queuedCount > 0)
                     {
@@ -150,14 +168,6 @@ public sealed partial class GeofenceOrchestratorService
                     return;
                 }
 
-                var queueItems = await BuildPlaybackQueueItemsAsync(place, audioTracks, sourceTrack.Id, lookupCts.Token);
-                if (queueItems.Count == 0)
-                {
-                    LogSkip("Audio queue empty", ("poiId", place.Id), ("eventType", trigger.EventType));
-                    return;
-                }
-
-                var queueStartIndex = FindQueueIndex(queueItems, sourceTrack.Id);
                 await PlaybackCoordinatorService.Instance.PlayQueueAsync(
                     queueItems,
                     queueStartIndex,

@@ -8,6 +8,8 @@ public sealed class QrLinkOptions
 
     public string? PublicBaseUrl { get; set; }
 
+    public string? PublicBaseUrlLocal { get; set; }
+
     public string? AndroidApkUrl { get; set; }
 
     public string? AndroidStoreUrl { get; set; }

@@ -50,6 +50,7 @@ obj/
 # .NET Artifacts
 **/bin/
 **/obj/
+**/.artifacts/
 
 # User-specific files
 *.user
@@ -82,3 +83,6 @@ buildverify/
 Project_SharedClassLibrary.Tests/
 .runtime/
 .tools/
+.artifacts/ 
+artifacts/ 
+*.apk

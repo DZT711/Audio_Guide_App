@@ -1,4 +1,4 @@
-@WebURL = https://flirt-zeppelin-dimness.ngrok-free.dev
+@WebURL = http://localhost:5123
 
 ### ========== CATEGORY CRUD ==========
 

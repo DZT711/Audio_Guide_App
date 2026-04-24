@@ -841,27 +841,49 @@ public sealed class LocationQrService(
 
     private Uri ResolveBaseUri(HttpContext httpContext)
     {
-        if (!string.IsNullOrWhiteSpace(_options.PublicBaseUrl)
-            && Uri.TryCreate(_options.PublicBaseUrl.Trim(), UriKind.Absolute, out var configuredUri))
+        var requestBaseUri = BuildRequestBaseUri(httpContext);
+        var requestHost = httpContext.Request.Host.Host;
+        var configuredPublicUri = TryGetConfiguredBaseUri(_options.PublicBaseUrl);
+        var configuredLocalUri = TryGetConfiguredBaseUri(_options.PublicBaseUrlLocal);
+
+        if (configuredPublicUri is not null)
         {
-            if (IsLocalHost(configuredUri)
-                && !string.IsNullOrWhiteSpace(httpContext.Request.Host.Host)
-                && !IsLocalHost(httpContext.Request.Host.Host))
+            if (IsLocalHost(configuredPublicUri)
+                && !string.IsNullOrWhiteSpace(requestHost)
+                && !IsLocalHost(requestHost))
             {
                 _logger.LogWarning(
                     "QrLinks.PublicBaseUrl is localhost ({ConfiguredBaseUrl}) but request host is public ({RequestHost}). Using request host for QR links.",
-                    configuredUri.AbsoluteUri,
-                    httpContext.Request.Host.Host);
+                    configuredPublicUri.AbsoluteUri,
+                    requestHost);
 
-                return BuildRequestBaseUri(httpContext);
+                return requestBaseUri;
             }
 
-            return configuredUri.AbsolutePath.EndsWith("/", StringComparison.Ordinal)
-                ? configuredUri
-                : new Uri($"{configuredUri.AbsoluteUri.TrimEnd('/')}/");
+            if (!string.IsNullOrWhiteSpace(requestHost)
+                && IsLocalHost(requestHost)
+                && !IsLocalHost(configuredPublicUri)
+                && configuredLocalUri is not null)
+            {
+                _logger.LogInformation(
+                    "Using QrLinks.PublicBaseUrlLocal ({LocalBaseUrl}) instead of public base URL ({PublicBaseUrl}) for localhost requests.",
+                    configuredLocalUri.AbsoluteUri,
+                    configuredPublicUri.AbsoluteUri);
+                return configuredLocalUri;
+            }
+
+            return configuredPublicUri;
         }
 
-        return BuildRequestBaseUri(httpContext);
+        if (configuredLocalUri is not null)
+        {
+            _logger.LogInformation(
+                "QrLinks.PublicBaseUrl is not configured. Falling back to QrLinks.PublicBaseUrlLocal ({LocalBaseUrl}).",
+                configuredLocalUri.AbsoluteUri);
+            return configuredLocalUri;
+        }
+
+        return requestBaseUri;
     }
 
     private static Uri BuildRequestBaseUri(HttpContext httpContext)
@@ -882,7 +904,21 @@ public sealed class LocationQrService(
     private static bool IsLocalHost(string host) =>
         string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
         || string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(host, "::1", StringComparison.OrdinalIgnoreCase)
         || string.Equals(host, "0.0.0.0", StringComparison.OrdinalIgnoreCase);
+
+    private static Uri? TryGetConfiguredBaseUri(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)
+            || !Uri.TryCreate(value.Trim(), UriKind.Absolute, out var configuredUri))
+        {
+            return null;
+        }
+
+        return configuredUri.AbsolutePath.EndsWith("/", StringComparison.Ordinal)
+            ? configuredUri
+            : new Uri($"{configuredUri.AbsoluteUri.TrimEnd('/')}/");
+    }
 
     private LocationQrGenerateRequest NormalizeRequest(LocationQrGenerateRequest? request)
     {

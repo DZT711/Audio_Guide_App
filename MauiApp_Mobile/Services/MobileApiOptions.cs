@@ -329,7 +329,10 @@ public static class MobileApiOptions
     {
         return
         [
-            "https://flirt-zeppelin-dimness.ngrok-free.dev/"
+            "http://10.0.2.2:5123/",
+            "http://127.0.0.1:5123/",
+            "http://localhost:5123/",
+             "https://flashy-foothill-posting.ngrok-free.dev/"
         ];
     }
 

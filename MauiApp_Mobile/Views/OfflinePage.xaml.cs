@@ -208,19 +208,21 @@ public partial class OfflinePage : ContentPage
         {
             ApplyLocalizedText();
             ApplyFilter();
-            OnPropertyChanged(nameof(DownloadedCountText));
-            OnPropertyChanged(nameof(DownloadProgressText));
+            OnPropertiesChanged(
+                nameof(DownloadedCountText),
+                nameof(DownloadProgressText));
         });
 
     private void OnThemePropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            OnPropertyChanged(nameof(AllTabBg));
-            OnPropertyChanged(nameof(DownloadedTabBg));
-            OnPropertyChanged(nameof(NotDownloadedTabBg));
-            OnPropertyChanged(nameof(AllTabTextColor));
-            OnPropertyChanged(nameof(DownloadedTabTextColor));
-            OnPropertyChanged(nameof(NotDownloadedTabTextColor));
+            OnPropertiesChanged(
+                nameof(AllTabBg),
+                nameof(DownloadedTabBg),
+                nameof(NotDownloadedTabBg),
+                nameof(AllTabTextColor),
+                nameof(DownloadedTabTextColor),
+                nameof(NotDownloadedTabTextColor));
             foreach (var item in _allItems)
             {
                 item.RefreshThemeState();
@@ -234,10 +236,11 @@ public partial class OfflinePage : ContentPage
             ApplyLocalizedText();
             ApplyFilter();
             ApplyFilterSummary();
-            OnPropertyChanged(nameof(DownloadedCountText));
-            OnPropertyChanged(nameof(DownloadedSizeText));
-            OnPropertyChanged(nameof(DownloadProgress));
-            OnPropertyChanged(nameof(DownloadProgressText));
+            OnPropertiesChanged(
+                nameof(DownloadedCountText),
+                nameof(DownloadedSizeText),
+                nameof(DownloadProgress),
+                nameof(DownloadProgressText));
             await RefreshOfflinePacksSilentlyAsync();
         });
     }
@@ -657,19 +660,28 @@ public partial class OfflinePage : ContentPage
 
         FilteredItems = new ObservableCollection<OfflinePackItem>(query);
 
-        OnPropertyChanged(nameof(DownloadedCountText));
-        OnPropertyChanged(nameof(DownloadedSizeText));
-        OnPropertyChanged(nameof(DownloadProgress));
-        OnPropertyChanged(nameof(DownloadProgressText));
-        OnPropertyChanged(nameof(HasItems));
-        OnPropertyChanged(nameof(ShowEmptyState));
-        OnPropertyChanged(nameof(AllTabBg));
-        OnPropertyChanged(nameof(DownloadedTabBg));
-        OnPropertyChanged(nameof(NotDownloadedTabBg));
-        OnPropertyChanged(nameof(AllTabTextColor));
-        OnPropertyChanged(nameof(DownloadedTabTextColor));
-        OnPropertyChanged(nameof(NotDownloadedTabTextColor));
+        OnPropertiesChanged(
+            nameof(DownloadedCountText),
+            nameof(DownloadedSizeText),
+            nameof(DownloadProgress),
+            nameof(DownloadProgressText),
+            nameof(HasItems),
+            nameof(ShowEmptyState),
+            nameof(AllTabBg),
+            nameof(DownloadedTabBg),
+            nameof(NotDownloadedTabBg),
+            nameof(AllTabTextColor),
+            nameof(DownloadedTabTextColor),
+            nameof(NotDownloadedTabTextColor));
         ApplyFilterSummary();
+    }
+
+    private void OnPropertiesChanged(params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            OnPropertyChanged(propertyName);
+        }
     }
 
     private void OnSearchChanged(object? sender, TextChangedEventArgs e)

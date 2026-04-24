@@ -194,3 +194,7 @@ change sever's database into sql sever
 add mobile sqlite✅
 
 auto write audio length in second into duration field in audio table when user upload audio file
+
+store qr after save change
+
+decrorate site for download apk file

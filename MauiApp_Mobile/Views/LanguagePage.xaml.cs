@@ -1,5 +1,6 @@
 using MauiApp_Mobile.Services;
 using Microsoft.Maui.ApplicationModel;
+using System.Diagnostics;
 
 namespace MauiApp_Mobile.Views;
 
@@ -8,6 +9,7 @@ public partial class LanguagePage : ContentPage
     private bool _hasAnimated;
     private bool _isRefreshingLanguageText;
     private bool _subscriptionsAttached;
+    private bool _catalogWarmupStarted;
 
     public LanguagePage()
     {
@@ -20,6 +22,7 @@ public partial class LanguagePage : ContentPage
         base.OnAppearing();
         AttachSubscriptions();
         ApplyLanguage(ResolveInitialLanguageCode(), animateText: false);
+        StartCatalogWarmupIfNeeded();
 
         if (_hasAnimated)
             return;
@@ -143,6 +146,31 @@ public partial class LanguagePage : ContentPage
         ThemeService.Instance.PropertyChanged -= OnThemeChanged;
         AppSettingsService.Instance.PropertyChanged -= OnAppSettingsChanged;
         _subscriptionsAttached = false;
+    }
+
+    private void StartCatalogWarmupIfNeeded()
+    {
+        if (_catalogWarmupStarted)
+        {
+            return;
+        }
+
+        _catalogWarmupStarted = true;
+        _ = WarmCatalogAsync();
+    }
+
+    private static async Task WarmCatalogAsync()
+    {
+        try
+        {
+            await MobileDatabaseService.Instance.InitializeAsync();
+            await MobileDatabaseService.Instance.WarmCatalogSnapshotAsync();
+            await PlaceCatalogService.Instance.EnsureLoadedAsync(forceRefresh: false);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[LanguagePage] Catalog warm-up skipped: {ex.Message}");
+        }
     }
 
     private void OnThemeChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) =>

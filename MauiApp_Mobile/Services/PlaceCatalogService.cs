@@ -22,22 +22,29 @@ public sealed class PlaceCatalogService
     private static readonly string AudioTrackCacheFilePath = Path.Combine(FileSystem.Current.AppDataDirectory, "place-audio-cache.json");
     private static readonly string ImageCacheDirectoryPath = Path.Combine(FileSystem.Current.CacheDirectory, "place-images");
     private static readonly SemaphoreSlim ImageWarmupSemaphore = new(1, 1);
+    private static readonly object ImageWarmupStateGate = new();
+    private static Task? _pendingImageWarmupTask;
+    private static bool _imageWarmupCompletedOnce;
     private readonly SemaphoreSlim _catalogLoadSemaphore = new(1, 1);
     private readonly SemaphoreSlim _audioCacheSemaphore = new(1, 1);
     private readonly List<PlaceItem> _places = [];
     private readonly List<CategoryDto> _categories = [];
+    private readonly IReadOnlyList<PlaceItem> _placesReadOnly;
+    private readonly IReadOnlyList<CategoryDto> _categoriesReadOnly;
     private readonly Dictionary<string, List<PublicAudioTrackDto>> _audioTracksByPlaceId = new(StringComparer.OrdinalIgnoreCase);
     private bool _hasLoadedAudioTrackCache;
 
     private PlaceCatalogService()
     {
+        _placesReadOnly = _places.AsReadOnly();
+        _categoriesReadOnly = _categories.AsReadOnly();
     }
 
     public event EventHandler? CatalogChanged;
 
-    public IReadOnlyList<PlaceItem> GetPlaces() => _places.ToList();
+    public IReadOnlyList<PlaceItem> GetPlaces() => _placesReadOnly;
 
-    public IReadOnlyList<CategoryDto> GetCategories() => _categories.ToList();
+    public IReadOnlyList<CategoryDto> GetCategories() => _categoriesReadOnly;
 
     public async Task<CatalogSnapshot> GetCatalogAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
@@ -93,7 +100,7 @@ public sealed class PlaceCatalogService
         var normalizedPlaceId = placeId.Trim();
         if (!forceRefresh && _audioTracksByPlaceId.TryGetValue(normalizedPlaceId, out var cachedTracks))
         {
-            return cachedTracks.ToList();
+            return cachedTracks;
         }
 
         if (!int.TryParse(normalizedPlaceId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var locationId))
@@ -106,7 +113,7 @@ public sealed class PlaceCatalogService
         if (!AppDataModeService.Instance.IsApiEnabled)
         {
             return _audioTracksByPlaceId.TryGetValue(normalizedPlaceId, out var offlineTracks)
-                ? offlineTracks.ToList()
+                ? offlineTracks
                 : [];
         }
 
@@ -131,7 +138,7 @@ public sealed class PlaceCatalogService
                     place.LanguageBadgeSummaryText = LanguageBadgeService.BuildSummary(audioTracks);
                 }
 
-            return audioTracks.ToList();
+            return audioTracks;
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
@@ -142,7 +149,7 @@ public sealed class PlaceCatalogService
 
             await EnsureAudioTrackCacheLoadedAsync(cancellationToken);
             return _audioTracksByPlaceId.TryGetValue(normalizedPlaceId, out var fallbackTracks)
-                ? fallbackTracks.ToList()
+                ? fallbackTracks
                 : [];
         }
     }
@@ -229,18 +236,21 @@ public sealed class PlaceCatalogService
         var categoryColors = ResolveCategoryPalette(location.Category);
         var primaryImage = ResolveImageUrl(location.CoverImageUrl);
         var preferenceImage = ResolveImageUrl(location.PreferenceImageUrl);
-        var galleryImages = location.ImageUrls
-            .Select(ResolveImageUrl)
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var galleryImages = new List<string>();
+        var seenImages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (!string.IsNullOrWhiteSpace(primaryImage))
+        if (!string.IsNullOrWhiteSpace(primaryImage) && seenImages.Add(primaryImage))
         {
-            galleryImages.Insert(0, primaryImage);
-            galleryImages = galleryImages
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            galleryImages.Add(primaryImage);
+        }
+
+        foreach (var imageUrl in location.ImageUrls)
+        {
+            var resolvedImage = ResolveImageUrl(imageUrl);
+            if (!string.IsNullOrWhiteSpace(resolvedImage) && seenImages.Add(resolvedImage))
+            {
+                galleryImages.Add(resolvedImage);
+            }
         }
 
         if (galleryImages.Count == 0 && !string.IsNullOrWhiteSpace(primaryImage))
@@ -531,7 +541,7 @@ public sealed class PlaceCatalogService
             var cachedCatalog = await LoadCatalogFromCacheAsync(cancellationToken);
             if (cachedCatalog.HasContent)
             {
-                _ = WarmLocationImagesInBackgroundAsync(cachedCatalog.Locations);
+                QueueImageWarmupIfNeeded(cachedCatalog.Locations);
                 return cachedCatalog;
             }
         }
@@ -547,7 +557,7 @@ public sealed class PlaceCatalogService
             await SaveCategoryCacheAsync(snapshot.Categories, cancellationToken);
             await SaveAudioTrackCacheAsync(audioTracksByPlaceId, cancellationToken);
 
-            _ = WarmLocationImagesInBackgroundAsync(snapshot.Locations);
+            QueueImageWarmupIfNeeded(snapshot.Locations);
             Debug.WriteLine(
                 $"[MobileApi] Catalog refresh synchronized {snapshot.Locations.Count} POIs, {snapshot.Categories.Count} categories, {snapshot.AudioTracks.Count} audio tracks.");
 
@@ -563,7 +573,7 @@ public sealed class PlaceCatalogService
             var cachedCatalog = await LoadCatalogFromCacheAsync(cancellationToken);
             if (cachedCatalog.HasContent)
             {
-                _ = WarmLocationImagesInBackgroundAsync(cachedCatalog.Locations);
+                QueueImageWarmupIfNeeded(cachedCatalog.Locations);
                 return cachedCatalog;
             }
 
@@ -578,54 +588,193 @@ public sealed class PlaceCatalogService
 
     private static async Task<CachedCatalogData> LoadCatalogFromCacheAsync(CancellationToken cancellationToken)
     {
-        var locationsTask = LoadCacheAsync(cancellationToken);
-        var categoriesTask = LoadCategoryCacheAsync(cancellationToken);
-        var audioTracksTask = LoadAudioTrackCacheAsync(cancellationToken);
-        await Task.WhenAll(locationsTask, categoriesTask, audioTracksTask);
+        try
+        {
+            // Single DB read — was previously called 3 separate times
+            var snapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
 
-        return new CachedCatalogData(locationsTask.Result, categoriesTask.Result, audioTracksTask.Result);
+            // Extract locations: prefer DB snapshot, fall back to JSON file
+            IReadOnlyList<LocationDto> locations;
+            if (snapshot.Locations.Count > 0)
+            {
+                locations = snapshot.Locations;
+            }
+            else if (File.Exists(CacheFilePath))
+            {
+                try
+                {
+                    await using var stream = File.OpenRead(CacheFilePath);
+                    locations = await JsonSerializer.DeserializeAsync<List<LocationDto>>(stream, CacheJsonOptions, cancellationToken) ?? [];
+                }
+                catch
+                {
+                    locations = [];
+                }
+            }
+            else
+            {
+                locations = [];
+            }
+
+            // Extract categories: prefer DB snapshot, fall back to JSON file
+            IReadOnlyList<CategoryDto> categories;
+            if (snapshot.Categories.Count > 0)
+            {
+                categories = snapshot.Categories;
+            }
+            else if (File.Exists(CategoryCacheFilePath))
+            {
+                try
+                {
+                    await using var stream = File.OpenRead(CategoryCacheFilePath);
+                    categories = await JsonSerializer.DeserializeAsync<List<CategoryDto>>(stream, CacheJsonOptions, cancellationToken) ?? [];
+                }
+                catch
+                {
+                    categories = [];
+                }
+            }
+            else
+            {
+                categories = [];
+            }
+
+            // Extract audio tracks: prefer DB snapshot, fall back to JSON file
+            Dictionary<string, List<PublicAudioTrackDto>> audioTracks;
+            if (snapshot.AudioTracks.Count > 0)
+            {
+                audioTracks = GroupAudioTracksByPlaceId(snapshot.AudioTracks);
+            }
+            else if (File.Exists(AudioTrackCacheFilePath))
+            {
+                try
+                {
+                    await using var stream = File.OpenRead(AudioTrackCacheFilePath);
+                    var cache = await JsonSerializer.DeserializeAsync<Dictionary<string, List<PublicAudioTrackDto>>>(
+                        stream, CacheJsonOptions, cancellationToken);
+                    audioTracks = cache is null
+                        ? new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase)
+                        : new Dictionary<string, List<PublicAudioTrackDto>>(cache, StringComparer.OrdinalIgnoreCase);
+                }
+                catch
+                {
+                    audioTracks = new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase);
+                }
+            }
+            else
+            {
+                audioTracks = new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            return new CachedCatalogData(locations, categories, audioTracks);
+        }
+        catch when (!cancellationToken.IsCancellationRequested)
+        {
+            return CachedCatalogData.Empty;
+        }
     }
 
-    private static Task WarmLocationImagesInBackgroundAsync(IReadOnlyList<LocationDto> locations)
+    private static void QueueImageWarmupIfNeeded(IReadOnlyList<LocationDto> locations)
     {
         if (locations.Count == 0 || !AppDataModeService.Instance.IsApiEnabled)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        return Task.Run(async () =>
+        lock (ImageWarmupStateGate)
         {
-            await ImageWarmupSemaphore.WaitAsync();
-            try
+            if (_imageWarmupCompletedOnce)
             {
-                using var parallelism = new SemaphoreSlim(4, 4);
-                var tasks = locations
-                    .SelectMany(GetImageCandidates)
-                    .Where(image => !string.IsNullOrWhiteSpace(image))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .Select(async imageUrl =>
-                    {
-                        await parallelism.WaitAsync();
-                        try
-                        {
-                            await CacheImageAsync(imageUrl, CancellationToken.None);
-                        }
-                        catch
-                        {
-                        }
-                        finally
-                        {
-                            parallelism.Release();
-                        }
-                    });
+                return;
+            }
 
-                await Task.WhenAll(tasks);
-            }
-            finally
+            if (_pendingImageWarmupTask is { IsCompleted: false })
             {
-                ImageWarmupSemaphore.Release();
+                return;
             }
-        });
+
+            _pendingImageWarmupTask = WarmLocationImagesWithTimeoutAsync(locations);
+        }
+    }
+
+    private static void MarkImageWarmupCompleted()
+    {
+        lock (ImageWarmupStateGate)
+        {
+            _imageWarmupCompletedOnce = true;
+        }
+    }
+
+    private static async Task WarmLocationImagesWithTimeoutAsync(IReadOnlyList<LocationDto> locations)
+    {
+        if (locations.Count == 0 || !AppDataModeService.Instance.IsApiEnabled)
+        {
+            MarkImageWarmupCompleted();
+            return;
+        }
+
+        try
+        {
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+            await WarmLocationImagesInBackgroundAsync(locations, timeoutCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Debug.WriteLine("[ImageWarmup] Timed out while warming place images.");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ImageWarmup] Failed while warming place images: {ex.Message}");
+        }
+        finally
+        {
+            MarkImageWarmupCompleted();
+        }
+    }
+
+    private static async Task WarmLocationImagesInBackgroundAsync(
+        IReadOnlyList<LocationDto> locations,
+        CancellationToken cancellationToken = default)
+    {
+        if (locations.Count == 0 || !AppDataModeService.Instance.IsApiEnabled)
+        {
+            return;
+        }
+
+        await ImageWarmupSemaphore.WaitAsync(cancellationToken);
+        try
+        {
+            using var parallelism = new SemaphoreSlim(2, 2);
+            var tasks = locations
+                .SelectMany(GetImageCandidates)
+                .Where(image => !string.IsNullOrWhiteSpace(image))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(async imageUrl =>
+                {
+                    await parallelism.WaitAsync(cancellationToken);
+                    try
+                    {
+                        await CacheImageAsync(imageUrl, cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        parallelism.Release();
+                    }
+                });
+
+            await Task.WhenAll(tasks);
+        }
+        finally
+        {
+            ImageWarmupSemaphore.Release();
+        }
     }
 
     private static async Task<string> CacheImageAsync(string? imageUrl, CancellationToken cancellationToken)
@@ -749,15 +898,8 @@ public sealed class PlaceCatalogService
     {
         try
         {
-            var existingSnapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
-            await MobileDatabaseService.Instance.SaveCatalogSnapshotAsync(new PublicCatalogSnapshotDto
-            {
-                RefreshedAtUtc = existingSnapshot.RefreshedAtUtc,
-                Categories = existingSnapshot.Categories,
-                Locations = locations,
-                AudioTracks = existingSnapshot.AudioTracks
-            }, cancellationToken);
-
+            // DB snapshot is already saved by the caller (SaveCatalogSnapshotAsync).
+            // Only update the JSON fallback file here.
             Directory.CreateDirectory(Path.GetDirectoryName(CacheFilePath)!);
             await using var stream = File.Create(CacheFilePath);
             await JsonSerializer.SerializeAsync(stream, locations, CacheJsonOptions, cancellationToken);
@@ -771,69 +913,12 @@ public sealed class PlaceCatalogService
     {
         try
         {
-            var existingSnapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
-            await MobileDatabaseService.Instance.SaveCatalogSnapshotAsync(new PublicCatalogSnapshotDto
-            {
-                RefreshedAtUtc = existingSnapshot.RefreshedAtUtc,
-                Categories = categories,
-                Locations = existingSnapshot.Locations,
-                AudioTracks = existingSnapshot.AudioTracks
-            }, cancellationToken);
-
             Directory.CreateDirectory(Path.GetDirectoryName(CategoryCacheFilePath)!);
             await using var stream = File.Create(CategoryCacheFilePath);
             await JsonSerializer.SerializeAsync(stream, categories, CacheJsonOptions, cancellationToken);
         }
         catch when (!cancellationToken.IsCancellationRequested)
         {
-        }
-    }
-
-    private static async Task<List<LocationDto>> LoadCacheAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var snapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
-            if (snapshot.Locations.Count > 0)
-            {
-                return snapshot.Locations.ToList();
-            }
-
-            if (!File.Exists(CacheFilePath))
-            {
-                return [];
-            }
-
-            await using var stream = File.OpenRead(CacheFilePath);
-            return await JsonSerializer.DeserializeAsync<List<LocationDto>>(stream, CacheJsonOptions, cancellationToken) ?? [];
-        }
-        catch when (!cancellationToken.IsCancellationRequested)
-        {
-            return [];
-        }
-    }
-
-    private static async Task<List<CategoryDto>> LoadCategoryCacheAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var snapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
-            if (snapshot.Categories.Count > 0)
-            {
-                return snapshot.Categories.ToList();
-            }
-
-            if (!File.Exists(CategoryCacheFilePath))
-            {
-                return [];
-            }
-
-            await using var stream = File.OpenRead(CategoryCacheFilePath);
-            return await JsonSerializer.DeserializeAsync<List<CategoryDto>>(stream, CacheJsonOptions, cancellationToken) ?? [];
-        }
-        catch when (!cancellationToken.IsCancellationRequested)
-        {
-            return [];
         }
     }
 
@@ -852,7 +937,8 @@ public sealed class PlaceCatalogService
                 return;
             }
 
-            var cachedAudioTracks = await LoadAudioTrackCacheAsync(cancellationToken);
+            var cachedData = await LoadCatalogFromCacheAsync(cancellationToken);
+            var cachedAudioTracks = cachedData.AudioTracksByPlaceId;
             _audioTracksByPlaceId.Clear();
 
             foreach (var pair in cachedAudioTracks)
@@ -879,52 +965,12 @@ public sealed class PlaceCatalogService
     {
         try
         {
-            var existingSnapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
-            await MobileDatabaseService.Instance.SaveCatalogSnapshotAsync(new PublicCatalogSnapshotDto
-            {
-                RefreshedAtUtc = existingSnapshot.RefreshedAtUtc,
-                Categories = existingSnapshot.Categories,
-                Locations = existingSnapshot.Locations,
-                AudioTracks = audioTracksByPlaceId.Values.SelectMany(item => item).ToList()
-            }, cancellationToken);
-
             Directory.CreateDirectory(Path.GetDirectoryName(AudioTrackCacheFilePath)!);
             await using var stream = File.Create(AudioTrackCacheFilePath);
             await JsonSerializer.SerializeAsync(stream, audioTracksByPlaceId, CacheJsonOptions, cancellationToken);
         }
         catch when (!cancellationToken.IsCancellationRequested)
         {
-        }
-    }
-
-    private static async Task<Dictionary<string, List<PublicAudioTrackDto>>> LoadAudioTrackCacheAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var snapshot = await MobileDatabaseService.Instance.LoadCatalogSnapshotAsync(cancellationToken);
-            if (snapshot.AudioTracks.Count > 0)
-            {
-                return GroupAudioTracksByPlaceId(snapshot.AudioTracks);
-            }
-
-            if (!File.Exists(AudioTrackCacheFilePath))
-            {
-                return new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            await using var stream = File.OpenRead(AudioTrackCacheFilePath);
-            var cache = await JsonSerializer.DeserializeAsync<Dictionary<string, List<PublicAudioTrackDto>>>(
-                stream,
-                CacheJsonOptions,
-                cancellationToken);
-
-            return cache is null
-                ? new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase)
-                : new Dictionary<string, List<PublicAudioTrackDto>>(cache, StringComparer.OrdinalIgnoreCase);
-        }
-        catch when (!cancellationToken.IsCancellationRequested)
-        {
-            return new Dictionary<string, List<PublicAudioTrackDto>>(StringComparer.OrdinalIgnoreCase);
         }
     }
 
