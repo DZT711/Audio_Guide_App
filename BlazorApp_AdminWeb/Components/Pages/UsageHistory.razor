@@ -1,17 +1,19 @@
 @page "/usage"
 @implements IAsyncDisposable
+@using System.Globalization
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject AdminSessionState SessionState
+@inject AdminUiLanguageService LanguageService
 
-<PageTitle>Usage History</PageTitle>
+<PageTitle>@L("page.usage", "Usage History")</PageTitle>
 
 @if (!CanView)
 {
     <div class="management-page usage-page">
         <div class="management-error">
-            <strong>Access denied.</strong>
-            <div>Your current role cannot view usage history.</div>
+            <strong>@L("usage.access.denied.title", "Access denied.")</strong>
+            <div>@L("usage.access.denied.desc", "Your current role cannot view usage history.")</div>
         </div>
     </div>
 }
@@ -20,12 +22,12 @@ else
 <div class="management-page usage-page">
     <section class="management-hero" data-reveal>
         <div>
-            <span class="management-hero__eyebrow">Overview</span>
-            <h1>Guest Usage History</h1>
-            <p>Review playback events, guest sessions, trigger sources, and listening time. Owner accounts only see usage from their owned locations.</p>
+            <span class="management-hero__eyebrow">@L("usage.hero.eyebrow", "Overview")</span>
+            <h1>@L("usage.hero.title", "Guest Usage History")</h1>
+            <p>@L("usage.hero.desc", "Review playback events, guest sessions, trigger sources, and listening time. Owner accounts only see usage from their owned locations.")</p>
         </div>
         <div class="management-hero__actions">
-            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">Refresh</button>
+            <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">@L("usage.action.refresh", "Refresh")</button>
         </div>
     </section>
 
@@ -34,35 +36,35 @@ else
             <span class="management-stat__icon"><i class="bi bi-activity"></i></span>
             <div>
                 <strong class="management-stat__value">@_overview.TotalEvents</strong>
-                <span class="management-stat__label">Playback Events</span>
+                <span class="management-stat__label">@L("usage.stats.playback-events", "Playback Events")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-people"></i></span>
             <div>
                 <strong class="management-stat__value">@_overview.UniqueGuests</strong>
-                <span class="management-stat__label">Unique Guests</span>
+                <span class="management-stat__label">@L("usage.stats.unique-guests", "Unique Guests")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-broadcast-pin"></i></span>
             <div>
                 <strong class="management-stat__value">@_overview.OnlineGuests</strong>
-                <span class="management-stat__label">Online Guests</span>
+                <span class="management-stat__label">@L("usage.stats.online-guests", "Online Guests")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-geo-alt"></i></span>
             <div>
                 <strong class="management-stat__value">@_overview.DistinctLocations</strong>
-                <span class="management-stat__label">Locations Used</span>
+                <span class="management-stat__label">@L("usage.stats.locations-used", "Locations Used")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-hourglass-split"></i></span>
             <div>
                 <strong class="management-stat__value">@_overview.AverageListeningSeconds.ToString("0.#")s</strong>
-                <span class="management-stat__label">Average Listening</span>
+                <span class="management-stat__label">@L("usage.stats.average-listening", "Average Listening")</span>
             </div>
         </article>
     </div>
@@ -70,26 +72,26 @@ else
     <section class="management-panel" data-reveal>
         <div class="management-panel__header">
             <div>
-                <span class="management-panel__eyebrow">History</span>
-                <h2>Playback Log</h2>
+                <span class="management-panel__eyebrow">@L("usage.log.eyebrow", "History")</span>
+                <h2>@L("usage.log.title", "Playback Log")</h2>
             </div>
             <div class="management-toolbar">
                 <label class="management-search">
                     <i class="bi bi-search"></i>
-                    <input class="form-control" type="search" placeholder="Search usage..." @bind="_searchText" @bind:event="oninput" @bind:after="ResetUsagePage" />
+                    <input class="form-control" type="search" placeholder="@L("usage.search.placeholder", "Search usage...")" @bind="_searchText" @bind:event="oninput" @bind:after="ResetUsagePage" />
                 </label>
                 <select class="form-select management-filter" @bind="_selectedLocation" @bind:after="ResetUsagePage">
-                    <option value="">All locations</option>
+                    <option value="">@L("usage.filter.locations.all", "All locations")</option>
                     @foreach (var locationName in LocationOptions)
                     {
                         <option value="@locationName">@locationName</option>
                     }
                 </select>
                 <select class="form-select management-filter" @bind="_selectedEventType" @bind:after="ResetUsagePage">
-                    <option value="">All events</option>
+                    <option value="">@L("usage.filter.events.all", "All events")</option>
                     @foreach (var eventType in EventTypeOptions)
                     {
-                        <option value="@eventType">@eventType</option>
+                        <option value="@eventType">@GetUsageEventTypeLabel(eventType)</option>
                     }
                 </select>
             </div>
@@ -112,13 +114,13 @@ else
         else if (!string.IsNullOrWhiteSpace(_loadError))
         {
             <div class="management-error">
-                <strong>Unable to load usage history.</strong>
+                <strong>@L("usage.load.failed.title", "Unable to load usage history.")</strong>
                 <div>@_loadError</div>
             </div>
         }
         else if (!FilteredItems.Any())
         {
-            <div class="app-empty-state">No playback events match the current filters.</div>
+            <div class="app-empty-state">@L("usage.empty.filtered", "No playback events match the current filters.")</div>
         }
         else
         {
@@ -126,14 +128,14 @@ else
                 <table class="table management-table usage-table">
                     <thead>
                         <tr>
-                            <th>Time</th>
-                            <th>Avatar</th>
-                            <th>Location</th>
-                            <th>Audio</th>
-                            <th>Trigger</th>
-                            <th>Guest</th>
-                            <th>Listening</th>
-                            <th>Tours</th>
+                            <th>@L("usage.table.time", "Time")</th>
+                            <th>@L("usage.table.avatar", "Avatar")</th>
+                            <th>@L("usage.table.location", "Location")</th>
+                            <th>@L("usage.table.audio", "Audio")</th>
+                            <th>@L("usage.table.trigger", "Trigger")</th>
+                            <th>@L("usage.table.guest", "Guest")</th>
+                            <th>@L("usage.table.listening", "Listening")</th>
+                            <th>@L("usage.table.tours", "Tours")</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -142,12 +144,12 @@ else
                             <tr>
                                 <td>
                                     <div>@item.EventAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</div>
-                                    <small class="management-muted">@item.TimeAgo</small>
+                                    <small class="management-muted">@GetUsageRelativeTimeLabel(item.TimeAgo)</small>
                                 </td>
                                 <td>
                                     @if (GetUsageImageUrl(item) is { } imageUrl)
                                     {
-                                        <img class="usage-avatar" src="@imageUrl" alt="@($"{item.LocationName} avatar")" />
+                                        <img class="usage-avatar" src="@imageUrl" alt="@LF("usage.avatar.alt", "{0} avatar", item.LocationName)" />
                                     }
                                     else
                                     {
@@ -158,19 +160,19 @@ else
                                 </td>
                                 <td>
                                     <div>@item.LocationName</div>
-                                    <small class="management-muted">@(item.OwnerName ?? "No owner")</small>
+                                    <small class="management-muted">@(item.OwnerName ?? L("usage.owner.empty", "No owner"))</small>
                                 </td>
-                                <td>@(item.AudioTitle ?? "No audio linked")</td>
+                                <td>@(item.AudioTitle ?? L("usage.audio.empty", "No audio linked"))</td>
                                 <td>
-                                    <div>@item.TriggerSource</div>
-                                    <small class="management-muted">@item.EventType</small>
+                                    <div>@GetUsageTriggerSourceLabel(item.TriggerSource)</div>
+                                    <small class="management-muted">@GetUsageEventTypeLabel(item.EventType)</small>
                                 </td>
                                 <td>
-                                    <div>@(item.SessionId ?? item.DeviceId ?? "Anonymous")</div>
-                                    <small class="management-muted">@(item.NetworkType ?? "Unknown network")</small>
+                                    <div>@(item.SessionId ?? item.DeviceId ?? L("usage.guest.anonymous", "Anonymous"))</div>
+                                    <small class="management-muted">@GetUsageNetworkLabel(item.NetworkType)</small>
                                 </td>
                                 <td>@FormatListening(item.ListeningSeconds)</td>
-                                <td>@(item.TourNames.Count == 0 ? "No tour" : string.Join(", ", item.TourNames))</td>
+                                <td>@GetUsageTourLabel(item.TourNames)</td>
                             </tr>
                         }
                     </tbody>
@@ -180,13 +182,13 @@ else
             @if (TotalPages > 1)
             {
                 <div class="management-pagination">
-                    <span class="management-pagination__info">Page @_currentPage of @TotalPages (@FilteredItems.Count() matching events)</span>
+                    <span class="management-pagination__info">@LF("usage.pagination.info", "Page {0} of {1} ({2} matching events)", _currentPage, TotalPages, FilteredItems.Count())</span>
                     <div class="management-pagination__actions">
                         <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousPage" disabled="@(_currentPage <= 1)">
-                            <i class="bi bi-chevron-left"></i> Previous
+                            <i class="bi bi-chevron-left"></i> @L("usage.pagination.previous", "Previous")
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPage" disabled="@(_currentPage >= TotalPages)">
-                            Next <i class="bi bi-chevron-right"></i>
+                            @L("usage.pagination.next", "Next") <i class="bi bi-chevron-right"></i>
                         </button>
                     </div>
                 </div>
@@ -197,6 +199,9 @@ else
 }
 
 @code {
+    private string L(string key, string fallback) => LanguageService.T(key, fallback);
+    private string LF(string key, string fallback, params object?[] args) =>
+        string.Format(CultureInfo.CurrentCulture, L(key, fallback), args);
     private UsageHistoryOverviewDto _overview = new();
     private bool _isLoading = true;
     private int _currentPage = 1;
@@ -284,7 +289,7 @@ else
             if (!isAutoRefresh)
             {
                 _loadError = ex.Message;
-                Notifications.Error(ex.Message, "Usage history load failed");
+                Notifications.Error(ex.Message, L("usage.load.failed.toast", "Usage history load failed"));
             }
         }
         finally
@@ -349,12 +354,71 @@ else
     private string? GetUsageImageUrl(UsageHistoryItemDto item) =>
         ApiClient.ResolveImageUrl(item.PreferenceImageUrl);
 
-    private static string FormatListening(int? seconds) =>
+    private string FormatListening(int? seconds) =>
         seconds is null or <= 0
-            ? "0 sec"
+            ? L("usage.duration.zero", "0 sec")
             : seconds < 60
-                ? $"{seconds} sec"
-                : $"{seconds / 60} min {seconds % 60} sec";
+                ? LF("usage.duration.seconds", "{0} sec", seconds)
+                : LF("usage.duration.minutes-seconds", "{0} min {1} sec", seconds / 60, seconds % 60);
+
+    private string GetUsageEventTypeLabel(string? eventType) => (eventType ?? string.Empty).Trim() switch
+    {
+        "AppOpen" => L("usage.event.app-open", "App Open"),
+        "PlayAudio" => L("usage.event.play-audio", "Play Audio"),
+        "ViewMap" => L("usage.event.view-map", "View Map"),
+        "ViewPoi" => L("usage.event.view-poi", "View POI"),
+        _ => eventType ?? string.Empty
+    };
+
+    private string GetUsageTriggerSourceLabel(string? triggerSource) => (triggerSource ?? string.Empty).Trim() switch
+    {
+        "MobileApp" => L("usage.trigger.mobile-app", "Mobile App"),
+        _ => triggerSource ?? string.Empty
+    };
+
+    private string GetUsageNetworkLabel(string? networkType) =>
+        string.IsNullOrWhiteSpace(networkType)
+            ? L("usage.network.unknown", "Unknown network")
+            : networkType!;
+
+    private string GetUsageTourLabel(IReadOnlyList<string> tours) =>
+        tours.Count == 0
+            ? L("usage.tour.empty", "No tour")
+            : string.Join(", ", tours);
+
+    private string GetUsageRelativeTimeLabel(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var normalized = value.Trim();
+        if (string.Equals(normalized, "Just now", StringComparison.OrdinalIgnoreCase))
+        {
+            return L("usage.time.just-now", "Just now");
+        }
+
+        if (normalized.EndsWith("m ago", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(normalized.Split(' ')[0], out var minutes))
+        {
+            return LF("usage.time.minutes-ago", "{0} min ago", minutes);
+        }
+
+        if (normalized.EndsWith("h ago", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(normalized.Split(' ')[0], out var hours))
+        {
+            return LF("usage.time.hours-ago", "{0} hr ago", hours);
+        }
+
+        if (normalized.EndsWith("d ago", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(normalized.Split(' ')[0], out var days))
+        {
+            return LF("usage.time.days-ago", "{0} day(s) ago", days);
+        }
+
+        return normalized;
+    }
 
     public async ValueTask DisposeAsync()
     {

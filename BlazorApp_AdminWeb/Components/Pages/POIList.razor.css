@@ -395,6 +395,47 @@
     background: rgba(239, 246, 255, 0.7);
 }
 
+.localized-file-input {
+    position: relative;
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.45rem;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.localized-file-input__native {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.localized-file-input__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding: 0.55rem 1rem;
+    border-radius: 10px;
+    background: rgba(37, 99, 235, 0.1);
+    color: #1d4ed8;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.localized-file-input__value {
+    min-width: 0;
+    color: var(--app-muted);
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .poi-readonly__notice {
     padding: 0.9rem 1rem;
     border-radius: 16px;

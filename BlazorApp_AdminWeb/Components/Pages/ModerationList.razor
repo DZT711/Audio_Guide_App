@@ -1,18 +1,20 @@
 @page "/moderation"
 @implements IAsyncDisposable
+@using System.Globalization
 @inject AdminApiClient ApiClient
 @inject InboxState InboxState
 @inject IJSRuntime JS
 @inject NotificationService Notifications
 @inject AdminSessionState SessionState
+@inject AdminUiLanguageService LanguageService
 
-<PageTitle>Moderation Queue</PageTitle>
+<PageTitle>@L("page.moderation", "Moderation Queue")</PageTitle>
 
 @if (!CanView)
 {
     <div class="management-error">
-        <strong>Access denied.</strong>
-        <div>Your current role cannot view moderation items.</div>
+        <strong>@L("moderation.access.denied.title", "Access denied.")</strong>
+        <div>@L("moderation.access.denied.desc", "Your current role cannot view moderation items.")</div>
     </div>
 }
 else
@@ -20,17 +22,15 @@ else
 <div class="management-page moderation-page">
     <section class="management-hero" data-reveal>
         <div>
-            <span class="management-hero__eyebrow">Moderation</span>
-            <h1>Content Moderation</h1>
-            <p>
-                Review owner-submitted POI and audio requests, inspect the pending payload, and approve or reject the change.
-            </p>
+            <span class="management-hero__eyebrow">@L("moderation.hero.eyebrow", "Moderation")</span>
+            <h1>@L("moderation.hero.title", "Content Moderation")</h1>
+            <p>@L("moderation.hero.desc", "Review owner-submitted POI and audio requests, inspect the pending payload, and approve or reject the change.")</p>
         </div>
 
         <div class="management-hero__actions">
             <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
                 <i class="bi bi-arrow-clockwise me-2"></i>
-                Refresh
+                @L("moderation.action.refresh", "Refresh")
             </button>
         </div>
     </section>
@@ -40,28 +40,28 @@ else
             <span class="management-stat__icon"><i class="bi bi-inboxes"></i></span>
             <div>
                 <strong class="management-stat__value">@_result.TotalCount</strong>
-                <span class="management-stat__label">Matching Requests</span>
+                <span class="management-stat__label">@L("moderation.stats.matching", "Matching Requests")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-geo-alt"></i></span>
             <div>
                 <strong class="management-stat__value">@_items.Count(item => item.Type == "POI")</strong>
-                <span class="management-stat__label">POI Requests</span>
+                <span class="management-stat__label">@L("moderation.stats.poi", "POI Requests")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-mic"></i></span>
             <div>
                 <strong class="management-stat__value">@_items.Count(item => item.Type == "Audio")</strong>
-                <span class="management-stat__label">Audio Requests</span>
+                <span class="management-stat__label">@L("moderation.stats.audio", "Audio Requests")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-funnel"></i></span>
             <div>
                 <strong class="management-stat__value">@(_statusFilter == "Pending" ? _result.TotalCount : _items.Count(item => item.Status == "Pending"))</strong>
-                <span class="management-stat__label">Pending Queue</span>
+                <span class="management-stat__label">@L("moderation.stats.pending", "Pending Queue")</span>
             </div>
         </article>
     </div>
@@ -70,34 +70,34 @@ else
         <section class="management-panel" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">Queue</span>
-                    <h2>Requests</h2>
+                    <span class="management-panel__eyebrow">@L("moderation.queue.eyebrow", "Queue")</span>
+                    <h2>@L("moderation.queue.title", "Requests")</h2>
                 </div>
 
                 <div class="management-toolbar">
                     <label class="management-search">
                         <i class="bi bi-search"></i>
-                        <input class="form-control" type="search" placeholder="Search item or owner..." @bind="_searchText" @bind:event="oninput" @bind:after="HandleFiltersChangedAsync" />
+                        <input class="form-control" type="search" placeholder="@L("moderation.search.placeholder", "Search item or owner...")" @bind="_searchText" @bind:event="oninput" @bind:after="HandleFiltersChangedAsync" />
                     </label>
 
                     <select class="form-select management-filter" @bind="_typeFilter" @bind:after="HandleFiltersChangedAsync">
-                        <option value="">All types</option>
-                        <option value="POI">POIs</option>
-                        <option value="Audio">Audio</option>
+                        <option value="">@L("moderation.filter.types.all", "All types")</option>
+                        <option value="POI">@L("moderation.filter.types.poi", "POIs")</option>
+                        <option value="Audio">@L("moderation.filter.types.audio", "Audio")</option>
                     </select>
 
                     <select class="form-select management-filter" @bind="_actionFilter" @bind:after="HandleFiltersChangedAsync">
-                        <option value="">All actions</option>
-                        <option value="Add">Add</option>
-                        <option value="Edit">Edit</option>
-                        <option value="Delete">Delete</option>
+                        <option value="">@L("moderation.filter.actions.all", "All actions")</option>
+                        <option value="Add">@L("moderation.action.add", "Add")</option>
+                        <option value="Edit">@L("moderation.action.edit", "Edit")</option>
+                        <option value="Delete">@L("moderation.action.delete", "Delete")</option>
                     </select>
 
                     <select class="form-select management-filter" @bind="_statusFilter" @bind:after="HandleFiltersChangedAsync">
-                        <option value="Pending">Pending</option>
-                        <option value="">All statuses</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Rejected">Rejected</option>
+                        <option value="Pending">@L("moderation.status.pending", "Pending")</option>
+                        <option value="">@L("moderation.filter.status.all", "All statuses")</option>
+                        <option value="Approved">@L("moderation.status.approved", "Approved")</option>
+                        <option value="Rejected">@L("moderation.status.rejected", "Rejected")</option>
                     </select>
                 </div>
             </div>
@@ -118,14 +118,14 @@ else
             else if (!string.IsNullOrWhiteSpace(_loadError))
             {
                 <div class="management-error">
-                    <strong>Unable to load moderation items.</strong>
+                    <strong>@L("moderation.load.failed.title", "Unable to load moderation items.")</strong>
                     <div>@_loadError</div>
                 </div>
             }
             else if (_items.Count == 0)
             {
                 <div class="app-empty-state">
-                    No requests match the current filters.
+                    @L("moderation.empty.filtered", "No requests match the current filters.")
                 </div>
             }
             else
@@ -155,25 +155,25 @@ else
                                 <p class="audio-card__description">@GetSummary(item)</p>
 
                                 <div class="management-inline-actions">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OpenDetailModal(item)">View Detail</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OpenDetailModal(item)">@L("moderation.action.view-detail", "View Detail")</button>
                                     @if (string.Equals(item.Status, "Approved", StringComparison.OrdinalIgnoreCase))
                                     {
                                         <button type="button" class="btn btn-sm moderation-card__status-button moderation-card__status-button--approved" disabled>
                                             <i class="bi bi-check-lg"></i>
-                                            Approved
+                                            @L("moderation.status.approved", "Approved")
                                         </button>
                                     }
                                     else if (string.Equals(item.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
                                     {
                                         <button type="button" class="btn btn-sm moderation-card__status-button moderation-card__status-button--rejected" disabled>
                                             <i class="bi bi-x-lg"></i>
-                                            Rejected
+                                            @L("moderation.status.rejected", "Rejected")
                                         </button>
                                     }
                                     else
                                     {
-                                        <button type="button" class="btn btn-sm btn-outline-success" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => ApproveAsync(item)">Approve</button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => RejectAsync(item)">Reject</button>
+                                        <button type="button" class="btn btn-sm btn-outline-success" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => ApproveAsync(item)">@L("moderation.action.approve", "Approve")</button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || item.Status != "Pending")" @onclick="() => RejectAsync(item)">@L("moderation.action.reject", "Reject")</button>
                                     }
                                 </div>
                             </article>
@@ -183,14 +183,14 @@ else
 
                 @if (_result.TotalPages > 1)
                 {
-                    <div class="management-pagination">
-                        <span class="management-pagination__info">Page @_result.Page of @_result.TotalPages (@_result.TotalCount total requests)</span>
+                <div class="management-pagination">
+                        <span class="management-pagination__info">@LF("moderation.pagination.info", "Page {0} of {1} ({2} total requests)", _result.Page, _result.TotalPages, _result.TotalCount)</span>
                         <div class="management-pagination__actions">
                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousPageAsync" disabled="@(_result.Page <= 1)">
-                                <i class="bi bi-chevron-left"></i> Previous
+                                <i class="bi bi-chevron-left"></i> @L("moderation.pagination.previous", "Previous")
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPageAsync" disabled="@(_result.Page >= _result.TotalPages)">
-                                Next <i class="bi bi-chevron-right"></i>
+                                @L("moderation.pagination.next", "Next") <i class="bi bi-chevron-right"></i>
                             </button>
                         </div>
                     </div>
@@ -203,15 +203,15 @@ else
             <div class="management-panel__header moderation-detail__header">
                 <div class="moderation-detail__title">
                     <span class="moderation-detail__badge">Details</span>
-                    <h2 id="moderation-detail-title">@(SelectedItem is null ? "Select a Request" : "Request Details")</h2>
+                    <h2 id="moderation-detail-title">@(SelectedItem is null ? L("moderation.detail.select", "Select a Request") : L("moderation.detail.title", "Request Details"))</h2>
                 </div>
-                <button type="button" class="btn-close" aria-label="Close details" @onclick="CloseDetailModal"></button>
+                <button type="button" class="btn-close" aria-label="@L("moderation.detail.close-aria", "Close details")" @onclick="CloseDetailModal"></button>
             </div>
 
             @if (SelectedItem is null)
             {
                 <div class="app-empty-state">
-                    Choose a request to inspect its full details before deciding.
+                    @L("moderation.detail.empty", "Choose a request to inspect its full details before deciding.")
                 </div>
             }
             else
@@ -620,6 +620,9 @@ else
 }
 
 @code {
+    private string L(string key, string fallback) => LanguageService.T(key, fallback);
+    private string LF(string key, string fallback, params object?[] args) =>
+        string.Format(CultureInfo.CurrentCulture, L(key, fallback), args);
     private readonly List<ChangeRequestDto> _items = new();
     private ChangeRequestListDto _result = new();
     private ChangeRequestDto? _selectedItem;
@@ -708,7 +711,7 @@ else
         catch (Exception ex)
         {
             _loadError = ex.Message;
-            Notifications.Error(ex.Message, "Moderation load failed");
+            Notifications.Error(ex.Message, L("moderation.load.failed.toast", "Moderation load failed"));
         }
         finally
         {
@@ -754,7 +757,9 @@ else
     {
         if (!CanManage)
         {
-            Notifications.Warning("Your role can view moderation items but cannot approve them.", "Read-only access");
+            Notifications.Warning(
+                L("moderation.approve.readonly.message", "Your role can view moderation items but cannot approve them."),
+                L("moderation.readonly.title", "Read-only access"));
             return;
         }
 
@@ -763,14 +768,16 @@ else
         try
         {
             var updated = await ApiClient.ApproveChangeRequestAsync(item.Id, _reviewNote);
-            Notifications.Success($"'{updated.Name}' was approved and applied to live data.", "Request approved");
+            Notifications.Success(
+                LF("moderation.approve.success.message", "'{0}' was approved and applied to live data.", updated.Name),
+                L("moderation.approve.success.title", "Request approved"));
             _reviewNote = "";
             await LoadItemsAsync();
             await InboxState.RefreshAsync();
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Approve failed");
+            Notifications.Error(ex.Message, L("moderation.approve.failed.title", "Approve failed"));
         }
         finally
         {
@@ -782,13 +789,17 @@ else
     {
         if (!CanManage)
         {
-            Notifications.Warning("Your role can view moderation items but cannot reject them.", "Read-only access");
+            Notifications.Warning(
+                L("moderation.reject.readonly.message", "Your role can view moderation items but cannot reject them."),
+                L("moderation.readonly.title", "Read-only access"));
             return;
         }
 
         if (string.IsNullOrWhiteSpace(_reviewNote))
         {
-            Notifications.Warning("Enter a rejection reason before rejecting this request.", "Reason required");
+            Notifications.Warning(
+                L("moderation.reject.reason-required.message", "Enter a rejection reason before rejecting this request."),
+                L("moderation.reject.reason-required.title", "Reason required"));
             return;
         }
 
@@ -797,14 +808,16 @@ else
         try
         {
             var updated = await ApiClient.RejectChangeRequestAsync(item.Id, _reviewNote);
-            Notifications.Info($"'{updated.Name}' was rejected and the owner was notified.", "Request rejected");
+            Notifications.Info(
+                LF("moderation.reject.success.message", "'{0}' was rejected and the owner was notified.", updated.Name),
+                L("moderation.reject.success.title", "Request rejected"));
             _reviewNote = "";
             await LoadItemsAsync();
             await InboxState.RefreshAsync();
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Reject failed");
+            Notifications.Error(ex.Message, L("moderation.reject.failed.title", "Reject failed"));
         }
         finally
         {

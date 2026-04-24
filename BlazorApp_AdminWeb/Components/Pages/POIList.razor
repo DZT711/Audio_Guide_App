@@ -26,7 +26,7 @@ else
 <div class="management-page poi-page">
     <section class="management-hero" data-reveal>
         <div>
-            <span class="management-hero__eyebrow">Locations</span>
+            <span class="management-hero__eyebrow">@L("poi.hero.eyebrow", "Locations")</span>
             <h1>@L("poi.hero.title", "Location Management")</h1>
             <p>
                 @L("poi.hero.desc", "Manage tourism destinations directly through the API, including category assignment, coordinates, contact information, and published status.")
@@ -89,7 +89,7 @@ else
         <section class="management-panel" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">Directory</span>
+                    <span class="management-panel__eyebrow">@L("poi.directory.eyebrow", "Directory")</span>
                     <h2>@L("poi.directory.title", "Tourism Locations")</h2>
                 </div>
 
@@ -156,13 +156,13 @@ else
                                         <input class="form-check-input" type="checkbox" checked="@IsCurrentPageSelectedForBulkQr" @onchange="args => SetCurrentPageQrSelection(args.Value is bool value && value)" />
                                     </th>
                                 }
-                                <th>Avatar</th>
-                                <th>Name</th>
-                                <th>Category</th>
-                                <th>Address</th>
-                                <th>Coordinates</th>
-                                <th>Status</th>
-                                <th class="text-end">Actions</th>
+                                <th>@L("poi.table.avatar", "Avatar")</th>
+                                <th>@L("poi.table.name", "Name")</th>
+                                <th>@L("poi.table.category", "Category")</th>
+                                <th>@L("poi.table.address", "Address")</th>
+                                <th>@L("poi.table.coordinates", "Coordinates")</th>
+                                <th>@L("poi.table.status", "Status")</th>
+                                <th class="text-end">@L("poi.table.actions", "Actions")</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -191,30 +191,30 @@ else
                                     </td>
                                     <td>
                                         <div class="poi-name">@location.Name</div>
-                                        <small class="management-muted">@(string.IsNullOrWhiteSpace(location.OwnerName) ? "No owner assigned" : location.OwnerName)</small>
+                                        <small class="management-muted">@(string.IsNullOrWhiteSpace(location.OwnerName) ? L("poi.owner.empty", "No owner assigned") : location.OwnerName)</small>
                                     </td>
                                     <td>
                                         <span class="poi-category-pill">
                                             <span class="category-icon @CategoryVisuals.GetToneClass(location.Category)">
                                                 <i class="@CategoryVisuals.GetIconClass(location.Category)"></i>
                                             </span>
-                                            <span>@location.Category</span>
+                                            <span>@TranslateCategoryName(location.Category)</span>
                                         </span>
                                     </td>
-                                    <td>@(string.IsNullOrWhiteSpace(location.Address) ? "No address" : location.Address)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(location.Address) ? L("poi.address.empty", "No address") : location.Address)</td>
                                     <td>@($"{location.Latitude:F4}, {location.Longitude:F4}")</td>
                                     <td>
                                         <span class="@GetStatusClass(location.Status)">@GetStatusLabel(location.Status)</span>
                                     </td>
                                     <td class="text-end">
                                         <div class="management-inline-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(location)">@(CanEditContent ? "Edit" : "View")</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(location)">@(CanEditContent ? L("poi.action.edit", "Edit") : L("poi.action.view", "View"))</button>
                                             @if (CanViewQr)
                                             {
                                                 <button type="button" class="btn btn-sm btn-outline-success" @onclick="() => OpenQrAsync(location)">QR</button>
                                             }
                                             <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage && !CanSubmitRequests || location.Status == 0)" @onclick="() => PromptArchiveLocation(location)">
-                                                @(location.Status == 0 ? "Inactive" : CanManage ? "Archive" : "Request Archive")
+                                                @(location.Status == 0 ? L("status.inactive", "Inactive") : CanManage ? L("poi.action.archive", "Archive") : L("poi.action.request-archive", "Request Archive"))
                                             </button>
                                         </div>
                                     </td>
@@ -227,13 +227,13 @@ else
                 @if (TotalLocationPages > 1)
                 {
                     <div class="management-pagination">
-                        <span class="management-pagination__info">Page @CurrentLocationPage of @TotalLocationPages (@FilteredLocations.Count() total locations)</span>
+                        <span class="management-pagination__info">@LF("poi.pagination.info", "Page {0} of {1} ({2} total locations)", CurrentLocationPage, TotalLocationPages, FilteredLocations.Count())</span>
                         <div class="management-pagination__actions">
                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousLocationPage" disabled="@(CurrentLocationPage <= 1)">
-                                <i class="bi bi-chevron-left"></i> Previous
+                                <i class="bi bi-chevron-left"></i> @L("poi.pagination.previous", "Previous")
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextLocationPage" disabled="@(CurrentLocationPage >= TotalLocationPages)">
-                                Next <i class="bi bi-chevron-right"></i>
+                                @L("poi.pagination.next", "Next") <i class="bi bi-chevron-right"></i>
                             </button>
                         </div>
                     </div>
@@ -245,16 +245,16 @@ else
         <section class="@GetEditorPanelClass()" data-reveal role="@(CanEditContent ? "dialog" : null)" aria-modal="@(CanEditContent ? "true" : null)" aria-labelledby="poi-editor-title" @onclick:stopPropagation="true">
             <div class="management-panel__header poi-editor__header">
                 <div>
-                    <span class="management-panel__eyebrow">@(CanEditContent ? (CanManage ? "Editor" : "Submission") : "Read Only")</span>
-                    <h2 id="poi-editor-title">@(CanEditContent ? (_editingId is null ? "Create Location" : "Edit Location") : "Location Details")</h2>
+                    <span class="management-panel__eyebrow">@(CanEditContent ? (CanManage ? L("poi.editor.eyebrow", "Editor") : L("poi.editor.submission-eyebrow", "Submission")) : L("poi.editor.readonly-eyebrow", "Read Only"))</span>
+                    <h2 id="poi-editor-title">@(CanEditContent ? (_editingId is null ? L("poi.editor.create", "Create Location") : L("poi.editor.edit", "Edit Location")) : L("poi.editor.details", "Location Details"))</h2>
                     @if (CanEditContent)
                     {
-                        <p class="poi-editor__subtitle">Open the POI editor in a focused modal while keeping the location dataset visible behind it.</p>
+                        <p class="poi-editor__subtitle">@L("poi.editor.subtitle", "Open the POI editor in a focused modal while keeping the location dataset visible behind it.")</p>
                     }
                 </div>
                 @if (CanEditContent)
                 {
-                    <button type="button" class="btn-close" aria-label="Close POI editor" @onclick="CancelEditAsync"></button>
+                    <button type="button" class="btn-close" aria-label="@L("poi.editor.close", "Close POI editor")" @onclick="CancelEditAsync"></button>
                 }
             </div>
 
@@ -265,33 +265,33 @@ else
 
                 <div class="poi-editor__summary">
                     <div class="poi-editor__summary-copy">
-                        <span class="poi-editor__summary-kicker">@(_editingId is null ? "New Location Draft" : "Editing Existing POI")</span>
-                        <strong>@(string.IsNullOrWhiteSpace(_formModel.Name) ? "Untitled POI" : _formModel.Name)</strong>
+                        <span class="poi-editor__summary-kicker">@(_editingId is null ? L("poi.editor.summary.new-draft", "New Location Draft") : L("poi.editor.summary.editing", "Editing Existing POI"))</span>
+                        <strong>@(string.IsNullOrWhiteSpace(_formModel.Name) ? L("poi.editor.summary.untitled", "Untitled POI") : _formModel.Name)</strong>
                         <small>@GetEditorCategorySummary()</small>
                     </div>
                     <div class="poi-editor__summary-badges">
-                        <span class="poi-editor__badge">@(CanManage ? "Direct Save" : "Approval Request")</span>
-                        <span class="poi-editor__badge">@(_editingId is null ? "Create" : "Edit")</span>
+                        <span class="poi-editor__badge">@(CanManage ? L("poi.editor.badge.direct-save", "Direct Save") : L("poi.editor.badge.approval-request", "Approval Request"))</span>
+                        <span class="poi-editor__badge">@(_editingId is null ? L("poi.editor.badge.create", "Create") : L("poi.editor.badge.edit", "Edit"))</span>
                         <span class="poi-editor__badge">@GetStatusLabel(_formModel.Status)</span>
                     </div>
                 </div>
 
-                <div class="poi-editor-tabs" role="tablist" aria-label="POI editor sections">
+                <div class="poi-editor-tabs" role="tablist" aria-label="@L("poi.editor.tabs.aria", "POI editor sections")">
                     <button type="button" class='@GetEditorTabClass("basic")' @onclick='() => SetEditorTab("basic")'>
                         <i class="bi bi-info-circle"></i>
-                        <span>Basic Info</span>
+                        <span>@L("poi.editor.tab.basic", "Basic Info")</span>
                     </button>
                     <button type="button" class='@GetEditorTabClass("details")' @onclick='() => SetEditorTab("details")'>
                         <i class="bi bi-layers"></i>
-                        <span>Details</span>
+                        <span>@L("poi.editor.tab.details", "Details")</span>
                     </button>
                     <button type="button" class='@GetEditorTabClass("media")' @onclick='() => SetEditorTab("media")'>
                         <i class="bi bi-image"></i>
-                        <span>Media</span>
+                        <span>@L("poi.editor.tab.media", "Media")</span>
                     </button>
                     <button type="button" class='@GetEditorTabClass("settings")' @onclick='() => SetEditorTab("settings")'>
                         <i class="bi bi-sliders"></i>
-                        <span>Settings</span>
+                        <span>@L("poi.editor.tab.settings", "Settings")</span>
                     </button>
                 </div>
 
@@ -300,23 +300,23 @@ else
                     {
                     <section class="poi-editor-section">
                         <div class="poi-editor-section__header">
-                            <h3>Basic Info</h3>
-                            <p>The main identity, address, and summary shown in POI lists and detail screens.</p>
+                            <h3>@L("poi.section.basic.title", "Basic Info")</h3>
+                            <p>@L("poi.section.basic.desc", "The main identity, address, and summary shown in POI lists and detail screens.")</p>
                         </div>
                         <div class="management-form__grid">
                     <div class="management-field">
-                        <label for="location-name">Name</label>
+                        <label for="location-name">@L("poi.form.name", "Name")</label>
                         <InputText id="location-name" class="form-control" @bind-Value="_formModel.Name" />
                         <ValidationMessage For="() => _formModel.Name" />
                     </div>
 
                     <div class="management-field">
-                        <label for="location-category">Category</label>
+                        <label for="location-category">@L("poi.form.category", "Category")</label>
                         <InputSelect id="location-category" class="form-select" @bind-Value="_formModel.CategoryId">
-                            <option value="0">Choose category</option>
+                            <option value="0">@L("poi.form.category.choose", "Choose category")</option>
                             @foreach (var category in ActiveCategories)
                             {
-                                <option value="@category.Id">@category.Name</option>
+                                <option value="@category.Id">@TranslateCategoryName(category.Name)</option>
                             }
                         </InputSelect>
                         <ValidationMessage For="() => _formModel.CategoryId" />
@@ -324,7 +324,7 @@ else
                     </div>
 
                     <div class="management-field management-field--full">
-                        <label for="location-address">Address</label>
+                        <label for="location-address">@L("poi.form.address", "Address")</label>
                         <InputText id="location-address" class="form-control" @bind-Value="_formModel.Address" />
                         <ValidationMessage For="() => _formModel.Address" />
                     </div>
@@ -333,17 +333,17 @@ else
                         <div class="location-picker">
                             <div class="location-picker__header">
                                 <div>
-                                    <span class="management-field__label">OpenStreetMap Picker</span>
-                                    <div class="management-field__hint">Drag the pin or click the map to auto-fill the address, latitude, and longitude.</div>
+                                    <span class="management-field__label">@L("poi.map.picker.title", "OpenStreetMap Picker")</span>
+                                    <div class="management-field__hint">@L("poi.map.picker.hint", "Drag the pin or click the map to auto-fill the address, latitude, and longitude.")</div>
                                 </div>
 
                                 <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="CenterMapOnCoordinatesAsync">
                                     <i class="bi bi-crosshair me-1"></i>
-                                    Center On Coordinates
+                                    @L("poi.map.center", "Center On Coordinates")
                                 </button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="UseDeviceLocationAsync">
                                     <i class="bi bi-geo-alt me-1"></i>
-                                    Use My Device Location
+                                    @L("poi.map.use-device", "Use My Device Location")
                                 </button>
                             </div>
 
@@ -353,7 +353,7 @@ else
                                     <input id="location-map-search"
                                            class="form-control"
                                            type="search"
-                                           placeholder="Search a landmark, street, or address on the map"
+                                           placeholder="@L("poi.map.search.placeholder", "Search a landmark, street, or address on the map")"
                                            @bind="_mapSearchText"
                                            @bind:event="oninput" />
                                 </label>
@@ -363,7 +363,7 @@ else
                                         @onclick="SearchMapAsync"
                                         disabled="@(_isMapSearching || string.IsNullOrWhiteSpace(_mapSearchText))">
                                     <i class="bi @(_isMapSearching ? "bi-hourglass-split" : "bi-search") me-1"></i>
-                                    @(_isMapSearching ? "Searching..." : "Find Place")
+                                    @(_isMapSearching ? L("poi.map.search.searching", "Searching...") : L("poi.map.search.find", "Find Place"))
                                 </button>
                             </div>
 
@@ -393,7 +393,7 @@ else
                     </div>
 
                     <div class="management-field management-field--full">
-                        <label for="location-description">Description</label>
+                        <label for="location-description">@L("poi.form.description", "Description")</label>
                         <InputTextArea id="location-description" class="form-control" rows="4" @bind-Value="_formModel.Description" />
                         <ValidationMessage For="() => _formModel.Description" />
                     </div>
@@ -406,23 +406,23 @@ else
                     {
                     <section class="poi-editor-section">
                         <div class="poi-editor-section__header">
-                            <h3>Details</h3>
-                            <p>Coordinates, ownership, contact, and trigger settings for the selected POI.</p>
+                            <h3>@L("poi.section.details.title", "Details")</h3>
+                            <p>@L("poi.section.details.desc", "Coordinates, ownership, contact, and trigger settings for the selected POI.")</p>
                         </div>
                         <div class="management-form__grid">
 
                     <div class="management-field">
-                        <label for="location-year">Established Year</label>
+                        <label for="location-year">@L("poi.form.year", "Established Year")</label>
                         <InputNumber id="location-year" class="form-control" @bind-Value="_formModel.EstablishedYear" />
                         <ValidationMessage For="() => _formModel.EstablishedYear" />
                     </div>
 
                     <div class="management-field">
-                        <label for="location-owner">Owner</label>
+                        <label for="location-owner">@L("poi.form.owner", "Owner")</label>
                         @if (CanSelectOwner)
                         {
                             <InputSelect id="location-owner" class="form-select" @bind-Value="_formModel.OwnerId">
-                                <option value="">Unassigned</option>
+                                <option value="">@L("poi.form.owner.unassigned", "Unassigned")</option>
                                 @foreach (var owner in _owners)
                                 {
                                     <option value="@owner.Id">@($"{owner.FullName ?? owner.Username} ({owner.Role})")</option>
@@ -431,60 +431,60 @@ else
                         }
                         else
                         {
-                            <div class="management-muted">This location will stay assigned to your current account.</div>
+                            <div class="management-muted">@L("poi.form.owner.current-account", "This location will stay assigned to your current account.")</div>
                         }
                     </div>
 
                     <div class="management-field">
-                        <label for="location-lat">Latitude</label>
+                        <label for="location-lat">@L("poi.form.latitude", "Latitude")</label>
                         <InputNumber id="location-lat" class="form-control" @bind-Value="_formModel.Latitude" />
                         <ValidationMessage For="() => _formModel.Latitude" />
                     </div>
 
                     <div class="management-field">
-                        <label for="location-lng">Longitude</label>
+                        <label for="location-lng">@L("poi.form.longitude", "Longitude")</label>
                         <InputNumber id="location-lng" class="form-control" @bind-Value="_formModel.Longitude" />
                         <ValidationMessage For="() => _formModel.Longitude" />
                     </div>
 
                     <div class="management-field">
-                        <label for="location-radius">Trigger Radius (m)</label>
+                        <label for="location-radius">@L("poi.form.radius", "Trigger Radius (m)")</label>
                         <InputNumber id="location-radius" class="form-control" @bind-Value="_formModel.Radius" />
                         <ValidationMessage For="() => _formModel.Radius" />
                     </div>
 
                     <div class="management-field">
-                        <label for="location-standby-radius">Standby Radius (m)</label>
+                        <label for="location-standby-radius">@L("poi.form.standby-radius", "Standby Radius (m)")</label>
                         <InputNumber id="location-standby-radius" class="form-control" @bind-Value="_formModel.StandbyRadius" />
                         <ValidationMessage For="() => _formModel.StandbyRadius" />
                     </div>
 
                     <div class="management-field">
-                        <label for="location-priority">Priority</label>
+                        <label for="location-priority">@L("poi.form.priority", "Priority")</label>
                         <InputNumber id="location-priority" class="form-control" @bind-Value="_formModel.Priority" />
                         <ValidationMessage For="() => _formModel.Priority" />
                     </div>
 
                     <div class="management-field">
-                        <label for="location-debounce">Cooldown (sec)</label>
+                        <label for="location-debounce">@L("poi.form.cooldown", "Cooldown (sec)")</label>
                         <InputNumber id="location-debounce" class="form-control" @bind-Value="_formModel.DebounceSeconds" />
                         <ValidationMessage For="() => _formModel.DebounceSeconds" />
                     </div>
 
                     <div class="management-field">
-                        <label for="location-web">Website</label>
+                        <label for="location-web">@L("poi.form.website", "Website")</label>
                         <InputText id="location-web" class="form-control" @bind-Value="_formModel.WebURL" />
                         <ValidationMessage For="() => _formModel.WebURL" />
                     </div>
 
                     <div class="management-field">
-                        <label for="location-phone">Phone</label>
+                        <label for="location-phone">@L("poi.form.phone", "Phone")</label>
                         <InputText id="location-phone" class="form-control" @bind-Value="_formModel.Phone" />
                         <ValidationMessage For="() => _formModel.Phone" />
                     </div>
 
                     <div class="management-field management-field--full">
-                        <label for="location-email">Email</label>
+                        <label for="location-email">@L("poi.form.email", "Email")</label>
                         <InputText id="location-email" class="form-control" @bind-Value="_formModel.Email" />
                         <ValidationMessage For="() => _formModel.Email" />
                     </div>
@@ -497,37 +497,41 @@ else
                     {
                     <section class="poi-editor-section">
                         <div class="poi-editor-section__header">
-                            <h3>Media</h3>
-                            <p>Upload the preference image and gallery photos that will appear across the app.</p>
+                            <h3>@L("poi.section.media.title", "Media")</h3>
+                            <p>@L("poi.section.media.desc", "Upload the preference image and gallery photos that will appear across the app.")</p>
                         </div>
                         <div class="management-form__grid">
 
                     <div class="management-field management-field--full">
-                        <label for="location-preference-image">Preference Image</label>
-                        <InputFile @key="_preferenceImageInputVersion" id="location-preference-image" class="form-control" OnChange="HandlePreferenceImageSelected" accept="image/*" />
+                        <label for="location-preference-image">@L("poi.media.preference-image", "Preference Image")</label>
+                        <div class="localized-file-input">
+                            <InputFile @key="_preferenceImageInputVersion" id="location-preference-image" class="localized-file-input__native" OnChange="HandlePreferenceImageSelected" accept="image/*" />
+                            <span class="localized-file-input__button">@L("file.choose.single", "Choose File")</span>
+                            <span class="localized-file-input__value">@GetPreferenceImageSelectionLabel()</span>
+                        </div>
                         <ValidationMessage For="() => _formModel.PreferenceImageFile" />
-                        <span class="management-field__hint">Required. This image becomes the POI avatar in lists, tours, and moderation details.</span>
+                        <span class="management-field__hint">@L("poi.media.preference-image.hint", "Required. This image becomes the POI avatar in lists, tours, and moderation details.")</span>
                     </div>
 
                     <div class="management-field management-field--full">
                         <div class="poi-image-preview">
                             <div>
-                                <span class="management-field__label">Preference Image Preview</span>
+                                <span class="management-field__label">@L("poi.media.preference-image.preview", "Preference Image Preview")</span>
                                 <div class="management-field__hint">@GetPreferenceImagePreviewHint()</div>
                             </div>
 
                             @if (_isPreparingImagePreview)
                             {
-                                <div class="management-muted">Preparing image previews...</div>
+                                <div class="management-muted">@L("poi.media.preview.preparing", "Preparing image previews...")</div>
                             }
                             else if (GetPreferenceImagePreviewUrl() is { } preferencePreviewUrl)
                             {
                                 <div class="poi-preference-preview">
                                     <div class="poi-image-tile poi-image-tile--feature">
-                                        <img class="poi-image-thumb" src="@preferencePreviewUrl" alt="Preference location image" />
+                                        <img class="poi-image-thumb" src="@preferencePreviewUrl" alt="@L("poi.media.preference-image.alt", "Preference location image")" />
                                         @if (_formModel.PreferenceImageFile is not null)
                                         {
-                                            <button type="button" class="poi-image-remove" title="Revert preference image" aria-label="Revert preference image" @onclick="RemovePendingPreferenceImageAsync">
+                                            <button type="button" class="poi-image-remove" title="@L("poi.media.preference-image.revert", "Revert preference image")" aria-label="@L("poi.media.preference-image.revert", "Revert preference image")" @onclick="RemovePendingPreferenceImageAsync">
                                                 <i class="bi bi-arrow-counterclockwise"></i>
                                             </button>
                                         }
@@ -536,28 +540,32 @@ else
                             }
                             else
                             {
-                                <div class="management-muted">Upload a preference image to set the POI avatar.</div>
+                                <div class="management-muted">@L("poi.media.preference-image.empty", "Upload a preference image to set the POI avatar.")</div>
                             }
                         </div>
                     </div>
 
                     <div class="management-field management-field--full">
-                        <label for="location-images">Additional Gallery Images</label>
-                        <InputFile @key="_imageInputVersion" id="location-images" class="form-control" OnChange="HandleLocationImagesSelected" accept="image/*" multiple />
-                        <span class="management-field__hint">Upload one or more extra images. Each new selection is added to the current upload queue.</span>
-                        <span class="management-field__hint">Use the `X` button on a preview tile to remove a stored image or cancel a pending upload before saving.</span>
+                        <label for="location-images">@L("poi.media.gallery-images", "Additional Gallery Images")</label>
+                        <div class="localized-file-input">
+                            <InputFile @key="_imageInputVersion" id="location-images" class="localized-file-input__native" OnChange="HandleLocationImagesSelected" accept="image/*" multiple />
+                            <span class="localized-file-input__button">@L("file.choose.multiple", "Choose Files")</span>
+                            <span class="localized-file-input__value">@GetGalleryImageSelectionLabel()</span>
+                        </div>
+                        <span class="management-field__hint">@L("poi.media.gallery-images.hint", "Upload one or more extra images. Each new selection is added to the current upload queue.")</span>
+                        <span class="management-field__hint">@L("poi.media.gallery-images.remove-hint", "Use the `X` button on a preview tile to remove a stored image or cancel a pending upload before saving.")</span>
                     </div>
 
                     <div class="management-field management-field--full">
                         <div class="poi-image-preview">
                             <div>
-                                <span class="management-field__label">Gallery Preview</span>
+                                <span class="management-field__label">@L("poi.media.gallery.preview", "Gallery Preview")</span>
                                 <div class="management-field__hint">@GetImagePreviewHint()</div>
                             </div>
 
                             @if (_isPreparingImagePreview)
                             {
-                                <div class="management-muted">Preparing image previews...</div>
+                                <div class="management-muted">@L("poi.media.preview.preparing", "Preparing image previews...")</div>
                             }
                             else if (_formModel.ExistingImageUrls.Count > 0 || _imagePreviewUrls.Count > 0)
                             {
@@ -571,8 +579,8 @@ else
                                         }
 
                                         <div class="poi-image-tile">
-                                            <img class="poi-image-thumb" src="@resolvedStoredImageUrl" alt="Stored location image" />
-                                            <button type="button" class="poi-image-remove" title="Remove image" aria-label="Remove image" @onclick="() => RemoveStoredImage(storedImageUrl)">
+                                            <img class="poi-image-thumb" src="@resolvedStoredImageUrl" alt="@L("poi.media.gallery.image.alt", "Stored location image")" />
+                                            <button type="button" class="poi-image-remove" title="@L("poi.media.gallery.remove-image", "Remove image")" aria-label="@L("poi.media.gallery.remove-image", "Remove image")" @onclick="() => RemoveStoredImage(storedImageUrl)">
                                                 <i class="bi bi-x-lg"></i>
                                             </button>
                                         </div>
@@ -597,7 +605,7 @@ else
                                                     <span>@pendingImage.Name</span>
                                                 </div>
                                             }
-                                            <button type="button" class="poi-image-remove" title="Remove upload" aria-label="Remove upload" @onclick="() => RemovePendingImageAsync(currentImageIndex)">
+                                            <button type="button" class="poi-image-remove" title="@L("poi.media.gallery.remove-upload", "Remove upload")" aria-label="@L("poi.media.gallery.remove-upload", "Remove upload")" @onclick="() => RemovePendingImageAsync(currentImageIndex)">
                                                 <i class="bi bi-x-lg"></i>
                                             </button>
                                         </div>
@@ -606,7 +614,7 @@ else
                             }
                             else
                             {
-                                <div class="management-muted">Upload extra images or edit a location that already has stored gallery photos.</div>
+                                <div class="management-muted">@L("poi.media.gallery.empty", "Upload extra images or edit a location that already has stored gallery photos.")</div>
                             }
                         </div>
                     </div>
@@ -619,33 +627,33 @@ else
                     {
                     <section class="poi-editor-section">
                         <div class="poi-editor-section__header">
-                            <h3>Publishing</h3>
-                            <p>Finish trigger behavior and live status before saving or submitting the request.</p>
+                            <h3>@L("poi.section.settings.title", "Publishing")</h3>
+                            <p>@L("poi.section.settings.desc", "Finish trigger behavior and live status before saving or submitting the request.")</p>
                         </div>
                         <div class="management-form__grid">
 
                     <div class="management-field management-field--full">
-                        <span class="management-field__label">GPS Trigger</span>
+                        <span class="management-field__label">@L("poi.form.gps-trigger", "GPS Trigger")</span>
                         <div class="management-chip-group">
-                            <button type="button" class="@GetBoolChipClass(true, _formModel.IsGpsTriggerEnabled)" @onclick="() => SetGpsTrigger(true)">Enabled</button>
-                            <button type="button" class="@GetBoolChipClass(false, _formModel.IsGpsTriggerEnabled)" @onclick="() => SetGpsTrigger(false)">Disabled</button>
+                            <button type="button" class="@GetBoolChipClass(true, _formModel.IsGpsTriggerEnabled)" @onclick="() => SetGpsTrigger(true)">@L("common.enabled", "Enabled")</button>
+                            <button type="button" class="@GetBoolChipClass(false, _formModel.IsGpsTriggerEnabled)" @onclick="() => SetGpsTrigger(false)">@L("common.disabled", "Disabled")</button>
                         </div>
                     </div>
 
                     <div class="management-field management-field--full">
-                        <span class="management-field__label">Status</span>
+                        <span class="management-field__label">@L("poi.form.status", "Status")</span>
                         <div class="management-chip-group">
-                            <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
-                            <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                            <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">@L("status.active", "Active")</button>
+                            <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">@L("status.inactive", "Inactive")</button>
                         </div>
                     </div>
 
                     @if (CanSubmitRequests && !CanManage)
                     {
                         <div class="management-field management-field--full">
-                            <label for="location-request-reason">Submission Note</label>
+                            <label for="location-request-reason">@L("poi.form.submission-note", "Submission Note")</label>
                             <InputTextArea id="location-request-reason" class="form-control" rows="3" @bind-Value="_submissionReason" />
-                            <span class="management-field__hint">Optional note for Admin or Developer review.</span>
+                            <span class="management-field__hint">@L("poi.form.submission-note.hint", "Optional note for Admin or Developer review.")</span>
                         </div>
                     }
 
@@ -664,14 +672,14 @@ else
                     <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !HasActiveCategories || !CanEditContent)">
                         @GetSaveButtonLabel()
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? "Close" : "Cancel")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEditAsync">@(_editingId is null ? L("common.close", "Close") : L("common.cancel", "Cancel"))</button>
                 </div>
             </EditForm>
             }
             else if (SelectedLocationForDisplay is null)
             {
                 <div class="app-empty-state">
-                    Select a location to review its details.
+                    @L("poi.readonly.empty", "Select a location to review its details.")
                 </div>
             }
             else
@@ -681,7 +689,7 @@ else
 
                 <div class="poi-readonly">
                     <div class="poi-readonly__notice">
-                        This role can review location details only.
+                        @L("poi.readonly.notice", "This role can review location details only.")
                     </div>
 
                     @if (CanViewQr)
@@ -701,46 +709,46 @@ else
 
                     <div class="poi-detail-grid">
                         <article class="poi-detail-card">
-                            <span>Name</span>
+                            <span>@L("poi.form.name", "Name")</span>
                             <strong>@selectedLocation.Name</strong>
                             <small>@selectedLocation.Category</small>
                         </article>
                         <article class="poi-detail-card">
-                            <span>Status</span>
+                            <span>@L("poi.form.status", "Status")</span>
                             <strong>@GetStatusLabel(selectedLocation.Status)</strong>
-                            <small>@(selectedLocation.OwnerName ?? "No owner assigned")</small>
+                            <small>@(selectedLocation.OwnerName ?? L("poi.owner.empty", "No owner assigned"))</small>
                         </article>
                         <article class="poi-detail-card poi-detail-card--wide">
-                            <span>Address</span>
-                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.Address) ? "No address" : selectedLocation.Address)</strong>
+                            <span>@L("poi.form.address", "Address")</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.Address) ? L("poi.address.empty", "No address") : selectedLocation.Address)</strong>
                         </article>
                         <article class="poi-detail-card">
-                            <span>Coordinates</span>
+                            <span>@L("poi.readonly.coordinates", "Coordinates")</span>
                             <strong>@($"{selectedLocation.Latitude:F6}, {selectedLocation.Longitude:F6}")</strong>
-                            <small>@($"{selectedLocation.Radius:F0}m trigger / {selectedLocation.StandbyRadius:F0}m standby")</small>
+                            <small>@LF("poi.readonly.coordinates.hint", "{0}m trigger / {1}m standby", selectedLocation.Radius.ToString("F0", System.Globalization.CultureInfo.InvariantCulture), selectedLocation.StandbyRadius.ToString("F0", System.Globalization.CultureInfo.InvariantCulture))</small>
                         </article>
                         <article class="poi-detail-card">
-                            <span>Priority</span>
+                            <span>@L("poi.form.priority", "Priority")</span>
                             <strong>@selectedLocation.Priority</strong>
-                            <small>@($"{selectedLocation.DebounceSeconds}s cooldown")</small>
+                            <small>@LF("poi.readonly.priority.hint", "{0}s cooldown", selectedLocation.DebounceSeconds)</small>
                         </article>
                         <article class="poi-detail-card">
-                            <span>Contact</span>
-                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.Phone) ? "No phone" : selectedLocation.Phone)</strong>
-                            <small>@(string.IsNullOrWhiteSpace(selectedLocation.Email) ? "No email" : selectedLocation.Email)</small>
+                            <span>@L("poi.readonly.contact", "Contact")</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.Phone) ? L("poi.readonly.phone.empty", "No phone") : selectedLocation.Phone)</strong>
+                            <small>@(string.IsNullOrWhiteSpace(selectedLocation.Email) ? L("poi.readonly.email.empty", "No email") : selectedLocation.Email)</small>
                         </article>
                         <article class="poi-detail-card poi-detail-card--wide">
-                            <span>Description</span>
-                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.Description) ? "No description provided." : selectedLocation.Description)</strong>
+                            <span>@L("poi.form.description", "Description")</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.Description) ? L("poi.readonly.description.empty", "No description provided.") : selectedLocation.Description)</strong>
                         </article>
                         <article class="poi-detail-card">
-                            <span>Website</span>
-                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.WebURL) ? "No website" : selectedLocation.WebURL)</strong>
+                            <span>@L("poi.form.website", "Website")</span>
+                            <strong>@(string.IsNullOrWhiteSpace(selectedLocation.WebURL) ? L("poi.readonly.website.empty", "No website") : selectedLocation.WebURL)</strong>
                         </article>
                         <article class="poi-detail-card">
-                            <span>Audio</span>
-                            <strong>@selectedLocation.AudioCount linked files</strong>
-                            <small>@(selectedLocation.IsGpsTriggerEnabled ? "GPS trigger enabled" : "GPS trigger disabled")</small>
+                            <span>@L("poi.readonly.audio", "Audio")</span>
+                            <strong>@LF("poi.readonly.audio.count", "{0} linked files", selectedLocation.AudioCount)</strong>
+                            <small>@(selectedLocation.IsGpsTriggerEnabled ? L("poi.readonly.gps.enabled", "GPS trigger enabled") : L("poi.readonly.gps.disabled", "GPS trigger disabled"))</small>
                         </article>
                     </div>
                 </div>
@@ -751,40 +759,40 @@ else
 </div>
 
 <AdminConfirmDialog Visible="@(_pendingArchivedLocation is not null)"
-                    Eyebrow="@(CanManage ? "Archive Location" : "Request Archive")"
-                    Title="@(CanManage ? "Archive this location?" : "Submit an archive request?")"
+                    Eyebrow="@(CanManage ? L("poi.archive.dialog.eyebrow.manage", "Archive Location") : L("poi.archive.dialog.eyebrow.request", "Request Archive"))"
+                    Title="@(CanManage ? L("poi.archive.dialog.title.manage", "Archive this location?") : L("poi.archive.dialog.title.request", "Submit an archive request?"))"
                     Message="@GetPendingArchiveLocationMessage()"
-                    ConfirmLabel="@(CanManage ? "Archive Location" : "Submit Request")"
+                    ConfirmLabel="@(CanManage ? L("poi.archive.dialog.confirm.manage", "Archive Location") : L("poi.archive.dialog.confirm.request", "Submit Request"))"
                     ConfirmButtonClass="btn btn-danger"
                     OnConfirm="ConfirmArchiveLocationAsync"
                     OnCancel="CancelArchiveLocation">
     @if (CanSubmitRequests && !CanManage)
     {
         <div class="management-field">
-            <label for="poi-archive-reason">Submission Note</label>
+            <label for="poi-archive-reason">@L("poi.form.submission-note", "Submission Note")</label>
             <InputTextArea id="poi-archive-reason" class="form-control" rows="3" @bind-Value="_archiveReason" />
-            <span class="management-field__hint">Optional note for the reviewer.</span>
+            <span class="management-field__hint">@L("poi.archive.dialog.note.hint", "Optional note for the reviewer.")</span>
         </div>
     }
 </AdminConfirmDialog>
 
 <AdminConfirmDialog Visible="@_isBulkQrModalOpen"
-                    Eyebrow="Bulk Location QR"
-                    Title="Export QR ZIP for selected locations?"
-                    Message="Generate one QR file per selected location and bundle them into a ZIP download."
-                    ConfirmLabel="@(_isBulkQrExporting ? "Preparing ZIP..." : "Export ZIP")"
+                    Eyebrow="@L("poi.bulk.dialog.eyebrow", "Bulk Location QR")"
+                    Title="@L("poi.bulk.dialog.title", "Export QR ZIP for selected locations?")"
+                    Message="@L("poi.bulk.dialog.message", "Generate one QR file per selected location and bundle them into a ZIP download.")"
+                    ConfirmLabel="@(_isBulkQrExporting ? L("poi.bulk.dialog.confirm.loading", "Preparing ZIP...") : L("poi.bulk.dialog.confirm", "Export ZIP"))"
                     ConfirmButtonClass="btn btn-primary"
                     OnConfirm="ExportBulkQrAsync"
                     OnCancel="CloseBulkQrModalAsync">
     <div class="poi-qr-bulk">
         <div class="poi-qr-bulk__summary">
-            <strong>@SelectedBulkQrLocations.Count selected location(s)</strong>
-            <small>Maximum 100 locations per export.</small>
+            <strong>@LF("poi.bulk.selected-count", "{0} selected location(s)", SelectedBulkQrLocations.Count)</strong>
+            <small>@L("poi.bulk.limit", "Maximum 100 locations per export.")</small>
         </div>
 
         <div class="poi-qr-bulk__controls">
             <div class="management-field">
-                <label for="bulk-qr-format">Format</label>
+                <label for="bulk-qr-format">@L("poi.bulk.format", "Format")</label>
                 <InputSelect id="bulk-qr-format" class="form-select" @bind-Value="_bulkQrRequest.Format">
                     @foreach (var format in QrCodeFormats.All)
                     {
@@ -794,14 +802,14 @@ else
             </div>
 
             <div class="management-field">
-                <label for="bulk-qr-size">Size (px)</label>
+                <label for="bulk-qr-size">@L("poi.bulk.size", "Size (px)")</label>
                 <InputNumber id="bulk-qr-size" class="form-control" @bind-Value="_bulkQrRequest.Size" />
             </div>
 
             <div class="management-field">
                 <label class="location-qr__checkbox">
                     <InputCheckbox @bind-Value="_bulkQrRequest.Autoplay" />
-                    <span>Autoplay default audio after deep link</span>
+                    <span>@L("poi.bulk.autoplay", "Autoplay default audio after deep link")</span>
                 </label>
             </div>
         </div>
@@ -811,7 +819,7 @@ else
             {
                 <div class="poi-qr-bulk__list-item">
                     <strong>@location.Name</strong>
-                    <small>#@location.Id • @(location.OwnerName ?? "No owner assigned")</small>
+                    <small>#@location.Id • @(location.OwnerName ?? L("poi.owner.empty", "No owner assigned"))</small>
                 </div>
             }
         </div>
@@ -1471,8 +1479,8 @@ else
             if (!usedDeviceLocation && showFallbackNotice)
             {
                 Notifications.Info(
-                    $"Device location is unavailable, so the pin was placed at {LocationDefaults.District4Label}.",
-                    "Using default location");
+                    LF("poi.device-location.fallback.message", "Device location is unavailable, so the pin was placed at {0}.", LocationDefaults.District4Label),
+                    L("poi.device-location.fallback.title", "Using default location"));
             }
         }
         catch (JSException)
@@ -1480,8 +1488,8 @@ else
             if (showFallbackNotice)
             {
                 Notifications.Warning(
-                    $"The browser could not access device location. The pin remains at {LocationDefaults.District4Label}.",
-                    "Location unavailable");
+                    LF("poi.device-location.unavailable.message", "The browser could not access device location. The pin remains at {0}.", LocationDefaults.District4Label),
+                    L("poi.device-location.unavailable.title", "Location unavailable"));
             }
         }
     }
@@ -1492,12 +1500,12 @@ else
     {
         if (!HasActiveCategories)
         {
-            return "Activate or create at least one category before saving a location.";
+            return L("poi.form.category.hint.none", "Activate or create at least one category before saving a location.");
         }
 
         return _formModel.CategoryId > 0
-            ? "Only active categories are available for location assignments."
-            : "Archived categories are hidden. Choose an active category before saving.";
+            ? L("poi.form.category.hint.selected", "Only active categories are available for location assignments.")
+            : L("poi.form.category.hint.default", "Archived categories are hidden. Choose an active category before saving.");
     }
 
     private void SetGpsTrigger(bool isEnabled) => _formModel.IsGpsTriggerEnabled = isEnabled;
@@ -1507,16 +1515,16 @@ else
         if (_formModel.ImageFiles.Count > 0)
         {
             return _formModel.ImageFiles.Count > MaxPreviewableGalleryImages
-                ? $"{_formModel.ImageFiles.Count} gallery image file(s) queued for upload. Showing inline previews for the first {MaxPreviewableGalleryImages}."
-                : $"{_formModel.ImageFiles.Count} gallery image file(s) queued for upload.";
+                ? LF("poi.media.gallery.preview.pending-limited", "{0} gallery image file(s) queued for upload. Showing inline previews for the first {1}.", _formModel.ImageFiles.Count, MaxPreviewableGalleryImages)
+                : LF("poi.media.gallery.preview.pending", "{0} gallery image file(s) queued for upload.", _formModel.ImageFiles.Count);
         }
 
         if (_formModel.ExistingImageUrls.Count > 0)
         {
-            return $"{_formModel.ExistingImageUrls.Count} stored gallery image(s) linked to this location.";
+            return LF("poi.media.gallery.preview.stored", "{0} stored gallery image(s) linked to this location.", _formModel.ExistingImageUrls.Count);
         }
 
-        return "Stored gallery images and newly selected uploads are previewed here.";
+        return L("poi.media.gallery.preview.hint", "Stored gallery images and newly selected uploads are previewed here.");
     }
 
     private List<string> GetResolvedImageUrls(LocationDto? location) =>
@@ -1542,15 +1550,31 @@ else
     {
         if (_formModel.PreferenceImageFile is not null)
         {
-            return $"Previewing the new preference image: {_formModel.PreferenceImageFile.Name}";
+            return LF("poi.media.preference-image.preview.pending", "Previewing the new preference image: {0}", _formModel.PreferenceImageFile.Name);
         }
 
         if (!string.IsNullOrWhiteSpace(_formModel.ExistingPreferenceImageUrl))
         {
-            return "This stored image is the current POI avatar.";
+            return L("poi.media.preference-image.preview.stored", "This stored image is the current POI avatar.");
         }
 
-        return "A preference image is required for each POI.";
+        return L("poi.media.preference-image.preview.required", "A preference image is required for each POI.");
+    }
+
+    private string GetPreferenceImageSelectionLabel() =>
+        _formModel.PreferenceImageFile?.Name
+        ?? L("file.none.selected", "No file chosen");
+
+    private string GetGalleryImageSelectionLabel()
+    {
+        if (_formModel.ImageFiles.Count == 0)
+        {
+            return L("file.none.selected", "No file chosen");
+        }
+
+        return _formModel.ImageFiles.Count == 1
+            ? _formModel.ImageFiles[0].Name
+            : LF("file.multiple.selected", "{0} files selected", _formModel.ImageFiles.Count);
     }
 
     private string? GetLocationAvatarUrl(LocationDto? location)
@@ -1756,7 +1780,7 @@ else
         _mapSearchText = query ?? "";
     }
 
-    private static string GetMapSearchResultTitle(MapSearchResult result)
+    private string GetMapSearchResultTitle(MapSearchResult result)
     {
         if (!string.IsNullOrWhiteSpace(result.Name))
         {
@@ -1768,10 +1792,22 @@ else
             return result.Address;
         }
 
-        return "Map result";
+        return L("poi.map.result.default", "Map result");
     }
 
     private string L(string key, string fallback) => Language.T(key, fallback);
+    private string LF(string key, string fallback, params object?[] args) =>
+        string.Format(System.Globalization.CultureInfo.CurrentCulture, L(key, fallback), args);
+
+    private string TranslateCategoryName(string? categoryName) => (categoryName ?? string.Empty).Trim() switch
+    {
+        "Drinks" => "Đồ uống",
+        "Food" => "Ẩm thực",
+        "Historical Site" => "Di tích lịch sử",
+        "Landmark" => "Địa danh",
+        "Markets & Food Halls" => "Chợ & khu ẩm thực",
+        _ => categoryName ?? string.Empty
+    };
 
     private static string GetStatusClass(int status) => status == 1
         ? "management-status management-status--active"
@@ -1877,8 +1913,8 @@ else
         _pendingArchivedLocation is null
             ? string.Empty
             : CanManage
-                ? $"'{_pendingArchivedLocation.Name}' will become inactive and its audio items will stop accepting new changes until the location is active again."
-                : $"An Admin or Developer will review the archive request for '{_pendingArchivedLocation.Name}' before the live POI is changed.";
+                ? LF("poi.archive.dialog.message.manage", "'{0}' will become inactive and its audio items will stop accepting new changes until the location is active again.", _pendingArchivedLocation.Name)
+                : LF("poi.archive.dialog.message.request", "An Admin or Developer will review the archive request for '{0}' before the live POI is changed.", _pendingArchivedLocation.Name);
 
     private void CancelArchiveLocation()
     {

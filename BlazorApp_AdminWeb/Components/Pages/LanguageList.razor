@@ -1,17 +1,19 @@
 @page "/languages"
+@using System.Globalization
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
 @inject AdminSessionState SessionState
+@inject AdminUiLanguageService LanguageService
 
-<PageTitle>Language Management</PageTitle>
+<PageTitle>@L("page.languages", "Language Management")</PageTitle>
 
 @if (!CanView)
 {
     <div class="management-page language-page">
         <div class="management-error">
-            <strong>Access denied.</strong>
-            <div>Your current role cannot view languages.</div>
+            <strong>@L("languages.access.denied.title", "Access denied.")</strong>
+            <div>@L("languages.access.denied.desc", "Your current role cannot view languages.")</div>
         </div>
     </div>
 }
@@ -20,18 +22,15 @@ else
 <div class="management-page language-page">
     <section class="management-hero" data-reveal>
         <div>
-            <span class="management-hero__eyebrow">Locale Catalog</span>
-            <h1>Language Management</h1>
-            <p>
-                Control which audio languages are available in the admin web and whether browser preview
-                should prefer a native system voice for that locale.
-            </p>
+            <span class="management-hero__eyebrow">@L("languages.hero.eyebrow", "Locale Catalog")</span>
+            <h1>@L("languages.hero.title", "Language Management")</h1>
+            <p>@L("languages.hero.desc", "Control which audio languages are available in the admin web and whether browser preview should prefer a native system voice for that locale.")</p>
         </div>
 
         <div class="management-hero__actions">
             <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync">
                 <i class="bi bi-arrow-clockwise me-2"></i>
-                Refresh
+                @L("languages.action.refresh", "Refresh")
             </button>
         </div>
     </section>
@@ -41,28 +40,28 @@ else
             <span class="management-stat__icon"><i class="bi bi-translate"></i></span>
             <div>
                 <strong class="management-stat__value">@_languages.Count</strong>
-                <span class="management-stat__label">Total Languages</span>
+                <span class="management-stat__label">@L("languages.stats.total", "Total Languages")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
             <div>
                 <strong class="management-stat__value">@_languages.Count(item => item.Status == 1)</strong>
-                <span class="management-stat__label">Active</span>
+                <span class="management-stat__label">@L("status.active", "Active")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-volume-up"></i></span>
             <div>
                 <strong class="management-stat__value">@_languages.Count(item => item.PreferNativeVoice && item.Status == 1)</strong>
-                <span class="management-stat__label">Native Voice On</span>
+                <span class="management-stat__label">@L("languages.stats.native-voice-on", "Native Voice On")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-star-fill"></i></span>
             <div>
                 <strong class="management-stat__value">@_languages.Count(item => item.IsDefault && item.Status == 1)</strong>
-                <span class="management-stat__label">Default Language</span>
+                <span class="management-stat__label">@L("languages.stats.default-language", "Default Language")</span>
             </div>
         </article>
     </div>
@@ -71,13 +70,13 @@ else
         <section class="management-panel" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">Directory</span>
-                    <h2>Available Languages</h2>
+                    <span class="management-panel__eyebrow">@L("languages.directory.eyebrow", "Directory")</span>
+                    <h2>@L("languages.directory.title", "Available Languages")</h2>
                 </div>
 
                 <label class="management-search">
                     <i class="bi bi-search"></i>
-                    <input class="form-control" type="search" placeholder="Search languages..." @bind="_searchText" @bind:event="oninput" />
+                    <input class="form-control" type="search" placeholder="@L("languages.search.placeholder", "Search languages...")" @bind="_searchText" @bind:event="oninput" />
                 </label>
             </div>
 
@@ -96,17 +95,17 @@ else
             }
             else if (!string.IsNullOrWhiteSpace(_loadError))
             {
-                <div class="management-error">
-                    <strong>Unable to load languages.</strong>
-                    <div>@_loadError</div>
-                </div>
-            }
-            else if (!FilteredLanguages.Any())
-            {
-                <div class="app-empty-state">
-                    No languages match the current search.
-                </div>
-            }
+            <div class="management-error">
+                <strong>@L("languages.load.failed.title", "Unable to load languages.")</strong>
+                <div>@_loadError</div>
+            </div>
+        }
+        else if (!FilteredLanguages.Any())
+        {
+            <div class="app-empty-state">
+                    @L("languages.empty.filtered", "No languages match the current search.")
+            </div>
+        }
             else
             {
                 <div class="management-page-swap" @key="CurrentLanguagePage">
@@ -127,19 +126,19 @@ else
                                     </div>
 
                                     <div class="language-card__meta">
-                                        <span class="language-card__tag">@(string.IsNullOrWhiteSpace(language.NativeName) ? "No native name" : language.NativeName)</span>
-                                        <span class="language-card__tag">@(language.PreferNativeVoice ? "Native voice preview" : "Flexible preview")</span>
+                                        <span class="language-card__tag">@(string.IsNullOrWhiteSpace(language.NativeName) ? L("languages.native.empty", "No native name") : language.NativeName)</span>
+                                        <span class="language-card__tag">@(language.PreferNativeVoice ? L("languages.preview.native", "Native voice preview") : L("languages.preview.flexible", "Flexible preview"))</span>
                                         @if (language.IsDefault)
                                         {
-                                            <span class="language-card__tag language-card__tag--default">Default</span>
+                                            <span class="language-card__tag language-card__tag--default">@L("languages.default", "Default")</span>
                                         }
                                     </div>
                                 </div>
 
                                 <div class="management-inline-actions">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(language)">@(CanManage ? "Edit" : "View")</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(language)">@(CanManage ? L("languages.action.edit", "Edit") : L("languages.action.view", "View"))</button>
                                     <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage || language.Status == 0)" @onclick="() => PromptArchiveLanguage(language)">
-                                        @(language.Status == 0 ? "Inactive" : "Archive")
+                                        @(language.Status == 0 ? L("status.inactive", "Inactive") : L("languages.action.archive", "Archive"))
                                     </button>
                                 </div>
                             </article>
@@ -149,17 +148,17 @@ else
 
                 @if (TotalLanguagePages > 1)
                 {
-                    <div class="management-pagination">
-                        <span class="management-pagination__info">Page @CurrentLanguagePage of @TotalLanguagePages (@FilteredLanguages.Count() total languages)</span>
-                        <div class="management-pagination__actions">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousLanguagePage" disabled="@(CurrentLanguagePage <= 1)">
-                                <i class="bi bi-chevron-left"></i> Previous
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextLanguagePage" disabled="@(CurrentLanguagePage >= TotalLanguagePages)">
-                                Next <i class="bi bi-chevron-right"></i>
-                            </button>
-                        </div>
+                <div class="management-pagination">
+                    <span class="management-pagination__info">@LF("languages.pagination.info", "Page {0} of {1} ({2} total languages)", CurrentLanguagePage, TotalLanguagePages, FilteredLanguages.Count())</span>
+                    <div class="management-pagination__actions">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousLanguagePage" disabled="@(CurrentLanguagePage <= 1)">
+                            <i class="bi bi-chevron-left"></i> @L("languages.pagination.previous", "Previous")
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextLanguagePage" disabled="@(CurrentLanguagePage >= TotalLanguagePages)">
+                            @L("languages.pagination.next", "Next") <i class="bi bi-chevron-right"></i>
+                        </button>
                     </div>
+                </div>
                 }
             }
         </section>
@@ -167,8 +166,8 @@ else
         <section class="management-panel language-editor" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">@(CanManage ? "Editor" : "Read Only")</span>
-                    <h2>@(CanManage ? (_editingId is null ? "Create Language" : "Edit Language") : "Language Details")</h2>
+                    <span class="management-panel__eyebrow">@(CanManage ? L("languages.editor.eyebrow", "Editor") : L("languages.readonly.eyebrow", "Read Only"))</span>
+                    <h2>@(CanManage ? (_editingId is null ? L("languages.editor.create", "Create Language") : L("languages.editor.edit", "Edit Language")) : L("languages.readonly.title", "Language Details"))</h2>
                 </div>
             </div>
 
@@ -178,60 +177,60 @@ else
                 <DataAnnotationsValidator />
 
                 <div class="management-field">
-                    <label for="language-code">Language Code</label>
+                    <label for="language-code">@L("languages.form.code", "Language Code")</label>
                     <InputText id="language-code" class="form-control" @bind-Value="_formModel.Code" />
                     <ValidationMessage For="() => _formModel.Code" />
                 </div>
 
                 <div class="management-field">
-                    <label for="language-name">Language Name</label>
+                    <label for="language-name">@L("languages.form.name", "Language Name")</label>
                     <InputText id="language-name" class="form-control" @bind-Value="_formModel.Name" />
                     <ValidationMessage For="() => _formModel.Name" />
                 </div>
 
                 <div class="management-field management-field--full">
-                    <label for="language-native-name">Native Name</label>
+                    <label for="language-native-name">@L("languages.form.native-name", "Native Name")</label>
                     <InputText id="language-native-name" class="form-control" @bind-Value="_formModel.NativeName" />
                     <ValidationMessage For="() => _formModel.NativeName" />
                 </div>
 
                 <div class="management-field management-field--full">
-                    <span class="management-field__label">Preview Voice Mode</span>
+                    <span class="management-field__label">@L("languages.form.preview-mode", "Preview Voice Mode")</span>
                     <div class="management-chip-group">
-                        <button type="button" class="@GetBoolChipClass(true, _formModel.PreferNativeVoice)" @onclick="() => SetPreferNativeVoice(true)">Native voice</button>
-                        <button type="button" class="@GetBoolChipClass(false, _formModel.PreferNativeVoice)" @onclick="() => SetPreferNativeVoice(false)">Flexible fallback</button>
+                        <button type="button" class="@GetBoolChipClass(true, _formModel.PreferNativeVoice)" @onclick="() => SetPreferNativeVoice(true)">@L("languages.preview.native.voice", "Native voice")</button>
+                        <button type="button" class="@GetBoolChipClass(false, _formModel.PreferNativeVoice)" @onclick="() => SetPreferNativeVoice(false)">@L("languages.preview.flexible.fallback", "Flexible fallback")</button>
                     </div>
-                    <span class="management-field__hint">Native voice keeps preview in the chosen language when possible. Flexible fallback can use another installed voice if the browser lacks a strong locale match.</span>
+                    <span class="management-field__hint">@L("languages.preview.hint", "Native voice keeps preview in the chosen language when possible. Flexible fallback can use another installed voice if the browser lacks a strong locale match.")</span>
                 </div>
 
                 <div class="management-field management-field--full">
-                    <span class="management-field__label">Default Language</span>
+                    <span class="management-field__label">@L("languages.form.default-language", "Default Language")</span>
                     <div class="management-chip-group">
-                        <button type="button" class="@GetBoolChipClass(true, _formModel.IsDefault)" @onclick="() => SetDefaultLanguage(true)">Default</button>
-                        <button type="button" class="@GetBoolChipClass(false, _formModel.IsDefault)" @onclick="() => SetDefaultLanguage(false)">Normal</button>
+                        <button type="button" class="@GetBoolChipClass(true, _formModel.IsDefault)" @onclick="() => SetDefaultLanguage(true)">@L("languages.default", "Default")</button>
+                        <button type="button" class="@GetBoolChipClass(false, _formModel.IsDefault)" @onclick="() => SetDefaultLanguage(false)">@L("languages.normal", "Normal")</button>
                     </div>
                 </div>
 
                 <div class="management-field management-field--full">
-                    <span class="management-field__label">Status</span>
+                    <span class="management-field__label">@L("languages.form.status", "Status")</span>
                     <div class="management-chip-group">
-                        <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
-                        <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                        <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">@L("status.active", "Active")</button>
+                        <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">@L("status.inactive", "Inactive")</button>
                     </div>
                 </div>
 
                 <div class="management-actions">
                     <button type="submit" class="btn btn-primary" disabled="@(_isSaving || !CanManage)">
-                        @(_isSaving ? "Saving..." : _editingId is null ? "Create Language" : "Save Changes")
+                        @(_isSaving ? L("languages.save.saving", "Saving...") : _editingId is null ? L("languages.save.create", "Create Language") : L("languages.save.update", "Save Changes"))
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(CanManage ? (_editingId is null ? "Reset" : "Cancel Edit") : "Read Only")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">@(CanManage ? (_editingId is null ? L("languages.action.reset", "Reset") : L("languages.action.cancel-edit", "Cancel Edit")) : L("languages.readonly.eyebrow", "Read Only"))</button>
                 </div>
             </EditForm>
             }
             else if (SelectedLanguageForDisplay is null)
             {
                 <div class="app-empty-state">
-                    Select a language to review its details.
+                    @L("languages.readonly.empty", "Select a language to review its details.")
                 </div>
             }
             else
@@ -240,11 +239,11 @@ else
 
                 <div class="language-readonly">
                     <div class="language-readonly__notice">
-                        Language changes require an Admin or Developer account.
+                        @L("languages.readonly.notice", "Language changes require an Admin or Developer account.")
                     </div>
 
                     <div class="language-detail-card">
-                        <span>Code</span>
+                        <span>@L("languages.form.code", "Code")</span>
                         <strong class="language-detail-card__headline">
                             <span class="language-flag" title="@GetLanguageFlagLabel(selectedLanguage)">@GetLanguageFlagCode(selectedLanguage)</span>
                             @selectedLanguage.Code
@@ -253,15 +252,15 @@ else
                     </div>
 
                     <div class="language-detail-card">
-                        <span>Name</span>
+                        <span>@L("languages.form.name", "Name")</span>
                         <strong>@selectedLanguage.Name</strong>
-                        <small>@(string.IsNullOrWhiteSpace(selectedLanguage.NativeName) ? "No native name" : selectedLanguage.NativeName)</small>
+                        <small>@(string.IsNullOrWhiteSpace(selectedLanguage.NativeName) ? L("languages.native.empty", "No native name") : selectedLanguage.NativeName)</small>
                     </div>
 
                     <div class="language-detail-card">
-                        <span>Preview Mode</span>
-                        <strong>@(selectedLanguage.PreferNativeVoice ? "Native voice" : "Flexible fallback")</strong>
-                        <small>@(selectedLanguage.IsDefault ? "Default language" : "Standard catalog entry")</small>
+                        <span>@L("languages.form.preview-mode.short", "Preview Mode")</span>
+                        <strong>@(selectedLanguage.PreferNativeVoice ? L("languages.preview.native.voice", "Native voice") : L("languages.preview.flexible.fallback", "Flexible fallback"))</strong>
+                        <small>@(selectedLanguage.IsDefault ? L("languages.default.language", "Default language") : L("languages.standard.entry", "Standard catalog entry"))</small>
                     </div>
                 </div>
             }
@@ -270,16 +269,19 @@ else
 </div>
 
 <AdminConfirmDialog Visible="@(_pendingArchivedLanguage is not null)"
-                    Eyebrow="Archive Language"
-                    Title="Archive this language?"
+                    Eyebrow="@L("languages.archive.dialog.eyebrow", "Archive Language")"
+                    Title="@L("languages.archive.dialog.title", "Archive this language?")"
                     Message="@GetPendingArchiveLanguageMessage()"
-                    ConfirmLabel="Archive Language"
+                    ConfirmLabel="@L("languages.archive.dialog.confirm", "Archive Language")"
                     ConfirmButtonClass="btn btn-danger"
                     OnConfirm="ConfirmArchiveLanguageAsync"
                     OnCancel="CancelArchiveLanguage" />
 }
 
 @code {
+    private string L(string key, string fallback) => LanguageService.T(key, fallback);
+    private string LF(string key, string fallback, params object?[] args) =>
+        string.Format(CultureInfo.CurrentCulture, L(key, fallback), args);
     private readonly LanguageFormModel _formModel = new();
     private readonly List<LanguageDto> _languages = new();
     private LanguageDto? _selectedLanguage;
@@ -335,7 +337,7 @@ else
         catch (Exception ex)
         {
             _loadError = ex.Message;
-            Notifications.Error(ex.Message, "Language load failed");
+            Notifications.Error(ex.Message, L("languages.load.failed.toast", "Language load failed"));
         }
         finally
         {
@@ -389,7 +391,9 @@ else
     {
         if (!CanManage)
         {
-            Notifications.Warning("Your role can view languages but cannot save changes.", "Read-only access");
+            Notifications.Warning(
+                L("languages.save.readonly.message", "Your role can view languages but cannot save changes."),
+                L("languages.readonly.short", "Read-only access"));
             return;
         }
 
@@ -400,12 +404,16 @@ else
             if (_editingId is null)
             {
                 await ApiClient.CreateLanguageAsync(_formModel);
-                Notifications.Success("Language created successfully.", "Language saved");
+                Notifications.Success(
+                    L("languages.save.created.message", "Language created successfully."),
+                    L("languages.save.title", "Language saved"));
             }
             else
             {
                 await ApiClient.UpdateLanguageAsync(_editingId.Value, _formModel);
-                Notifications.Success("Language updated successfully.", "Language saved");
+                Notifications.Success(
+                    L("languages.save.updated.message", "Language updated successfully."),
+                    L("languages.save.title", "Language saved"));
             }
 
             await LoadLanguagesAsync();
@@ -413,7 +421,7 @@ else
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Language save failed");
+            Notifications.Error(ex.Message, L("languages.save.failed.title", "Language save failed"));
         }
         finally
         {
@@ -431,16 +439,18 @@ else
 
         Notifications.Warning(
             message.Count == 0
-                ? "Fix the highlighted language fields before saving."
+                ? L("languages.validation.generic", "Fix the highlighted language fields before saving.")
                 : string.Join(" ", message),
-            "Language form incomplete");
+            L("languages.validation.title", "Language form incomplete"));
     }
 
     private void PromptArchiveLanguage(LanguageDto language)
     {
         if (!CanManage)
         {
-            Notifications.Warning("Your role can view languages but cannot archive them.", "Read-only access");
+            Notifications.Warning(
+                L("languages.archive.readonly.message", "Your role can view languages but cannot archive them."),
+                L("languages.readonly.short", "Read-only access"));
             return;
         }
 
@@ -457,7 +467,9 @@ else
         try
         {
             await ApiClient.DeleteLanguageAsync(_pendingArchivedLanguage.Id);
-            Notifications.Info($"'{_pendingArchivedLanguage.Name}' is now inactive.", "Language archived");
+            Notifications.Info(
+                LF("languages.archive.success.message", "'{0}' is now inactive.", _pendingArchivedLanguage.Name),
+                L("languages.archive.success.title", "Language archived"));
             await LoadLanguagesAsync();
 
             if (_editingId == _pendingArchivedLanguage.Id)
@@ -467,7 +479,7 @@ else
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Delete failed");
+            Notifications.Error(ex.Message, L("languages.archive.failed.title", "Delete failed"));
         }
         finally
         {
@@ -524,7 +536,9 @@ else
         ? "management-status management-status--active"
         : "management-status management-status--inactive";
 
-    private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
+    private string GetStatusLabel(int status) => status == 1
+        ? L("status.active", "Active")
+        : L("status.inactive", "Inactive");
 
     private static string GetChipClass(int status, int currentStatus) => status == currentStatus
         ? "management-chip management-chip--selected"
@@ -572,13 +586,13 @@ else
         };
     }
 
-    private static string GetLanguageFlagLabel(LanguageDto language) =>
-        $"{GetLanguageFlagCode(language)} locale";
+    private string GetLanguageFlagLabel(LanguageDto language) =>
+        LF("languages.flag.locale", "{0} locale", GetLanguageFlagCode(language));
 
     private string GetPendingArchiveLanguageMessage() =>
         _pendingArchivedLanguage is null
             ? string.Empty
-            : $"'{_pendingArchivedLanguage.Name}' will become inactive and can no longer be assigned to new or edited audio items.";
+            : LF("languages.archive.dialog.message", "'{0}' will become inactive and can no longer be assigned to new or edited audio items.", _pendingArchivedLanguage.Name);
 
     private void CancelArchiveLanguage() => _pendingArchivedLanguage = null;
 }

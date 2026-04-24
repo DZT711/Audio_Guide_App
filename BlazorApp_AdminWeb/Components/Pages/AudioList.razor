@@ -1,19 +1,21 @@
 @page "/audio"
 @implements IAsyncDisposable
+@using System.Globalization
 @inject AdminApiClient ApiClient
 @inject NotificationService Notifications
 @inject IJSRuntime JS
 @using Microsoft.AspNetCore.Components.Forms
 @inject AdminSessionState SessionState
+@inject AdminUiLanguageService LanguageService
 
-<PageTitle>Audio & Voice Management</PageTitle>
+<PageTitle>@L("page.audio", "Audio & Voice Management")</PageTitle>
 
 @if (!CanView)
 {
     <div class="management-page audio-page">
         <div class="management-error">
-            <strong>Access denied.</strong>
-            <div>Your current role cannot view audio items.</div>
+            <strong>@L("audio.access.denied.title", "Access denied.")</strong>
+            <div>@L("audio.access.denied.desc", "Your current role cannot view audio items.")</div>
         </div>
     </div>
 }
@@ -22,18 +24,15 @@ else
 <div class="management-page audio-page">
     <section class="management-hero" data-reveal>
         <div>
-            <span class="management-hero__eyebrow">Audio &amp; Voice</span>
-            <h1>Audio and Voice Management</h1>
-            <p>
-                Link audio to locations, manage scripts, and label each item for male or female
-                speech profiles in the live admin workflow.
-            </p>
+            <span class="management-hero__eyebrow">@L("audio.hero.eyebrow", "Audio & Voice")</span>
+            <h1>@L("audio.hero.title", "Audio and Voice Management")</h1>
+            <p>@L("audio.hero.desc", "Link audio to locations, manage scripts, and label each item for male or female speech profiles in the live admin workflow.")</p>
         </div>
 
         <div class="management-hero__actions">
             <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
                 <i class="bi bi-arrow-clockwise me-2"></i>
-                Refresh
+                @L("audio.action.refresh", "Refresh")
             </button>
         </div>
     </section>
@@ -43,28 +42,28 @@ else
             <span class="management-stat__icon"><i class="bi bi-mic"></i></span>
             <div>
                 <strong class="management-stat__value">@_audioItems.Count</strong>
-                <span class="management-stat__label">Total Audio Items</span>
+                <span class="management-stat__label">@L("audio.stats.total", "Total Audio Items")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-gender-male"></i></span>
             <div>
                 <strong class="management-stat__value">@_audioItems.Count(item => IsVoice(item, "Male"))</strong>
-                <span class="management-stat__label">Male Voice Labels</span>
+                <span class="management-stat__label">@L("audio.stats.male-voices", "Male Voice Labels")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-gender-female"></i></span>
             <div>
                 <strong class="management-stat__value">@_audioItems.Count(item => IsVoice(item, "Female"))</strong>
-                <span class="management-stat__label">Female Voice Labels</span>
+                <span class="management-stat__label">@L("audio.stats.female-voices", "Female Voice Labels")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-file-text"></i></span>
             <div>
                 <strong class="management-stat__value">@_audioItems.Count(item => !string.IsNullOrWhiteSpace(item.Script))</strong>
-                <span class="management-stat__label">Script-backed TTS Items</span>
+                <span class="management-stat__label">@L("audio.stats.script-backed", "Script-backed TTS Items")</span>
             </div>
         </article>
     </div>
@@ -73,18 +72,18 @@ else
         <section class="management-panel" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">Library</span>
-                    <h2>Audio Catalog</h2>
+                    <span class="management-panel__eyebrow">@L("audio.library.eyebrow", "Library")</span>
+                    <h2>@L("audio.library.title", "Audio Catalog")</h2>
                 </div>
 
                 <div class="management-toolbar">
                     <label class="management-search">
                         <i class="bi bi-search"></i>
-                        <input class="form-control" type="search" placeholder="Search audio..." @bind="_searchText" @bind:event="oninput" @bind:after="ResetAudioPage" />
+                        <input class="form-control" type="search" placeholder="@L("audio.search.placeholder", "Search audio...")" @bind="_searchText" @bind:event="oninput" @bind:after="ResetAudioPage" />
                     </label>
 
                     <select class="form-select management-filter" @bind="_locationFilter" @bind:after="ResetAudioPage">
-                        <option value="">All locations</option>
+                        <option value="">@L("audio.filter.location.all", "All locations")</option>
                         @foreach (var location in LocationOptions)
                         {
                             <option value="@location.Id">@GetLocationOptionLabel(location)</option>
@@ -92,15 +91,15 @@ else
                     </select>
 
                     <select class="form-select management-filter" @bind="_voiceFilter" @bind:after="ResetAudioPage">
-                        <option value="">All voices</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
+                        <option value="">@L("audio.filter.voice.all", "All voices")</option>
+                        <option value="Male">@L("audio.voice.male", "Male")</option>
+                        <option value="Female">@L("audio.voice.female", "Female")</option>
                     </select>
 
                     <select class="form-select management-filter" @bind="_statusFilter" @bind:after="ResetAudioPage">
-                        <option value="">All statuses</option>
-                        <option value="1">Active</option>
-                        <option value="0">Inactive</option>
+                        <option value="">@L("audio.filter.status.all", "All statuses")</option>
+                        <option value="1">@L("status.active", "Active")</option>
+                        <option value="0">@L("status.inactive", "Inactive")</option>
                     </select>
                 </div>
             </div>
@@ -121,14 +120,14 @@ else
             else if (!string.IsNullOrWhiteSpace(_loadError))
             {
                 <div class="management-error">
-                    <strong>Unable to load audio items.</strong>
+                    <strong>@L("audio.load.failed.title", "Unable to load audio items.")</strong>
                     <div>@_loadError</div>
                 </div>
             }
             else if (!FilteredAudio.Any())
             {
                 <div class="app-empty-state">
-                    No audio items match the current filters.
+                    @L("audio.empty.filtered", "No audio items match the current filters.")
                 </div>
             }
             else
@@ -153,14 +152,14 @@ else
                                     <span class="audio-card__tag">@($"{audio.Duration} sec")</span>
                                 </div>
 
-                                <p class="audio-card__description">@(string.IsNullOrWhiteSpace(audio.Description) ? "No description provided yet." : audio.Description)</p>
+                                <p class="audio-card__description">@(string.IsNullOrWhiteSpace(audio.Description) ? L("audio.description.empty", "No description provided yet.") : audio.Description)</p>
 
                                 <div class="audio-card__footer">
                                     <small class="management-muted">@GetAudioStorageLabel(audio.AudioURL)</small>
                                     <div class="management-inline-actions">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">@(CanEditContent ? "Edit" : "View")</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(audio)">@(CanEditContent ? L("audio.action.edit", "Edit") : L("audio.action.view", "View"))</button>
                                         <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(!CanManage && !CanSubmitRequests || audio.Status == 0)" @onclick="() => PromptArchiveAudio(audio)">
-                                            @(audio.Status == 0 ? "Inactive" : CanManage ? "Archive" : "Request Archive")
+                                            @(audio.Status == 0 ? L("status.inactive", "Inactive") : CanManage ? L("audio.action.archive", "Archive") : L("audio.action.request-archive", "Request Archive"))
                                         </button>
                                     </div>
                                 </div>
@@ -171,14 +170,14 @@ else
 
                 @if (TotalAudioPages > 1)
                 {
-                    <div class="management-pagination">
-                        <span class="management-pagination__info">Page @CurrentAudioPage of @TotalAudioPages (@FilteredAudio.Count() total audio items)</span>
+                <div class="management-pagination">
+                        <span class="management-pagination__info">@LF("audio.pagination.info", "Page {0} of {1} ({2} total audio items)", CurrentAudioPage, TotalAudioPages, FilteredAudio.Count())</span>
                         <div class="management-pagination__actions">
                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PreviousAudioPage" disabled="@(CurrentAudioPage <= 1)">
-                                <i class="bi bi-chevron-left"></i> Previous
+                                <i class="bi bi-chevron-left"></i> @L("audio.pagination.previous", "Previous")
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextAudioPage" disabled="@(CurrentAudioPage >= TotalAudioPages)">
-                                Next <i class="bi bi-chevron-right"></i>
+                                @L("audio.pagination.next", "Next") <i class="bi bi-chevron-right"></i>
                             </button>
                         </div>
                     </div>
@@ -189,8 +188,8 @@ else
         <section class="management-panel audio-editor" data-reveal>
             <div class="management-panel__header">
                 <div>
-                    <span class="management-panel__eyebrow">@(CanEditContent ? (CanManage ? "Editor" : "Submission") : "Read Only")</span>
-                    <h2>@(CanEditContent ? (_editingId is null ? "Create Audio" : "Edit Audio") : "Audio Details")</h2>
+                    <span class="management-panel__eyebrow">@(CanEditContent ? (CanManage ? L("audio.editor.eyebrow", "Editor") : L("audio.submission.eyebrow", "Submission")) : L("audio.readonly.eyebrow", "Read Only"))</span>
+                    <h2>@(CanEditContent ? (_editingId is null ? L("audio.editor.create", "Create Audio") : L("audio.editor.edit", "Edit Audio")) : L("audio.readonly.title", "Audio Details"))</h2>
                 </div>
             </div>
 
@@ -201,15 +200,15 @@ else
 
                 <div class="management-form__grid">
                     <div class="management-field">
-                        <label for="audio-title">Title</label>
+                        <label for="audio-title">@L("audio.form.title", "Title")</label>
                         <InputText id="audio-title" class="form-control" @bind-Value="_formModel.Title" />
                         <ValidationMessage For="() => _formModel.Title" />
                     </div>
 
                     <div class="management-field">
-                        <label for="audio-location">Location</label>
+                        <label for="audio-location">@L("audio.form.location", "Location")</label>
                         <InputSelect id="audio-location" class="form-select" @bind-Value="_formModel.LocationId">
-                            <option value="0">Choose location</option>
+                            <option value="0">@L("audio.form.location.choose", "Choose location")</option>
                             @foreach (var location in LocationOptions)
                             {
                                 <option value="@location.Id">@GetLocationOptionLabel(location)</option>
@@ -220,7 +219,7 @@ else
                     </div>
 
                     <div class="management-field">
-                        <label for="audio-source-type">Source Type</label>
+                        <label for="audio-source-type">@L("audio.form.source-type", "Source Type")</label>
                         <InputSelect id="audio-source-type" class="form-select" @bind-Value="_formModel.SourceType">
                             <option value="TTS">TTS</option>
                             <option value="Recorded">Recorded</option>
@@ -230,30 +229,30 @@ else
                     </div>
 
                     <div class="management-field management-field--full">
-                        <label for="audio-file">Audio File</label>
+                        <label for="audio-file">@L("audio.form.file", "Audio File")</label>
                         <InputFile id="audio-file" class="form-control" OnChange="HandleAudioFileSelected" accept="audio/*" />
                         <ValidationMessage For="() => _formModel.AudioPath" />
                         @if (_formModel.AudioFile is not null)
                         {
-                            <span class="management-field__hint">Selected file: @_formModel.AudioFile.Name</span>
+                            <span class="management-field__hint">@LF("audio.form.file.selected", "Selected file: {0}", _formModel.AudioFile.Name)</span>
                         }
                         else if (!string.IsNullOrWhiteSpace(_formModel.AudioPath))
                         {
-                            <span class="management-field__hint">Stored file: @_formModel.AudioPath</span>
+                            <span class="management-field__hint">@LF("audio.form.file.stored", "Stored file: {0}", _formModel.AudioPath)</span>
                         }
-                        <span class="management-field__hint">The uploaded file is stored automatically in the API `wwwroot/archive/audio` folder and the URL is generated for you.</span>
+                        <span class="management-field__hint">@L("audio.form.file.hint", "The uploaded file is stored automatically in the API `wwwroot/archive/audio` folder and the URL is generated for you.")</span>
                     </div>
 
                     <div class="management-field management-field--full">
                         <div class="audio-file-preview">
                             <div>
-                                <span class="management-field__label">Audio File Preview</span>
+                                <span class="management-field__label">@L("audio.form.preview.file", "Audio File Preview")</span>
                                 <div class="management-field__hint">@GetAudioPreviewHint()</div>
                             </div>
 
                             @if (_isCheckingAudioPreview)
                             {
-                                <div class="management-muted">Checking the audio file before previewing it.</div>
+                                <div class="management-muted">@L("audio.form.preview.file.checking", "Checking the audio file before previewing it.")</div>
                             }
                             else if (!string.IsNullOrWhiteSpace(_audioPreviewUrl))
                             {
@@ -261,7 +260,7 @@ else
                             }
                             else
                             {
-                                <div class="management-muted">Select a new audio file or edit an existing item to listen here.</div>
+                                <div class="management-muted">@L("audio.form.preview.file.empty", "Select a new audio file or edit an existing item to listen here.")</div>
                             }
                         </div>
 
@@ -272,11 +271,11 @@ else
                     </div>
 
                     <div class="management-field audio-field audio-field--language">
-                        <label for="audio-language">Language</label>
+                        <label for="audio-language">@L("audio.form.language", "Language")</label>
                         <InputSelect id="audio-language" class="form-select" @bind-Value="_formModel.Language" disabled="@(!HasLanguageCatalog)">
                             @if (!HasLanguageCatalog)
                             {
-                                <option value="">No language available</option>
+                                <option value="">@L("audio.form.language.none", "No language available")</option>
                             }
                             else
                             {
@@ -291,49 +290,49 @@ else
                     </div>
 
                     <div class="management-field audio-field audio-field--duration">
-                        <label for="audio-duration">Duration (sec)</label>
+                        <label for="audio-duration">@L("audio.form.duration", "Duration (sec)")</label>
                         <InputNumber id="audio-duration" class="form-control" @bind-Value="_formModel.Duration" />
                         <ValidationMessage For="() => _formModel.Duration" />
                     </div>
 
                     <div class="management-field">
-                        <label for="audio-voice-name">Voice Name</label>
+                        <label for="audio-voice-name">@L("audio.form.voice-name", "Voice Name")</label>
                         <InputText id="audio-voice-name" class="form-control" @bind-Value="_formModel.VoiceName" />
                         <ValidationMessage For="() => _formModel.VoiceName" />
                     </div>
 
                     <div class="management-field">
-                        <label for="audio-priority">Priority</label>
+                        <label for="audio-priority">@L("audio.form.priority", "Priority")</label>
                         <InputNumber id="audio-priority" class="form-control" @bind-Value="_formModel.Priority" />
                         <ValidationMessage For="() => _formModel.Priority" />
                     </div>
 
                     <div class="management-field management-field--full">
-                        <span class="management-field__label">Speech Profile</span>
+                        <span class="management-field__label">@L("audio.form.speech-profile", "Speech Profile")</span>
                         <div class="management-chip-group">
-                            <button type="button" class="@GetVoiceChipClass(MaleVoice)" @onclick="SelectMaleVoice">Male Voice</button>
-                            <button type="button" class="@GetVoiceChipClass(FemaleVoice)" @onclick="SelectFemaleVoice">Female Voice</button>
+                            <button type="button" class="@GetVoiceChipClass(MaleVoice)" @onclick="SelectMaleVoice">@L("audio.voice.male.full", "Male Voice")</button>
+                            <button type="button" class="@GetVoiceChipClass(FemaleVoice)" @onclick="SelectFemaleVoice">@L("audio.voice.female.full", "Female Voice")</button>
                         </div>
-                        <span class="management-field__hint">Use these labels when preparing TTS or voice-targeted audio variants.</span>
+                        <span class="management-field__hint">@L("audio.form.speech-profile.hint", "Use these labels when preparing TTS or voice-targeted audio variants.")</span>
                     </div>
 
                     <div class="management-field management-field--full">
-                        <label for="audio-description">Description</label>
+                        <label for="audio-description">@L("audio.form.description", "Description")</label>
                         <InputTextArea id="audio-description" class="form-control" rows="3" @bind-Value="_formModel.Description" />
                         <ValidationMessage For="() => _formModel.Description" />
                     </div>
 
                     <div class="management-field management-field--full">
-                        <label for="audio-script">Text-to-Speech Script</label>
+                        <label for="audio-script">@L("audio.form.script", "Text-to-Speech Script")</label>
                         <InputTextArea id="audio-script" class="form-control" rows="5" @bind-Value="_formModel.Script" />
                         <ValidationMessage For="() => _formModel.Script" />
-                        <span class="management-field__hint">Enter sample narration here and use the preview controls below to test the current language and voice label.</span>
+                        <span class="management-field__hint">@L("audio.form.script.hint", "Enter sample narration here and use the preview controls below to test the current language and voice label.")</span>
                     </div>
 
                     <div class="management-field management-field--full">
                         <div class="audio-preview">
                             <div>
-                                <span class="management-field__label">Voice Preview</span>
+                                <span class="management-field__label">@L("audio.form.preview.voice", "Voice Preview")</span>
                                 @* <div class="management-field__hint">The preview is generated from the API using the selected TTS language.</div> *@
                                 <div class="management-field__hint">@GetCurrentPreviewModeHint()</div>
                             </div>
@@ -341,25 +340,25 @@ else
                             <div class="audio-preview__actions">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@string.IsNullOrWhiteSpace(_formModel.Script)" @onclick="TryTtsPreviewAsync">
                                     <i class="bi bi-play-circle me-1"></i>
-                                    Try Test
+                                    @L("audio.form.preview.voice.try", "Try Test")
                                 </button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="StopTtsPreviewAsync">
                                     <i class="bi bi-stop-circle me-1"></i>
-                                    Stop
+                                    @L("audio.form.preview.voice.stop", "Stop")
                                 </button>
                             </div>
                         </div>
 
                         @if (_isGeneratingTtsPreview)
                         {
-                            <div class="management-muted mt-3">Generating TTS preview...</div>
+                            <div class="management-muted mt-3">@L("audio.form.preview.voice.generating", "Generating TTS preview...")</div>
                         }
                         else if (!string.IsNullOrWhiteSpace(_ttsPreviewUrl))
                         {
                             <div class="audio-file-preview mt-3">
                                 <div>
-                                    <span class="management-field__label">Generated TTS Preview</span>
-                                    <div class="management-field__hint">This preview uses the current script and language selection.</div>
+                                    <span class="management-field__label">@L("audio.form.preview.voice.generated", "Generated TTS Preview")</span>
+                                    <div class="management-field__hint">@L("audio.form.preview.voice.generated-hint", "This preview uses the current script and language selection.")</div>
                                 </div>
                                 <audio @key="_ttsPreviewUrl" @ref="_ttsPreviewElement" class="audio-file-preview__player" controls autoplay preload="auto" src="@_ttsPreviewUrl"></audio>
                             </div>
@@ -372,7 +371,7 @@ else
                     </div>
 
                     <div class="management-field">
-                        <label for="audio-playback-mode">Playback Mode</label>
+                        <label for="audio-playback-mode">@L("audio.form.playback-mode", "Playback Mode")</label>
                         <InputSelect id="audio-playback-mode" class="form-select" @bind-Value="_formModel.PlaybackMode">
                             <option value="Auto">Auto</option>
                             <option value="Manual">Manual</option>
@@ -382,7 +381,7 @@ else
                     </div>
 
                     <div class="management-field">
-                        <label for="audio-interrupt-policy">Interrupt Policy</label>
+                        <label for="audio-interrupt-policy">@L("audio.form.interrupt-policy", "Interrupt Policy")</label>
                         <InputSelect id="audio-interrupt-policy" class="form-select" @bind-Value="_formModel.InterruptPolicy">
                             <option value="NotificationFirst">Notification First</option>
                             <option value="NarrationFirst">Narration First</option>
@@ -392,27 +391,27 @@ else
                     </div>
 
                     <div class="management-field management-field--full">
-                        <span class="management-field__label">Download</span>
+                        <span class="management-field__label">@L("audio.form.download", "Download")</span>
                         <div class="management-chip-group">
-                            <button type="button" class="@GetBoolChipClass(true, _formModel.IsDownloadable)" @onclick="() => SetDownloadable(true)">Downloadable</button>
-                            <button type="button" class="@GetBoolChipClass(false, _formModel.IsDownloadable)" @onclick="() => SetDownloadable(false)">Online Only</button>
+                            <button type="button" class="@GetBoolChipClass(true, _formModel.IsDownloadable)" @onclick="() => SetDownloadable(true)">@L("audio.form.download.enabled", "Downloadable")</button>
+                            <button type="button" class="@GetBoolChipClass(false, _formModel.IsDownloadable)" @onclick="() => SetDownloadable(false)">@L("audio.form.download.online-only", "Online Only")</button>
                         </div>
                     </div>
 
                     <div class="management-field management-field--full">
-                        <span class="management-field__label">Status</span>
+                        <span class="management-field__label">@L("audio.form.status", "Status")</span>
                         <div class="management-chip-group">
-                            <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">Active</button>
-                            <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">Inactive</button>
+                            <button type="button" class="@GetChipClass(1, _formModel.Status)" @onclick="() => SetStatus(1)">@L("status.active", "Active")</button>
+                            <button type="button" class="@GetChipClass(0, _formModel.Status)" @onclick="() => SetStatus(0)">@L("status.inactive", "Inactive")</button>
                         </div>
                     </div>
 
                     @if (CanSubmitRequests && !CanManage)
                     {
                         <div class="management-field management-field--full">
-                            <label for="audio-request-reason">Submission Note</label>
+                            <label for="audio-request-reason">@L("audio.form.submission-note", "Submission Note")</label>
                             <InputTextArea id="audio-request-reason" class="form-control" rows="3" @bind-Value="_submissionReason" />
-                            <span class="management-field__hint">Optional note for Admin or Developer review.</span>
+                            <span class="management-field__hint">@L("audio.form.submission-note.hint", "Optional note for Admin or Developer review.")</span>
                         </div>
                     }
                 </div>
@@ -551,25 +550,28 @@ else
 </div>
 
 <AdminConfirmDialog Visible="@(_pendingArchivedAudio is not null)"
-                    Eyebrow="@(CanManage ? "Archive Audio" : "Request Archive")"
-                    Title="@(CanManage ? "Archive this audio item?" : "Submit an archive request?")"
+                    Eyebrow="@(CanManage ? L("audio.archive.dialog.eyebrow", "Archive Audio") : L("audio.archive.dialog.request-eyebrow", "Request Archive"))"
+                    Title="@(CanManage ? L("audio.archive.dialog.title", "Archive this audio item?") : L("audio.archive.dialog.request-title", "Submit an archive request?"))"
                     Message="@GetPendingArchiveAudioMessage()"
-                    ConfirmLabel="@(CanManage ? "Archive Audio" : "Submit Request")"
+                    ConfirmLabel="@(CanManage ? L("audio.archive.dialog.confirm", "Archive Audio") : L("audio.archive.dialog.request-confirm", "Submit Request"))"
                     ConfirmButtonClass="btn btn-danger"
                     OnConfirm="ConfirmArchiveAudioAsync"
                     OnCancel="CancelArchiveAudio">
     @if (CanSubmitRequests && !CanManage)
     {
         <div class="management-field">
-            <label for="audio-archive-reason">Submission Note</label>
+            <label for="audio-archive-reason">@L("audio.archive.form.note", "Submission Note")</label>
             <InputTextArea id="audio-archive-reason" class="form-control" rows="3" @bind-Value="_archiveReason" />
-            <span class="management-field__hint">Optional note for the reviewer.</span>
+            <span class="management-field__hint">@L("audio.archive.form.note.hint", "Optional note for the reviewer.")</span>
         </div>
     }
 </AdminConfirmDialog>
 }
 
 @code {
+    private string L(string key, string fallback) => LanguageService.T(key, fallback);
+    private string LF(string key, string fallback, params object?[] args) =>
+        string.Format(CultureInfo.CurrentCulture, L(key, fallback), args);
     private const string MaleVoice = "Male";
     private const string FemaleVoice = "Female";
     private const long MaxAudioPreviewBytes = 25L * 1024 * 1024;
@@ -704,7 +706,7 @@ else
         catch (Exception ex)
         {
             _loadError = ex.Message;
-            Notifications.Error(ex.Message, "Audio load failed");
+            Notifications.Error(ex.Message, L("audio.load.failed.toast", "Audio load failed"));
         }
         finally
         {
@@ -756,7 +758,9 @@ else
     {
         if (!CanEditContent)
         {
-            Notifications.Warning("Your role can view audio but cannot save changes.", "Read-only access");
+            Notifications.Warning(
+                L("audio.save.readonly.message", "Your role can view audio but cannot save changes."),
+                L("audio.readonly.short", "Read-only access"));
             return;
         }
 
@@ -772,12 +776,16 @@ else
             if (CanManage && _editingId is null)
             {
                 await ApiClient.CreateAudioAsync(_formModel);
-                Notifications.Success("Audio created successfully.", "Audio saved");
+                Notifications.Success(
+                    L("audio.save.created.message", "Audio created successfully."),
+                    L("audio.save.title", "Audio saved"));
             }
             else if (CanManage && _editingId is int editingId)
             {
                 await ApiClient.UpdateAudioAsync(editingId, _formModel);
-                Notifications.Success("Audio updated successfully.", "Audio saved");
+                Notifications.Success(
+                    L("audio.save.updated.message", "Audio updated successfully."),
+                    L("audio.save.title", "Audio saved"));
             }
             else
             {
@@ -798,7 +806,7 @@ else
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Audio save failed");
+            Notifications.Error(ex.Message, L("audio.save.failed.title", "Audio save failed"));
         }
         finally
         {
@@ -825,7 +833,9 @@ else
     {
         if (!CanManage && !CanSubmitRequests)
         {
-            Notifications.Warning("Your role can view audio but cannot archive it.", "Read-only access");
+            Notifications.Warning(
+                L("audio.archive.readonly.message", "Your role can view audio but cannot archive it."),
+                L("audio.readonly.short", "Read-only access"));
             return;
         }
 
@@ -844,7 +854,9 @@ else
             if (CanManage)
             {
                 await ApiClient.DeleteAudioAsync(_pendingArchivedAudio.Id);
-                Notifications.Info($"'{_pendingArchivedAudio.Title}' is now inactive.", "Audio archived");
+                Notifications.Info(
+                    LF("audio.archive.success.message", "'{0}' is now inactive.", _pendingArchivedAudio.Title),
+                    L("audio.archive.success.title", "Audio archived"));
             }
             else
             {
@@ -853,7 +865,9 @@ else
                     "DELETE",
                     _pendingArchivedAudio.Id,
                     _archiveReason);
-                Notifications.Info($"Archive request for '{_pendingArchivedAudio.Title}' was submitted for approval.", "Request submitted");
+                Notifications.Info(
+                    LF("audio.archive.requested.message", "Archive request for '{0}' was submitted for approval.", _pendingArchivedAudio.Title),
+                    L("audio.archive.requested.title", "Request submitted"));
             }
 
             await LoadDataAsync();
@@ -865,7 +879,7 @@ else
         }
         catch (Exception ex)
         {
-            Notifications.Error(ex.Message, "Delete failed");
+            Notifications.Error(ex.Message, L("audio.archive.failed.title", "Delete failed"));
         }
         finally
         {
@@ -879,7 +893,9 @@ else
         {
             if (string.IsNullOrWhiteSpace(_formModel.Script))
             {
-                Notifications.Warning("Speech preview is unavailable or the script is empty.", "Preview unavailable");
+                Notifications.Warning(
+                    L("audio.preview.unavailable.message", "Speech preview is unavailable or the script is empty."),
+                    L("audio.preview.unavailable.title", "Preview unavailable"));
                 return;
             }
 
@@ -928,7 +944,7 @@ else
             }
 
             _ttsPreviewWarning = ex.Message;
-            Notifications.Error(ex.Message, "Voice preview failed");
+            Notifications.Error(ex.Message, L("audio.preview.failed.title", "Voice preview failed"));
         }
         finally
         {
@@ -1052,8 +1068,13 @@ else
     private static bool IsVoice(AudioDto audio, string voiceGender) =>
         string.Equals(audio.VoiceGender, voiceGender, StringComparison.OrdinalIgnoreCase);
 
-    private static string GetVoiceLabel(string? voiceGender) =>
-        string.IsNullOrWhiteSpace(voiceGender) ? "Unspecified voice" : $"{voiceGender} voice";
+    private string GetVoiceLabel(string? voiceGender) => (voiceGender ?? string.Empty).Trim() switch
+    {
+        "" => L("audio.voice.unspecified", "Unspecified voice"),
+        "Male" => L("audio.voice.male.full", "Male Voice"),
+        "Female" => L("audio.voice.female.full", "Female Voice"),
+        _ => voiceGender ?? string.Empty
+    };
 
     private static string GetAudioLanguageLabel(AudioDto audio) =>
         string.IsNullOrWhiteSpace(audio.LanguageName) ? audio.Language : $"{audio.LanguageName} ({audio.Language})";
@@ -1063,17 +1084,21 @@ else
             ? GetAudioLanguageLabel(audio)
             : $"{audio.NativeLanguageName} · {audio.Language}";
 
-    private static string GetAudioKind(AudioDto audio) =>
-        audio.SourceType;
+    private string GetAudioKind(AudioDto audio) => audio.SourceType switch
+    {
+        "Recorded" => L("audio.kind.recorded", "Recorded"),
+        "Hybrid" => L("audio.kind.hybrid", "Hybrid"),
+        _ => audio.SourceType
+    };
 
-    private static string GetAudioStorageLabel(string? audioPath)
+    private string GetAudioStorageLabel(string? audioPath)
     {
         if (string.IsNullOrWhiteSpace(audioPath))
         {
-            return "No stored audio file";
+            return L("audio.storage.none", "No stored audio file");
         }
 
-        return $"API archive file: {System.IO.Path.GetFileName(audioPath)}";
+        return LF("audio.storage.api-file", "API archive file: {0}", System.IO.Path.GetFileName(audioPath));
     }
 
     private static string GetAudioCardClass(int status) => status == 1
@@ -1084,7 +1109,9 @@ else
         ? "management-status management-status--active"
         : "management-status management-status--inactive";
 
-    private static string GetStatusLabel(int status) => status == 1 ? "Active" : "Inactive";
+    private string GetStatusLabel(int status) => status == 1
+        ? L("status.active", "Active")
+        : L("status.inactive", "Inactive");
 
     private static string GetChipClass(int status, int currentStatus) => status == currentStatus
         ? "management-chip management-chip--selected"
@@ -1098,15 +1125,15 @@ else
     {
         if (_isSaving)
         {
-            return CanManage ? "Saving..." : "Submitting...";
+            return CanManage ? L("audio.save.saving", "Saving...") : L("audio.save.submitting", "Submitting...");
         }
 
         if (CanManage)
         {
-            return _editingId is null ? "Create Audio" : "Save Changes";
+            return _editingId is null ? L("audio.save.create", "Create Audio") : L("audio.save.update", "Save Changes");
         }
 
-        return _editingId is null ? "Submit New Audio" : "Submit Update Request";
+        return _editingId is null ? L("audio.save.submit-create", "Submit New Audio") : L("audio.save.submit-update", "Submit Update Request");
     }
 
     private string GetLanguageOptionLabel(LanguageDto language)
@@ -1119,12 +1146,12 @@ else
 
         if (language.IsDefault)
         {
-            parts.Add("Default");
+            parts.Add(L("languages.default", "Default"));
         }
 
         if (language.Status == 0)
         {
-            parts.Add("Inactive");
+            parts.Add(L("status.inactive", "Inactive"));
         }
 
         return string.Join(" · ", parts);
@@ -1135,13 +1162,13 @@ else
         var language = SelectedLanguage;
         if (language is null)
         {
-            return "Archived languages are hidden. Add or reactivate a language before saving audio.";
+            return L("audio.language.hint.archived", "Archived languages are hidden. Add or reactivate a language before saving audio.");
         }
 
         var nativeName = string.IsNullOrWhiteSpace(language.NativeName)
             ? language.Name
             : language.NativeName;
-        return $"{nativeName} is selected. Preview will prefer a same-language {GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant()} when available, then fall back to generated audio for {language.Code}.";
+        return LF("audio.language.hint.selected", "{0} is selected. Preview will prefer a same-language {1} when available, then fall back to generated audio for {2}.", nativeName, GetVoiceLabel(_formModel.VoiceGender).ToLowerInvariant(), language.Code);
     }
 
     private string GetCurrentPreviewModeHint()
@@ -1152,13 +1179,13 @@ else
             var selectedAudio = SelectedAudioForDisplay;
             if (selectedAudio is null)
             {
-                return "Voice preview follows the current language code.";
+                return L("audio.preview.mode.current-language", "Voice preview follows the current language code.");
             }
 
-            return $"Hybrid preview is enabled for {GetAudioLanguageLabel(selectedAudio)}. Browser voice is used only when the locale and gender match the selected audio language.";
+            return LF("audio.preview.mode.selected-audio", "Hybrid preview is enabled for {0}. Browser voice is used only when the locale and gender match the selected audio language.", GetAudioLanguageLabel(selectedAudio));
         }
 
-        return $"Hybrid preview is enabled for {language.Name}. Browser voice is used only when the locale and gender match; otherwise generated audio stays in {language.Code}.";
+        return LF("audio.preview.mode.language", "Hybrid preview is enabled for {0}. Browser voice is used only when the locale and gender match; otherwise generated audio stays in {1}.", language.Name, language.Code);
     }
 
     private string GetSelectedPreviewLanguageLabel()
@@ -1204,22 +1231,22 @@ else
     {
         if (!HasLocationCatalog)
         {
-            return "Create or restore a POI before saving audio.";
+            return L("audio.location.hint.none", "Create or restore a POI before saving audio.");
         }
 
         if (SelectedLocationOption is null)
         {
-            return "Active and inactive POIs are available for audio assignments.";
+            return L("audio.location.hint.any", "Active and inactive POIs are available for audio assignments.");
         }
 
         return SelectedLocationOption.Status == 1
-            ? "This audio is currently linked to an active POI."
-            : "This audio is linked to an inactive POI and can still stay in the catalog.";
+            ? L("audio.location.hint.active", "This audio is currently linked to an active POI.")
+            : L("audio.location.hint.inactive", "This audio is linked to an inactive POI and can still stay in the catalog.");
     }
 
-    private static string GetLocationOptionLabel(LocationDto location) => location.Status == 1
+    private string GetLocationOptionLabel(LocationDto location) => location.Status == 1
         ? location.Name
-        : $"{location.Name} (Inactive)";
+        : $"{location.Name} ({L("status.inactive", "Inactive")})";
 
     private void EnsureFormLocationSelection()
     {
@@ -1257,20 +1284,20 @@ else
     {
         if (_formModel.SourceType == "TTS" && _formModel.AudioFile is null && string.IsNullOrWhiteSpace(_formModel.AudioPath))
         {
-            return "TTS-only entries do not require an uploaded file. Use the generated TTS preview below.";
+            return L("audio.preview.file.hint.tts", "TTS-only entries do not require an uploaded file. Use the generated TTS preview below.");
         }
 
         if (_formModel.AudioFile is not null)
         {
-            return $"Previewing the newly selected file: {_formModel.AudioFile.Name}";
+            return LF("audio.preview.file.hint.selected", "Previewing the newly selected file: {0}", _formModel.AudioFile.Name);
         }
 
         if (!string.IsNullOrWhiteSpace(_formModel.AudioPath))
         {
-            return $"Previewing the stored audio path: {_formModel.AudioPath}";
+            return LF("audio.preview.file.hint.stored", "Previewing the stored audio path: {0}", _formModel.AudioPath);
         }
 
-        return "This preview is for uploaded audio files only. The generated TTS preview below is separate.";
+        return L("audio.preview.file.hint.default", "This preview is for uploaded audio files only. The generated TTS preview below is separate.");
     }
 
     private async Task<bool> EnsureAudioFileAvailableForSaveAsync()
@@ -1297,7 +1324,9 @@ else
         }
 
         _audioPreviewWarning = "The current audio file could not be found. Upload another audio file before saving.";
-        Notifications.Warning("The current audio file could not be found. Upload another audio file before saving.", "Audio file missing");
+        Notifications.Warning(
+            L("audio.file.missing.message", "The current audio file could not be found. Upload another audio file before saving."),
+            L("audio.file.missing.title", "Audio file missing"));
         return false;
     }
 

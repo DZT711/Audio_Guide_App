@@ -54,9 +54,11 @@ public sealed class StatisticsHeatPointDto
     public double Longitude { get; init; }
     public int Intensity { get; init; }
     public int SessionCount { get; init; }
+    public int GuestCount { get; init; }
     public int TotalWeight { get; init; }
     public double EngagementScore { get; init; }
     public string Ward { get; init; } = "";
+    public IReadOnlyList<string> GuestKeys { get; init; } = [];
 }
 
 public sealed class StatisticsRoutePointDto

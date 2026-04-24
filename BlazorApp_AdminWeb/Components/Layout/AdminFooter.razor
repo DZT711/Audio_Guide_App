@@ -1,10 +1,11 @@
 @implements IAsyncDisposable
 @inject AdminApiClient ApiClient
+@inject AdminUiLanguageService LanguageService
 
 <footer class="admin-footer" data-reveal>
     <div class="admin-footer__primary">
         <div class="admin-footer__brand">
-            <span class="admin-footer__eyebrow">Server Status</span>
+            <span class="admin-footer__eyebrow">@L("footer.server-status", "Server Status")</span>
             <div class="admin-footer__headline">
                 <span class="@GetStatusDotClass()" aria-hidden="true"></span>
                 <strong>@GetStatusLabel()</strong>
@@ -14,28 +15,28 @@
 
         <div class="admin-footer__facts">
             <article class="admin-footer__fact">
-                <span>API Version</span>
-                <strong>@(_serverInfo?.ApiVersion ?? "Unknown")</strong>
-                <small>@(_serverInfo?.EnvironmentName ?? "Environment unavailable")</small>
+                <span>@L("footer.api-version", "API Version")</span>
+                <strong>@(_serverInfo?.ApiVersion ?? L("footer.unknown", "Unknown"))</strong>
+                <small>@GetEnvironmentLabel()</small>
             </article>
             <article class="admin-footer__fact">
-                <span>Active Users</span>
+                <span>@L("footer.active-users", "Active Users")</span>
                 <strong>@(_serverInfo?.ActiveAdminUserCount ?? 0)</strong>
-                <small>Live admin sessions connected now</small>
+                <small>@L("footer.active-users.hint", "Live admin sessions connected now")</small>
             </article>
             <article class="admin-footer__fact">
-                <span>Server Time</span>
+                <span>@L("footer.server-time", "Server Time")</span>
                 <strong>@GetServerTimeLabel()</strong>
-                <small>@(_serverInfo?.TimeZoneDisplayName ?? "Time zone unavailable")</small>
+                <small>@(_serverInfo?.TimeZoneDisplayName ?? L("footer.timezone.unavailable", "Time zone unavailable"))</small>
             </article>
             <article class="admin-footer__fact">
-                <span>Uptime</span>
+                <span>@L("footer.uptime", "Uptime")</span>
                 <strong>@GetUptimeLabel()</strong>
                 <small>@GetStartedAtLabel()</small>
             </article>
             <article class="admin-footer__fact">
-                <span>Runtime</span>
-                <strong>@(_serverInfo?.FrameworkDescription ?? "Unavailable")</strong>
+                <span>@L("footer.runtime", "Runtime")</span>
+                <strong>@(_serverInfo?.FrameworkDescription ?? L("footer.unavailable", "Unavailable"))</strong>
                 <small>@GetLastCheckedLabel()</small>
             </article>
         </div>
@@ -43,6 +44,7 @@
 </footer>
 
 @code {
+    private string L(string key, string fallback) => LanguageService.T(key, fallback);
     private ServerInfoDto? _serverInfo;
     private bool _isServerReachable;
     private DateTimeOffset? _lastCheckedAt;
@@ -51,11 +53,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        LanguageService.Changed += HandleLanguageChanged;
         await LoadServerInfoAsync();
 
         _refreshCancellationSource = new CancellationTokenSource();
         _refreshTask = RefreshLoopAsync(_refreshCancellationSource.Token);
     }
+
+    private void HandleLanguageChanged() => InvokeAsync(StateHasChanged);
 
     private async Task RefreshLoopAsync(CancellationToken cancellationToken)
     {
@@ -94,32 +99,59 @@
         : "admin-footer__status-dot admin-footer__status-dot--offline";
 
     private string GetStatusLabel() => _isServerReachable
-        ? (_serverInfo?.Status ?? "Online")
-        : "Unavailable";
+        ? TranslateServerStatus(_serverInfo?.Status)
+        : L("footer.unavailable", "Unavailable");
 
     private string GetStatusCopy() => _isServerReachable
-        ? "The admin console is connected to the API and receiving live server metadata."
-        : "The admin console could not reach the API status endpoint on the last refresh.";
+        ? L("footer.status.online-copy", "The admin console is connected to the API and receiving live server metadata.")
+        : L("footer.status.offline-copy", "The admin console could not reach the API status endpoint on the last refresh.");
 
     private string GetServerTimeLabel() =>
         _serverInfo is null
-            ? "Unavailable"
+            ? L("footer.unavailable", "Unavailable")
             : _serverInfo.ServerTimeLocal.ToString("dd MMM yyyy HH:mm:ss");
 
     private string GetUptimeLabel() =>
         _serverInfo is null
-            ? "Unavailable"
+            ? L("footer.unavailable", "Unavailable")
             : FormatDuration(_serverInfo.UptimeSeconds);
+
+    private string GetEnvironmentLabel() =>
+        TranslateEnvironmentName(_serverInfo?.EnvironmentName);
 
     private string GetStartedAtLabel() =>
         _serverInfo is null
-            ? "Start time unavailable"
-            : $"Started {_serverInfo.StartedAtUtc.ToLocalTime():dd MMM yyyy HH:mm}";
+            ? L("footer.started.unavailable", "Start time unavailable")
+            : $"{L("footer.started.prefix", "Started")} {_serverInfo.StartedAtUtc.ToLocalTime():dd MMM yyyy HH:mm}";
 
     private string GetLastCheckedLabel() =>
         _lastCheckedAt is null
-            ? "Not checked yet"
-            : $"Checked {_lastCheckedAt.Value:HH:mm:ss}";
+            ? L("footer.checked.none", "Not checked yet")
+            : $"{L("footer.checked.prefix", "Checked")} {_lastCheckedAt.Value:HH:mm:ss}";
+
+    private string TranslateServerStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return L("footer.status.online", "Online");
+        }
+
+        return string.Equals(status, "online", StringComparison.OrdinalIgnoreCase)
+            ? L("footer.status.online", "Online")
+            : status;
+    }
+
+    private string TranslateEnvironmentName(string? environmentName)
+    {
+        if (string.IsNullOrWhiteSpace(environmentName))
+        {
+            return L("footer.environment.unavailable", "Environment unavailable");
+        }
+
+        return string.Equals(environmentName, "development", StringComparison.OrdinalIgnoreCase)
+            ? L("footer.environment.development", "Development")
+            : environmentName;
+    }
 
     private static string FormatDuration(long totalSeconds)
     {
@@ -145,6 +177,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        LanguageService.Changed -= HandleLanguageChanged;
+
         if (_refreshCancellationSource is null)
         {
             return;

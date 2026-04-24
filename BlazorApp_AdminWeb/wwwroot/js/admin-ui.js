@@ -886,16 +886,33 @@
             && Number.isFinite(Number(point?.longitude)))
         .map((point) => [Number(point.latitude), Number(point.longitude)]);
 
+    const normalizeStatisticsGuestKey = (value) => String(value ?? "")
+        .trim()
+        .toLowerCase();
+
+    const normalizeStatisticsGuestKeys = (keys) => [...new Set((Array.isArray(keys) ? keys : [])
+        .map(normalizeStatisticsGuestKey)
+        .filter(Boolean))];
+
     const normalizeStatisticsHeatPoints = (points) => (Array.isArray(points) ? points : [])
-        .map((point) => ({
-            latitude: Number(point?.latitude),
-            longitude: Number(point?.longitude),
-            sessionCount: Math.max(1, Number(point?.sessionCount) || 1),
-            intensity: Math.max(1, Number(point?.intensity) || 1),
-            totalWeight: Math.max(1, Number(point?.totalWeight) || Math.max(1, Number(point?.intensity) || 1)),
-            engagementScore: Number(point?.engagementScore),
-            ward: String(point?.ward ?? "").trim()
-        }))
+        .map((point) => {
+            const guestKeys = normalizeStatisticsGuestKeys(point?.guestKeys);
+            const guestCount = Math.max(
+                1,
+                Number(point?.guestCount) || guestKeys.length || Number(point?.intensity) || 1);
+
+            return {
+                latitude: Number(point?.latitude),
+                longitude: Number(point?.longitude),
+                sessionCount: Math.max(1, Number(point?.sessionCount) || guestCount),
+                guestCount,
+                guestKeys,
+                intensity: Math.max(1, Number(point?.intensity) || guestCount),
+                totalWeight: Math.max(1, Number(point?.totalWeight) || Math.max(1, Number(point?.intensity) || 1)),
+                engagementScore: Number(point?.engagementScore),
+                ward: String(point?.ward ?? "").trim()
+            };
+        })
         .filter((point) =>
             Number.isFinite(point.latitude)
             && Number.isFinite(point.longitude));
@@ -959,21 +976,57 @@
         return Number.isFinite(numericValue) ? numericValue : fallbackValue;
     };
 
+    const getStatisticsEntryGuestKeys = (entry) => {
+        const original = entry?.o ?? entry;
+        return normalizeStatisticsGuestKeys(original?.guestKeys);
+    };
+
+    const getStatisticsEntryGuestCount = (entry) => {
+        const explicitCount = Math.floor(getStatisticsEntryValue(entry, "guestCount", 0));
+        if (explicitCount > 0) {
+            return explicitCount;
+        }
+
+        const guestKeys = getStatisticsEntryGuestKeys(entry);
+        if (guestKeys.length > 0) {
+            return guestKeys.length;
+        }
+
+        return Math.max(1, getStatisticsEntryValue(entry, "sessionCount", 1));
+    };
+
+    const getStatisticsBinGuestCount = (bin) => {
+        const uniqueGuestKeys = new Set();
+        let fallbackGuestCount = 0;
+
+        bin.forEach((entry) => {
+            const guestKeys = getStatisticsEntryGuestKeys(entry);
+            if (guestKeys.length > 0) {
+                guestKeys.forEach((guestKey) => uniqueGuestKeys.add(guestKey));
+                return;
+            }
+
+            fallbackGuestCount += getStatisticsEntryGuestCount(entry);
+        });
+
+        return Math.max(1, uniqueGuestKeys.size + fallbackGuestCount);
+    };
+
     const getStatisticsBinSessionCount = (bin) => bin.reduce((total, entry) =>
         total + Math.max(1, getStatisticsEntryValue(entry, "sessionCount", 1)), 0);
 
     const getStatisticsBinTotalWeight = (bin) => bin.reduce((total, entry) =>
         total + Math.max(1, getStatisticsEntryValue(entry, "totalWeight", getStatisticsEntryValue(entry, "intensity", 1))), 0);
 
-    const getStatisticsBinIntensity = (bin) => getStatisticsBinSessionCount(bin);
+    const getStatisticsBinIntensity = (bin) => getStatisticsBinGuestCount(bin);
 
     const getStatisticsBinEngagementScore = (bin) => {
-        const sessionCount = getStatisticsBinSessionCount(bin);
-        if (sessionCount <= 0) {
+        const guestCount = getStatisticsBinGuestCount(bin);
+        if (guestCount <= 0) {
             return 0;
         }
 
-        return Math.round((getStatisticsBinTotalWeight(bin) / sessionCount) * 100) / 100;
+        return Math.round((getStatisticsBinTotalWeight(bin) / guestCount) * 100) / 100;
     };
 
     const getStatisticsBinWards = (bin) => [...new Set(bin
@@ -994,7 +1047,8 @@
     };
 
     const createStatisticsHexbinPopupContent = (bin) => {
-        const totalUsers = getStatisticsBinSessionCount(bin);
+        const totalGuests = getStatisticsBinGuestCount(bin);
+        const totalSessions = getStatisticsBinSessionCount(bin);
         const totalWeight = getStatisticsBinTotalWeight(bin);
         const engagementScore = getStatisticsBinEngagementScore(bin);
         const wardLabel = getStatisticsBinWardLabel(bin);
@@ -1002,7 +1056,8 @@
         return `
             <div class="statistics-map__popup">
                 <strong>${escapeHtml(wardLabel)}</strong>
-                <div>${escapeHtml(`Unique sessions: ${totalUsers}`)}</div>
+                <div>${escapeHtml(`Unique guests: ${totalGuests}`)}</div>
+                <div>${escapeHtml(`Unique sessions: ${totalSessions}`)}</div>
                 <div>${escapeHtml(`Total weight: ${totalWeight}`)}</div>
                 <div>${escapeHtml(`Engagement score: ${engagementScore.toFixed(2)}`)}</div>
             </div>
@@ -1101,7 +1156,7 @@
                 zIndexOffset: point.intensity >= 6 ? 400 : 250
             });
 
-            marker.bindTooltip(`Sessions ${point.sessionCount} | Weight ${point.totalWeight} | Engagement ${Number(point.engagementScore ?? 0).toFixed(2)}`, {
+            marker.bindTooltip(`Guests ${point.guestCount} | Sessions ${point.sessionCount} | Weight ${point.totalWeight} | Engagement ${Number(point.engagementScore ?? 0).toFixed(2)}`, {
                 direction: "top",
                 offset: [0, -10]
             });
@@ -1109,6 +1164,7 @@
             marker.bindPopup(`
                 <div class="statistics-map__popup">
                     <strong>${escapeHtml(point.ward || "Hotspot cluster")}</strong>
+                    <div>${escapeHtml(`Unique guests: ${point.guestCount}`)}</div>
                     <div>${escapeHtml(`Unique sessions: ${point.sessionCount}`)}</div>
                     <div>${escapeHtml(`Total weight: ${point.totalWeight}`)}</div>
                     <div>${escapeHtml(`Engagement score: ${Number(point.engagementScore ?? 0).toFixed(2)}`)}</div>
