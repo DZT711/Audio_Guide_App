@@ -1,12 +1,13 @@
 ﻿{
-    "baseUrl":  "https://expletive-cried-decimeter.ngrok-free.dev/",
-    "publicBaseUrl":  "https://expletive-cried-decimeter.ngrok-free.dev/",
+    "baseUrl":  "https://squander-neurology-overhead.ngrok-free.dev/",
+    "publicBaseUrl":  "https://squander-neurology-overhead.ngrok-free.dev/",
     "allowLocalhostFallback":  true,
     "fallbackBaseUrls":  [
-                             "http://192.168.1.24:5123/",
+                             "http://192.168.102.6:5123/",
                              "http://10.0.2.2:5123/",
                              "http://localhost:5123/",
-                             "https://expletive-cried-decimeter.ngrok-free.dev/"
+                             "http://192.168.1.24:5123/",
+                             "https://squander-neurology-overhead.ngrok-free.dev/"
                          ],
-    "ngrokAuthtoken":  "3ClGVwy9doCFHSJozslkLwnWmQV_6sWqKocWvRTybAADBJS7v"
+    "ngrokAuthtoken":  "3Coq0WrubjrOD58GJGTtZbKk1lq_7ZgE2Dh1U1kZJ8bzt8KhZ"
 }
