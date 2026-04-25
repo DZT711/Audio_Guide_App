@@ -2,7 +2,7 @@ param(
     [string]$ConfigPath,
     [string]$MobileApiConfigPath,
     [int]$Port = 5123,
-    [string]$NgrokBaseUrl = "https://expletive-cried-decimeter.ngrok-free.dev"
+    [string]$NgrokBaseUrl = "https://squander-neurology-overhead.ngrok-free.dev"
 )
 
 $ErrorActionPreference = "Stop"

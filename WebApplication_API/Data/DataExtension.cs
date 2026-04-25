@@ -10,6 +10,15 @@ namespace WebApplication_API.Data;
 
 public static class DataExtension
 {
+    private static readonly HashSet<string> ManagedVinhKhanhPoiNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Quan Oc Gio Xanh Vinh Khanh",
+        "Tiem Sua Thach Mat Lanh Vinh Khanh",
+        "Sinh To Sau Rieng Co Ba Vinh Khanh",
+        "Pha Lau Co Tham Vinh Khanh",
+        "Banh Trang Nuong Bun Thai Bep Than"
+    };
+
     public static void MigrateDb(this WebApplication app)
     {
         using var scope = app.Services.CreateScope();
@@ -1092,6 +1101,11 @@ public static class DataExtension
         var hasChanges = false;
         foreach (var location in locations)
         {
+            if (ShouldSkipSeedMedia(location))
+            {
+                continue;
+            }
+
             var existingImageUrls = location.Images
                 .Select(item => item.ImageUrl)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -1145,6 +1159,11 @@ public static class DataExtension
 
         foreach (var location in locations)
         {
+            if (ShouldSkipSeedMedia(location))
+            {
+                continue;
+            }
+
             await EnsureAnalyticsAudioAsync(
                 context,
                 location.LocationId,
@@ -1204,6 +1223,9 @@ public static class DataExtension
                 $"Xin chao, day la ban thu TTS cho dia diem {location.Name}. Vi tri nay nam tai {address} va duoc tao de kiem thu ung dung du lich thong minh."
         };
     }
+
+    private static bool ShouldSkipSeedMedia(Location location) =>
+        ManagedVinhKhanhPoiNames.Contains(location.Name);
 
     private static async Task<string> EnsureSeedImageAsync(
         string contentRootPath,
