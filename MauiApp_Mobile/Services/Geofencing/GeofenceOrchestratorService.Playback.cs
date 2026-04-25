@@ -130,7 +130,7 @@ public sealed partial class GeofenceOrchestratorService
             {
                 HistoryService.Instance.AddToHistory(historyItem, cancellationToken);
 
-                if (hasExistingQueueSession)
+                if (hasExistingQueueSession)//
                 {
                     var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(sourceTrack, cancellationToken);
                     var queueCountBefore = PlaybackCoordinatorService.Instance.QueueCount;

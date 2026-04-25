@@ -1100,7 +1100,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to load statistics.");
         return await ReadJsonAsync<StatisticsOverviewDto>(response, "Unable to load statistics.");
     }
-
+//
     private static UsageHistoryOverviewDto MapUsageHistoryOverviewFromV1(
         IReadOnlyList<UsageEvent> items,
         int totalCount,

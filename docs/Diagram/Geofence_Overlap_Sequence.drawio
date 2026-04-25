@@ -1,0 +1,190 @@
+<mxfile host="65bd71144e">
+    <diagram id="GeofenceOverlapSequence" name="Geofence Overlap Sequence">
+        <mxGraphModel dx="1386" dy="787" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1700" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="Flow xử lý geofence overlap theo đúng hàm trong code" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="580" y="20" width="1040" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="lane-user" value="Người dùng" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="70" width="40" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="line-user" style="shape=line;strokeColor=#b3b3b3;dashed=1;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="58" y="160" width="1" height="1320" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl-user" value="External movement" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="140" y="150" width="120" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="svc-track" value="LocationTrackingService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;dropTarget=0;" parent="1" vertex="1">
+                    <mxGeometry x="250" y="70" width="140" height="1410" as="geometry"/>
+                </mxCell>
+                <mxCell id="svc-orch" value="GeofenceOrchestratorService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;dropTarget=0;" parent="1" vertex="1">
+                    <mxGeometry x="640" y="70" width="170" height="1410" as="geometry"/>
+                </mxCell>
+                <mxCell id="svc-engine" value="GeofenceEvaluationEngine" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;dropTarget=0;" parent="1" vertex="1">
+                    <mxGeometry x="1030" y="70" width="160" height="1410" as="geometry"/>
+                </mxCell>
+                <mxCell id="svc-index" value="GeofenceSpatialIndex" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;dropTarget=0;" parent="1" vertex="1">
+                    <mxGeometry x="1400" y="70" width="150" height="1410" as="geometry"/>
+                </mxCell>
+                <mxCell id="svc-selector" value="GeofenceTriggerSelector" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;dropTarget=0;" parent="1" vertex="1">
+                    <mxGeometry x="1750" y="70" width="160" height="1410" as="geometry"/>
+                </mxCell>
+                <mxCell id="a1" value="1. Di chuyển vào vùng gần nhiều POI" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;" parent="1" source="lane-user" target="svc-track" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="90" y="200"/>
+                            <mxPoint x="250" y="200"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a2" value="2. OnTrackedLocationUpdated(sample)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;exitX=0.486;exitY=0.131;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="svc-track" target="svc-orch" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="318" y="250"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="note2" value="Lọc dev session + null location" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="460" y="270" width="150" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="a3" value="3. EnqueueLocation(sample)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;" parent="1" source="svc-orch" target="svc-orch" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="785" y="330"/>
+                            <mxPoint x="880" y="330"/>
+                            <mxPoint x="880" y="370"/>
+                            <mxPoint x="785" y="370"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a4" value="4. ProcessingLoopAsync() lấy sample mới nhất" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;" parent="1" source="svc-orch" target="svc-orch" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="785" y="430"/>
+                            <mxPoint x="930" y="430"/>
+                            <mxPoint x="930" y="470"/>
+                            <mxPoint x="785" y="470"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="note4" value="collapse queue nếu có nhiều location dồn lại" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="1150" y="490" width="190" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5" value="5. ProcessLocationSampleAsync(sample)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;" parent="1" source="svc-orch" target="svc-orch" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="785" y="540"/>
+                            <mxPoint x="930" y="540"/>
+                            <mxPoint x="930" y="580"/>
+                            <mxPoint x="785" y="580"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a6" value="6. Evaluate(location, spatialIndex, runtimeStates, globalCooldown)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;" parent="1" source="svc-orch" target="svc-engine" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="810" y="640"/>
+                            <mxPoint x="1030" y="640"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a7" value="7. GetCandidateDefinitions(lat, lon, _options.CandidateLimit)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;" parent="1" source="svc-engine" target="svc-index" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1190" y="710"/>
+                            <mxPoint x="1400" y="710"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a8" value="8. candidateDefinitions" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;strokeWidth=1.5;" parent="1" source="svc-index" target="svc-engine" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1400" y="760"/>
+                            <mxPoint x="1190" y="760"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="box-eval" value="Trong Evaluate(...):&#xa;- tính distanceMeters cho từng definition&#xa;- cập nhật runtimeState&#xa;- xác định EnteredRadius / NearStay&#xa;- gọi EvaluateTrigger(...) để lọc cooldown / duplicate&#xa;- gom AcceptedTriggers + SkippedTriggers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;spacingLeft=8;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="900" y="810" width="360" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9" value="9. EvaluateTrigger(...)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;" parent="1" source="svc-engine" target="svc-engine" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1165" y="990"/>
+                            <mxPoint x="1280" y="990"/>
+                            <mxPoint x="1280" y="1030"/>
+                            <mxPoint x="1165" y="1030"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="note9" value="lọc global-cooldown / poi-cooldown / duplicate-event" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="1285" y="985" width="220" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="a10" value="10. GeofenceEvaluationResult { AcceptedTriggers, SkippedTriggers, nearestPoi... }" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;strokeWidth=1.5;" parent="1" source="svc-engine" target="svc-orch" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1030" y="1080"/>
+                            <mxPoint x="810" y="1080"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a11" value="11. allowedTriggers = lọc thêm bằng ShouldAllowTrigger(...)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;" parent="1" source="svc-orch" target="svc-orch" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="785" y="1150"/>
+                            <mxPoint x="930" y="1150"/>
+                            <mxPoint x="930" y="1190"/>
+                            <mxPoint x="785" y="1190"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a12" value="12. GeofenceTriggerSelector.SelectBest(allowedTriggers)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;" parent="1" source="svc-orch" target="svc-selector" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1440" y="760"/>
+                            <mxPoint x="1440" y="760"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="box-select" value="Rule trong SelectBest(...):&#xa;1. Priority cao hơn thắng&#xa;2. Nếu bằng nhau: DistanceMeters nhỏ hơn thắng&#xa;3. Nếu vẫn bằng nhau: EnteredRadius ưu tiên hơn NearStay&#xa;4. Nếu vẫn bằng nhau: Definition.Id theo alphabet, không phân biệt hoa thường" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="1610" y="1080" width="420" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="a13" value="13. selectedTrigger" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;strokeWidth=1.5;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1750" y="1289"/>
+                            <mxPoint x="810" y="1289"/>
+                        </Array>
+                        <mxPoint x="1829.5" y="774" as="sourcePoint"/>
+                        <mxPoint x="724.5" y="774" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a14" value="14. RaiseTriggerAccepted(selectedTrigger)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;" parent="1" source="svc-orch" target="svc-orch" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="785" y="1350"/>
+                            <mxPoint x="955" y="1350"/>
+                            <mxPoint x="955" y="1390"/>
+                            <mxPoint x="785" y="1390"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a15" value="15. HandleTriggerAsync(selectedTrigger, cancellationToken)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=1.5;" parent="1" source="svc-orch" target="svc-orch" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="785" y="1440"/>
+                            <mxPoint x="970" y="1440"/>
+                            <mxPoint x="970" y="1480"/>
+                            <mxPoint x="785" y="1480"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="note15" value="bước nghiệp vụ tiếp theo: playback / queue / cooldown / history" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="980" y="1440" width="240" height="45" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
