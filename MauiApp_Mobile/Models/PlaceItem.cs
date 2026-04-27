@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using MauiApp_Mobile.Services;
+using Microsoft.Maui.Devices.Sensors;
 using Project_SharedClassLibrary.Contracts;
 
 namespace MauiApp_Mobile.Models;
@@ -40,10 +41,16 @@ public class PlaceItem : INotifyPropertyChanged
     public double Longitude { get; set; }
     public double ActivationRadiusMeters { get; set; }
     public double NearRadiusMeters { get; set; }
+    public int LocationId { get; set; }
     public int Priority { get; set; }
     public int DebounceSeconds { get; set; }
     public int Status { get; set; }
     public bool IsGpsTriggerEnabled { get; set; }
+    public double StaticScore { get; set; }
+    public int TotalTourCount { get; set; }
+    public bool IsTopChartOrTrending { get; set; }
+    public string DominantAudioType { get; set; } = "TTS";
+    public int TotalAudioDurationSeconds { get; set; }
     public string LastPlaybackSource { get; set; } = "";
     public string LastPlaybackTrigger { get; set; } = "";
     public Color CategoryColor { get; set; } = Colors.LightGray;
@@ -130,11 +137,71 @@ public class PlaceItem : INotifyPropertyChanged
         }
     }
 
+    public double GetCurrentPriority(double userLat, double userLon)
+    {
+        var distanceInKm = CalculateDistanceInKilometers(userLat, userLon);
+        if (double.IsNaN(distanceInKm) || double.IsInfinity(distanceInKm))
+        {
+            return GetTieBreaker();
+        }
+
+        var distanceInMeters = distanceInKm * 1000d;
+        var distanceScore = 100d / (distanceInKm + 0.1d);
+        var radiusScore = distanceInMeters <= Math.Max(0d, ActivationRadiusMeters)
+            ? 50d
+            : 0d;
+        var adminPriorityScore = Math.Clamp(Priority, 0, 5) * 10d;
+
+        return distanceScore + radiusScore + adminPriorityScore + GetTieBreaker();
+    }
+
+    public double GetFinalPriority(double userLat, double userLon) =>
+        StaticScore + GetCurrentPriority(userLat, userLon);
+
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
+
+    private double GetTieBreaker()
+    {
+        var numericLocationId = LocationId > 0 ? LocationId : ParseLocationId();
+        return 1d / (Math.Max(0, numericLocationId) + 1d);
+    }
+
+    private double CalculateDistanceInKilometers(double userLat, double userLon)
+    {
+        if (!AreCoordinatesValid(userLat, userLon) || !AreCoordinatesValid(Latitude, Longitude))
+        {
+            return double.MaxValue;
+        }
+
+        return Location.CalculateDistance(
+            userLat,
+            userLon,
+            Latitude,
+            Longitude,
+            DistanceUnits.Kilometers);
+    }
+
+    private int ParseLocationId()
+    {
+        if (int.TryParse(Id, out var parsedId) && parsedId >= 0)
+        {
+            return parsedId;
+        }
+
+        return 0;
+    }
+
+    private static bool AreCoordinatesValid(double latitude, double longitude) =>
+        !double.IsNaN(latitude) &&
+        !double.IsNaN(longitude) &&
+        !double.IsInfinity(latitude) &&
+        !double.IsInfinity(longitude) &&
+        latitude is >= -90d and <= 90d &&
+        longitude is >= -180d and <= 180d;
 
     private static (Color Background, Color Foreground) ResolveCategoryPalette(string? category)
     {

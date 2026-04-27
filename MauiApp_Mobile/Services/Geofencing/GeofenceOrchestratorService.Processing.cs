@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using MauiApp_Mobile.Models;
 using MauiApp_Mobile.Services;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Devices.Sensors;
@@ -173,6 +174,11 @@ public sealed partial class GeofenceOrchestratorService
                 foreach (var stalePoiId in _runtimeStates.Keys.Where(item => !validIds.Contains(item)).ToList())
                 {
                     _runtimeStates.Remove(stalePoiId);
+                }
+
+                if (!string.IsNullOrWhiteSpace(_activePriorityPoiId) && !validIds.Contains(_activePriorityPoiId))
+                {
+                    _activePriorityPoiId = null;
                 }
 
                 foreach (var definition in _definitions)
@@ -350,7 +356,62 @@ public sealed partial class GeofenceOrchestratorService
                 ("distanceMeters", Math.Round(acceptedTrigger.DistanceMeters, 2)));
         }
 
-        var selectedTrigger = GeofenceTriggerSelector.SelectBest(allowedTriggers);
+        var candidatePois = allowedTriggers
+            .Select(item => PlaceCatalogService.Instance.FindById(item.Definition.Id))
+            .OfType<PlaceItem>()
+            .GroupBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        GeofenceTriggeredEvent? selectedTrigger = null;
+        double selectedScore = double.MinValue;
+        var switchBlockedByThreshold = false;
+
+        if (candidatePois.Count > 0)
+        {
+            var bestPoi = await PlaceCatalogService.Instance.GetBestPOIAsync(
+                sample.Latitude,
+                sample.Longitude,
+                candidatePois,
+                cancellationToken);
+
+            if (bestPoi is not null)
+            {
+                selectedTrigger = ResolveTriggerForPoi(bestPoi.Id, allowedTriggers);
+                if (selectedTrigger is not null)
+                {
+                    selectedScore = bestPoi.GetFinalPriority(sample.Latitude, sample.Longitude);
+                    if (!ShouldSwitchToCandidatePoi(
+                            bestPoi.Id,
+                            selectedScore,
+                            sample.Latitude,
+                            sample.Longitude))
+                    {
+                        switchBlockedByThreshold = true;
+                        selectedTrigger = null;
+                        LogSkip(
+                            "POI switch threshold",
+                            ("candidatePoiId", bestPoi.Id),
+                            ("candidateScore", Math.Round(selectedScore, 2)),
+                            ("threshold", PoiSwitchThresholdScore));
+                    }
+                }
+            }
+        }
+
+        if (selectedTrigger is null && !switchBlockedByThreshold)
+        {
+            selectedTrigger = GeofenceTriggerSelector.SelectBest(allowedTriggers);
+            if (selectedTrigger is not null)
+            {
+                var selectedPlace = PlaceCatalogService.Instance.FindById(selectedTrigger.Definition.Id);
+                if (selectedPlace is not null)
+                {
+                    selectedScore = selectedPlace.GetFinalPriority(sample.Latitude, sample.Longitude);
+                    RememberActivePriorityPoi(selectedPlace.Id);
+                }
+            }
+        }
 
         if (selectedTrigger is null)
         {
@@ -364,20 +425,41 @@ public sealed partial class GeofenceOrchestratorService
 
         if (allowedTriggers.Count > 1)
         {
+            var selectedPoiScore = selectedScore;
+            if (selectedPoiScore == double.MinValue)
+            {
+                selectedPoiScore = PlaceCatalogService.Instance
+                    .FindById(selectedTrigger.Definition.Id)?
+                    .GetFinalPriority(sample.Latitude, sample.Longitude)
+                    ?? double.MinValue;
+            }
+
             foreach (var skippedTrigger in allowedTriggers.Where(item => !Equals(item, selectedTrigger)))
             {
+                var skippedScore = PlaceCatalogService.Instance
+                    .FindById(skippedTrigger.Definition.Id)?
+                    .GetFinalPriority(sample.Latitude, sample.Longitude)
+                    ?? double.MinValue;
+
                 LogSkip(
                     "Lower Priority",
                     ("poiId", skippedTrigger.Definition.Id),
                     ("eventType", skippedTrigger.EventType.ToString()),
                     ("selectedPoiId", selectedTrigger.Definition.Id),
                     ("selectedPriority", selectedTrigger.Definition.Priority),
-                    ("skippedPriority", skippedTrigger.Definition.Priority));
+                    ("skippedPriority", skippedTrigger.Definition.Priority),
+                    ("selectedScore", Math.Round(selectedPoiScore, 2)),
+                    ("skippedScore", Math.Round(skippedScore, 2)));
             }
 
-            Log("overlap-resolved", ("selectedPoiId", selectedTrigger.Definition.Id), ("acceptedCount", allowedTriggers.Count));
+            Log(
+                "overlap-resolved",
+                ("selectedPoiId", selectedTrigger.Definition.Id),
+                ("acceptedCount", allowedTriggers.Count),
+                ("selectedScore", Math.Round(selectedPoiScore, 2)));
         }
 
+        RememberActivePriorityPoi(selectedTrigger.Definition.Id);
         RaiseTriggerAccepted(selectedTrigger);
         await HandleTriggerAsync(selectedTrigger, cancellationToken);
     }
@@ -553,6 +635,81 @@ public sealed partial class GeofenceOrchestratorService
         if (updated < 0)
         {
             Interlocked.Exchange(ref _queueDepth, 0);
+        }
+    }
+
+    private static GeofenceTriggeredEvent? ResolveTriggerForPoi(
+        string poiId,
+        IReadOnlyList<GeofenceTriggeredEvent> triggers)
+    {
+        if (string.IsNullOrWhiteSpace(poiId) || triggers.Count == 0)
+        {
+            return null;
+        }
+
+        return triggers
+            .Where(item => string.Equals(item.Definition.Id, poiId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(item => item.EventType == GeofenceTriggerEvent.EnteredRadius ? 0 : 1)
+            .ThenBy(item => item.DistanceMeters)
+            .ThenByDescending(item => item.Definition.Priority)
+            .FirstOrDefault();
+    }
+
+    private bool ShouldSwitchToCandidatePoi(
+        string candidatePoiId,
+        double candidateScore,
+        double userLat,
+        double userLon)
+    {
+        if (string.IsNullOrWhiteSpace(candidatePoiId))
+        {
+            return false;
+        }
+
+        var nearbyPoiIds = PlaceCatalogService.Instance
+            .GetPoisWithinRadius(userLat, userLon)
+            .Select(item => item.Id)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        string? currentPoiId;
+        lock (_stateGate)
+        {
+            currentPoiId = _activePriorityPoiId;
+        }
+
+        if (string.IsNullOrWhiteSpace(currentPoiId) ||
+            string.Equals(currentPoiId, candidatePoiId, StringComparison.OrdinalIgnoreCase) ||
+            !nearbyPoiIds.Contains(currentPoiId))
+        {
+            RememberActivePriorityPoi(candidatePoiId);
+            return true;
+        }
+
+        var currentPoi = PlaceCatalogService.Instance.FindById(currentPoiId);
+        if (currentPoi is null)
+        {
+            RememberActivePriorityPoi(candidatePoiId);
+            return true;
+        }
+
+        var currentScore = currentPoi.GetFinalPriority(userLat, userLon);
+        if (candidateScore > currentScore + PoiSwitchThresholdScore)
+        {
+            RememberActivePriorityPoi(candidatePoiId);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void RememberActivePriorityPoi(string? poiId)
+    {
+        lock (_stateGate)
+        {
+            _activePriorityPoiId = string.IsNullOrWhiteSpace(poiId)
+                ? null
+                : poiId.Trim();
         }
     }
 

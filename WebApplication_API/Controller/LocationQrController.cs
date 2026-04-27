@@ -473,6 +473,13 @@ public class LocationQrController(
 
     private string ResolvePublicBaseUrl()
     {
+        // Prioritize the configured PublicBaseUrl from appsettings.json if available
+        if (!string.IsNullOrWhiteSpace(qrService.ResolveConfiguredAndroidInstallUrl()) && 
+            Uri.TryCreate(qrService.ResolveConfiguredAndroidInstallUrl(), UriKind.Absolute, out var uri))
+        {
+            return uri.AbsoluteUri.EndsWith("/") ? uri.AbsoluteUri : uri.AbsoluteUri + "/";
+        }
+
         var pathBase = HttpContext.Request.PathBase.HasValue
             ? HttpContext.Request.PathBase.Value!.Trim('/').Trim()
             : string.Empty;

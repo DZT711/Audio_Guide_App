@@ -333,7 +333,7 @@ $spots = @(
         DebounceSeconds = 180
         Address = "149 Vinh Khanh, Ward 8, District 4, Ho Chi Minh City"
         Phone = "0904000101"
-        WebUrl = "https://squander-neurology-overhead.ngrok-free.dev/LocationQr/public/location/22"
+        WebUrl = " https://expletive-cried-decimeter.ngrok-free.dev/LocationQr/public/location/22"
         EstablishedYear = 2016
         ImageSources = @(
             "C:\Users\LENOVO\Downloads\download (1).jfif",
@@ -365,7 +365,7 @@ $spots = @(
         DebounceSeconds = 180
         Address = "171 Vinh Khanh, Ward 8, District 4, Ho Chi Minh City"
         Phone = "0904000102"
-        WebUrl = "https://squander-neurology-overhead.ngrok-free.dev/LocationQr/public/location/23"
+        WebUrl = " https://expletive-cried-decimeter.ngrok-free.dev/LocationQr/public/location/23"
         EstablishedYear = 2019
         ImageSources = @(
             "C:\Users\LENOVO\Downloads\download (2).jfif",
@@ -397,7 +397,7 @@ $spots = @(
         DebounceSeconds = 180
         Address = "189 Vinh Khanh, Ward 8, District 4, Ho Chi Minh City"
         Phone = "0904000103"
-        WebUrl = "https://squander-neurology-overhead.ngrok-free.dev/LocationQr/public/location/24"
+        WebUrl = " https://expletive-cried-decimeter.ngrok-free.dev/LocationQr/public/location/24"
         EstablishedYear = 2018
         ImageSources = @(
             "C:\Users\LENOVO\Downloads\download (3).jfif",
@@ -429,7 +429,7 @@ $spots = @(
         DebounceSeconds = 210
         Address = "205 Vinh Khanh, Ward 8, District 4, Ho Chi Minh City"
         Phone = "0904000104"
-        WebUrl = "https://squander-neurology-overhead.ngrok-free.dev/LocationQr/public/location/25"
+        WebUrl = " https://expletive-cried-decimeter.ngrok-free.dev/LocationQr/public/location/25"
         EstablishedYear = 2014
         ImageSources = @(
             "C:\Users\LENOVO\Downloads\download (5).jfif",
@@ -461,7 +461,7 @@ $spots = @(
         DebounceSeconds = 210
         Address = "227 Vinh Khanh, Ward 8, District 4, Ho Chi Minh City"
         Phone = "0904000105"
-        WebUrl = "https://squander-neurology-overhead.ngrok-free.dev/LocationQr/public/location/26"
+        WebUrl = " https://expletive-cried-decimeter.ngrok-free.dev/LocationQr/public/location/26"
         EstablishedYear = 2020
         ImageSources = @(
             "C:\Users\LENOVO\Downloads\download (6).jfif",

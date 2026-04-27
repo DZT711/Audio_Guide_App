@@ -15,6 +15,7 @@ public sealed partial class GeofenceOrchestratorService : INotifyPropertyChanged
     private readonly object _stateGate = new();
     private readonly Dictionary<string, GeofencePoiRuntimeState> _runtimeStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTimeOffset> _cooldownSkipNotifiedAtUtc = new(StringComparer.OrdinalIgnoreCase);
+    private const double PoiSwitchThresholdScore = 5d;
     private static readonly TimeSpan CooldownSkipNotificationThrottle = TimeSpan.FromSeconds(5);
 
     private CancellationTokenSource? _engineCts;
@@ -33,6 +34,7 @@ public sealed partial class GeofenceOrchestratorService : INotifyPropertyChanged
     private int _queueDepth;
     private int _nativeFailureCount;
     private long _droppedLocationEvents;
+    private string? _activePriorityPoiId;
     private bool _subscriptionsAttached;
     private bool _nativeMonitorAttached;
     private bool _isDisposed;
@@ -105,6 +107,7 @@ public sealed partial class GeofenceOrchestratorService : INotifyPropertyChanged
             _engineCts?.Dispose();
             _engineCts = null;
             _queueDepth = 0;
+            _activePriorityPoiId = null;
 
             DetachSubscriptions();
             DetachNativeMonitor();

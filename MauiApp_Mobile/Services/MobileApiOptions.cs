@@ -227,11 +227,11 @@ public static class MobileApiOptions
     {
         var candidates = new List<string>();
 
-        AddCandidate(candidates, Preferences.Default.Get(BaseUrlPreferenceKey, string.Empty));
         AddCandidate(candidates, Environment.GetEnvironmentVariable("SMARTTOUR_API_BASE_URL"));
         AddCandidate(candidates, Environment.GetEnvironmentVariable("SMARTTOUR_PUBLIC_BASE_URL"));
         AddCandidate(candidates, _runtimeConfiguration.BaseUrl);
         AddCandidate(candidates, _runtimeConfiguration.PublicBaseUrl);
+        AddCandidate(candidates, Preferences.Default.Get(BaseUrlPreferenceKey, string.Empty));
         AddCandidate(candidates, Preferences.Default.Get(LastKnownWorkingBaseUrlPreferenceKey, string.Empty));
 
         foreach (var fallbackBaseUrl in _runtimeConfiguration.FallbackBaseUrls)
