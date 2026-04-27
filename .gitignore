@@ -83,3 +83,11 @@ Project_SharedClassLibrary.Tests/
 .runtime/
 .tools/
 .artifacts/
+.codex-missing-keys.tsv
+.codex-auto-translations.txt
+
+# WebApplication_API Dynamic Content
+WebApplication_API/wwwroot/archive/audio/*
+WebApplication_API/wwwroot/archive/images/*
+WebApplication_API/wwwroot/android-packages/*
+WebApplication_API/wwwroot/downloads/*
