@@ -1,8 +1,8 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$ApkPath,
-    # [string]$PublicBaseUrl = "https://squander-neurology-overhead.ngrok-free.dev/",
-    [string]$PublicBaseUrl = "https://squander-neurology-overhead.ngrok-free.dev",
+    [string]$PublicBaseUrl = " https://expletive-cried-decimeter.ngrok-free.dev/",
+    # [string]$PublicBaseUrl = "https://squander-neurology-overhead.ngrok-free.dev",
     [string]$DownloadsDir = ".\WebApplication_API\wwwroot\downloads",
     [int]$KeepLatest = 5,
     [string]$GitSha = ""
@@ -18,21 +18,21 @@ New-Item -ItemType Directory -Force -Path $DownloadsDir | Out-Null
 
 # Cleanup stale temp files/directories from interrupted runs.
 Get-ChildItem -LiteralPath $DownloadsDir -Filter "smarttour-latest.apk.tmp-*" -ErrorAction SilentlyContinue |
-    ForEach-Object {
-        if ($_.PSIsContainer) {
-            Remove-Item -LiteralPath $_.FullName -Recurse -Force
-        }
-        else {
-            Remove-Item -LiteralPath $_.FullName -Force
-        }
+ForEach-Object {
+    if ($_.PSIsContainer) {
+        Remove-Item -LiteralPath $_.FullName -Recurse -Force
     }
+    else {
+        Remove-Item -LiteralPath $_.FullName -Force
+    }
+}
 
 # Cleanup accidental directory artifacts named like "*.apk".
 Get-ChildItem -LiteralPath $DownloadsDir -Filter "smarttour-*.apk" -ErrorAction SilentlyContinue |
-    Where-Object { $_.PSIsContainer } |
-    ForEach-Object {
-        Remove-Item -LiteralPath $_.FullName -Recurse -Force
-    }
+Where-Object { $_.PSIsContainer } |
+ForEach-Object {
+    Remove-Item -LiteralPath $_.FullName -Recurse -Force
+}
 
 if ([string]::IsNullOrWhiteSpace($GitSha)) {
     try {
@@ -90,21 +90,21 @@ $normalizedBase = $PublicBaseUrl.TrimEnd("/") + "/"
 $downloadUrl = "$normalizedBase" + "downloads/" + $fileName
 
 $manifest = [ordered]@{
-    fileName = $fileName
-    version = "$($buildUtc.ToString("yyyyMMdd-HHmm"))-$GitSha"
-    buildTimeUtc = $buildUtc.ToString("o")
-    gitSha = $GitSha
-    sha256 = $sha256
+    fileName      = $fileName
+    version       = "$($buildUtc.ToString("yyyyMMdd-HHmm"))-$GitSha"
+    buildTimeUtc  = $buildUtc.ToString("o")
+    gitSha        = $GitSha
+    sha256        = $sha256
     fileSizeBytes = $size
-    downloadUrl = $downloadUrl
+    downloadUrl   = $downloadUrl
 }
 
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
 
 $packages = Get-ChildItem -LiteralPath $DownloadsDir -Filter "smarttour-*.apk" |
-    Where-Object { -not $_.PSIsContainer } |
-    Where-Object { $_.Name -ne "smarttour-latest.apk" } |
-    Sort-Object LastWriteTimeUtc -Descending
+Where-Object { -not $_.PSIsContainer } |
+Where-Object { $_.Name -ne "smarttour-latest.apk" } |
+Sort-Object LastWriteTimeUtc -Descending
 
 $remove = $packages | Select-Object -Skip ([Math]::Max(1, $KeepLatest))
 foreach ($item in $remove) {

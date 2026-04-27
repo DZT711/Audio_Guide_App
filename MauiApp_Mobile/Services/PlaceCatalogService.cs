@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
 using MauiApp_Mobile.Models;
+using Microsoft.Maui.Devices.Sensors;
 using Project_SharedClassLibrary.Constants;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Geofencing;
@@ -118,18 +119,21 @@ public sealed class PlaceCatalogService
             await SaveAudioTrackCacheAsync(cancellationToken);
 
             var place = _places.FirstOrDefault(item => string.Equals(item.Id, normalizedPlaceId, StringComparison.OrdinalIgnoreCase));
-                if (place is not null)
-                {
-                    place.AudioTracks = audioTracks;
-                    place.AudioCountText = $"{audioTracks.Count} audio";
-                    place.AvailableVoiceGenders = audioTracks
+            if (place is not null)
+            {
+                place.AudioTracks = audioTracks;
+                place.AudioCountText = $"{audioTracks.Count} audio";
+                place.AvailableVoiceGenders = audioTracks
                     .Select(item => NormalizeVoiceGender(item.VoiceGender))
-                        .Where(item => !string.IsNullOrWhiteSpace(item))
-                        .Cast<string>()
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToList();
-                    place.LanguageBadgeSummaryText = LanguageBadgeService.BuildSummary(audioTracks);
-                }
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Cast<string>()
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                place.LanguageBadgeSummaryText = LanguageBadgeService.BuildSummary(audioTracks);
+                place.TotalAudioDurationSeconds = audioTracks.Sum(item => Math.Max(0, item.Duration));
+                place.DominantAudioType = ResolveDominantAudioType(audioTracks);
+                place.StaticScore = ComputeStaticScore(place, audioTracks);
+            }
 
             return audioTracks.ToList();
         }
@@ -182,6 +186,48 @@ public sealed class PlaceCatalogService
             .Take(Math.Max(1, maxResults))
             .Select(item => item.Place)
             .ToList();
+    }
+
+    public IReadOnlyList<PlaceItem> GetPoisWithinRadius(double userLat, double userLon)
+    {
+        return _places
+            .Where(item =>
+                item.Status == 1 &&
+                item.IsGpsTriggerEnabled &&
+                IsWithinActivationRadius(userLat, userLon, item, out _))
+            .ToList();
+    }
+
+    public PlaceItem? GetBestPOI(double userLat, double userLon, IReadOnlyList<PlaceItem>? candidatePois)
+    {
+        if (candidatePois is null || candidatePois.Count == 0)
+        {
+            return null;
+        }
+
+        return candidatePois
+            .Where(item =>
+                item is not null &&
+                item.Status == 1 &&
+                item.IsGpsTriggerEnabled &&
+                IsWithinActivationRadius(userLat, userLon, item, out _))
+            .OrderByDescending(item => item.GetFinalPriority(userLat, userLon))
+            .ThenBy(item => item.LocationId)
+            .FirstOrDefault();
+    }
+
+    public Task<PlaceItem?> GetBestPOIAsync(
+        double userLat,
+        double userLon,
+        IReadOnlyList<PlaceItem>? candidatePois,
+        CancellationToken cancellationToken = default)
+    {
+        if (candidatePois is null || candidatePois.Count == 0)
+        {
+            return Task.FromResult<PlaceItem?>(null);
+        }
+
+        return Task.Run(() => GetBestPOI(userLat, userLon, candidatePois), cancellationToken);
     }
 
     public async Task<IReadOnlyList<MapPlacePoint>> GetMapPointsAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
@@ -255,9 +301,20 @@ public sealed class PlaceCatalogService
 
         primaryImage = galleryImages[0];
 
+        var totalAudioDurationSeconds = audioTracks.Sum(item => Math.Max(0, item.Duration));
+        var dominantAudioType = ResolveDominantAudioType(audioTracks);
+        const int totalTourCount = 0;
+        const bool isTopChartOrTrending = false;
+        var staticScore = ComputeStaticScore(
+            location,
+            audioTracks,
+            totalTourCount,
+            isTopChartOrTrending);
+
         return new PlaceItem
         {
             Id = location.Id.ToString(CultureInfo.InvariantCulture),
+            LocationId = location.Id,
             Name = location.Name,
             Description = location.Description ?? location.Address ?? "Chưa có mô tả.",
             AudioDescription = location.Description ?? $"Khám phá địa điểm {location.Name}.",
@@ -298,6 +355,11 @@ public sealed class PlaceCatalogService
             DebounceSeconds = Math.Max(0, location.DebounceSeconds),
             Status = location.Status,
             IsGpsTriggerEnabled = location.IsGpsTriggerEnabled,
+            TotalTourCount = totalTourCount,
+            IsTopChartOrTrending = isTopChartOrTrending,
+            DominantAudioType = dominantAudioType,
+            TotalAudioDurationSeconds = totalAudioDurationSeconds,
+            StaticScore = staticScore,
             CategoryColor = categoryColors.Background,
             CategoryTextColor = categoryColors.Foreground
         };
@@ -944,6 +1006,146 @@ public sealed class PlaceCatalogService
                 StringComparer.OrdinalIgnoreCase);
     }
 
+    private static bool IsWithinActivationRadius(
+        double userLat,
+        double userLon,
+        PlaceItem place,
+        out double distanceMeters)
+    {
+        distanceMeters = double.MaxValue;
+
+        if (!IsCoordinateInRange(userLat, userLon) || !IsCoordinateInRange(place.Latitude, place.Longitude))
+        {
+            return false;
+        }
+
+        var distanceKilometers = Location.CalculateDistance(
+            userLat,
+            userLon,
+            place.Latitude,
+            place.Longitude,
+            DistanceUnits.Kilometers);
+
+        if (double.IsNaN(distanceKilometers) || double.IsInfinity(distanceKilometers))
+        {
+            return false;
+        }
+
+        distanceMeters = distanceKilometers * 1000d;
+        var activationRadius = SanitizeActivationRadius(place.ActivationRadiusMeters);
+        return distanceMeters <= activationRadius;
+    }
+
+    private static double ComputeStaticScore(
+        LocationDto location,
+        IReadOnlyList<PublicAudioTrackDto> audioTracks,
+        int totalTourCount,
+        bool isTopChartOrTrending)
+    {
+        var qualityScore = ResolveQualityScore(
+            audioTracks,
+            totalDurationSeconds: audioTracks.Sum(item => Math.Max(0, item.Duration)),
+            hasImage: !string.IsNullOrWhiteSpace(location.PreferenceImageUrl) ||
+                      !string.IsNullOrWhiteSpace(location.CoverImageUrl) ||
+                      location.ImageUrls.Count > 0,
+            phone: location.Phone,
+            website: location.WebURL,
+            email: location.Email);
+        var authorityScore = Math.Max(0, totalTourCount) * 2d;
+        var communityScore = isTopChartOrTrending ? 10d : 0d;
+
+        return qualityScore + authorityScore + communityScore;
+    }
+
+    private static double ComputeStaticScore(
+        PlaceItem place,
+        IReadOnlyList<PublicAudioTrackDto> audioTracks)
+    {
+        var qualityScore = ResolveQualityScore(
+            audioTracks,
+            totalDurationSeconds: Math.Max(0, place.TotalAudioDurationSeconds),
+            hasImage: HasMeaningfulValue(place.PreferenceImage) ||
+                      HasMeaningfulValue(place.Image) ||
+                      place.GalleryImages.Any(HasMeaningfulValue),
+            phone: place.Phone,
+            website: place.Website,
+            email: place.Email);
+        var authorityScore = Math.Max(0, place.TotalTourCount) * 2d;
+        var communityScore = place.IsTopChartOrTrending ? 10d : 0d;
+
+        return qualityScore + authorityScore + communityScore;
+    }
+
+    private static double ResolveQualityScore(
+        IReadOnlyList<PublicAudioTrackDto> audioTracks,
+        int totalDurationSeconds,
+        bool hasImage,
+        string? phone,
+        string? website,
+        string? email)
+    {
+        var audioTypeScore = ResolveAudioTypeScore(ResolveDominantAudioType(audioTracks));
+        var goldenDurationScore = totalDurationSeconds is >= 120 and <= 300 ? 5d : 0d;
+        var metadataRichnessScore = 0d;
+
+        if (hasImage)
+        {
+            metadataRichnessScore += 1d;
+        }
+
+        if (HasMeaningfulValue(phone))
+        {
+            metadataRichnessScore += 1d;
+        }
+
+        if (HasMeaningfulValue(website))
+        {
+            metadataRichnessScore += 1d;
+        }
+
+        if (HasMeaningfulValue(email))
+        {
+            metadataRichnessScore += 1d;
+        }
+
+        return audioTypeScore + goldenDurationScore + metadataRichnessScore;
+    }
+
+    private static string ResolveDominantAudioType(IReadOnlyList<PublicAudioTrackDto> audioTracks)
+    {
+        if (audioTracks.Any(item => string.Equals(item.SourceType, "Recorded", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "Recorded";
+        }
+
+        if (audioTracks.Any(item => string.Equals(item.SourceType, "Hybrid", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "Hybrid";
+        }
+
+        return "TTS";
+    }
+
+    private static double ResolveAudioTypeScore(string sourceType) =>
+        sourceType.Trim().ToUpperInvariant() switch
+        {
+            "RECORDED" => 20d,
+            "HYBRID" => 10d,
+            _ => 2d
+        };
+
+    private static bool HasMeaningfulValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var normalized = value.Trim();
+        return !string.Equals(normalized, "Chưa cập nhật", StringComparison.OrdinalIgnoreCase) &&
+               !string.Equals(normalized, "location.png", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string? NormalizeVoiceGender(string? voiceGender)
     {
         if (string.IsNullOrWhiteSpace(voiceGender))
@@ -989,6 +1191,12 @@ public sealed class PlaceCatalogService
 
     private static bool IsFiniteCoordinate(double value) =>
         !double.IsNaN(value) && !double.IsInfinity(value);
+
+    private static bool IsCoordinateInRange(double latitude, double longitude) =>
+        IsFiniteCoordinate(latitude) &&
+        IsFiniteCoordinate(longitude) &&
+        latitude is >= -90d and <= 90d &&
+        longitude is >= -180d and <= 180d;
 
     private static IEnumerable<string?> GetImageCandidates(LocationDto location)
     {
