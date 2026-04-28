@@ -11,6 +11,18 @@ public class Category
 
     public string? Description { get; set; }
 
+    [MaxLength(32)]
+    public string? ThemeName { get; set; }
+
+    [MaxLength(16)]
+    public string? IconEmoji { get; set; }
+
+    [MaxLength(7)]
+    public string? PrimaryColor { get; set; }
+
+    [MaxLength(7)]
+    public string? SecondaryColor { get; set; }
+
     public int Status { get; set; } = 1;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

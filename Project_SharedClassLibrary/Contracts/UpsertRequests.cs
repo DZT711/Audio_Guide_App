@@ -13,6 +13,18 @@ public sealed class CategoryUpsertRequest
     [StringLength(2000)]
     public string? Description { get; set; }
 
+    [StringLength(32)]
+    public string? ThemeName { get; set; }
+
+    [StringLength(16)]
+    public string? IconEmoji { get; set; }
+
+    [RegularExpression("^#(?:[0-9a-fA-F]{6})$", ErrorMessage = "Primary color must use the #RRGGBB format.")]
+    public string? PrimaryColor { get; set; }
+
+    [RegularExpression("^#(?:[0-9a-fA-F]{6})$", ErrorMessage = "Secondary color must use the #RRGGBB format.")]
+    public string? SecondaryColor { get; set; }
+
     [Range(0, 1)]
     public int Status { get; set; } = 1;
 }

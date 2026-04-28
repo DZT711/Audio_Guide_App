@@ -1,0 +1,3555 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>__SMARTTOUR_PAGE_TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════
+   ADAPTIVE THEME ENGINE — CSS VARIABLE SYSTEM
+   ═══════════════════════════════════════════════ */
+
+:root {
+  --transition-speed: 0.45s;
+  --radius-card: 20px;
+  --radius-pill: 999px;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --shadow-card: 0 8px 40px rgba(0,0,0,0.12);
+  --shadow-deep: 0 20px 60px rgba(0,0,0,0.22);
+}
+
+/* ── HOTPOT (Lẩu) — Warm/Fire ── */
+body.theme-hotpot {
+  --primary:        #C0392B;
+  --primary-dark:   #7B241C;
+  --accent:         #E67E22;
+  --accent-light:   #F39C12;
+  --bg-page:        #FDF6F0;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #C0392B;
+  --bg-hero-end:    #7B241C;
+  --text-main:      #1C0A00;
+  --text-muted:     #7D4A3A;
+  --badge-bg:       #F39C12;
+  --badge-text:     #3D1C00;
+  --wave-color:     #E74C3C;
+  --texture:        url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='30' r='2' fill='%23C0392B' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+/* ── SNAIL STALLS (Quán ốc) — Coastal/Street ── */
+body.theme-snail {
+  --primary:        #16A085;
+  --primary-dark:   #0E6655;
+  --accent:         #F1C40F;
+  --accent-light:   #F7DC6F;
+  --bg-page:        #F0FBF8;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #1ABC9C;
+  --bg-hero-end:    #0E6655;
+  --text-main:      #0B2C24;
+  --text-muted:     #2E7D6B;
+  --badge-bg:       #F1C40F;
+  --badge-text:     #2C2C00;
+  --wave-color:     #1ABC9C;
+  --texture:        url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 30 Q15 20 30 30 Q45 40 60 30' stroke='%2316A085' stroke-width='1' fill='none' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+/* ── PUBS/BEER (Quán nhậu) — Night/Neon ── */
+body.theme-pub {
+  --primary:        #7C3AED;
+  --primary-dark:   #4C1D95;
+  --accent:         #FACC15;
+  --accent-light:   #FDE68A;
+  --bg-page:        #0D0D1A;
+  --bg-card:        #14142A;
+  --bg-hero-start:  #1E1B4B;
+  --bg-hero-end:    #0D0D1A;
+  --text-main:      #F0EDFF;
+  --text-muted:     #9CA3AF;
+  --badge-bg:       #FACC15;
+  --badge-text:     #1A1000;
+  --wave-color:     #7C3AED;
+  --texture:        url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='10' cy='10' r='1' fill='%23FACC15' opacity='0.12'/%3E%3Ccircle cx='40' cy='30' r='1' fill='%237C3AED' opacity='0.15'/%3E%3C/svg%3E");
+}
+
+/* ── BUBBLE TEA / DESSERTS (Trà sữa) — Pastel ── */
+body.theme-dessert {
+  --primary:        #EC4899;
+  --primary-dark:   #9D174D;
+  --accent:         #6EE7B7;
+  --accent-light:   #A7F3D0;
+  --bg-page:        #FFF5FC;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #F472B6;
+  --bg-hero-end:    #9D174D;
+  --text-main:      #3A0828;
+  --text-muted:     #9D6B8A;
+  --badge-bg:       #6EE7B7;
+  --badge-text:     #0A3D2A;
+  --wave-color:     #EC4899;
+  --texture:        url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='20' cy='20' r='3' fill='%23F472B6' opacity='0.07'/%3E%3Ccircle cx='50' cy='45' r='2' fill='%236EE7B7' opacity='0.09'/%3E%3C/svg%3E");
+}
+
+/* ── FAST FOOD — Pop Art ── */
+body.theme-fastfood {
+  --primary:        #DC2626;
+  --primary-dark:   #991B1B;
+  --accent:         #FBBF24;
+  --accent-light:   #FDE68A;
+  --bg-page:        #FFFBEB;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #DC2626;
+  --bg-hero-end:    #7F1D1D;
+  --text-main:      #1A0000;
+  --text-muted:     #6B2020;
+  --badge-bg:       #FBBF24;
+  --badge-text:     #1A1000;
+  --wave-color:     #DC2626;
+  --texture:        url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='0' y='0' width='20' height='20' fill='%23FBBF24' opacity='0.04'/%3E%3Crect x='20' y='20' width='20' height='20' fill='%23DC2626' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+/* ── JUNK FOOD VENDOR — Electric Street ── */
+body.theme-junkfood {
+  --primary:        #BFFF00;
+  --primary-dark:   #7AAD00;
+  --accent:         #FF4D00;
+  --accent-light:   #FF8C42;
+  --bg-page:        #0A0A0A;
+  --bg-card:        #141414;
+  --bg-hero-start:  #1A2000;
+  --bg-hero-end:    #0A0A0A;
+  --text-main:      #EEFFCC;
+  --text-muted:     #7A9A30;
+  --badge-bg:       #BFFF00;
+  --badge-text:     #050800;
+  --wave-color:     #BFFF00;
+  --texture:        url("data:image/svg+xml,%3Csvg width='30' height='30' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='2' cy='2' r='1' fill='%23BFFF00' opacity='0.15'/%3E%3C/svg%3E");
+}
+
+/* ── VENDOR DINNER FOOD — Candlelight Evening ── */
+body.theme-dinner {
+  --primary:        #D97706;
+  --primary-dark:   #92400E;
+  --accent:         #FCD34D;
+  --accent-light:   #FEF3C7;
+  --bg-page:        #1C1008;
+  --bg-card:        #261808;
+  --bg-hero-start:  #92400E;
+  --bg-hero-end:    #1C1008;
+  --text-main:      #FEF3C7;
+  --text-muted:     #B45309;
+  --badge-bg:       #FCD34D;
+  --badge-text:     #1C1008;
+  --wave-color:     #D97706;
+  --texture:        url("data:image/svg+xml,%3Csvg width='50' height='50' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='25' cy='25' r='1.5' fill='%23D97706' opacity='0.12'/%3E%3C/svg%3E");
+}
+
+/* ── COFFEE SHOP — Espresso Artisan ── */
+body.theme-coffee {
+  --primary:        #6B3F1F;
+  --primary-dark:   #3B1F0A;
+  --accent:         #D4A35A;
+  --accent-light:   #F0D5A0;
+  --bg-page:        #FAF5EE;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #6B3F1F;
+  --bg-hero-end:    #3B1F0A;
+  --text-main:      #1A0E00;
+  --text-muted:     #8B6045;
+  --badge-bg:       #D4A35A;
+  --badge-text:     #1A0E00;
+  --wave-color:     #6B3F1F;
+  --texture:        url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cellipse cx='30' cy='30' rx='20' ry='4' stroke='%236B3F1F' stroke-width='1' fill='none' opacity='0.07'/%3E%3C/svg%3E");
+}
+
+/* ── SMOOTHIE TAKEAWAY — Tropical Burst ── */
+body.theme-smoothie {
+  --primary:        #059669;
+  --primary-dark:   #064E3B;
+  --accent:         #F59E0B;
+  --accent-light:   #FDE68A;
+  --bg-page:        #F0FDF4;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #10B981;
+  --bg-hero-end:    #064E3B;
+  --text-main:      #022C22;
+  --text-muted:     #065F46;
+  --badge-bg:       #F59E0B;
+  --badge-text:     #1C0A00;
+  --wave-color:     #059669;
+  --texture:        url("data:image/svg+xml,%3Csvg width='50' height='50' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='10' cy='10' r='4' fill='%2310B981' opacity='0.06'/%3E%3Ccircle cx='35' cy='35' r='3' fill='%23F59E0B' opacity='0.07'/%3E%3C/svg%3E");
+}
+
+/* ── BUFFET RESTAURANT — Grand Feast ── */
+body.theme-buffet {
+  --primary:        #9F1239;
+  --primary-dark:   #5C0A24;
+  --accent:         #B8860B;
+  --accent-light:   #DAA520;
+  --bg-page:        #FDF8EE;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #9F1239;
+  --bg-hero-end:    #4A0620;
+  --text-main:      #1A0008;
+  --text-muted:     #7C3558;
+  --badge-bg:       #B8860B;
+  --badge-text:     #1A0A00;
+  --wave-color:     #9F1239;
+  --texture:        url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 2 L22 14 L34 14 L24 22 L28 34 L20 26 L12 34 L16 22 L6 14 L18 14 Z' fill='%23B8860B' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* ── FOOD COURT — Urban Hub ── */
+body.theme-foodcourt {
+  --primary:        #2563EB;
+  --primary-dark:   #1E3A8A;
+  --accent:         #FB923C;
+  --accent-light:   #FDBA74;
+  --bg-page:        #F0F4FF;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #1D4ED8;
+  --bg-hero-end:    #1E3A8A;
+  --text-main:      #0A1030;
+  --text-muted:     #4A6080;
+  --badge-bg:       #FB923C;
+  --badge-text:     #1A0800;
+  --wave-color:     #2563EB;
+  --texture:        url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='18' y='0' width='4' height='40' fill='%232563EB' opacity='0.04'/%3E%3Crect x='0' y='18' width='40' height='4' fill='%232563EB' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+/* ── CANTEEN — Clean & Functional ── */
+body.theme-canteen {
+  --primary:        #0284C7;
+  --primary-dark:   #075985;
+  --accent:         #22D3EE;
+  --accent-light:   #A5F3FC;
+  --bg-page:        #F0F9FF;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #0284C7;
+  --bg-hero-end:    #075985;
+  --text-main:      #0A2030;
+  --text-muted:     #3B6A8A;
+  --badge-bg:       #22D3EE;
+  --badge-text:     #0A2030;
+  --wave-color:     #0284C7;
+  --texture:        url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='0' y='9' width='20' height='1' fill='%230284C7' opacity='0.06'/%3E%3C/svg%3E");
+}
+
+/* ── SUPERMARKET — Retail Fresh ── */
+body.theme-supermarket {
+  --primary:        #16A34A;
+  --primary-dark:   #14532D;
+  --accent:         #EF4444;
+  --accent-light:   #FCA5A5;
+  --bg-page:        #F0FDF4;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #15803D;
+  --bg-hero-end:    #14532D;
+  --text-main:      #052012;
+  --text-muted:     #2D6A4A;
+  --badge-bg:       #EF4444;
+  --badge-text:     #FFFFFF;
+  --wave-color:     #16A34A;
+  --texture:        url("data:image/svg+xml,%3Csvg width='30' height='30' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='0' y='0' width='14' height='14' rx='2' fill='%2316A34A' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+/* ── MINI MART — Corner Store Warmth ── */
+body.theme-minimart {
+  --primary:        #EA580C;
+  --primary-dark:   #9A3412;
+  --accent:         #84CC16;
+  --accent-light:   #D9F99D;
+  --bg-page:        #FFF7ED;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #EA580C;
+  --bg-hero-end:    #7C2D12;
+  --text-main:      #1C0A00;
+  --text-muted:     #7C4A2A;
+  --badge-bg:       #84CC16;
+  --badge-text:     #1A2800;
+  --wave-color:     #EA580C;
+  --texture:        url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='10' cy='10' r='2' fill='%23EA580C' opacity='0.06'/%3E%3Ccircle cx='30' cy='30' r='2' fill='%2384CC16' opacity='0.07'/%3E%3C/svg%3E");
+}
+
+/* ── BAKERY — Golden Crust ── */
+body.theme-bakery {
+  --primary:        #B45309;
+  --primary-dark:   #78350F;
+  --accent:         #F59E0B;
+  --accent-light:   #FDE68A;
+  --bg-page:        #FFFBF0;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #B45309;
+  --bg-hero-end:    #5A2800;
+  --text-main:      #1C0E00;
+  --text-muted:     #92600A;
+  --badge-bg:       #F59E0B;
+  --badge-text:     #1C0800;
+  --wave-color:     #B45309;
+  --texture:        url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cellipse cx='30' cy='30' rx='10' ry='14' stroke='%23B45309' stroke-width='1.5' fill='none' opacity='0.06'/%3E%3C/svg%3E");
+}
+
+/* ── EATERY / RICE SHOP — Homestyle ── */
+body.theme-eatery {
+  --primary:        #4D7C0F;
+  --primary-dark:   #2D4A08;
+  --accent:         #CA8A04;
+  --accent-light:   #FDE68A;
+  --bg-page:        #F7FAF0;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #4D7C0F;
+  --bg-hero-end:    #1A3300;
+  --text-main:      #0E1A04;
+  --text-muted:     #4A6A18;
+  --badge-bg:       #CA8A04;
+  --badge-text:     #1A0E00;
+  --wave-color:     #4D7C0F;
+  --texture:        url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cellipse cx='30' cy='30' rx='18' ry='5' stroke='%234D7C0F' stroke-width='1' fill='none' opacity='0.07'/%3E%3C/svg%3E");
+}
+
+/* ── SEAFOOD RESTAURANT — Deep Ocean ── */
+body.theme-seafood {
+  --primary:        #0891B2;
+  --primary-dark:   #164E63;
+  --accent:         #F97316;
+  --accent-light:   #FDBA74;
+  --bg-page:        #F0FBFF;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #0E7490;
+  --bg-hero-end:    #083344;
+  --text-main:      #042030;
+  --text-muted:     #2A6A80;
+  --badge-bg:       #F97316;
+  --badge-text:     #1A0800;
+  --wave-color:     #0891B2;
+  --texture:        url("data:image/svg+xml,%3Csvg width='60' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10 Q15 2 30 10 Q45 18 60 10' stroke='%230891B2' stroke-width='1.2' fill='none' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+/* ── NOODLE SHOP — Steamy Umami ── */
+body.theme-noodle {
+  --primary:        #C2410C;
+  --primary-dark:   #7C2D12;
+  --accent:         #CA8A04;
+  --accent-light:   #FEF08A;
+  --bg-page:        #FFF8F3;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #C2410C;
+  --bg-hero-end:    #431407;
+  --text-main:      #1C0800;
+  --text-muted:     #8A3A18;
+  --badge-bg:       #CA8A04;
+  --badge-text:     #1A0E00;
+  --wave-color:     #C2410C;
+  --texture:        url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 20 Q20 10 40 20 Q50 25 60 20' stroke='%23C2410C' stroke-width='1' fill='none' opacity='0.07'/%3E%3Cpath d='M0 40 Q20 30 40 40 Q50 45 60 40' stroke='%23C2410C' stroke-width='1' fill='none' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* ── PHO SHOP — Vietnamese Heritage ── */
+body.theme-pho {
+  --primary:        #B91C1C;
+  --primary-dark:   #6B0F0F;
+  --accent:         #D97706;
+  --accent-light:   #FDE68A;
+  --bg-page:        #FDF4F0;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #991B1B;
+  --bg-hero-end:    #450A0A;
+  --text-main:      #1A0404;
+  --text-muted:     #832020;
+  --badge-bg:       #D97706;
+  --badge-text:     #1A0800;
+  --wave-color:     #B91C1C;
+  --texture:        url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolygon points='20,4 22,16 34,16 24,24 28,36 20,28 12,36 16,24 6,16 18,16' fill='%23D97706' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* ── STICKY RICE STALL — Dawn Market ── */
+body.theme-stickyrice {
+  --primary:        #7C3AED;
+  --primary-dark:   #4C1D95;
+  --accent:         #EAB308;
+  --accent-light:   #FEF08A;
+  --bg-page:        #FAF5FF;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #6D28D9;
+  --bg-hero-end:    #2E1065;
+  --text-main:      #1A0830;
+  --text-muted:     #6D4A9A;
+  --badge-bg:       #EAB308;
+  --badge-text:     #1A1000;
+  --wave-color:     #7C3AED;
+  --texture:        url("data:image/svg+xml,%3Csvg width='50' height='50' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='12' cy='12' r='3' fill='%237C3AED' opacity='0.07'/%3E%3Ccircle cx='38' cy='38' r='2' fill='%23EAB308' opacity='0.09'/%3E%3Ccircle cx='38' cy='12' r='2' fill='%237C3AED' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* ── CAFETERIA — Mint Industrial ── */
+body.theme-cafeteria {
+  --primary:        #0D9488;
+  --primary-dark:   #0F4D48;
+  --accent:         #F59E0B;
+  --accent-light:   #FDE68A;
+  --bg-page:        #F0FDFB;
+  --bg-card:        #FFFFFF;
+  --bg-hero-start:  #0D9488;
+  --bg-hero-end:    #065048;
+  --text-main:      #041A18;
+  --text-muted:     #2A6A65;
+  --badge-bg:       #F59E0B;
+  --badge-text:     #1A0A00;
+  --wave-color:     #0D9488;
+  --texture:        url("data:image/svg+xml,%3Csvg width='30' height='30' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='0' y='14' width='30' height='1' fill='%230D9488' opacity='0.07'/%3E%3Crect x='14' y='0' width='1' height='30' fill='%230D9488' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+/* ═══════════════════════════════════════════════
+   GLOBAL RESET & BASE
+   ═══════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-page);
+  color: var(--text-main);
+  background-image: var(--texture);
+  transition: background var(--transition-speed), color var(--transition-speed);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════════════════════════════
+   THEME SWITCHER (demo only — remove in production)
+   ═══════════════════════════════════════════════ */
+
+/* ── THEME SWITCHER SHELL ── */
+#theme-switcher {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 9999;
+  background: rgba(10,10,14,0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+}
+
+/* ── HEADER BAR (always visible) ── */
+#switcher-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  gap: 10px;
+  min-height: 42px;
+}
+#switcher-active-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+#switcher-active-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 99px;
+  padding: 4px 12px 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  transition: background 0.25s;
+}
+#switcher-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: #fff;
+  border-radius: 99px;
+  padding: 5px 13px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+}
+#switcher-toggle:hover { background: rgba(255,255,255,0.15); }
+#switcher-toggle-arrow {
+  display: inline-block;
+  transition: transform 0.32s cubic-bezier(.4,0,.2,1);
+  font-size: 12px;
+}
+#theme-switcher.open #switcher-toggle-arrow { transform: rotate(180deg); }
+
+/* ── COLLAPSIBLE PANEL ── */
+#switcher-panel {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.38s cubic-bezier(.4,0,.2,1),
+              opacity 0.28s ease,
+              padding 0.28s ease;
+  opacity: 0;
+  padding: 0 10px;
+}
+#theme-switcher.open #switcher-panel {
+  max-height: 300px;
+  opacity: 1;
+  padding: 2px 10px 10px;
+}
+
+/* ── SCROLLABLE INNER GRID ── */
+#switcher-scroll {
+  overflow-y: auto;
+  max-height: 268px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+#switcher-scroll::-webkit-scrollbar { width: 4px; }
+#switcher-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.18);
+  border-radius: 4px;
+}
+
+/* ── CATEGORY BUTTONS ── */
+#switcher-scroll button {
+  border: 2px solid transparent;
+  cursor: pointer;
+  border-radius: 99px;
+  padding: 5px 11px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  opacity: 0.88;
+  transition: opacity 0.2s, transform 0.15s, border-color 0.2s, box-shadow 0.2s;
+}
+#switcher-scroll button:active { transform: scale(0.93); }
+#switcher-scroll button:hover { opacity: 1; transform: scale(1.05); }
+#switcher-scroll button.active-theme {
+  border-color: rgba(255,255,255,0.9);
+  opacity: 1;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.16);
+}
+
+/* ═══════════════════════════════════════════════
+   SCROLL ANIMATIONS
+   ═══════════════════════════════════════════════ */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.65s ease, transform 0.65s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+
+/* ═══════════════════════════════════════════════
+   HERO SECTION
+   ═══════════════════════════════════════════════ */
+
+.hero {
+  position: relative;
+  height: 56vh;
+  min-height: 340px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 28px;
+  padding-top: 42px;
+}
+
+.hero-bg {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(160deg, var(--bg-hero-start), var(--bg-hero-end));
+  transition: background var(--transition-speed);
+  will-change: transform;
+}
+
+.hero-img {
+  position: absolute; inset: 0;
+  object-fit: cover;
+  width: 100%; height: 100%;
+  opacity: 0.28;
+  will-change: transform;
+}
+
+.hero-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 55%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  padding: 0 22px;
+  width: 100%;
+}
+
+.smart-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  margin-bottom: 10px;
+}
+.smart-badge::before { content: '★'; font-size: 11px; }
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 8vw, 42px);
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.12;
+  text-shadow: 0 3px 16px rgba(0,0,0,0.5);
+  margin-bottom: 6px;
+}
+
+.hero-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+  font-weight: 500;
+}
+.hero-category-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.6; }
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN CONTAINER
+   ═══════════════════════════════════════════════ */
+
+.container {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 0 16px 80px;
+}
+
+/* ═══════════════════════════════════════════════
+   CARD BASE
+   ═══════════════════════════════════════════════ */
+
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  margin-top: 16px;
+  transition: background var(--transition-speed);
+  border: 1px solid rgba(0,0,0,0.05);
+}
+body.theme-pub .card,
+body.theme-junkfood .card,
+body.theme-dinner .card {
+  border-color: rgba(255,255,255,0.06);
+}
+
+.card-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--primary);
+  opacity: 0.2;
+}
+
+/* ═══════════════════════════════════════════════
+   QR ANALYTICS CARD
+   ═══════════════════════════════════════════════ */
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+body.theme-pub .stat-block,
+body.theme-junkfood .stat-block,
+body.theme-dinner .stat-block {
+  background: rgba(255,255,255,0.05);
+}
+body.theme-pub .stat-label,
+body.theme-junkfood .stat-label,
+body.theme-dinner .stat-label {
+  color: var(--text-muted);
+}
+
+.stat-block {
+  background: var(--bg-page);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: background var(--transition-speed);
+}
+.stat-block::before {
+  content: '';
+  position: absolute;
+  top: -10px; right: -10px;
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  background: var(--primary);
+  opacity: 0.07;
+}
+.stat-icon {
+  font-size: 20px;
+  margin-bottom: 4px;
+  display: block;
+}
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--primary);
+  line-height: 1;
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════════
+   AUDIO PLAYER
+   ═══════════════════════════════════════════════ */
+
+.lang-toggle {
+  display: flex;
+  gap: 0;
+  background: var(--bg-page);
+  border-radius: 99px;
+  padding: 3px;
+  width: fit-content;
+  margin-bottom: 16px;
+  transition: background var(--transition-speed);
+}
+.lang-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 16px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  transition: all 0.2s;
+}
+.lang-btn.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+}
+
+.audio-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--text-main);
+}
+.audio-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.audio-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Waveform */
+.waveform-container {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.wave-bar {
+  flex: 1;
+  border-radius: 2px;
+  background: var(--primary);
+  opacity: 0.35;
+  transition: height 0.1s, opacity 0.3s;
+  transform-origin: center;
+}
+.wave-bar.played { opacity: 0.85; }
+.waveform-container.playing .wave-bar {
+  animation: waveAnim var(--dur, 0.6s) ease-in-out infinite alternate;
+}
+@keyframes waveAnim {
+  from { transform: scaleY(0.3); }
+  to   { transform: scaleY(1.0); }
+}
+
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.btn-play {
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+  flex-shrink: 0;
+  transition: transform 0.15s, background var(--transition-speed);
+}
+.btn-play:active { transform: scale(0.93); }
+.btn-play.playing { background: var(--primary-dark); }
+
+.progress-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--bg-page);
+  border-radius: 99px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: background var(--transition-speed);
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 99px;
+  width: 35%;
+  transition: width 0.3s linear;
+}
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.volume-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+/* ═══════════════════════════════════════════════
+   POI METADATA CARD
+   ═══════════════════════════════════════════════ */
+
+.poi-description {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(0,0,0,0.05);
+  font-size: 13px;
+  color: var(--text-main);
+}
+body.theme-pub .meta-row { border-top-color: rgba(255,255,255,0.06); }
+.meta-icon {
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  background: var(--bg-page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+  transition: background var(--transition-speed);
+}
+.meta-content { flex: 1; }
+.meta-key {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.meta-val { font-weight: 600; font-size: 13px; margin-top: 1px; }
+
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 4px;
+  border: 2px solid var(--primary);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-body);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.action-btn:active, .action-btn:hover {
+  background: var(--primary);
+  color: #fff;
+}
+.action-btn-icon { font-size: 20px; }
+
+/* ═══════════════════════════════════════════════
+   IMAGE GALLERY WITH PAGINATION
+   ═══════════════════════════════════════════════ */
+
+.gallery-track {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  aspect-ratio: 16/10;
+  background: var(--bg-page);
+  margin-bottom: 10px;
+  transition: background var(--transition-speed);
+}
+.gallery-slide {
+  position: absolute; inset: 0;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gallery-slide.active { opacity: 1; }
+.gallery-slide img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 14px;
+}
+.gallery-slide-placeholder {
+  width: 100%; height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 40px;
+  border-radius: 14px;
+}
+.gallery-slide-label {
+  position: absolute;
+  bottom: 10px; left: 10px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  backdrop-filter: blur(4px);
+}
+
+.gallery-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.gallery-dots {
+  display: flex;
+  gap: 5px;
+}
+.gallery-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0.35;
+}
+.gallery-dot.active {
+  width: 18px;
+  border-radius: 3px;
+  background: var(--primary);
+  opacity: 1;
+}
+.gallery-arrow {
+  background: var(--bg-page);
+  border: none;
+  border-radius: 99px;
+  width: 32px; height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+  font-size: 14px;
+  transition: background var(--transition-speed);
+}
+.gallery-arrow:active { opacity: 0.7; }
+.gallery-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════
+   NEARBY POI LIST
+   ═══════════════════════════════════════════════ */
+
+.poi-list { display: flex; flex-direction: column; gap: 10px; }
+
+.poi-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: var(--bg-page);
+  border-radius: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--transition-speed), transform 0.15s;
+}
+.poi-item:active { transform: scale(0.97); }
+
+.poi-item-thumb {
+  width: 50px; height: 50px;
+  border-radius: 10px;
+  background: var(--primary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  opacity: 0.85;
+}
+.poi-item-info { flex: 1; min-width: 0; }
+.poi-item-name {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.poi-item-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.poi-item-dist {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ═══════════════════════════════════════════════
+   TOUR CONTINUITY — NEXT STOP
+   ═══════════════════════════════════════════════ */
+
+.next-stop-card {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border-radius: var(--radius-card);
+  padding: 20px;
+  color: #fff;
+  margin-top: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.next-stop-card::before {
+  content: '→';
+  position: absolute;
+  right: -10px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 120px;
+  color: rgba(255,255,255,0.06);
+  font-family: var(--font-display);
+  line-height: 1;
+}
+.next-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+.next-stop-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.next-thumb {
+  width: 58px; height: 58px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.15);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+}
+.next-info { flex: 1; }
+.next-stop-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.next-stop-dist {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-top: 3px;
+}
+.btn-next {
+  background: rgba(255,255,255,0.22);
+  border: 2px solid rgba(255,255,255,0.4);
+  color: #fff;
+  border-radius: 99px;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-body);
+  margin-top: 14px;
+  width: 100%;
+  transition: background 0.2s;
+}
+.btn-next:hover { background: rgba(255,255,255,0.32); }
+
+/* ═══════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════ */
+
+.page-footer {
+  text-align: center;
+  padding: 20px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+}
+.footer-logo {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* ═══════════════════════════════════════════════
+   SCAN BADGE (floating)
+   ═══════════════════════════════════════════════ */
+
+.scan-badge-float {
+  position: fixed;
+  bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: var(--primary);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.32);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border: none;
+  font-family: var(--font-body);
+  animation: floatUp 0.6s 1.2s both;
+  white-space: nowrap;
+}
+@keyframes floatUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ═══════════════════════════════════════════════
+   DIVIDER
+   ═══════════════════════════════════════════════ */
+.section-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: -4px;
+  color: var(--text-main);
+  padding: 0 4px;
+}
+
+/* ═══════════════════════════════════════════════
+   APP DOWNLOAD CARD
+   ═══════════════════════════════════════════════ */
+
+.app-download-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  margin-top: 16px;
+  border: 1px solid rgba(0,0,0,0.05);
+  overflow: hidden;
+  position: relative;
+}
+body.theme-pub .app-download-card,
+body.theme-junkfood .app-download-card,
+body.theme-dinner .app-download-card {
+  border-color: rgba(255,255,255,0.06);
+}
+.app-download-card::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  background: var(--primary);
+  opacity: 0.07;
+  pointer-events: none;
+}
+.app-card-supertitle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.app-card-supertitle::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--primary);
+  opacity: 0.2;
+}
+.app-card-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text-main);
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.app-card-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin-bottom: 16px;
+}
+.app-card-body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: start;
+}
+.app-install-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+.app-install-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin-bottom: 14px;
+}
+.app-install-features {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 16px;
+}
+.app-feature-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.app-feature-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.app-btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.app-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-body);
+  text-decoration: none;
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  white-space: nowrap;
+}
+.app-btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+.app-btn-primary:active { transform: scale(0.96); }
+.app-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-body);
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+.app-btn-secondary:hover { background: var(--primary); color: #fff; opacity: 1; }
+.app-qr-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.app-qr-box {
+  background: #fff;
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.1);
+  border: 2px solid rgba(0,0,0,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px; height: 120px;
+  position: relative;
+  overflow: hidden;
+}
+.app-qr-box canvas, .app-qr-box img { display: block; max-width: 100%; max-height: 100%; }
+.app-qr-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+  max-width: 118px;
+  font-weight: 500;
+}
+.app-version-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(0,0,0,0.07);
+}
+body.theme-pub .app-version-row,
+body.theme-junkfood .app-version-row,
+body.theme-dinner .app-version-row { border-top-color: rgba(255,255,255,0.08); }
+.app-version-badge {
+  background: var(--bg-page);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  transition: background var(--transition-speed);
+}
+.app-version-text { font-size: 11px; color: var(--text-muted); }
+
+
+/* ═══════════════════════════════════════════════
+   TRIPLE-COLUMN GRID LAYOUT  v2
+   ═══════════════════════════════════════════════ */
+
+/* ── MOBILE FIRST: single column, side cols hidden ── */
+#page-wrapper {
+  display: block;
+  min-height: 100vh;
+  position: relative;
+}
+
+#center-col {
+  width: 100%;
+  min-width: 0;
+}
+
+.side-col {
+  display: none; /* hidden on portrait mobile */
+}
+
+/* ── TABLET LANDSCAPE + DESKTOP : activate grid ── */
+@media (min-width: 1024px) {
+
+  #page-wrapper {
+    display: grid;
+    grid-template-columns: 250px 1fr 250px;
+    grid-template-rows: auto;
+    column-gap: 0;              /* gaps handled by col padding */
+    align-items: start;
+    /* push side cols to screen edges */
+    padding: 0 30px;
+    box-sizing: border-box;
+    max-width: 100vw;
+  }
+
+  #center-col {
+    /* center track — no max-width cap needed, 1fr handles it */
+    min-width: 0;
+    padding: 0 30px; /* 30px each side = 60px visual gap between cols */
+  }
+
+  /* ── SIDE COLUMN BASE ── */
+  .side-col {
+    display: block;
+    width: 250px;              /* matches grid-template col width */
+    position: sticky;
+    top: 20px;                 /* per spec */
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    padding: 12px 0;
+    /* Glass section shell — per spec */
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-radius: 20px;
+    /* subtle border to define column edges */
+    border: 1px solid rgba(255,255,255,0.10);
+    /* base font hierarchy: side is 0.85rem, center is ~1rem */
+    font-size: 0.85rem;
+  }
+  .side-col::-webkit-scrollbar { display: none; }
+
+  /* Dark-theme glass adjustment */
+  body.theme-pub    .side-col,
+  body.theme-junkfood .side-col,
+  body.theme-dinner .side-col {
+    background: rgba(0, 0, 0, 0.18);
+    border-color: rgba(255,255,255,0.06);
+  }
+
+  /* Left column: far-left edge with inner padding */
+  #left-column  { padding: 16px 14px 16px 16px; }
+  /* Right column: far-right edge */
+  #right-column { padding: 16px 16px 16px 14px; }
+
+  /* ── DASHBOARD VERTICAL TYPOGRAPHY ACCENT ──
+     A subtle rotated label at the outer edge of each aside,
+     visible only on wide screens, giving the 'dashboard' feel. */
+  #left-column::before {
+    content: 'HERITAGE & SOUL';
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: var(--primary);
+    opacity: 0.35;
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    position: absolute;
+    left: -22px;
+    top: 50%;
+    transform: translateY(-50%) rotate(180deg);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  #right-column::before {
+    content: 'SMART ACTIONS';
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: var(--primary);
+    opacity: 0.35;
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    position: absolute;
+    right: -22px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* Ensure asides can show the vertical labels */
+  #left-column,
+  #right-column {
+    position: sticky;
+    top: 20px;
+    overflow: visible;  /* allow ::before to bleed outside */
+  }
+
+  /* Re-clip only the scrollable content, not the pseudo */
+  #left-column  > *,
+  #right-column > * { overflow: visible; }
+}
+
+/* ── WIDE DESKTOP: slightly more breathing room ── */
+@media (min-width: 1400px) {
+  #page-wrapper {
+    grid-template-columns: 250px 1fr 250px;
+    padding: 0 60px;
+  }
+  #center-col { padding: 0 40px; }
+}
+
+/* ── BOTTOM-SHEET TOGGLE ON MOBILE (< 1024px) ── */
+/* Side info is collapsed into a bottom-sheet accessible via a FAB */
+#sidebar-sheet-toggle {
+  display: flex;
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  z-index: 8000;
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 20px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition-speed), transform 0.2s;
+}
+#sidebar-sheet-toggle:active { transform: scale(0.9); }
+
+@media (min-width: 1024px) {
+  #sidebar-sheet-toggle { display: none; }
+}
+
+/* Bottom sheet drawer */
+#sidebar-sheet {
+  display: block;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 7900;
+  background: var(--bg-card);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.18);
+  padding: 0 20px 32px;
+  transform: translateY(100%);
+  transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+#sidebar-sheet.open { transform: translateY(0); }
+
+/* Sheet handle */
+#sidebar-sheet::before {
+  content: '';
+  display: block;
+  width: 40px; height: 4px;
+  border-radius: 99px;
+  background: rgba(0,0,0,0.12);
+  margin: 14px auto 18px;
+}
+body.theme-pub #sidebar-sheet,
+body.theme-junkfood #sidebar-sheet,
+body.theme-dinner #sidebar-sheet {
+  background: var(--bg-card);
+}
+
+/* Sheet content grid: 2 cols on wider phones */
+#sheet-inner {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 540px) {
+  #sheet-inner { grid-template-columns: 1fr 1fr; }
+}
+
+/* Sheet title */
+.sheet-section-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--primary);
+  padding: 12px 0 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  margin-bottom: 10px;
+  grid-column: 1 / -1;
+}
+body.theme-pub .sheet-section-title,
+body.theme-junkfood .sheet-section-title,
+body.theme-dinner .sheet-section-title {
+  border-bottom-color: rgba(255,255,255,0.07);
+}
+
+/* Sheet overlay backdrop */
+#sheet-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 7800;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+#sheet-backdrop.open {
+  display: block;
+  opacity: 1;
+}
+
+@media (min-width: 1024px) {
+  #sidebar-sheet,
+  #sheet-backdrop { display: none !important; }
+}
+
+/* ─── GLASSMORPHISM SIDE CARD ─── */
+.side-card {
+  background: rgba(255,255,255,0.42);
+  backdrop-filter: blur(15px) saturate(180%);
+  -webkit-backdrop-filter: blur(15px) saturate(180%);
+  border-radius: 16px;
+  padding: 12px 12px 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 18px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+  border: 1px solid rgba(255,255,255,0.62);
+  border-left: 3px solid var(--primary);
+  position: relative;
+  overflow: hidden;
+  transition: background var(--transition-speed), border-color var(--transition-speed);
+  /* Inherit the 0.85rem set on .side-col */
+  font-size: inherit;
+}
+
+/* Dark theme glass cards */
+body.theme-pub .side-card,
+body.theme-junkfood .side-card,
+body.theme-dinner .side-card {
+  background: rgba(12, 12, 28, 0.62);
+  border-color: rgba(255,255,255,0.07);
+  border-left-color: var(--primary);
+}
+
+.side-card-label {
+  font-family: var(--font-mono);
+  font-size: 8.5px;           /* tighter than center labels */
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 7px;
+  opacity: 0.80;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.side-card-title {
+  font-family: var(--font-display);
+  font-size: 0.85rem;         /* matches side col hierarchy */
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.3;
+  margin-bottom: 5px;
+}
+
+.side-card-body {
+  font-size: 0.78rem;         /* sub-level under 0.85rem */
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+/* ─── LEGACY CARD — Established Year ─── */
+.legacy-year {
+  font-family: var(--font-display);
+  font-size: 2.4rem;          /* relative — large but proportionate */
+  font-weight: 900;
+  color: var(--primary);
+  line-height: 1;
+  letter-spacing: -1.5px;
+  opacity: 0.9;
+}
+.legacy-since {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-top: 2px;
+  display: block;
+}
+.legacy-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 5px;
+  line-height: 1.45;
+}
+
+/* ─── OWNER BADGE ─── */
+.owner-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.owner-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.owner-name {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+.owner-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--accent);
+  color: #000;
+  font-size: 7.5px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 99px;
+  margin-top: 3px;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+}
+
+/* ─── FLOATING ICON ART ─── */
+.float-icon-bg {
+  position: absolute;
+  font-size: 44px;
+  opacity: 0.06;
+  right: -4px; bottom: -4px;
+  line-height: 1;
+  pointer-events: none;
+  animation: gentleFloat 4s ease-in-out infinite;
+  filter: grayscale(0.2);
+}
+@keyframes gentleFloat {
+  0%,100% { transform: translateY(0) rotate(-4deg); }
+  50%      { transform: translateY(-6px) rotate(3deg); }
+}
+
+/* ─── FUN FACT CARD ─── */
+.fun-fact-icon { font-size: 17px; margin-bottom: 5px; display: block; }
+.fun-fact-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  font-style: italic;
+}
+.fun-fact-text::before { content: '"'; color: var(--primary); font-size: 13px; font-style: normal; }
+.fun-fact-text::after  { content: '"'; color: var(--primary); font-size: 13px; font-style: normal; }
+
+/* ─── TIP CARD ─── */
+.tip-bulb { font-size: 16px; margin-bottom: 4px; display: block; }
+.tip-tag {
+  display: inline-block;
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 99px;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+/* ─── RIGHT COLUMN: QUICK ACTIONS ─── */
+.quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  background: var(--bg-page);
+  border: 1px solid rgba(0,0,0,0.07);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 5px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.78rem;         /* below 0.85rem hierarchy */
+  font-weight: 600;
+  color: var(--text-main);
+  text-decoration: none;
+  transition: background 0.2s, transform 0.15s;
+}
+.quick-action-btn:hover { background: var(--primary); color: #fff; transform: translateX(2px); }
+.quick-action-btn:hover .qa-icon { filter: none; }
+.qa-icon {
+  font-size: 13px;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primary);
+  border-radius: 7px;
+  flex-shrink: 0;
+  filter: opacity(0.85);
+}
+body.theme-pub .quick-action-btn,
+body.theme-junkfood .quick-action-btn,
+body.theme-dinner .quick-action-btn {
+  border-color: rgba(255,255,255,0.07);
+}
+
+/* ─── SOCIAL PROOF BADGE ─── */
+.proof-rank {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: var(--primary);
+  line-height: 1.25;
+  margin-bottom: 3px;
+}
+.proof-stars {
+  color: var(--accent);
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+}
+.proof-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; }
+
+/* ─── NEXT STOP MINI CARD ─── */
+.next-mini {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--primary);
+  border-radius: 10px;
+  padding: 9px 10px;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+  margin-top: 4px;
+}
+.next-mini:hover { opacity: 0.9; transform: scale(1.02); }
+.next-mini-thumb {
+  font-size: 18px;
+  width: 32px; height: 32px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.next-mini-name { font-weight: 700; font-size: 0.78rem; line-height: 1.2; }
+.next-mini-dist { font-size: 0.70rem; opacity: 0.8; margin-top: 1px; }
+.next-mini-arrow { margin-left: auto; font-size: 13px; opacity: 0.7; }
+
+/* ─── VIETNAMESE WATERMARK PATTERN ─── */
+#vn-watermark {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='none' stroke='%23000' stroke-width='1'%3E%3Ccircle cx='60' cy='60' r='30'/%3E%3Ccircle cx='60' cy='60' r='20'/%3E%3Cpath d='M60 30 L70 50 L90 50 L75 65 L80 85 L60 72 L40 85 L45 65 L30 50 L50 50 Z'/%3E%3Cpath d='M0 0 Q30 15 60 0 Q90 -15 120 0'/%3E%3Cpath d='M0 120 Q30 105 60 120 Q90 135 120 120'/%3E%3C/g%3E%3Ctext x='10' y='18' font-size='16' opacity='0.6'%3E🍜%3C/text%3E%3Ctext x='80' y='110' font-size='14' opacity='0.5'%3E🍵%3C/text%3E%3C/svg%3E");
+}
+
+/* ═══════════════════════════════════════════════
+   ENHANCED FOOTER
+   ═══════════════════════════════════════════════ */
+
+.page-footer {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+}
+
+.footer-inner {
+  background: var(--bg-card);
+  border-top: 1px solid rgba(0,0,0,0.07);
+  padding: 20px 20px 28px;
+  transition: background var(--transition-speed);
+}
+body.theme-pub .footer-inner,
+body.theme-junkfood .footer-inner,
+body.theme-dinner .footer-inner {
+  border-top-color: rgba(255,255,255,0.06);
+}
+
+/* Tour progress strip */
+.footer-tour-strip {
+  background: var(--primary);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.footer-tour-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.8);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.footer-tour-dots {
+  display: flex;
+  gap: 5px;
+}
+.tour-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  transition: background 0.3s;
+}
+.tour-dot.done   { background: rgba(255,255,255,0.85); }
+.tour-dot.active { background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.3); }
+
+/* Brand row */
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-top: 4px;
+}
+.footer-logo-mark {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+}
+.footer-brand-name {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text-main);
+  line-height: 1.15;
+}
+.footer-brand-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+/* Stats row */
+.footer-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.footer-stat {
+  background: var(--bg-page);
+  border-radius: 12px;
+  padding: 10px 8px;
+  text-align: center;
+  transition: background var(--transition-speed);
+}
+.footer-stat-val {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--primary);
+}
+.footer-stat-lbl {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Street map strip */
+.footer-map-strip {
+  background: var(--bg-page);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background var(--transition-speed);
+}
+.footer-map-icon { font-size: 24px; flex-shrink: 0; }
+.footer-map-text { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.footer-map-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-main);
+  display: block;
+  margin-bottom: 1px;
+}
+
+/* QR ID row */
+.footer-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+body.theme-pub .footer-meta-row,
+body.theme-junkfood .footer-meta-row,
+body.theme-dinner .footer-meta-row { border-top-color: rgba(255,255,255,0.07); }
+.footer-qr-id {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+.footer-qr-id span {
+  background: var(--primary);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 5px;
+  margin-left: 5px;
+  font-size: 9px;
+}
+.footer-links {
+  display: flex;
+  gap: 8px;
+}
+.footer-link {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  opacity: 0.75;
+}
+.footer-link:hover { opacity: 1; color: var(--primary); }
+
+/* Dong Son decorative divider */
+.footer-divider-art {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  opacity: 0.4;
+}
+.footer-divider-art::before,
+.footer-divider-art::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+}
+.footer-divider-motif {
+  font-size: 14px;
+  letter-spacing: 4px;
+}
+
+/* ─── DONG SON SVG STRIP (side columns) ─── */
+.dongson-strip {
+  padding: 4px 0;
+  margin: 6px 0;
+}
+
+/* ─── ENHANCED FOOTER OVERRIDE ─── */
+.page-footer {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  background: var(--bg-card);
+  transition: background var(--transition-speed);
+}
+.footer-inner {
+  background: var(--bg-card);
+  border-top: 1px solid rgba(0,0,0,0.07);
+  padding: 20px 20px 28px;
+  transition: background var(--transition-speed);
+}
+body.theme-pub .page-footer,
+body.theme-junkfood .page-footer,
+body.theme-dinner .page-footer {
+  background: var(--bg-card);
+}
+body.theme-pub .footer-inner,
+body.theme-junkfood .footer-inner,
+body.theme-dinner .footer-inner {
+  border-top-color: rgba(255,255,255,0.06);
+}
+
+/* Remove old .footer-logo if present */
+.footer-logo { display: none; }
+
+
+</style>
+</head>
+
+<body class="__SMARTTOUR_BODY_CLASS__">
+
+<!-- Demo Theme Switcher — collapsible (remove in production) -->
+<div id="theme-switcher">
+  <!-- Always-visible header bar -->
+  <div id="switcher-header">
+    <div id="switcher-active-label">
+      Venue Type
+      <span id="switcher-active-pill">🍲 Hotpot</span>
+    </div>
+    <button id="switcher-toggle" onclick="toggleSwitcher()">
+      All Categories
+      <span id="switcher-toggle-arrow">▾</span>
+    </button>
+  </div>
+  <!-- Collapsible panel -->
+  <div id="switcher-panel">
+    <div id="switcher-scroll">
+      <button data-theme="hotpot"      style="background:#C0392B;color:#fff"    onclick="setTheme('hotpot')">🍲 Hotpot</button>
+      <button data-theme="snail"       style="background:#16A085;color:#fff"    onclick="setTheme('snail')">🐚 Snail Stall</button>
+      <button data-theme="pub"         style="background:#7C3AED;color:#fff"    onclick="setTheme('pub')">🍺 Pub/Beer</button>
+      <button data-theme="dessert"     style="background:#EC4899;color:#fff"    onclick="setTheme('dessert')">🧋 Bubble Tea</button>
+      <button data-theme="fastfood"    style="background:#DC2626;color:#FBBF24" onclick="setTheme('fastfood')">🍔 Fast Food</button>
+      <button data-theme="junkfood"    style="background:#BFFF00;color:#0A0A0A" onclick="setTheme('junkfood')">🍟 Junk Food</button>
+      <button data-theme="dinner"      style="background:#D97706;color:#FEF3C7" onclick="setTheme('dinner')">🍽 Dinner Stall</button>
+      <button data-theme="coffee"      style="background:#6B3F1F;color:#F0D5A0" onclick="setTheme('coffee')">☕ Coffee Shop</button>
+      <button data-theme="smoothie"    style="background:#059669;color:#fff"    onclick="setTheme('smoothie')">🥤 Smoothie</button>
+      <button data-theme="buffet"      style="background:#9F1239;color:#DAA520" onclick="setTheme('buffet')">🍱 Buffet</button>
+      <button data-theme="foodcourt"   style="background:#2563EB;color:#FB923C" onclick="setTheme('foodcourt')">🏪 Food Court</button>
+      <button data-theme="canteen"     style="background:#0284C7;color:#A5F3FC" onclick="setTheme('canteen')">🥄 Canteen</button>
+      <button data-theme="supermarket" style="background:#16A34A;color:#fff"    onclick="setTheme('supermarket')">🛒 Supermarket</button>
+      <button data-theme="minimart"    style="background:#EA580C;color:#D9F99D" onclick="setTheme('minimart')">🏬 Mini Mart</button>
+      <button data-theme="bakery"      style="background:#B45309;color:#FDE68A" onclick="setTheme('bakery')">🥐 Bakery</button>
+      <button data-theme="eatery"      style="background:#4D7C0F;color:#FDE68A" onclick="setTheme('eatery')">🍚 Eatery/Rice</button>
+      <button data-theme="seafood"     style="background:#0891B2;color:#FDBA74" onclick="setTheme('seafood')">🦞 Seafood</button>
+      <button data-theme="noodle"      style="background:#C2410C;color:#FEF08A" onclick="setTheme('noodle')">🍜 Noodle Shop</button>
+      <button data-theme="pho"         style="background:#B91C1C;color:#D97706" onclick="setTheme('pho')">🍵 Pho Shop</button>
+      <button data-theme="stickyrice"  style="background:#7C3AED;color:#EAB308" onclick="setTheme('stickyrice')">🍘 Sticky Rice</button>
+      <button data-theme="cafeteria"   style="background:#0D9488;color:#FDE68A" onclick="setTheme('cafeteria')">🥗 Cafeteria</button>
+    </div>
+  </div>
+</div>
+
+<!-- Vietnamese Watermark Layer -->
+<div id="vn-watermark" aria-hidden="true"></div>
+
+<!-- ═══════════ TRIPLE-COLUMN WRAPPER ═══════════ -->
+<div id="page-wrapper">
+
+<!-- ═══ LEFT ASIDE — Heritage & Soul ═══ -->
+<aside class="side-col" id="left-column" aria-label="Heritage & soul sidebar">
+
+  <!-- LEGACY CARD -->
+  <div class="side-card reveal" id="sc-legacy">
+    <div class="side-card-label">✦ A Vinh Khánh Legend</div>
+    <div class="legacy-year" id="sc-year">1994</div>
+    <span class="legacy-since">Serving Since</span>
+    <div class="legacy-sub" id="sc-legacy-sub">A Vinh Khánh Legend since <strong id="sc-year2">1994</strong> — three decades of authentic Mekong flavour.</div>
+    <div class="float-icon-bg" id="sc-cat-icon">🍲</div>
+  </div>
+
+  <!-- OWNER BADGE -->
+  <div class="side-card reveal reveal-delay-1" id="sc-owner">
+    <div class="side-card-label">👤 Owner's Signature</div>
+    <div class="owner-row">
+      <div class="owner-avatar" id="sc-owner-ava">👩</div>
+      <div>
+        <div class="owner-name" id="sc-owner-name">Bà Sáu Nguyễn</div>
+        <div class="owner-verified">✔ Owner Verified</div>
+        <div class="owner-verified" style="margin-top:3px;background:var(--primary);color:#fff;">🏠 3rd Gen Family</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FUN FACT CARD -->
+  <div class="side-card reveal reveal-delay-2" id="sc-funfact">
+    <div class="side-card-label">💡 Did You Know?</div>
+    <span class="fun-fact-icon">🤩</span>
+    <div class="fun-fact-text" id="sc-funfact-text">Broth is simmered 6+ hours every morning using crab roe from the Mekong Delta.</div>
+  </div>
+
+  <!-- STREET VIBES CARD -->
+  <div class="side-card reveal reveal-delay-3" id="sc-vibe">
+    <div class="side-card-label">🌆 Street Vibe</div>
+    <div class="side-card-body" style="font-size:10px;line-height:1.6;">
+      <div style="margin-bottom:5px;font-weight:700;color:var(--text-main);font-size:11px;">Đường Vĩnh Khánh</div>
+      District 4's legendary food corridor — 300m of non-stop flavour, open from dusk till dawn. One of Saigon's most authentic street dining experiences.
+    </div>
+    <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">
+      <span style="font-size:9px;background:var(--badge-bg);color:var(--badge-text);padding:2px 6px;border-radius:99px;font-family:var(--font-mono);font-weight:700;">📍 District 4</span>
+      <span style="font-size:9px;background:var(--badge-bg);color:var(--badge-text);padding:2px 6px;border-radius:99px;font-family:var(--font-mono);font-weight:700;">🌙 Open Late</span>
+    </div>
+  </div>
+
+  <!-- DONG SON DECORATIVE STRIP -->
+  <div class="dongson-strip" aria-hidden="true">
+    <svg viewBox="0 0 180 28" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;opacity:0.22;">
+      <path d="M0 14 Q22 4 45 14 Q68 24 90 14 Q112 4 135 14 Q158 24 180 14" stroke="var(--primary)" stroke-width="1.5" fill="none"/>
+      <circle cx="45" cy="14" r="3" fill="var(--accent)" opacity="0.7"/>
+      <circle cx="90" cy="14" r="3" fill="var(--primary)" opacity="0.7"/>
+      <circle cx="135" cy="14" r="3" fill="var(--accent)" opacity="0.7"/>
+    </svg>
+  </div>
+
+  <!-- LOCAL TIP CARD -->
+  <div class="side-card reveal reveal-delay-4" id="sc-tip">
+    <div class="side-card-label">🧭 Local Tip</div>
+    <span class="tip-bulb">💬</span>
+    <span class="tip-tag">Insider</span>
+    <div class="side-card-body" id="sc-tip-text" style="font-size:10px;">Order the 'đặc biệt' set — it includes rare water-spinach varieties you won't find elsewhere.</div>
+  </div>
+
+</aside>
+<!-- /LEFT ASIDE -->
+
+<!-- ═══════════ HERO ═══════════ -->
+<div id="center-col">
+<section class="hero" id="hero">
+  <div class="hero-bg" id="heroBg"></div>
+  <!-- Placeholder gradient image, swap with real LocationImages -->
+  <div class="hero-img" id="heroImage" style="background: linear-gradient(135deg,rgba(255,100,50,0.4),rgba(80,0,0,0.6)); position:absolute;inset:0;"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <div class="smart-badge" id="smartBadge">Top Rated on Vinh Khanh St.</div>
+    <h1 class="hero-title" id="locationName">Lẩu Cua Đồng Bà Sáu</h1>
+    <div class="hero-category">
+      <span class="hero-category-dot"></span>
+      <span id="categoryName">Hotpot · Vinh Khanh Food Street</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CONTAINER ═══════════ -->
+<div class="container">
+
+  <!-- ── QR ANALYTICS ── -->
+  <div class="card reveal" id="analyticsCard">
+    <div class="card-label">QR Analytics</div>
+    <div class="analytics-grid">
+      <div class="stat-block">
+        <span class="stat-icon">📲</span>
+        <div class="stat-value" id="scanCount">1,284</div>
+        <div class="stat-label">Total Scans</div>
+      </div>
+      <div class="stat-block">
+        <span class="stat-icon">🎙️</span>
+        <div class="stat-value" id="audioCount">4</div>
+        <div class="stat-label">Audio Guides</div>
+      </div>
+      <div class="stat-block">
+        <span class="stat-icon">🗓️</span>
+        <div class="stat-value" id="weeklyScan">142</div>
+        <div class="stat-label">Scans This Week</div>
+      </div>
+      <div class="stat-block">
+        <span class="stat-icon">⭐</span>
+        <div class="stat-value">4.8</div>
+        <div class="stat-label">Avg Rating</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AUDIO PLAYER ── -->
+  <div class="card reveal reveal-delay-1" id="playerCard">
+    <div class="card-label">Audio Guide</div>
+
+    <div class="lang-toggle">
+      <button class="lang-btn active" id="btnVI" onclick="switchLang('vi')">🇻🇳 Tiếng Việt</button>
+      <button class="lang-btn" id="btnEN" onclick="switchLang('en')">🇬🇧 English</button>
+    </div>
+
+    <div class="audio-title" id="audioTitle">Lịch Sử Và Đặc Sản Lẩu Cua Đồng</div>
+    <div class="audio-meta">
+      <span>🎤 <span id="audioType">Human Recorded</span></span>
+      <span>⏱ <span id="audioDuration">4:32</span></span>
+      <span>📥 Offline</span>
+    </div>
+
+    <div class="waveform-container" id="waveform" onclick="togglePlay()">
+      <!-- Bars generated by JS -->
+    </div>
+
+    <div class="player-controls">
+      <button class="btn-play" id="playBtn" onclick="togglePlay()">▶</button>
+      <div class="progress-wrap">
+        <div class="progress-bar" onclick="seekAudio(event)">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="time-row">
+          <span id="timeElapsed">1:35</span>
+          <span id="timeTotal">4:32</span>
+        </div>
+      </div>
+      <button class="volume-btn" onclick="toggleMute()">🔊</button>
+    </div>
+    <audio id="audioElement" preload="none"></audio>
+  </div>
+
+  <!-- ── IMAGE GALLERY ── -->
+  <div class="card reveal reveal-delay-2" id="galleryCard">
+    <div class="card-label">Gallery</div>
+    <div class="gallery-track" id="galleryTrack">
+      <div class="gallery-slide active">
+        <div class="gallery-slide-placeholder" style="background:linear-gradient(135deg,rgba(192,57,43,0.13),rgba(230,126,34,0.13))">
+          <span>🍲</span><span style="font-size:13px;color:var(--text-muted)">Lẩu cua đồng đặc trưng</span>
+        </div>
+        <div class="gallery-slide-label">Signature Hotpot</div>
+      </div>
+      <div class="gallery-slide">
+        <div class="gallery-slide-placeholder" style="background:linear-gradient(135deg,rgba(230,126,34,0.13),rgba(243,156,18,0.13))">
+          <span>🦀</span><span style="font-size:13px;color:var(--text-muted)">Cua đồng tươi nhập hàng ngày</span>
+        </div>
+        <div class="gallery-slide-label">Fresh Crabs Daily</div>
+      </div>
+      <div class="gallery-slide">
+        <div class="gallery-slide-placeholder" style="background:linear-gradient(135deg,rgba(123,36,28,0.13),rgba(192,57,43,0.13))">
+          <span>🌶️</span><span style="font-size:13px;color:var(--text-muted)">Nước lẩu đậm vị Miền Tây</span>
+        </div>
+        <div class="gallery-slide-label">Southern Spice Broth</div>
+      </div>
+      <div class="gallery-slide">
+        <div class="gallery-slide-placeholder" style="background:linear-gradient(135deg,rgba(230,126,34,0.13),rgba(192,57,43,0.13))">
+          <span>🥬</span><span style="font-size:13px;color:var(--text-muted)">Rau sạch từ vườn nhà</span>
+        </div>
+        <div class="gallery-slide-label">Garden-Fresh Vegetables</div>
+      </div>
+    </div>
+    <div class="gallery-nav">
+      <button class="gallery-arrow" onclick="prevSlide()">‹</button>
+      <div class="gallery-dots" id="galleryDots"></div>
+      <span class="gallery-count" id="galleryCount">1 / 4</span>
+      <button class="gallery-arrow" onclick="nextSlide()">›</button>
+    </div>
+  </div>
+
+  <!-- ── POI INFO ── -->
+  <div class="card reveal reveal-delay-2" id="poiCard">
+    <div class="card-label">About This Place</div>
+    <p class="poi-description" id="poiDescription">
+      Một trong những quán lẩu cua đồng lâu đời nhất trên Đường Ẩm Thực Vĩnh Khánh. Bà Sáu đã gắn bó với nghề từ năm 1994, giữ gìn hương vị truyền thống Miền Tây đậm đà, đặc trưng bởi nước lẩu màu vàng đặc quánh từ gạch cua và hàng chục loại rau đặc sản.
+    </p>
+    <div class="meta-row">
+      <div class="meta-icon">📅</div>
+      <div class="meta-content">
+        <div class="meta-key">Established</div>
+        <div class="meta-val" id="poiEstablished">Serving since 1994</div>
+      </div>
+    </div>
+    <div class="meta-row">
+      <div class="meta-icon">📍</div>
+      <div class="meta-content">
+        <div class="meta-key">Address</div>
+        <div class="meta-val" id="poiAddress">123 Đường Vĩnh Khánh, Q.4, TP.HCM</div>
+      </div>
+    </div>
+    <div class="meta-row">
+      <div class="meta-icon">⏰</div>
+      <div class="meta-content">
+        <div class="meta-key">Open Hours</div>
+        <div class="meta-val" id="poiHours">16:00 – 01:00 · Every day</div>
+      </div>
+    </div>
+    <div class="action-buttons">
+      <a class="action-btn" id="poiCallAction" href="tel:+84901234567">
+        <span class="action-btn-icon">📞</span>Call Now
+      </a>
+      <a class="action-btn" id="poiWebsiteAction" href="#" target="_blank">
+        <span class="action-btn-icon">🌐</span>Website
+      </a>
+      <a class="action-btn" id="poiNavigateAction" href="https://maps.google.com/?q=10.7582,106.7014" target="_blank">
+        <span class="action-btn-icon">🧭</span>Navigate
+      </a>
+    </div>
+  </div>
+
+  <!-- ── NEARBY POI LIST ── -->
+  <p class="section-title reveal">Nearby on This Street</p>
+  <div class="card reveal reveal-delay-1" id="nearbyCard">
+    <div class="card-label">More Locations</div>
+    <div class="poi-list" id="nearbyList">
+      <a class="poi-item" href="#">
+        <div class="poi-item-thumb">🐚</div>
+        <div class="poi-item-info">
+          <div class="poi-item-name">Ốc Bà Năm – Vinh Khánh</div>
+          <div class="poi-item-sub">Snail Stalls · 2 audio guides</div>
+        </div>
+        <span class="poi-item-dist">42m</span>
+      </a>
+      <a class="poi-item" href="#">
+        <div class="poi-item-thumb">🍺</div>
+        <div class="poi-item-info">
+          <div class="poi-item-name">Quán Nhậu Hoàng Gia</div>
+          <div class="poi-item-sub">Pubs/Beer · 1 audio guide</div>
+        </div>
+        <span class="poi-item-dist">88m</span>
+      </a>
+      <a class="poi-item" href="#">
+        <div class="poi-item-thumb">🧋</div>
+        <div class="poi-item-info">
+          <div class="poi-item-name">Trà Sữa Kem Bơ Thanh Thảo</div>
+          <div class="poi-item-sub">Bubble Tea · 3 audio guides</div>
+        </div>
+        <span class="poi-item-dist">115m</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ── NEXT STOP IN TOUR ── -->
+  <div class="next-stop-card reveal reveal-delay-3" id="nextStopCard">
+    <div class="next-label" id="nextStopLabel">🗺 Tour · Vinh Khanh Food Street · Stop 3 of 7</div>
+    <div class="next-stop-body">
+      <div class="next-thumb" id="nextStopThumb">🐚</div>
+      <div class="next-info">
+        <div class="next-stop-name" id="nextStopName">Ốc Bà Năm</div>
+        <div class="next-stop-dist" id="nextStopDistance">Next stop · 42m away on foot</div>
+      </div>
+    </div>
+    <button class="btn-next" id="nextStopButton" onclick="goNextStop()">Continue Tour → Next Stop</button>
+  </div>
+
+  <!-- ── APP DOWNLOAD ── -->
+  <p class="section-title reveal">Get the Full Experience</p>
+  <div class="app-download-card card reveal reveal-delay-1" id="appDownloadCard">
+    <div class="app-card-supertitle">📱 Smart Tourism App</div>
+    <div class="app-card-title" id="appCardTitle">Download the Android App</div>
+    <div class="app-card-subtitle" id="appCardSubtitle">Install the app to continue exploring Khanh Hoi Canal &amp; Vinh Khanh Food Street with offline maps, audio guides &amp; more.</div>
+
+    <div class="app-card-body">
+      <!-- Left: install info + buttons -->
+      <div class="app-install-col">
+        <div class="app-install-title">Install on Android</div>
+        <div class="app-install-features">
+          <div class="app-feature-row"><span class="app-feature-dot"></span>Offline audio guides — no data needed</div>
+          <div class="app-feature-row"><span class="app-feature-dot"></span>Live QR scanning at every venue</div>
+          <div class="app-feature-row"><span class="app-feature-dot"></span>Turn-by-turn food street tour</div>
+          <div class="app-feature-row"><span class="app-feature-dot"></span>21 venue categories supported</div>
+        </div>
+        <div class="app-install-desc" id="appInstallDesc">Use the direct APK download, or open the Play Store listing if your deployment publishes there.</div>
+        <div class="app-btn-row">
+          <a class="app-btn-primary" id="apkDownloadBtn" href="#" download>
+            ⬇ Download APK
+          </a>
+          <a class="app-btn-secondary" id="openAppBtn" href="#" target="_blank">
+            ▶ Open App
+          </a>
+        </div>
+      </div>
+
+      <!-- Right: QR code -->
+      <div class="app-qr-col">
+        <div class="app-qr-box" id="appQrBox">
+          <!-- QR generated by JS -->
+        </div>
+        <div class="app-qr-label">Scan to download direct installer</div>
+      </div>
+    </div>
+
+    <!-- Version info row -->
+    <div class="app-version-row">
+      <span class="app-version-badge" id="apkVersionBadge">v1.0.0</span>
+      <span class="app-version-text" id="apkVersionText">Android 8.0+ · ~18 MB · Free</span>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Floating CTA -->
+<button class="scan-badge-float" id="playFloat" onclick="togglePlay()">
+  ▶ Play Audio Guide
+</button>
+
+<!-- ═══════════ ENHANCED FOOTER ═══════════ -->
+<footer class="page-footer" id="mainFooter">
+
+  <!-- Tour progress strip -->
+  <div class="footer-tour-strip">
+    <span class="footer-tour-label">🗺 Tour · Vinh Khánh Food Street</span>
+    <div class="footer-tour-dots">
+      <div class="tour-dot done"></div>
+      <div class="tour-dot done"></div>
+      <div class="tour-dot active"></div>
+      <div class="tour-dot"></div>
+      <div class="tour-dot"></div>
+      <div class="tour-dot"></div>
+      <div class="tour-dot"></div>
+    </div>
+    <span class="footer-tour-label">Stop 3 of 7</span>
+  </div>
+
+  <div class="footer-inner">
+
+    <!-- Brand row -->
+    <div class="footer-brand">
+      <div class="footer-logo-mark">🗺</div>
+      <div>
+        <div class="footer-brand-name">Smart Tourism VN</div>
+        <div class="footer-brand-sub">Vinh Khánh Food Street Project</div>
+      </div>
+    </div>
+
+    <!-- Dong Son decorative divider -->
+    <div class="footer-divider-art">
+      <span class="footer-divider-motif">◈ ◇ ◈</span>
+    </div>
+
+    <!-- Footer stats grid -->
+    <div class="footer-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+      <div class="footer-stat-item" style="text-align:center;padding:10px 6px;background:var(--bg-page);border-radius:12px;transition:background var(--transition-speed);">
+        <div style="font-size:18px;margin-bottom:2px;">🏪</div>
+        <div id="footerVenueCount" style="font-family:var(--font-display);font-size:20px;font-weight:900;color:var(--primary);line-height:1;">21</div>
+        <div style="font-size:9px;color:var(--text-muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;">Venues</div>
+      </div>
+      <div class="footer-stat-item" style="text-align:center;padding:10px 6px;background:var(--bg-page);border-radius:12px;transition:background var(--transition-speed);">
+        <div style="font-size:18px;margin-bottom:2px;">📲</div>
+        <div id="footerScanCount" style="font-family:var(--font-display);font-size:20px;font-weight:900;color:var(--primary);line-height:1;">45K</div>
+        <div style="font-size:9px;color:var(--text-muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;">QR Scans</div>
+      </div>
+      <div class="footer-stat-item" style="text-align:center;padding:10px 6px;background:var(--bg-page);border-radius:12px;transition:background var(--transition-speed);">
+        <div style="font-size:18px;margin-bottom:2px;">🎙️</div>
+        <div id="footerAudioGuideCount" style="font-family:var(--font-display);font-size:20px;font-weight:900;color:var(--primary);line-height:1;">58</div>
+        <div style="font-size:9px;color:var(--text-muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;">Audio Guides</div>
+      </div>
+    </div>
+
+    <!-- Location map hint -->
+    <div class="footer-map-block" style="display:flex;align-items:center;gap:10px;background:var(--bg-page);border-radius:14px;padding:12px;margin-bottom:14px;transition:background var(--transition-speed);">
+      <div class="footer-map-icon">🗺</div>
+      <div class="footer-map-text">
+        <span class="footer-map-title" id="footerMapTitle">Vinh Khánh Food Street</span>
+        <span id="footerMapText">Đường Vĩnh Khánh, Phường 8, Quận 4, TP. Hồ Chí Minh · Open every evening 16:00 – 02:00</span>
+      </div>
+    </div>
+
+    <!-- Fun fact footer strip -->
+    <div style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#fff;position:relative;overflow:hidden;">
+      <div style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;opacity:0.75;margin-bottom:4px;">🇻🇳 Vinh Khánh Fun Fact</div>
+      <div style="font-size:11px;line-height:1.6;opacity:0.95;" id="footer-funfact-text">Đường Vĩnh Khánh has been a food street for over 40 years — one of Saigon's oldest continuously operating culinary corridors.</div>
+      <div style="position:absolute;right:-8px;bottom:-8px;font-size:44px;opacity:0.12;line-height:1;">🍜</div>
+    </div>
+
+    <!-- Social / links row -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <a href="#" style="flex:1;min-width:80px;display:flex;align-items:center;justify-content:center;gap:5px;background:var(--bg-page);border:1px solid rgba(0,0,0,0.07);border-radius:10px;padding:8px 6px;font-size:10px;font-weight:600;color:var(--text-main);text-decoration:none;font-family:var(--font-mono);transition:background 0.2s;" onmouseover="this.style.background='var(--primary)';this.style.color='#fff'" onmouseout="this.style.background='var(--bg-page)';this.style.color='var(--text-main)'">🌐 Website</a>
+      <a href="#" style="flex:1;min-width:80px;display:flex;align-items:center;justify-content:center;gap:5px;background:var(--bg-page);border:1px solid rgba(0,0,0,0.07);border-radius:10px;padding:8px 6px;font-size:10px;font-weight:600;color:var(--text-main);text-decoration:none;font-family:var(--font-mono);transition:background 0.2s;" onmouseover="this.style.background='var(--primary)';this.style.color='#fff'" onmouseout="this.style.background='var(--bg-page)';this.style.color='var(--text-main)'">📸 Instagram</a>
+      <a href="#" style="flex:1;min-width:80px;display:flex;align-items:center;justify-content:center;gap:5px;background:var(--bg-page);border:1px solid rgba(0,0,0,0.07);border-radius:10px;padding:8px 6px;font-size:10px;font-weight:600;color:var(--text-main);text-decoration:none;font-family:var(--font-mono);transition:background 0.2s;" onmouseover="this.style.background='var(--primary)';this.style.color='#fff'" onmouseout="this.style.background='var(--bg-page)';this.style.color='var(--text-main)'">🗺 Google Maps</a>
+    </div>
+
+    <!-- QR ID meta row -->
+    <div class="footer-meta-row">
+      <div class="footer-qr-id">
+        QR ID <span id="footerQrId">VK-0042</span>
+      </div>
+      <div class="footer-links">
+        <a class="footer-link" href="#">Privacy</a>
+        <a class="footer-link" href="#">Terms</a>
+        <a class="footer-link" href="#">Report</a>
+      </div>
+    </div>
+
+    <!-- Dong Son bottom art -->
+    <div class="footer-divider-art" style="margin-top:14px;margin-bottom:0;">
+      <span class="footer-divider-motif" style="font-size:11px;letter-spacing:6px;">⊹ ✦ ⊹ ✦ ⊹</span>
+    </div>
+    <div style="text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--text-muted);margin-top:8px;opacity:0.65;letter-spacing:0.06em;">
+      © 2025 SMART TOURISM VIETNAM · DISTRICT 4, HO CHI MINH CITY
+    </div>
+
+  </div>
+</footer>
+
+</div><!-- /center-col -->
+
+<!-- ═══ RIGHT ASIDE — Smart Actions ═══ -->
+<aside class="side-col" id="right-column" aria-label="Smart actions sidebar">
+
+  <!-- QUICK ACTION HUB -->
+  <div class="side-card reveal" id="sc-actions">
+    <div class="side-card-label">⚡ Quick Actions</div>
+    <a class="quick-action-btn" id="sc-call" href="tel:+84901234567">
+      <span class="qa-icon">📞</span>Call Now
+    </a>
+    <a class="quick-action-btn" id="sc-web" href="#" target="_blank">
+      <span class="qa-icon">🌐</span>Website
+    </a>
+    <a class="quick-action-btn" id="sc-map" href="https://maps.google.com/?q=10.7582,106.7014" target="_blank">
+      <span class="qa-icon">🧭</span>Navigate
+    </a>
+    <a class="quick-action-btn" id="sc-share" href="#" onclick="if(navigator.share)navigator.share({title:document.title,url:location.href});return false;">
+      <span class="qa-icon">↗</span>Share POI
+    </a>
+  </div>
+
+  <!-- SOCIAL PROOF BADGE -->
+  <div class="side-card reveal reveal-delay-1" id="sc-proof">
+    <div class="side-card-label">🏆 Social Proof</div>
+    <div class="proof-rank" id="sc-rank">#1 Hotpot on Vinh Khánh St.</div>
+    <div class="proof-stars">★★★★★</div>
+    <div class="proof-sub" id="sc-proof-sub">Rated 4.8 · 1,284 QR scans · Featured in Saigon Food Guide 2024</div>
+  </div>
+
+  <!-- NEXT STOP MINI CARD -->
+  <div class="side-card reveal reveal-delay-2" id="sc-nextstop">
+    <div class="side-card-label">🗺 Next Stop</div>
+    <div class="next-mini" onclick="goNextStop()">
+      <div class="next-mini-thumb" id="sc-next-thumb">🐚</div>
+      <div>
+        <div class="next-mini-name" id="sc-next-name">Ốc Bà Năm</div>
+        <div class="next-mini-dist" id="sc-next-dist">42m away on foot</div>
+      </div>
+      <span class="next-mini-arrow">→</span>
+    </div>
+  </div>
+
+  <!-- OPENING HOURS CARD -->
+  <div class="side-card reveal reveal-delay-3" id="sc-hours">
+    <div class="side-card-label">⏰ Today's Hours</div>
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#22C55E;display:inline-block;box-shadow:0 0 0 3px rgba(34,197,94,0.22);animation:pulse 2s infinite;flex-shrink:0;"></span>
+      <span id="hoursStatus" style="font-weight:700;font-size:12px;color:var(--text-main);">Open Now</span>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);line-height:1.7;">
+      <div>🌆 Opens: <strong id="hoursOpen">16:00</strong></div>
+      <div>🌙 Last order: <strong id="hoursLastOrder">01:00</strong></div>
+      <div id="hoursDays">📅 Every day · No reservation</div>
+    </div>
+  </div>
+
+  <!-- DONG SON STRIP -->
+  <div class="dongson-strip" aria-hidden="true">
+    <svg viewBox="0 0 180 28" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;opacity:0.22;">
+      <path d="M0 14 Q22 24 45 14 Q68 4 90 14 Q112 24 135 14 Q158 4 180 14" stroke="var(--primary)" stroke-width="1.5" fill="none"/>
+      <circle cx="45" cy="14" r="3" fill="var(--accent)" opacity="0.7"/>
+      <circle cx="90" cy="14" r="3" fill="var(--primary)" opacity="0.7"/>
+      <circle cx="135" cy="14" r="3" fill="var(--accent)" opacity="0.7"/>
+    </svg>
+  </div>
+
+  <!-- WEATHER/CROWD CARD -->
+  <div class="side-card reveal reveal-delay-4" id="sc-crowd">
+    <div class="side-card-label">👥 Crowd Forecast</div>
+    <div style="margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-size:10px;color:var(--text-muted);">Now</span>
+        <span style="font-size:10px;font-weight:700;color:var(--primary);">Moderate</span>
+      </div>
+      <div style="height:6px;border-radius:99px;background:rgba(0,0,0,0.07);overflow:hidden;">
+        <div style="height:100%;width:55%;background:var(--primary);border-radius:99px;transition:width 0.6s;"></div>
+      </div>
+    </div>
+    <div style="margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-size:10px;color:var(--text-muted);">Peak (20:00)</span>
+        <span style="font-size:10px;font-weight:700;color:var(--accent);">Very Busy</span>
+      </div>
+      <div style="height:6px;border-radius:99px;background:rgba(0,0,0,0.07);overflow:hidden;">
+        <div style="height:100%;width:90%;background:var(--accent);border-radius:99px;"></div>
+      </div>
+    </div>
+    <div style="font-size:9px;color:var(--text-muted);margin-top:6px;">💡 Best time: arrive before 19:00 for a table</div>
+  </div>
+
+</aside>
+<!-- /RIGHT ASIDE -->
+
+</div><!-- /page-wrapper -->
+
+<!-- ═══════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════ -->
+<script>
+
+/* ── DATA LAYER ── */
+var POI_DATA = __SMARTTOUR_POI_DATA__;
+
+/* ── SIDE-COLUMN DATA LOOKUP ── */
+function getSideData(theme) {
+  var ext = POI_DATA.sideColumns || {};
+  return {
+    established: ext.established || "—",
+    owner: ext.owner || "Smart Tourism",
+    phone: ext.phone || "",
+    rank: ext.rank || "Smart Tourism Favourite",
+    nextStop: ext.nextStop || "Next Venue",
+    nextDist: ext.nextDist || "—",
+    icon: ext.icon || POI_DATA.categoryIcon || "🍽️",
+    funFact: ext.funFact || "A beloved local stop with a rich local story.",
+    tip: ext.tip || "Check with the venue for today's best recommendation."
+  };
+}
+
+/* ── STATE ── */
+var currentLang = (POI_DATA.audio && POI_DATA.audio.defaultLanguage) || "vi";
+var currentTheme = POI_DATA.categoryTheme || "hotpot";
+var playing = false;
+var progress = 0;
+var playerInterval = null;
+var muted = false;
+var currentSlide = 0;
+var SLIDE_COUNT = 1;
+var audioElement = null;
+
+/* ── SWITCHER COLLAPSE / EXPAND ── */
+var switcherOpen = false;
+function toggleSwitcher() {
+  switcherOpen = !switcherOpen;
+  var sw = document.getElementById("theme-switcher");
+  var toggleBtn = document.getElementById("switcher-toggle");
+  sw.classList.toggle("open", switcherOpen);
+  toggleBtn.childNodes[0].nodeValue = switcherOpen ? "Close " : "All Categories ";
+}
+
+/* ── THEME LABELS ── */
+var THEME_LABELS = {
+  hotpot:"🍲 Hotpot", snail:"🐚 Snail Stall", pub:"🍺 Pub/Beer",
+  dessert:"🧋 Bubble Tea", fastfood:"🍔 Fast Food", junkfood:"🍟 Junk Food",
+  dinner:"🍽 Dinner Stall", coffee:"☕ Coffee Shop", smoothie:"🥤 Smoothie",
+  buffet:"🍱 Buffet", foodcourt:"🏪 Food Court", canteen:"🥄 Canteen",
+  supermarket:"🛒 Supermarket", minimart:"🏬 Mini Mart", bakery:"🥐 Bakery",
+  eatery:"🍚 Eatery/Rice", seafood:"🦞 Seafood", noodle:"🍜 Noodle Shop",
+  pho:"🍵 Pho Shop", stickyrice:"🍘 Sticky Rice", cafeteria:"🥗 Cafeteria"
+};
+
+/* ── THEME ENGINE ── */
+function setTheme(theme) {
+  document.body.className = "theme-" + theme;
+  currentTheme = theme;
+  buildWaveform();
+  updateSideColumns(theme);
+  /* sync active pill label */
+  var pill = document.getElementById("switcher-active-pill");
+  if (pill) pill.textContent = THEME_LABELS[theme] || theme;
+  /* highlight active button */
+  document.querySelectorAll("#switcher-scroll button").forEach(function(b) {
+    b.classList.toggle("active-theme", b.getAttribute("data-theme") === theme);
+  });
+  /* auto-close after selection */
+  if (switcherOpen) toggleSwitcher();
+}
+
+/* ── SIDE COLUMN UPDATER ── */
+function updateSideColumns(theme) {
+  var ext = getSideData(theme);
+  var analytics = POI_DATA.analytics || {};
+
+  /* LEFT: Legacy year */
+  var yrEl  = document.getElementById("sc-year");
+  var yr2El = document.getElementById("sc-year2");
+  var legEl = document.getElementById("sc-legacy-sub");
+  if (yrEl)  yrEl.textContent  = ext.established;
+  if (yr2El) yr2El.textContent = ext.established;
+  if (legEl) legEl.textContent = "A Smart Tourism legend since " + ext.established + " — decades of authentic local flavour.";
+
+  /* LEFT: Category floating icon */
+  var iconEl = document.getElementById("sc-cat-icon");
+  if (iconEl) iconEl.textContent = ext.icon || "🍽";
+
+  /* LEFT: Owner */
+  var ownEl  = document.getElementById("sc-owner-name");
+  var avaEl  = document.getElementById("sc-owner-ava");
+  if (ownEl)  ownEl.textContent  = ext.owner;
+  if (avaEl)  avaEl.textContent  = ext.icon || "👤";
+
+  /* LEFT: Fun fact */
+  var ffEl = document.getElementById("sc-funfact-text");
+  if (ffEl) ffEl.textContent = ext.funFact;
+
+  /* LEFT: Tip */
+  var tipEl = document.getElementById("sc-tip-text");
+  if (tipEl) tipEl.textContent = ext.tip;
+
+  /* RIGHT: Call link */
+  var callEl = document.getElementById("sc-call");
+  if (callEl) callEl.href = POI_DATA.links && POI_DATA.links.phoneUrl ? POI_DATA.links.phoneUrl : "#";
+
+  /* RIGHT: Rank */
+  var rankEl  = document.getElementById("sc-rank");
+  var proofEl = document.getElementById("sc-proof-sub");
+  if (rankEl)  rankEl.textContent  = ext.rank;
+  if (proofEl) proofEl.textContent = "Rated " + formatRating(analytics.rating) + " · " + formatNumber(analytics.visitCount || 0) + " QR scans · Smart Tourism curated";
+
+  /* RIGHT: Next stop */
+  var nextNameEl  = document.getElementById("sc-next-name");
+  var nextDistEl  = document.getElementById("sc-next-dist");
+  var nextThumbEl = document.getElementById("sc-next-thumb");
+  if (nextNameEl)  nextNameEl.textContent  = ext.nextStop  || "Next Venue";
+  if (nextDistEl)  nextDistEl.textContent  = (ext.nextDist || "—") + " away on foot";
+  if (nextThumbEl) nextThumbEl.textContent = ext.icon      || "🍽";
+
+  /* Footer fun fact */
+  var ffFootEl = document.getElementById("footer-funfact-text");
+  if (ffFootEl) ffFootEl.textContent = ext.funFact || "Đường Vĩnh Khánh — one of Saigon's most beloved food corridors.";
+
+  /* ── BOTTOM SHEET mirrors ── */
+  var shYr   = document.getElementById("sh-year");
+  var shLeg  = document.getElementById("sh-legacy-sub");
+  var shCat  = document.getElementById("sh-cat-icon");
+  var shAva  = document.getElementById("sh-ava");
+  var shOwn  = document.getElementById("sh-owner");
+  var shFf   = document.getElementById("sh-funfact");
+  var shTip  = document.getElementById("sh-tip");
+  var shCall = document.getElementById("sh-call");
+  var shNext = document.getElementById("sh-next-name");
+  var shDist = document.getElementById("sh-next-dist");
+  var shThm  = document.getElementById("sh-next-thumb");
+  var shRnk  = document.getElementById("sh-rank");
+  var shSub  = document.getElementById("sh-sub");
+  if (shYr)   shYr.textContent   = ext.established;
+  if (shLeg)  shLeg.textContent  = "A Vinh Khánh landmark since " + ext.established + ".";
+  if (shCat)  shCat.textContent  = ext.icon || "🍽";
+  if (shAva)  shAva.textContent  = ext.icon || "👤";
+  if (shOwn)  shOwn.textContent  = ext.owner;
+  if (shFf)   shFf.textContent   = ext.funFact;
+  if (shTip)  shTip.textContent  = ext.tip;
+  if (shCall) shCall.href        = "tel:" + (ext.phone || "#");
+  if (shNext) shNext.textContent = ext.nextStop || "Next Venue";
+  if (shDist) shDist.textContent = (ext.nextDist || "—") + " away on foot";
+  if (shThm)  shThm.textContent  = ext.icon || "🍽";
+  if (shRnk)  shRnk.textContent  = ext.rank;
+  if (shSub)  shSub.textContent  = "Rated " + formatRating(analytics.rating) + " · " + formatNumber(analytics.visitCount || 0) + " QR scans";
+}
+
+/* ── LANGUAGE ── */
+function switchLang(lang) {
+  currentLang = lang;
+  document.getElementById("btnVI").classList.toggle("active", lang === "vi");
+  document.getElementById("btnEN").classList.toggle("active", lang === "en");
+  var audio = POI_DATA.audio || {};
+  var titles = audio.titles || {};
+  document.getElementById("audioTitle").textContent = titles[lang] || audio.title || "Audio Guide";
+  document.getElementById("audioType").textContent = lang === "vi"
+    ? "Giong Nguoi That"
+    : toFriendlySourceType(audio.sourceType);
+}
+
+/* ── WAVEFORM ── */
+function buildWaveform() {
+  var wf = document.getElementById("waveform");
+  wf.innerHTML = "";
+  var heights = [14,22,18,32,40,28,20,35,48,30,22,38,44,26,18,34,42,24,16,36,46,30,20,38,28,18,40,32,22,14,36,48,26,18,42,34,20,16,38,44,28,22,32,46,30,18,36,40,24,14,38,42,26,20,34,48,22,16,40,30];
+  for (var i = 0; i < heights.length; i++) {
+    var bar = document.createElement("div");
+    bar.className = "wave-bar" + (i < 22 ? " played" : "");
+    bar.style.height = heights[i] + "px";
+    var durVal = (0.4 + Math.random() * 0.5).toFixed(2) + "s";
+    bar.style.setProperty("--dur", durVal);
+    bar.style.animationDelay = (i * 0.018) + "s";
+    wf.appendChild(bar);
+  }
+  syncWaveformProgress();
+}
+
+/* ── PLAYER ── */
+function togglePlay() {
+  if (!audioElement || !audioElement.src) {
+    return;
+  }
+
+  if (audioElement.paused) {
+    audioElement.play().catch(function() {});
+  } else {
+    audioElement.pause();
+  }
+}
+
+function syncAudioUi() {
+  var btn = document.getElementById("playBtn");
+  var floatBtn = document.getElementById("playFloat");
+  var wf = document.getElementById("waveform");
+  var volumeBtn = document.querySelector(".volume-btn");
+
+  btn.textContent = playing ? "||" : "▶";
+  btn.classList.toggle("playing", playing);
+  wf.classList.toggle("playing", playing);
+  floatBtn.textContent = playing ? "|| Pause Guide" : "▶ Play Audio Guide";
+  if (volumeBtn) {
+    volumeBtn.textContent = muted ? "🔇" : "🔊";
+  }
+  syncWaveformProgress();
+}
+
+function seekAudio(e) {
+  if (!audioElement || !isFinite(audioElement.duration) || audioElement.duration <= 0) {
+    return;
+  }
+  var bar = e.currentTarget;
+  var rect = bar.getBoundingClientRect();
+  progress = ((e.clientX - rect.left) / rect.width) * 100;
+  audioElement.currentTime = (progress / 100) * audioElement.duration;
+}
+
+function toggleMute() {
+  if (!audioElement) {
+    return;
+  }
+  muted = !muted;
+  audioElement.muted = muted;
+  syncAudioUi();
+}
+
+/* ── GALLERY ── */
+function buildDots() {
+  var dots = document.getElementById("galleryDots");
+  dots.innerHTML = "";
+  for (var i = 0; i < SLIDE_COUNT; i++) {
+    var d = document.createElement("div");
+    d.className = "gallery-dot" + (i === 0 ? " active" : "");
+    (function(idx) { d.onclick = function() { goSlide(idx); }; })(i);
+    dots.appendChild(d);
+  }
+}
+
+function goSlide(n) {
+  var slides = document.querySelectorAll(".gallery-slide");
+  var dots = document.querySelectorAll(".gallery-dot");
+  if (!slides.length || !dots.length) {
+    return;
+  }
+  slides[currentSlide].classList.remove("active");
+  dots[currentSlide].classList.remove("active");
+  currentSlide = (n + SLIDE_COUNT) % SLIDE_COUNT;
+  slides[currentSlide].classList.add("active");
+  dots[currentSlide].classList.add("active");
+  document.getElementById("galleryCount").textContent = (currentSlide + 1) + " / " + SLIDE_COUNT;
+}
+
+function nextSlide() { goSlide(currentSlide + 1); }
+function prevSlide() { goSlide(currentSlide - 1); }
+
+/* ── NEXT STOP ── */
+function goNextStop() {
+  var nextStop = POI_DATA.nextStop || {};
+  if (nextStop.url) {
+    window.location.href = nextStop.url;
+  }
+}
+
+/* ── SCROLL REVEAL ── */
+function initReveal() {
+  var els = document.querySelectorAll(".reveal");
+  if (!window.IntersectionObserver) {
+    for (var i = 0; i < els.length; i++) { els[i].classList.add("visible"); }
+    return;
+  }
+  var io = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) { if (e.isIntersecting) e.target.classList.add("visible"); });
+  }, { threshold: 0.12 });
+  els.forEach(function(el) { io.observe(el); });
+}
+
+/* ── PARALLAX ── */
+window.addEventListener("scroll", function() {
+  var heroImg = document.querySelector(".hero-img");
+  if (heroImg) heroImg.style.transform = "translateY(" + (window.scrollY * 0.3) + "px)";
+}, { passive: true });
+
+function formatNumber(value) {
+  return new Intl.NumberFormat("en-US").format(Math.max(0, Number(value) || 0));
+}
+
+function formatRating(value) {
+  var numeric = Number(value);
+  return numeric > 0 ? numeric.toFixed(1) : "4.8";
+}
+
+function formatDuration(totalSeconds) {
+  var safeSeconds = Math.max(0, Math.round(Number(totalSeconds) || 0));
+  var minutes = Math.floor(safeSeconds / 60);
+  var seconds = safeSeconds % 60;
+  return minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+}
+
+function toFriendlySourceType(sourceType) {
+  var normalized = (sourceType || "").toString().toLowerCase();
+  if (normalized === "recorded") {
+    return "Human Recorded";
+  }
+  if (normalized === "hybrid") {
+    return "Hybrid Narration";
+  }
+  if (normalized === "tts") {
+    return "AI Voice";
+  }
+  return "Audio Guide";
+}
+
+function syncWaveformProgress() {
+  var bars = document.querySelectorAll(".wave-bar");
+  if (!bars.length) {
+    return;
+  }
+
+  var playedBars = Math.round((progress / 100) * bars.length);
+  bars.forEach(function(bar, index) {
+    bar.classList.toggle("played", index < playedBars);
+  });
+}
+
+function setLinkVisibility(id, url) {
+  var element = document.getElementById(id);
+  if (!element) {
+    return;
+  }
+
+  if (url) {
+    element.href = url;
+    element.style.display = "";
+    element.setAttribute("aria-disabled", "false");
+    return;
+  }
+
+  element.href = "#";
+  element.style.display = "none";
+  element.setAttribute("aria-disabled", "true");
+}
+
+function renderHeroImage() {
+  var heroImage = document.getElementById("heroImage");
+  if (!heroImage) {
+    return;
+  }
+
+  if (POI_DATA.heroImageUrl) {
+    heroImage.style.background = "center / cover no-repeat url('" + POI_DATA.heroImageUrl.replace(/'/g, "\\'") + "')";
+    return;
+  }
+
+  heroImage.style.background = "linear-gradient(135deg,rgba(255,100,50,0.4),rgba(80,0,0,0.6))";
+}
+
+function renderGallery() {
+  var track = document.getElementById("galleryTrack");
+  if (!track) {
+    return;
+  }
+
+  var images = Array.isArray(POI_DATA.images) ? POI_DATA.images : [];
+  var categoryIcon = POI_DATA.categoryIcon || "🍽️";
+  track.innerHTML = "";
+
+  if (!images.length) {
+    var emptySlide = document.createElement("div");
+    emptySlide.className = "gallery-slide active";
+    var placeholder = document.createElement("div");
+    placeholder.className = "gallery-slide-placeholder";
+    placeholder.style.background = "linear-gradient(135deg,rgba(192,57,43,0.13),rgba(230,126,34,0.13))";
+
+    var icon = document.createElement("span");
+    icon.textContent = categoryIcon;
+    placeholder.appendChild(icon);
+
+    var placeholderText = document.createElement("span");
+    placeholderText.style.fontSize = "13px";
+    placeholderText.style.color = "var(--text-muted)";
+    placeholderText.textContent = "Gallery is being updated";
+    placeholder.appendChild(placeholderText);
+
+    emptySlide.appendChild(placeholder);
+
+    var emptyLabel = document.createElement("div");
+    emptyLabel.className = "gallery-slide-label";
+    emptyLabel.textContent = "Smart Tourism Preview";
+    emptySlide.appendChild(emptyLabel);
+
+    track.appendChild(emptySlide);
+    SLIDE_COUNT = 1;
+    currentSlide = 0;
+    buildDots();
+    document.getElementById("galleryCount").textContent = "1 / 1";
+    return;
+  }
+
+  images.forEach(function(image, index) {
+    var slide = document.createElement("div");
+    slide.className = "gallery-slide" + (index === 0 ? " active" : "");
+
+    var img = document.createElement("img");
+    img.src = image.url;
+    img.alt = image.alt || POI_DATA.locationName || "Gallery image";
+    slide.appendChild(img);
+
+    var label = document.createElement("div");
+    label.className = "gallery-slide-label";
+    label.textContent = image.title || ("Image " + (index + 1));
+    slide.appendChild(label);
+
+    track.appendChild(slide);
+  });
+
+  SLIDE_COUNT = images.length;
+  currentSlide = 0;
+  buildDots();
+  document.getElementById("galleryCount").textContent = "1 / " + SLIDE_COUNT;
+}
+
+function renderNearbyList() {
+  var list = document.getElementById("nearbyList");
+  if (!list) {
+    return;
+  }
+
+  var items = Array.isArray(POI_DATA.relatedLocations) ? POI_DATA.relatedLocations : [];
+  list.innerHTML = "";
+
+  if (!items.length) {
+    var empty = document.createElement("div");
+    empty.className = "poi-item";
+
+    var emptyThumb = document.createElement("div");
+    emptyThumb.className = "poi-item-thumb";
+    emptyThumb.textContent = POI_DATA.categoryIcon || "🗺️";
+    empty.appendChild(emptyThumb);
+
+    var emptyInfo = document.createElement("div");
+    emptyInfo.className = "poi-item-info";
+
+    var emptyName = document.createElement("div");
+    emptyName.className = "poi-item-name";
+    emptyName.textContent = "More POIs are being added";
+    emptyInfo.appendChild(emptyName);
+
+    var emptySub = document.createElement("div");
+    emptySub.className = "poi-item-sub";
+    emptySub.textContent = "Smart Tourism is expanding this route.";
+    emptyInfo.appendChild(emptySub);
+
+    empty.appendChild(emptyInfo);
+
+    var emptyDistance = document.createElement("span");
+    emptyDistance.className = "poi-item-dist";
+    emptyDistance.textContent = "Soon";
+    empty.appendChild(emptyDistance);
+
+    list.appendChild(empty);
+    return;
+  }
+
+  items.forEach(function(item) {
+    var row = document.createElement(item.url ? "a" : "div");
+    row.className = "poi-item";
+    if (item.url) {
+      row.href = item.url;
+    }
+
+    var thumb = document.createElement("div");
+    thumb.className = "poi-item-thumb";
+    thumb.textContent = item.icon || "📍";
+    row.appendChild(thumb);
+
+    var info = document.createElement("div");
+    info.className = "poi-item-info";
+
+    var name = document.createElement("div");
+    name.className = "poi-item-name";
+    name.textContent = item.name || "Nearby POI";
+    info.appendChild(name);
+
+    var sub = document.createElement("div");
+    sub.className = "poi-item-sub";
+    sub.textContent = (item.categoryName || "Location") + " · " + formatNumber(item.audioCount || 0) + " audio guides";
+    info.appendChild(sub);
+
+    row.appendChild(info);
+
+    var dist = document.createElement("span");
+    dist.className = "poi-item-dist";
+    dist.textContent = item.distanceLabel || "Nearby";
+    row.appendChild(dist);
+
+    list.appendChild(row);
+  });
+}
+
+function renderNextStop() {
+  var nextStop = POI_DATA.nextStop || {};
+  document.getElementById("nextStopLabel").textContent = nextStop.label || "🗺 Smart Tourism Route";
+  document.getElementById("nextStopThumb").textContent = nextStop.icon || POI_DATA.categoryIcon || "📍";
+  document.getElementById("nextStopName").textContent = nextStop.name || "Continue exploring";
+  document.getElementById("nextStopDistance").textContent = nextStop.distanceLabel || "Next stop · nearby";
+  document.getElementById("nextStopButton").textContent = nextStop.buttonLabel || "Continue Tour → Next Stop";
+}
+
+function renderAudioCard() {
+  var audio = POI_DATA.audio || {};
+  audioElement = document.getElementById("audioElement");
+
+  if (!audio.url || !audioElement) {
+    var playerCard = document.getElementById("playerCard");
+    var playFloat = document.getElementById("playFloat");
+    if (playerCard) {
+      playerCard.style.display = "none";
+    }
+    if (playFloat) {
+      playFloat.style.display = "none";
+    }
+    return;
+  }
+
+  audioElement.src = audio.url;
+  audioElement.muted = muted;
+  audioElement.addEventListener("play", function() {
+    playing = true;
+    syncAudioUi();
+  });
+  audioElement.addEventListener("pause", function() {
+    playing = false;
+    syncAudioUi();
+  });
+  audioElement.addEventListener("ended", function() {
+    playing = false;
+    progress = 100;
+    syncAudioUi();
+  });
+  audioElement.addEventListener("timeupdate", function() {
+    if (!isFinite(audioElement.duration) || audioElement.duration <= 0) {
+      return;
+    }
+
+    progress = (audioElement.currentTime / audioElement.duration) * 100;
+    document.getElementById("progressFill").style.width = progress + "%";
+    document.getElementById("timeElapsed").textContent = formatDuration(audioElement.currentTime);
+    syncWaveformProgress();
+  });
+  audioElement.addEventListener("loadedmetadata", function() {
+    var totalSeconds = audio.durationSeconds || audioElement.duration || 0;
+    document.getElementById("audioDuration").textContent = formatDuration(totalSeconds);
+    document.getElementById("timeTotal").textContent = formatDuration(totalSeconds);
+  });
+
+  switchLang(currentLang);
+  document.getElementById("audioDuration").textContent = formatDuration(audio.durationSeconds || 0);
+  document.getElementById("timeElapsed").textContent = "0:00";
+  document.getElementById("timeTotal").textContent = formatDuration(audio.durationSeconds || 0);
+}
+
+function renderPage() {
+  var analytics = POI_DATA.analytics || {};
+  var footer = POI_DATA.footer || {};
+  var hours = POI_DATA.hoursCard || {};
+  var links = POI_DATA.links || {};
+
+  document.title = POI_DATA.pageTitle || (POI_DATA.locationName + " | Smart Tourism");
+  document.getElementById("locationName").textContent = POI_DATA.locationName || "Smart Tourism";
+  document.getElementById("categoryName").textContent = (POI_DATA.categoryName || "Featured Venue") + (POI_DATA.categoryLineSuffix ? " · " + POI_DATA.categoryLineSuffix : "");
+  document.getElementById("smartBadge").textContent = POI_DATA.badge || "Smart Tourism Highlight";
+  document.getElementById("poiDescription").textContent = POI_DATA.description || "This location is being updated with more details.";
+  document.getElementById("scanCount").textContent = formatNumber(analytics.visitCount || 0);
+  document.getElementById("weeklyScan").textContent = formatNumber(analytics.visitCountRecent || 0);
+  document.getElementById("audioCount").textContent = formatNumber(analytics.audioGuideCount || 0);
+  document.getElementById("poiEstablished").textContent = POI_DATA.establishedLabel || "Year unavailable";
+  document.getElementById("poiAddress").textContent = POI_DATA.address || "Address is being updated.";
+  document.getElementById("poiHours").textContent = POI_DATA.openingHours || "Opening hours are being updated.";
+  document.getElementById("appCardSubtitle").textContent = POI_DATA.appSubtitle || "Install the app to continue exploring this venue with offline maps, audio guides and more.";
+  document.getElementById("appInstallDesc").textContent = POI_DATA.appInstallDescription || "Use the direct APK download, or open the Play Store listing if your deployment publishes there.";
+  document.getElementById("footerVenueCount").textContent = formatNumber(footer.venueCount || 21);
+  document.getElementById("footerScanCount").textContent = formatNumber(analytics.visitCount || 0);
+  document.getElementById("footerAudioGuideCount").textContent = formatNumber(footer.audioGuideCount || analytics.audioGuideCount || 0);
+  document.getElementById("footerMapTitle").textContent = POI_DATA.locationName || "Smart Tourism";
+  document.getElementById("footerMapText").textContent = footer.locationLine || ((POI_DATA.address || "Address unavailable") + " · " + (POI_DATA.openingHours || "Hours updating"));
+  document.getElementById("footerQrId").textContent = footer.qrId || "QR";
+  document.getElementById("apkVersionBadge").textContent = footer.appVersionBadge || "Android APK";
+  document.getElementById("apkVersionText").textContent = footer.appVersionText || "Android 8.0+ · Smart Tourism";
+  document.getElementById("hoursStatus").textContent = hours.status || "Open today";
+  document.getElementById("hoursOpen").textContent = hours.opens || "See venue";
+  document.getElementById("hoursLastOrder").textContent = hours.lastOrder || "Check on arrival";
+  document.getElementById("hoursDays").textContent = hours.days || "📅 Schedule may vary";
+
+  setLinkVisibility("poiCallAction", links.phoneUrl);
+  setLinkVisibility("poiWebsiteAction", links.websiteUrl);
+  setLinkVisibility("poiNavigateAction", links.mapUrl);
+  setLinkVisibility("sc-call", links.phoneUrl);
+  setLinkVisibility("sc-web", links.websiteUrl);
+  setLinkVisibility("sc-map", links.mapUrl);
+  setLinkVisibility("sh-call", links.phoneUrl);
+  setLinkVisibility("sh-web", links.websiteUrl);
+  setLinkVisibility("sh-map", links.mapUrl);
+
+  renderHeroImage();
+  renderGallery();
+  renderNearbyList();
+  renderNextStop();
+  renderAudioCard();
+}
+
+function tryOpenDeepLink() {
+  var behavior = POI_DATA.behavior || {};
+  var links = POI_DATA.links || {};
+  if (!behavior.autoOpenDeepLink || !links.deepLink) {
+    return;
+  }
+
+  var handled = false;
+  document.addEventListener("visibilitychange", function onVisibilityChange() {
+    if (document.hidden) {
+      handled = true;
+    }
+  }, { once: true });
+
+  window.location.href = links.deepLink;
+
+  window.setTimeout(function() {
+    if (handled || document.hidden) {
+      return;
+    }
+
+    if (links.downloadPage) {
+      window.location.replace(links.downloadPage);
+    }
+  }, Math.max(600, behavior.fallbackDelayMs || 1600));
+}
+
+/* ── INIT ── */
+document.addEventListener("DOMContentLoaded", function() {
+  renderPage();
+  buildWaveform();
+  initReveal();
+  setTheme(currentTheme);
+  initAppDownload();
+  var behavior = POI_DATA.behavior || {};
+  if (behavior.autoOpenDeepLink) {
+    window.setTimeout(tryOpenDeepLink, Math.max(0, behavior.openDelayMs || 120));
+  }
+});
+
+</script>
+
+<!-- ═══════════ MOBILE BOTTOM SHEET ═══════════ -->
+<!-- FAB toggle (hidden on desktop via CSS) -->
+<button id="sidebar-sheet-toggle" onclick="toggleSheet()" aria-label="Show venue details">ℹ</button>
+
+<!-- Backdrop -->
+<div id="sheet-backdrop" onclick="closeSheet()"></div>
+
+<!-- Drawer -->
+<div id="sidebar-sheet" role="dialog" aria-modal="true" aria-label="Venue details panel">
+  <div id="sheet-inner">
+
+    <!-- Section A: Heritage -->
+    <div class="sheet-section-title">✦ Heritage &amp; Soul</div>
+
+    <!-- Legacy mini -->
+    <div class="side-card">
+      <div class="side-card-label">🏛 Legend Since</div>
+      <div class="legacy-year" id="sh-year">1994</div>
+      <span class="legacy-since">Established</span>
+      <div class="legacy-sub" id="sh-legacy-sub">A Vinh Khánh landmark for decades.</div>
+      <div class="float-icon-bg" id="sh-cat-icon">🍲</div>
+    </div>
+
+    <!-- Owner mini -->
+    <div class="side-card">
+      <div class="side-card-label">👤 Owner</div>
+      <div class="owner-row">
+        <div class="owner-avatar" id="sh-ava">🍲</div>
+        <div>
+          <div class="owner-name" id="sh-owner">Bà Sáu Nguyễn</div>
+          <div class="owner-verified">✔ Owner Verified</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fun fact -->
+    <div class="side-card">
+      <div class="side-card-label">💡 Fun Fact</div>
+      <div class="fun-fact-text" id="sh-funfact">Broth is simmered 6+ hours every morning using crab roe from the Mekong Delta.</div>
+    </div>
+
+    <!-- Tip -->
+    <div class="side-card">
+      <div class="side-card-label">🧭 Local Tip</div>
+      <span class="tip-tag">Insider</span>
+      <div class="side-card-body" id="sh-tip">Order the 'đặc biệt' set for the full experience.</div>
+    </div>
+
+    <!-- Section B: Actions -->
+    <div class="sheet-section-title">⚡ Quick Actions</div>
+
+    <!-- Action buttons -->
+    <div class="side-card">
+      <a class="quick-action-btn" id="sh-call" href="tel:+84901234567">
+        <span class="qa-icon">📞</span>Call Now
+      </a>
+      <a class="quick-action-btn" id="sh-web" href="#" target="_blank">
+        <span class="qa-icon">🌐</span>Website
+      </a>
+      <a class="quick-action-btn" id="sh-map" href="https://maps.google.com/?q=10.7582,106.7014" target="_blank">
+        <span class="qa-icon">🧭</span>Navigate
+      </a>
+    </div>
+
+    <!-- Next stop -->
+    <div class="side-card">
+      <div class="side-card-label">🗺 Next Stop</div>
+      <div class="next-mini" onclick="goNextStop()">
+        <div class="next-mini-thumb" id="sh-next-thumb">🐚</div>
+        <div>
+          <div class="next-mini-name" id="sh-next-name">Ốc Bà Năm</div>
+          <div class="next-mini-dist" id="sh-next-dist">42m away on foot</div>
+        </div>
+        <span class="next-mini-arrow">→</span>
+      </div>
+    </div>
+
+    <!-- Rank -->
+    <div class="side-card">
+      <div class="side-card-label">🏆 Social Proof</div>
+      <div class="proof-rank" id="sh-rank">#1 Hotpot on Vinh Khánh St.</div>
+      <div class="proof-stars">★★★★★</div>
+      <div class="proof-sub" id="sh-sub">Rated 4.8 · 1,284 QR scans</div>
+    </div>
+
+  </div><!-- /sheet-inner -->
+</div><!-- /sidebar-sheet -->
+
+<script>
+/* ── APP DOWNLOAD QR GENERATOR ── */
+function buildAppQR() {
+  var box = document.getElementById("appQrBox");
+  var links = POI_DATA.links || {};
+  if (!box) return;
+  box.innerHTML = "";
+
+  if (!links.apkQrUrl) {
+    box.innerHTML = '<span style="font-size:10px;color:#999;text-align:center;padding:8px;display:block">QR unavailable</span>';
+    return;
+  }
+
+  var img = document.createElement("img");
+  img.src = links.apkQrUrl;
+  img.alt = "Download Smart Tourism APK QR";
+  img.width = 100;
+  img.height = 100;
+  img.style.display = "block";
+  img.style.width = "100px";
+  img.style.height = "100px";
+  box.appendChild(img);
+}
+
+/* ── BOTTOM SHEET ── */
+var sheetOpen = false;
+function toggleSheet() { sheetOpen ? closeSheet() : openSheet(); }
+function openSheet() {
+  sheetOpen = true;
+  document.getElementById("sidebar-sheet").classList.add("open");
+  document.getElementById("sheet-backdrop").classList.add("open");
+  document.getElementById("sidebar-sheet-toggle").textContent = "✕";
+}
+function closeSheet() {
+  sheetOpen = false;
+  document.getElementById("sidebar-sheet").classList.remove("open");
+  document.getElementById("sheet-backdrop").classList.remove("open");
+  document.getElementById("sidebar-sheet-toggle").textContent = "ℹ";
+}
+
+function initAppDownload() {
+  buildAppQR();
+  var links = POI_DATA.links || {};
+  var apkBtn = document.getElementById("apkDownloadBtn");
+  var openBtn = document.getElementById("openAppBtn");
+  if (apkBtn) apkBtn.href = links.apkUrl || "#";
+  if (openBtn) openBtn.href = links.deepLink || links.apkUrl || "#";
+}
+</script>
+</body>
+</html>

@@ -26,6 +26,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Templates\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Project_SharedClassLibrary\Shared_ClassLibrary.csproj" />
   </ItemGroup>
 

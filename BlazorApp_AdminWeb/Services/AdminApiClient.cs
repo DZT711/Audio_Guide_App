@@ -252,6 +252,10 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             {
                 Name = model.Name,
                 Description = model.Description,
+                ThemeName = model.ThemeName,
+                IconEmoji = model.IconEmoji,
+                PrimaryColor = model.PrimaryColor,
+                SecondaryColor = model.SecondaryColor,
                 Status = model.Status
             });
 
@@ -268,6 +272,10 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             {
                 Name = model.Name,
                 Description = model.Description,
+                ThemeName = model.ThemeName,
+                IconEmoji = model.IconEmoji,
+                PrimaryColor = model.PrimaryColor,
+                SecondaryColor = model.SecondaryColor,
                 Status = model.Status
             });
 
