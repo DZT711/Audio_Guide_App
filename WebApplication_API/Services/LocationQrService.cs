@@ -788,7 +788,9 @@ public sealed class LocationQrService(
     {
         if (location.Latitude is >= -90 and <= 90 && location.Longitude is >= -180 and <= 180)
         {
-            return $"https://maps.google.com/?q={location.Latitude},{location.Longitude}";
+            var lat = location.Latitude.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+            var lon = location.Longitude.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+            return $"https://maps.google.com/?q={lat},{lon}";
         }
 
         return string.IsNullOrWhiteSpace(location.Address)

@@ -1494,14 +1494,22 @@ body.theme-dinner .app-version-row { border-top-color: rgba(255,255,255,0.08); }
     /* center track — no max-width cap needed, 1fr handles it */
     min-width: 0;
     padding: 0 30px; /* 30px each side = 60px visual gap between cols */
+    border-left: 1px solid rgba(0, 0, 0, 0.08);
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+  }
+  body.theme-pub #center-col,
+  body.theme-junkfood #center-col,
+  body.theme-dinner #center-col {
+    border-left-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
   }
 
   /* ── SIDE COLUMN BASE ── */
   .side-col {
+    top: 90px !important;
     display: block;
     width: 250px;              /* matches grid-template col width */
     position: sticky;
-    top: 20px;                 /* per spec */
     max-height: calc(100vh - 40px);
     overflow-y: auto;
     overflow-x: hidden;
@@ -2187,6 +2195,8 @@ body.theme-dinner .footer-inner {
 
 
 </style>
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
 </head>
 
 <body class="__SMARTTOUR_BODY_CLASS__">

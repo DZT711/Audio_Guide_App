@@ -441,6 +441,7 @@ public class LocationQrController(
     private Task<Location?> LoadPublicLocationAsync(int locationId, CancellationToken cancellationToken) =>
         context.Locations
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(item => item.Owner)
             .Include(item => item.Category)
             .Include(item => item.AudioContents)
@@ -606,7 +607,7 @@ public class LocationQrController(
     private string ResolvePublicBaseUrl()
     {
         // Prioritize the configured PublicBaseUrl from appsettings.json if available
-        if (!string.IsNullOrWhiteSpace(qrService.ResolveConfiguredAndroidInstallUrl()) && 
+        if (!string.IsNullOrWhiteSpace(qrService.ResolveConfiguredAndroidInstallUrl()) &&
             Uri.TryCreate(qrService.ResolveConfiguredAndroidInstallUrl(), UriKind.Absolute, out var uri))
         {
             return uri.AbsoluteUri.EndsWith("/") ? uri.AbsoluteUri : uri.AbsoluteUri + "/";
