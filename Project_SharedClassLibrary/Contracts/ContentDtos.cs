@@ -5,6 +5,10 @@ public sealed class CategoryDto
     public int Id { get; init; }
     public string Name { get; init; } = "";
     public string? Description { get; init; }
+    public string? ThemeName { get; init; }
+    public string? IconEmoji { get; init; }
+    public string? PrimaryColor { get; init; }
+    public string? SecondaryColor { get; init; }
     public int Status { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }

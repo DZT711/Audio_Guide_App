@@ -179,6 +179,38 @@ else
                     <ValidationMessage For="() => _formModel.Description" />
                 </div>
 
+                <div class="management-field">
+                    <label for="category-theme-name">@L("categories.form.theme", "Theme name")</label>
+                    <InputText id="category-theme-name" class="form-control" @bind-Value="_formModel.ThemeName" placeholder="hotpot" />
+                    <ValidationMessage For="() => _formModel.ThemeName" />
+                </div>
+
+                <div class="management-field">
+                    <label for="category-icon-emoji">@L("categories.form.emoji", "Icon emoji")</label>
+                    <InputText id="category-icon-emoji" class="form-control" @bind-Value="_formModel.IconEmoji" placeholder="🍲" />
+                    <ValidationMessage For="() => _formModel.IconEmoji" />
+                </div>
+
+                <div class="management-field">
+                    <label for="category-primary-color">@L("categories.form.primary-color", "Primary color")</label>
+                    <InputText id="category-primary-color" class="form-control" @bind-Value="_formModel.PrimaryColor" placeholder="#C0392B" />
+                    <ValidationMessage For="() => _formModel.PrimaryColor" />
+                </div>
+
+                <div class="management-field">
+                    <label for="category-secondary-color">@L("categories.form.secondary-color", "Secondary color")</label>
+                    <InputText id="category-secondary-color" class="form-control" @bind-Value="_formModel.SecondaryColor" placeholder="#7B241C" />
+                    <ValidationMessage For="() => _formModel.SecondaryColor" />
+                </div>
+
+                <div class="management-field management-field--full">
+                    <span class="management-field__label">@L("categories.form.preview", "Landing preview")</span>
+                    <div class="category-theme-preview" style="@BuildCategoryThemePreviewStyle(_formModel.PrimaryColor, _formModel.SecondaryColor)">
+                        <strong>@(string.IsNullOrWhiteSpace(_formModel.IconEmoji) ? "🍽️" : _formModel.IconEmoji) @(_formModel.Name.Length == 0 ? L("categories.form.preview.name", "Sample Category") : _formModel.Name)</strong>
+                        <small>@(string.IsNullOrWhiteSpace(_formModel.ThemeName) ? L("categories.form.preview.theme", "Theme name pending") : _formModel.ThemeName)</small>
+                    </div>
+                </div>
+
                 <div class="management-field management-field--full">
                     <span class="management-field__label">@L("categories.form.status", "Status")</span>
                     <div class="management-chip-group">
@@ -224,6 +256,12 @@ else
                     <div class="category-detail-card">
                         <span>@L("categories.form.description", "Description")</span>
                         <strong>@(string.IsNullOrWhiteSpace(selectedCategory.Description) ? L("categories.description.empty", "No description provided yet.") : selectedCategory.Description)</strong>
+                    </div>
+
+                    <div class="category-detail-card">
+                        <span>@L("categories.form.theme", "Theme")</span>
+                        <strong>@(string.IsNullOrWhiteSpace(selectedCategory.ThemeName) ? L("categories.readonly.theme.empty", "No QR landing theme assigned.") : selectedCategory.ThemeName)</strong>
+                        <small>@($"{selectedCategory.IconEmoji ?? "🍽️"} {selectedCategory.PrimaryColor ?? "#C0392B"} / {selectedCategory.SecondaryColor ?? "#7B241C"}")</small>
                     </div>
                 </div>
             }
@@ -342,6 +380,10 @@ else
         var snapshot = CategoryFormModel.FromDto(category);
         _formModel.Name = snapshot.Name;
         _formModel.Description = snapshot.Description;
+        _formModel.ThemeName = snapshot.ThemeName;
+        _formModel.IconEmoji = snapshot.IconEmoji;
+        _formModel.PrimaryColor = snapshot.PrimaryColor;
+        _formModel.SecondaryColor = snapshot.SecondaryColor;
         _formModel.Status = snapshot.Status;
     }
 
@@ -449,6 +491,10 @@ else
     {
         _formModel.Name = "";
         _formModel.Description = "";
+        _formModel.ThemeName = "";
+        _formModel.IconEmoji = "";
+        _formModel.PrimaryColor = "";
+        _formModel.SecondaryColor = "";
         _formModel.Status = 1;
     }
 
@@ -459,6 +505,16 @@ else
     }
 
     private void SetStatus(int status) => _formModel.Status = status;
+
+    private static string BuildCategoryThemePreviewStyle(string? primaryColor, string? secondaryColor)
+    {
+        var primary = NormalizePreviewColor(primaryColor, "#C0392B");
+        var secondary = NormalizePreviewColor(secondaryColor, "#7B241C");
+        return $"background: linear-gradient(135deg, {primary}, {secondary}); color: #fff; border-radius: 18px; padding: 1rem 1.1rem; display: grid; gap: 0.2rem;";
+    }
+
+    private static string NormalizePreviewColor(string? color, string fallback) =>
+        string.IsNullOrWhiteSpace(color) ? fallback : color.Trim();
 
     private CategoryDto? ResolveSelectedCategory()
     {

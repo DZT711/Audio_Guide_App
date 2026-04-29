@@ -13,6 +13,10 @@ public static class AdminMappings
             Id = category.CategoryId,
             Name = category.Name,
             Description = category.Description,
+            ThemeName = category.ThemeName,
+            IconEmoji = category.IconEmoji,
+            PrimaryColor = category.PrimaryColor,
+            SecondaryColor = category.SecondaryColor,
             Status = category.Status,
             CreatedAt = category.CreatedAt,
             UpdatedAt = category.UpdatedAt

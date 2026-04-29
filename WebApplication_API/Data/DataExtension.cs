@@ -292,29 +292,79 @@ public static class DataExtension
             new Category { Name = "Landmark", Description = "High-priority tourist landmarks and city icons." }
         };
 
+        var themeCategories = LocationQrThemeCatalog.Themes
+            .Select(theme => new Category
+            {
+                Name = theme.DisplayName,
+                Description = theme.Description,
+                ThemeName = theme.ThemeName,
+                IconEmoji = theme.Emoji,
+                PrimaryColor = theme.PrimaryColor,
+                SecondaryColor = theme.SecondaryColor,
+                Status = 1
+            })
+            .ToList();
+
         var hasChanges = false;
         foreach (var requiredCategory in requiredCategories)
         {
-            if (existingCategories.TryGetValue(requiredCategory.Name, out var existingCategory))
-            {
-                if (!string.Equals(existingCategory.Description, requiredCategory.Description, StringComparison.Ordinal))
-                {
-                    existingCategory.Description = requiredCategory.Description;
-                    hasChanges = true;
-                }
+            hasChanges |= ApplyCategorySeed(context, existingCategories, requiredCategory);
+        }
 
-                continue;
-            }
-
-            context.Categories.Add(requiredCategory);
-            existingCategories[requiredCategory.Name] = requiredCategory;
-            hasChanges = true;
+        foreach (var themeCategory in themeCategories)
+        {
+            hasChanges |= ApplyCategorySeed(context, existingCategories, themeCategory);
         }
 
         if (hasChanges)
         {
             await context.SaveChangesAsync();
         }
+    }
+
+    private static bool ApplyCategorySeed(
+        DBContext context,
+        IDictionary<string, Category> existingCategories,
+        Category seed)
+    {
+        if (existingCategories.TryGetValue(seed.Name, out var existingCategory))
+        {
+            var changed = false;
+
+            changed |= UpdateIfDifferent(existingCategory.Description, seed.Description, value => existingCategory.Description = value);
+            changed |= UpdateIfDifferent(existingCategory.ThemeName, seed.ThemeName, value => existingCategory.ThemeName = value);
+            changed |= UpdateIfDifferent(existingCategory.IconEmoji, seed.IconEmoji, value => existingCategory.IconEmoji = value);
+            changed |= UpdateIfDifferent(existingCategory.PrimaryColor, seed.PrimaryColor, value => existingCategory.PrimaryColor = value);
+            changed |= UpdateIfDifferent(existingCategory.SecondaryColor, seed.SecondaryColor, value => existingCategory.SecondaryColor = value);
+
+            if (seed.Status == 1 && existingCategory.Status != 1)
+            {
+                existingCategory.Status = 1;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                existingCategory.UpdatedAt = DateTime.UtcNow;
+            }
+
+            return changed;
+        }
+
+        context.Categories.Add(seed);
+        existingCategories[seed.Name] = seed;
+        return true;
+    }
+
+    private static bool UpdateIfDifferent(string? currentValue, string? nextValue, Action<string?> assign)
+    {
+        if (string.Equals(currentValue, nextValue, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        assign(nextValue);
+        return true;
     }
 
     private static async Task EnsureAnalyticsSamplesAsync(DBContext context, string contentRootPath)

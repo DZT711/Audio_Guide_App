@@ -32,6 +32,11 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.ToTable("Categories");
             entity.HasKey(item => item.CategoryId);
             entity.HasIndex(item => item.Name).IsUnique();
+            entity.HasIndex(item => item.ThemeName).IsUnique();
+            entity.Property(item => item.ThemeName).HasMaxLength(32);
+            entity.Property(item => item.IconEmoji).HasMaxLength(16);
+            entity.Property(item => item.PrimaryColor).HasMaxLength(7);
+            entity.Property(item => item.SecondaryColor).HasMaxLength(7);
             entity.Property(item => item.Status).HasDefaultValue(1);
         });
 

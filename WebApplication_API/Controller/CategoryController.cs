@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
 using Project_SharedClassLibrary.Security;
 using WebApplication_API.Data;
+using WebApplication_API.Model;
 using WebApplication_API.Services;
 
 namespace WebApplication_API.Controller;
@@ -83,10 +84,28 @@ public class CategoryController(
             return Conflict(new { message = "A category with the same name already exists." });
         }
 
+        var normalizedThemeName = NormalizeThemeName(request.ThemeName);
+        if (!string.IsNullOrWhiteSpace(normalizedThemeName)
+            && !IsSupportedThemeName(normalizedThemeName))
+        {
+            return BadRequest(new { message = "ThemeName must match one of the supported QR landing themes." });
+        }
+
+        var duplicateThemeExists = !string.IsNullOrWhiteSpace(normalizedThemeName)
+            && await context.Categories.AnyAsync(item => item.ThemeName == normalizedThemeName);
+        if (duplicateThemeExists)
+        {
+            return Conflict(new { message = "Another category is already using the same theme name." });
+        }
+
         var category = new WebApplication_API.Model.Category
         {
             Name = request.Name.Trim(),
             Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+            ThemeName = normalizedThemeName,
+            IconEmoji = NormalizeOptional(request.IconEmoji),
+            PrimaryColor = NormalizeHexColor(request.PrimaryColor),
+            SecondaryColor = NormalizeHexColor(request.SecondaryColor),
             Status = request.Status,
             CreatedAt = DateTime.UtcNow
         };
@@ -131,8 +150,28 @@ public class CategoryController(
             return Conflict(new { message = "A category with the same name already exists." });
         }
 
+        var normalizedThemeName = NormalizeThemeName(request.ThemeName);
+        if (!string.IsNullOrWhiteSpace(normalizedThemeName)
+            && !IsSupportedThemeName(normalizedThemeName))
+        {
+            return BadRequest(new { message = "ThemeName must match one of the supported QR landing themes." });
+        }
+
+        var duplicateThemeExists = !string.IsNullOrWhiteSpace(normalizedThemeName)
+            && await context.Categories.AnyAsync(item =>
+                item.CategoryId != id
+                && item.ThemeName == normalizedThemeName);
+        if (duplicateThemeExists)
+        {
+            return Conflict(new { message = "Another category is already using the same theme name." });
+        }
+
         category.Name = request.Name.Trim();
         category.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+        category.ThemeName = normalizedThemeName;
+        category.IconEmoji = NormalizeOptional(request.IconEmoji);
+        category.PrimaryColor = NormalizeHexColor(request.PrimaryColor);
+        category.SecondaryColor = NormalizeHexColor(request.SecondaryColor);
         category.Status = request.Status;
         category.UpdatedAt = DateTime.UtcNow;
 
@@ -175,4 +214,27 @@ public class CategoryController(
 
         return Ok(new ApiMessageResponse { Message = "Category archived successfully." });
     }
+
+    private static bool IsSupportedThemeName(string themeName) =>
+        LocationQrThemeCatalog.Themes.Any(item =>
+            string.Equals(item.ThemeName, themeName, StringComparison.OrdinalIgnoreCase));
+
+    private static string? NormalizeThemeName(string? themeName)
+    {
+        var normalized = NormalizeOptional(themeName);
+        return string.IsNullOrWhiteSpace(normalized)
+            ? null
+            : LocationQrThemeCatalog.NormalizeThemeName(normalized);
+    }
+
+    private static string? NormalizeHexColor(string? value)
+    {
+        var normalized = NormalizeOptional(value);
+        return string.IsNullOrWhiteSpace(normalized)
+            ? null
+            : normalized.ToUpperInvariant();
+    }
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

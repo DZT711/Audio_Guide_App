@@ -241,9 +241,21 @@ namespace WebApplication_API.Data.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("IconEmoji")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrimaryColor")
+                        .HasMaxLength(7)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SecondaryColor")
+                        .HasMaxLength(7)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Status")
@@ -251,12 +263,19 @@ namespace WebApplication_API.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(1);
 
+                    b.Property<string>("ThemeName")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.HasKey("CategoryId");
 
                     b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("ThemeName")
                         .IsUnique();
 
                     b.ToTable("Categories", (string)null);

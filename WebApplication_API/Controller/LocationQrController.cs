@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Project_SharedClassLibrary.Contracts;
+using Project_SharedClassLibrary.Geofencing;
 using Project_SharedClassLibrary.Security;
 using WebApplication_API.Data;
 using WebApplication_API.Model;
@@ -211,13 +212,7 @@ public class LocationQrController(
             return NotFound(new { message = "QR features are disabled." });
         }
 
-        var location = await context.Locations
-            .AsNoTracking()
-            .Include(item => item.Owner)
-            .Include(item => item.Category)
-            .Include(item => item.AudioContents)
-            .Include(item => item.Images)
-            .FirstOrDefaultAsync(item => item.LocationId == locationId, cancellationToken);
+        var location = await LoadPublicLocationAsync(locationId, cancellationToken);
 
         if (location is null)
         {
@@ -256,43 +251,7 @@ public class LocationQrController(
             logger.LogWarning(ex, "Unable to persist QR landing visit telemetry for location {LocationId}.", locationId);
         }
 
-        var last7DaysUtc = DateTime.UtcNow.AddDays(-7);
-        var allTimeVisits = await context.QrLandingVisits
-            .AsNoTracking()
-            .CountAsync(item => item.LocationId == locationId, cancellationToken);
-        var recentVisits = await context.QrLandingVisits
-            .AsNoTracking()
-            .CountAsync(item => item.LocationId == locationId && item.OpenedAt >= last7DaysUtc, cancellationToken);
-        var audioPlayCount = await context.PlaybackEvents
-            .AsNoTracking()
-            .CountAsync(item => item.LocationId == locationId, cancellationToken);
-        var latestPlaybackUtc = await context.PlaybackEvents
-            .AsNoTracking()
-            .Where(item => item.LocationId == locationId)
-            .Select(item => (DateTime?)item.EventAt)
-            .OrderByDescending(item => item)
-            .FirstOrDefaultAsync(cancellationToken);
-        var latestListeningUtc = await context.AudioListeningSessions
-            .AsNoTracking()
-            .Where(item => item.LocationId == locationId)
-            .Select(item => (DateTime?)item.EndedAt)
-            .OrderByDescending(item => item)
-            .FirstOrDefaultAsync(cancellationToken);
-        var latestVisitUtc = await context.QrLandingVisits
-            .AsNoTracking()
-            .Where(item => item.LocationId == locationId)
-            .Select(item => (DateTime?)item.OpenedAt)
-            .OrderByDescending(item => item)
-            .FirstOrDefaultAsync(cancellationToken);
-        var latestUpdatedUtc = new[]
-        {
-            location.UpdatedAt,
-            location.CreatedAt,
-            latestPlaybackUtc,
-            latestListeningUtc,
-            latestVisitUtc
-        }.Where(item => item.HasValue)
-            .Max();
+        var insights = await BuildLocationLandingInsightsAsync(location, cancellationToken);
 
         var html = qrService.RenderLocationLandingPage(
             HttpContext,
@@ -303,16 +262,7 @@ public class LocationQrController(
                 Autoplay = autoplay,
                 AudioTrackId = audioTrackId
             },
-            new LocationQrService.LocationLandingInsights
-            {
-                CategoryName = location.Category?.Name,
-                OpeningHours = null,
-                ImageUrl = location.PreferenceImageUrl,
-                VisitCountAllTime = allTimeVisits,
-                VisitCountLast7Days = recentVisits,
-                AudioPlayCount = audioPlayCount,
-                LastUpdatedUtc = latestUpdatedUtc
-            });
+            insights);
 
         return Content(html, "text/html; charset=utf-8");
     }
@@ -332,13 +282,10 @@ public class LocationQrController(
             return NotFound(new { message = "QR features are disabled." });
         }
 
-        if ((string.IsNullOrWhiteSpace(openUrl) || string.IsNullOrWhiteSpace(locationName))
-            && locationId is > 0)
+        Location? location = null;
+        if (locationId is > 0)
         {
-            var location = await context.Locations
-                .AsNoTracking()
-                .Include(item => item.AudioContents)
-                .FirstOrDefaultAsync(item => item.LocationId == locationId.Value, cancellationToken);
+            location = await LoadPublicLocationAsync(locationId.Value, cancellationToken);
             if (location is not null)
             {
                 var status = qrService.BuildStatus(
@@ -359,6 +306,26 @@ public class LocationQrController(
         logger.LogInformation(
             "Public Smart Tourism download page opened for location {LocationId}.",
             locationId);
+
+        if (location is not null && location.Status == 1)
+        {
+            var insights = await BuildLocationLandingInsightsAsync(location, cancellationToken);
+            return Content(
+                qrService.RenderDownloadPage(
+                    HttpContext,
+                    openUrl,
+                    locationName,
+                    location,
+                    ResolveDefaultAudio(location),
+                    new LocationQrGenerateRequest
+                    {
+                        Autoplay = autoplay,
+                        AudioTrackId = audioTrackId
+                    },
+                    insights),
+                "text/html; charset=utf-8");
+        }
+
         return Content(qrService.RenderDownloadPage(HttpContext, openUrl, locationName), "text/html; charset=utf-8");
     }
 
@@ -471,10 +438,176 @@ public class LocationQrController(
             _ => 2
         };
 
+    private Task<Location?> LoadPublicLocationAsync(int locationId, CancellationToken cancellationToken) =>
+        context.Locations
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(item => item.Owner)
+            .Include(item => item.Category)
+            .Include(item => item.AudioContents)
+            .Include(item => item.Images)
+            .FirstOrDefaultAsync(item => item.LocationId == locationId, cancellationToken);
+
+    private async Task<LocationQrService.LocationLandingInsights> BuildLocationLandingInsightsAsync(
+        Location location,
+        CancellationToken cancellationToken)
+    {
+        var locationId = location.LocationId;
+        var last7DaysUtc = DateTime.UtcNow.AddDays(-7);
+
+        var allTimeVisits = await context.QrLandingVisits
+            .AsNoTracking()
+            .CountAsync(item => item.LocationId == locationId, cancellationToken);
+        var recentVisits = await context.QrLandingVisits
+            .AsNoTracking()
+            .CountAsync(item => item.LocationId == locationId && item.OpenedAt >= last7DaysUtc, cancellationToken);
+        var audioPlayCount = await context.PlaybackEvents
+            .AsNoTracking()
+            .CountAsync(item => item.LocationId == locationId, cancellationToken);
+        var latestPlaybackUtc = await context.PlaybackEvents
+            .AsNoTracking()
+            .Where(item => item.LocationId == locationId)
+            .Select(item => (DateTime?)item.EventAt)
+            .OrderByDescending(item => item)
+            .FirstOrDefaultAsync(cancellationToken);
+        var latestListeningUtc = await context.AudioListeningSessions
+            .AsNoTracking()
+            .Where(item => item.LocationId == locationId)
+            .Select(item => (DateTime?)item.EndedAt)
+            .OrderByDescending(item => item)
+            .FirstOrDefaultAsync(cancellationToken);
+        var latestVisitUtc = await context.QrLandingVisits
+            .AsNoTracking()
+            .Where(item => item.LocationId == locationId)
+            .Select(item => (DateTime?)item.OpenedAt)
+            .OrderByDescending(item => item)
+            .FirstOrDefaultAsync(cancellationToken);
+        var latestUpdatedUtc = new[]
+        {
+            location.UpdatedAt,
+            location.CreatedAt,
+            latestPlaybackUtc,
+            latestListeningUtc,
+            latestVisitUtc
+        }.Where(item => item.HasValue)
+            .Max();
+
+        var activeVenueCount = await context.Locations
+            .AsNoTracking()
+            .CountAsync(item => item.Status == 1, cancellationToken);
+        var activeAudioCount = await context.AudioContents
+            .AsNoTracking()
+            .CountAsync(item => item.Status == 1, cancellationToken);
+
+        var candidates = await context.Locations
+            .AsNoTracking()
+            .Include(item => item.Category)
+            .Include(item => item.AudioContents)
+            .Where(item => item.Status == 1 && item.LocationId != locationId)
+            .ToListAsync(cancellationToken);
+
+        var relatedLocations = candidates
+            .Select(item => new
+            {
+                Location = item,
+                SameCategory = item.CategoryId.HasValue && item.CategoryId == location.CategoryId,
+                DistanceMeters = HaversineDistanceCalculator.CalculateMeters(
+                    location.Latitude,
+                    location.Longitude,
+                    item.Latitude,
+                    item.Longitude)
+            })
+            .OrderByDescending(item => item.SameCategory)
+            .ThenBy(item => item.DistanceMeters)
+            .ThenByDescending(item => item.Location.Priority)
+            .Take(3)
+            .Select(item =>
+            {
+                var status = qrService.BuildStatus(HttpContext, item.Location, ResolveDefaultAudio(item.Location));
+                return new LocationQrService.LocationLandingRelatedLocationInfo
+                {
+                    LocationId = item.Location.LocationId,
+                    Name = item.Location.Name,
+                    CategoryName = item.Location.Category?.Name ?? "Location",
+                    CategoryIcon = item.Location.Category?.IconEmoji,
+                    AudioCount = item.Location.AudioContents.Count(audio => audio.Status == 1),
+                    DistanceLabel = FormatDistanceLabel(item.DistanceMeters),
+                    Url = status.LandingUrl
+                };
+            })
+            .ToList();
+
+        var nextStop = relatedLocations.FirstOrDefault();
+        var projectName = ResolveProjectName(location);
+
+        return new LocationQrService.LocationLandingInsights
+        {
+            CategoryName = location.Category?.Name,
+            OpeningHours = null,
+            ImageUrl = location.PreferenceImageUrl,
+            VisitCountAllTime = allTimeVisits,
+            VisitCountLast7Days = recentVisits,
+            AudioPlayCount = audioPlayCount,
+            LastUpdatedUtc = latestUpdatedUtc,
+            ProjectName = projectName,
+            QrId = $"LOC-{location.LocationId:D4}",
+            VenueCount = activeVenueCount,
+            AudioGuideCountTotal = activeAudioCount,
+            Rating = 4.8,
+            RankLabel = allTimeVisits > 0
+                ? $"{allTimeVisits} QR scans tracked"
+                : $"Featured on {projectName}",
+            FunFact = location.EstablishedYear is > 0
+                ? $"{location.Name} has been part of the local story since {location.EstablishedYear.Value}."
+                : null,
+            Tip = string.IsNullOrWhiteSpace(location.PhoneContact)
+                ? null
+                : "Use the call button if you want to check availability before you head over.",
+            RelatedLocations = relatedLocations,
+            NextStop = nextStop is null
+                ? null
+                : new LocationQrService.LocationLandingNextStopInfo
+                {
+                    Name = nextStop.Name,
+                    CategoryIcon = nextStop.CategoryIcon,
+                    DistanceLabel = $"Next stop · {nextStop.DistanceLabel}",
+                    Label = $"🗺 {projectName} · Next stop",
+                    ButtonLabel = "Continue Tour → Next Stop",
+                    Url = nextStop.Url
+                }
+        };
+    }
+
+    private static string ResolveProjectName(Location location)
+    {
+        var address = location.Address ?? string.Empty;
+        if (address.Contains("Vinh Khanh", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Vinh Khanh Food Street";
+        }
+
+        if (address.Contains("District 4", StringComparison.OrdinalIgnoreCase))
+        {
+            return "District 4 Discovery";
+        }
+
+        return "Smart Tourism";
+    }
+
+    private static string FormatDistanceLabel(double distanceMeters)
+    {
+        if (distanceMeters < 1000d)
+        {
+            return $"{Math.Round(distanceMeters, MidpointRounding.AwayFromZero)}m";
+        }
+
+        return $"{distanceMeters / 1000d:0.0}km";
+    }
+
     private string ResolvePublicBaseUrl()
     {
         // Prioritize the configured PublicBaseUrl from appsettings.json if available
-        if (!string.IsNullOrWhiteSpace(qrService.ResolveConfiguredAndroidInstallUrl()) && 
+        if (!string.IsNullOrWhiteSpace(qrService.ResolveConfiguredAndroidInstallUrl()) &&
             Uri.TryCreate(qrService.ResolveConfiguredAndroidInstallUrl(), UriKind.Absolute, out var uri))
         {
             return uri.AbsoluteUri.EndsWith("/") ? uri.AbsoluteUri : uri.AbsoluteUri + "/";

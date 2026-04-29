@@ -43,6 +43,18 @@ public sealed class CategoryFormModel
     [StringLength(255)]
     public string Description { get; set; } = "";
 
+    [StringLength(32)]
+    public string ThemeName { get; set; } = "";
+
+    [StringLength(16)]
+    public string IconEmoji { get; set; } = "";
+
+    [RegularExpression("^$|^#(?:[0-9a-fA-F]{6})$", ErrorMessage = "Use #RRGGBB format.")]
+    public string PrimaryColor { get; set; } = "";
+
+    [RegularExpression("^$|^#(?:[0-9a-fA-F]{6})$", ErrorMessage = "Use #RRGGBB format.")]
+    public string SecondaryColor { get; set; } = "";
+
     [Range(0, 1)]
     public int Status { get; set; } = 1;
 
@@ -50,6 +62,10 @@ public sealed class CategoryFormModel
     {
         Name = dto.Name,
         Description = dto.Description ?? "",
+        ThemeName = dto.ThemeName ?? "",
+        IconEmoji = dto.IconEmoji ?? "",
+        PrimaryColor = dto.PrimaryColor ?? "",
+        SecondaryColor = dto.SecondaryColor ?? "",
         Status = dto.Status
     };
 }

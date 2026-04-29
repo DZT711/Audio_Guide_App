@@ -14,10 +14,15 @@ namespace WebApplication_API.Services;
 
 public sealed class LocationQrService(
     IOptions<QrLinkOptions> options,
+    IWebHostEnvironment hostEnvironment,
     ILogger<LocationQrService> logger)
 {
     private readonly QrLinkOptions _options = options.Value;
     private readonly ILogger<LocationQrService> _logger = logger;
+    private readonly string _landingTemplatePath = Path.Combine(
+        hostEnvironment.ContentRootPath,
+        "Templates",
+        "smart-tourism-qr-landing.template.html");
 
     public bool IsEnabled => _options.Enabled;
 
@@ -115,314 +120,44 @@ public sealed class LocationQrService(
             defaultAudio?.AudioId,
             normalizedRequest.Autoplay,
             normalizedRequest.AudioTrackId);
-
-        var resolvedInsights = insights ?? new LocationLandingInsights();
-        var locationName = WebUtility.HtmlEncode(location.Name);
-        var categoryName = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(resolvedInsights.CategoryName) ? "Updating" : resolvedInsights.CategoryName);
-        var addressLine = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(location.Address) ? "Address is being updated." : location.Address);
-        var openingHours = WebUtility.HtmlEncode(
-            string.IsNullOrWhiteSpace(resolvedInsights.OpeningHours)
-                ? _options.LandingDefaultOpeningHours
-                : resolvedInsights.OpeningHours);
-        var heroImageUrl = ResolveLocationHeroImageUrl(httpContext, location, resolvedInsights.ImageUrl);
-        var heroImageTag = string.IsNullOrWhiteSpace(heroImageUrl)
-            ? string.Empty
-            : $"<img class=\"hero-image\" src=\"{WebUtility.HtmlEncode(heroImageUrl)}\" alt=\"{locationName}\" />";
-        var deepLinkUrl = WebUtility.HtmlEncode(links.DeepLinkUrl);
-        var downloadPageUrl = WebUtility.HtmlEncode(links.DownloadPageUrl);
-        var deepLinkJson = JsonSerializer.Serialize(links.DeepLinkUrl);
-        var downloadPageJson = JsonSerializer.Serialize(links.DownloadPageUrl);
-        var fallbackDelay = Math.Max(600, _options.LandingFallbackDelayMs);
-        var openDelay = Math.Max(0, _options.LandingOpenDelayMs);
-        var allTimeVisits = resolvedInsights.VisitCountAllTime;
-        var recentVisits = resolvedInsights.VisitCountLast7Days;
-        var audioPlays = resolvedInsights.AudioPlayCount;
-        var lastUpdatedLabel = resolvedInsights.LastUpdatedUtc.HasValue
-            ? resolvedInsights.LastUpdatedUtc.Value.ToString("yyyy-MM-dd HH:mm 'UTC'")
-            : "No recent updates";
-
-        return $$"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Open {{locationName}} | Smart Tourism</title>
-    <style>
-        :root {
-            color-scheme: light;
-            font-family: "Segoe UI", "Poppins", system-ui, sans-serif;
-            --bg: #eef6ff;
-            --panel: rgba(255,255,255,0.94);
-            --text: #0f172a;
-            --muted: #475569;
-            --accent: #0f4c81;
-            --accent-soft: #dbeafe;
-            --accent-2: #0ea5a4;
-            --border: rgba(148, 163, 184, 0.26);
-        }
-
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background:
-                radial-gradient(circle at top right, rgba(14, 165, 233, 0.15), transparent 36%),
-                radial-gradient(circle at bottom left, rgba(14, 165, 164, 0.15), transparent 32%),
-                linear-gradient(160deg, #f8fbff 0%, #f0f9ff 100%);
-            color: var(--text);
-            padding: 1rem;
-        }
-
-        main {
-            width: min(100%, 840px);
-            margin: 0 auto;
-            display: grid;
-            gap: 1rem;
-            padding: 1.2rem;
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            background: var(--panel);
-            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
-        }
-
-        .eyebrow {
-            display: inline-flex;
-            padding: 0.35rem 0.75rem;
-            border-radius: 999px;
-            background: var(--accent-soft);
-            color: var(--accent);
-            font-size: 0.78rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        h1 {
-            margin: 0.75rem 0 0.55rem;
-            font-size: clamp(1.6rem, 7vw, 2.4rem);
-            line-height: 1.1;
-        }
-
-        p, li {
-            margin: 0;
-            color: var(--muted);
-            font-size: 0.98rem;
-            line-height: 1.6;
-        }
-
-        .status {
-            padding: 0.9rem 1rem;
-            border-radius: 18px;
-            background: rgba(15, 76, 129, 0.08);
-            color: var(--accent);
-            font-weight: 600;
-        }
-
-        .hero {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr);
-            gap: 0.8rem;
-        }
-
-        .hero-image {
-            width: 100%;
-            max-height: 230px;
-            object-fit: cover;
-            border-radius: 18px;
-            border: 1px solid var(--border);
-        }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.7rem;
-        }
-
-        .chip {
-            padding: 0.72rem 0.85rem;
-            border-radius: 14px;
-            border: 1px solid var(--border);
-            background: white;
-        }
-
-        .chip strong {
-            display: block;
-            color: var(--accent);
-            font-size: 0.8rem;
-            margin-bottom: 0.22rem;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .analytics {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 0.65rem;
-        }
-
-        .analytics .chip {
-            text-align: center;
-            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-        }
-
-        .analytics .value {
-            display: block;
-            font-size: 1.15rem;
-            font-weight: 800;
-            color: #0b3e66;
-            margin-bottom: 0.15rem;
-        }
-
-        .actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.85rem;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 3rem;
-            padding: 0.85rem 1.25rem;
-            border-radius: 16px;
-            border: 1px solid transparent;
-            text-decoration: none;
-            font-weight: 700;
-            flex: 1 1 170px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(120deg, var(--accent) 0%, #1d4ed8 100%);
-            color: white;
-        }
-
-        .btn-secondary {
-            border-color: var(--border);
-            color: var(--text);
-            background: white;
-        }
-
-        .footer {
-            padding: 0.7rem 0.25rem 0.1rem;
-            color: #64748b;
-            font-size: 0.85rem;
-        }
-
-        @media (max-width: 760px) {
-            .info-grid { grid-template-columns: 1fr; }
-            .analytics { grid-template-columns: 1fr; }
-        }
-    </style>
-</head>
-<body>
-    <main>
-        <section class="hero">
-            <span class="eyebrow">Smart Tourism Location</span>
-            {{heroImageTag}}
-            <h1>{{locationName}}</h1>
-            <p>We are opening this location in the Smart Tourism app. If the app is not installed yet, use the install button below.</p>
-        </section>
-
-        <section class="info-grid">
-            <article class="chip">
-                <strong>Address</strong>
-                <span>{{addressLine}}</span>
-            </article>
-            <article class="chip">
-                <strong>Category</strong>
-                <span>{{categoryName}}</span>
-            </article>
-            <article class="chip">
-                <strong>Opening Hours</strong>
-                <span>{{openingHours}}</span>
-            </article>
-            <article class="chip">
-                <strong>Last Updated</strong>
-                <span>{{lastUpdatedLabel}}</span>
-            </article>
-        </section>
-
-        <section class="analytics">
-            <article class="chip">
-                <span class="value">{{allTimeVisits}}</span>
-                <span>Visits (all-time)</span>
-            </article>
-            <article class="chip">
-                <span class="value">{{recentVisits}}</span>
-                <span>Visits (7 days)</span>
-            </article>
-            <article class="chip">
-                <span class="value">{{audioPlays}}</span>
-                <span>Audio plays</span>
-            </article>
-        </section>
-
-        <div class="status" id="status">Trying to open the app...</div>
-
-        <div class="actions">
-            <a class="btn btn-primary" href="{{deepLinkUrl}}">Open App Now</a>
-            <a class="btn btn-secondary" href="{{downloadPageUrl}}">Install Android App</a>
-        </div>
-
-        <div class="footer">
-            Need help? If opening fails, install/update the app then come back and tap Open App.
-        </div>
-    </main>
-
-    <script>
-        (() => {
-            const deepLinkUrl = {{deepLinkJson}};
-            const downloadPageUrl = {{downloadPageJson}};
-            const fallbackDelayMs = {{fallbackDelay}};
-            const openDelayMs = {{openDelay}};
-            const statusElement = document.getElementById("status");
-
-            const updateStatus = (message) => {
-                if (statusElement) {
-                    statusElement.textContent = message;
-                }
-            };
-
-            const tryOpen = () => {
-                let handled = false;
-
-                const onVisibilityChange = () => {
-                    if (document.hidden) {
-                        handled = true;
-                        updateStatus("App opened successfully.");
-                    }
-                };
-
-                document.addEventListener("visibilitychange", onVisibilityChange, { once: true });
-                updateStatus("Opening Smart Tourism...");
-                window.location.href = deepLinkUrl;
-
-                window.setTimeout(() => {
-                    if (handled || document.hidden) {
-                        return;
-                    }
-
-                    updateStatus("App not detected. Redirecting to the Android download page...");
-                    window.location.replace(downloadPageUrl);
-                }, fallbackDelayMs);
-            };
-
-            window.setTimeout(tryOpen, openDelayMs);
-        })();
-    </script>
-</body>
-</html>
-""";
+        return RenderRichLocationPage(
+            httpContext,
+            location,
+            defaultAudio,
+            insights,
+            links,
+            autoOpenDeepLink: true);
     }
 
     public string RenderDownloadPage(
         HttpContext httpContext,
         string? openUrl = null,
-        string? locationName = null)
+        string? locationName = null,
+        Location? location = null,
+        Audio? defaultAudio = null,
+        LocationQrGenerateRequest? request = null,
+        LocationLandingInsights? insights = null)
     {
+        if (location is not null)
+        {
+            var normalizedRequest = NormalizeRequest(request);
+            var links = BuildLocationLinks(
+                httpContext,
+                location.LocationId,
+                location.Name,
+                defaultAudio?.AudioId,
+                normalizedRequest.Autoplay,
+                normalizedRequest.AudioTrackId);
+
+            return RenderRichLocationPage(
+                httpContext,
+                location,
+                defaultAudio,
+                insights,
+                links,
+                autoOpenDeepLink: false);
+        }
+
         var apkUrl = WebUtility.HtmlEncode(BuildAbsoluteUrl(httpContext, ApiRoutes.PublicAndroidApkDownload));
         var apkQrUrl = WebUtility.HtmlEncode(
             $"{BuildAbsoluteUrl(httpContext, ApiRoutes.PublicAndroidApkQr)}?size=320&format=png");
@@ -679,6 +414,440 @@ public sealed class LocationQrService(
 """;
     }
 
+    private string RenderRichLocationPage(
+        HttpContext httpContext,
+        Location location,
+        Audio? defaultAudio,
+        LocationLandingInsights? insights,
+        LocationQrResolvedLinks links,
+        bool autoOpenDeepLink)
+    {
+        var resolvedInsights = insights ?? new LocationLandingInsights();
+        var theme = ResolveThemeDefinition(location);
+        var categoryName = string.IsNullOrWhiteSpace(resolvedInsights.CategoryName)
+            ? location.Category?.Name ?? "Uncategorized"
+            : resolvedInsights.CategoryName.Trim();
+        var openingHours = string.IsNullOrWhiteSpace(resolvedInsights.OpeningHours)
+            ? _options.LandingDefaultOpeningHours
+            : resolvedInsights.OpeningHours.Trim();
+        var heroImageUrl = ResolveLocationHeroImageUrl(httpContext, location, resolvedInsights.ImageUrl);
+        var galleryImages = BuildGalleryImages(httpContext, location, heroImageUrl);
+        var audioTrack = defaultAudio ?? ResolvePreferredAudio(location);
+        var audioUrl = NormalizePublicAssetUrl(httpContext, audioTrack?.FilePath);
+        var audioGuideCount = location.AudioContents.Count(item => item.Status == 1);
+        var relatedLocations = resolvedInsights.RelatedLocations
+            .Select(item => new
+            {
+                name = item.Name,
+                categoryName = item.CategoryName,
+                icon = string.IsNullOrWhiteSpace(item.CategoryIcon) ? "📍" : item.CategoryIcon,
+                audioCount = item.AudioCount,
+                distanceLabel = item.DistanceLabel,
+                url = item.Url
+            })
+            .ToList();
+        var nextStop = resolvedInsights.NextStop;
+        if (nextStop is null)
+        {
+            var inferredNextStop = resolvedInsights.RelatedLocations.FirstOrDefault();
+            if (inferredNextStop is not null)
+            {
+                nextStop = new LocationLandingNextStopInfo
+                {
+                    Name = inferredNextStop.Name,
+                    CategoryIcon = inferredNextStop.CategoryIcon,
+                    DistanceLabel = inferredNextStop.DistanceLabel,
+                    Url = inferredNextStop.Url
+                };
+            }
+        }
+        var hoursCard = BuildHoursCard(openingHours);
+        var websiteUrl = SanitizeWebsiteUrl(location.WebURL);
+        var phoneUrl = BuildTelephoneUrl(location.PhoneContact);
+        var mapUrl = BuildMapUrl(location);
+        var badge = string.IsNullOrWhiteSpace(resolvedInsights.Badge)
+            ? $"{theme.DisplayName} · Smart Tourism"
+            : resolvedInsights.Badge.Trim();
+        var establishedYear = location.EstablishedYear is > 0
+            ? location.EstablishedYear.Value.ToString()
+            : "—";
+        var rankLabel = string.IsNullOrWhiteSpace(resolvedInsights.RankLabel)
+            ? $"Featured {theme.DisplayName}"
+            : resolvedInsights.RankLabel.Trim();
+        var funFact = string.IsNullOrWhiteSpace(resolvedInsights.FunFact)
+            ? BuildFallbackFunFact(location, categoryName)
+            : resolvedInsights.FunFact.Trim();
+        var tip = string.IsNullOrWhiteSpace(resolvedInsights.Tip)
+            ? BuildFallbackTip(location, openingHours)
+            : resolvedInsights.Tip.Trim();
+        var pageTitle = autoOpenDeepLink
+            ? $"Open {location.Name} | Smart Tourism"
+            : $"Download Smart Tourism for {location.Name}";
+        var appSubtitle = autoOpenDeepLink
+            ? $"If the app does not open automatically, install Smart Tourism to continue exploring {location.Name} with offline maps, audio guides and more."
+            : $"Install the app to continue exploring {location.Name} with offline maps, audio guides and more.";
+
+        var pageData = new
+        {
+            pageTitle,
+            locationId = location.LocationId,
+            locationName = location.Name,
+            categoryName,
+            categoryTheme = theme.ThemeName,
+            categoryIcon = string.IsNullOrWhiteSpace(location.Category?.IconEmoji) ? theme.Emoji : location.Category!.IconEmoji,
+            categoryLineSuffix = string.IsNullOrWhiteSpace(resolvedInsights.ProjectName) ? "Smart Tourism" : resolvedInsights.ProjectName.Trim(),
+            badge,
+            description = string.IsNullOrWhiteSpace(location.Description)
+                ? "Smart Tourism is preparing more stories and travel context for this stop."
+                : location.Description.Trim(),
+            address = string.IsNullOrWhiteSpace(location.Address) ? "Address is being updated." : location.Address.Trim(),
+            openingHours,
+            establishedLabel = location.EstablishedYear is > 0 ? $"Serving since {location.EstablishedYear.Value}" : "Year unavailable",
+            establishedYear,
+            heroImageUrl,
+            images = galleryImages,
+            audio = audioTrack is null
+                ? new
+                {
+                    title = "Audio Guide",
+                    titles = new { vi = "Audio Guide", en = "Audio Guide" },
+                    durationSeconds = 0,
+                    sourceType = "Audio Guide",
+                    defaultLanguage = "vi",
+                    url = (string?)null
+                }
+                : new
+                {
+                    title = audioTrack.Title,
+                    titles = new
+                    {
+                        vi = ResolveLanguageAudioTitle(location, "vi", audioTrack),
+                        en = ResolveLanguageAudioTitle(location, "en", audioTrack)
+                    },
+                    durationSeconds = audioTrack.DurationSeconds ?? 0,
+                    sourceType = audioTrack.SourceType,
+                    defaultLanguage = audioTrack.LanguageCode.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? "en" : "vi",
+                    url = audioUrl
+                },
+            analytics = new
+            {
+                visitCount = resolvedInsights.VisitCountAllTime,
+                visitCountRecent = resolvedInsights.VisitCountLast7Days,
+                audioPlayCount = resolvedInsights.AudioPlayCount,
+                audioGuideCount = audioGuideCount,
+                rating = resolvedInsights.Rating <= 0 ? 4.8 : resolvedInsights.Rating
+            },
+            links = new
+            {
+                landingUrl = links.LandingUrl,
+                deepLink = links.DeepLinkUrl,
+                downloadPage = links.DownloadPageUrl,
+                apkUrl = links.AndroidApkUrl,
+                apkQrUrl = links.AndroidApkQrUrl,
+                websiteUrl,
+                phoneUrl,
+                mapUrl
+            },
+            relatedLocations,
+            nextStop = nextStop is null
+                ? null
+                : new
+                {
+                    label = string.IsNullOrWhiteSpace(nextStop.Label) ? "🗺 Smart Tourism Route" : nextStop.Label.Trim(),
+                    icon = string.IsNullOrWhiteSpace(nextStop.CategoryIcon) ? "📍" : nextStop.CategoryIcon,
+                    name = nextStop.Name,
+                    distanceLabel = string.IsNullOrWhiteSpace(nextStop.DistanceLabel) ? "Next stop · nearby" : nextStop.DistanceLabel,
+                    buttonLabel = string.IsNullOrWhiteSpace(nextStop.ButtonLabel) ? "Continue Tour → Next Stop" : nextStop.ButtonLabel,
+                    url = nextStop.Url
+                },
+            sideColumns = new
+            {
+                established = establishedYear,
+                owner = location.Owner?.FullName ?? location.Owner?.Username ?? "Smart Tourism",
+                phone = location.PhoneContact ?? "",
+                rank = rankLabel,
+                nextStop = nextStop?.Name ?? "Next venue",
+                nextDist = nextStop?.DistanceLabel ?? "Nearby",
+                icon = string.IsNullOrWhiteSpace(location.Category?.IconEmoji) ? theme.Emoji : location.Category!.IconEmoji,
+                funFact,
+                tip
+            },
+            hoursCard = new
+            {
+                status = hoursCard.Status,
+                opens = hoursCard.Opens,
+                lastOrder = hoursCard.LastOrder,
+                days = hoursCard.Days
+            },
+            footer = new
+            {
+                venueCount = resolvedInsights.VenueCount > 0 ? resolvedInsights.VenueCount : 21,
+                audioGuideCount = resolvedInsights.AudioGuideCountTotal > 0 ? resolvedInsights.AudioGuideCountTotal : audioGuideCount,
+                locationLine = BuildFooterLocationLine(location, openingHours),
+                qrId = string.IsNullOrWhiteSpace(resolvedInsights.QrId) ? $"LOC-{location.LocationId:D4}" : resolvedInsights.QrId.Trim(),
+                appVersionBadge = "Latest Android APK",
+                appVersionText = "Android 8.0+ · Offline audio · Smart Tourism"
+            },
+            appSubtitle,
+            appInstallDescription = !string.IsNullOrWhiteSpace(_options.AndroidStoreUrl)
+                ? "Use the direct APK download, or open the Play Store listing if your deployment publishes there."
+                : "Use the direct APK download, install Smart Tourism, then return here to keep exploring in the app.",
+            behavior = new
+            {
+                autoOpenDeepLink,
+                openDelayMs = Math.Max(0, _options.LandingOpenDelayMs),
+                fallbackDelayMs = Math.Max(600, _options.LandingFallbackDelayMs)
+            }
+        };
+
+        var template = LoadLandingTemplate();
+        return template
+            .Replace("__SMARTTOUR_PAGE_TITLE__", WebUtility.HtmlEncode(pageTitle), StringComparison.Ordinal)
+            .Replace("__SMARTTOUR_BODY_CLASS__", $"theme-{theme.ThemeName}", StringComparison.Ordinal)
+            .Replace("__SMARTTOUR_POI_DATA__", JsonSerializer.Serialize(pageData), StringComparison.Ordinal);
+    }
+
+    private string LoadLandingTemplate()
+    {
+        if (!File.Exists(_landingTemplatePath))
+        {
+            _logger.LogWarning("QR landing template file was not found at {TemplatePath}.", _landingTemplatePath);
+            return "<!DOCTYPE html><html><body><p>QR landing template is unavailable.</p></body></html>";
+        }
+
+        return File.ReadAllText(_landingTemplatePath);
+    }
+
+    private LocationQrThemeDefinition ResolveThemeDefinition(Location location)
+    {
+        if (!string.IsNullOrWhiteSpace(location.Category?.ThemeName))
+        {
+            return LocationQrThemeCatalog.Resolve(location.Category.ThemeName);
+        }
+
+        return LocationQrThemeCatalog.Resolve(GuessThemeName(location.Category?.Name, location.Name));
+    }
+
+    private static string GuessThemeName(string? categoryName, string? locationName)
+    {
+        var searchText = $"{categoryName} {locationName}".Trim().ToLowerInvariant();
+
+        if (searchText.Contains("snail", StringComparison.Ordinal) || searchText.Contains("ốc", StringComparison.Ordinal))
+        {
+            return "snail";
+        }
+
+        if (searchText.Contains("seafood", StringComparison.Ordinal) || searchText.Contains("hải sản", StringComparison.Ordinal))
+        {
+            return "seafood";
+        }
+
+        if (searchText.Contains("coffee", StringComparison.Ordinal) || searchText.Contains("cà phê", StringComparison.Ordinal))
+        {
+            return "coffee";
+        }
+
+        if (searchText.Contains("smoothie", StringComparison.Ordinal) || searchText.Contains("sinh tố", StringComparison.Ordinal))
+        {
+            return "smoothie";
+        }
+
+        if (searchText.Contains("pho", StringComparison.Ordinal) || searchText.Contains("phở", StringComparison.Ordinal))
+        {
+            return "pho";
+        }
+
+        if (searchText.Contains("noodle", StringComparison.Ordinal) || searchText.Contains("mì", StringComparison.Ordinal))
+        {
+            return "noodle";
+        }
+
+        if (searchText.Contains("bakery", StringComparison.Ordinal) || searchText.Contains("bánh", StringComparison.Ordinal))
+        {
+            return "bakery";
+        }
+
+        if (searchText.Contains("canteen", StringComparison.Ordinal))
+        {
+            return "canteen";
+        }
+
+        if (searchText.Contains("market", StringComparison.Ordinal) || searchText.Contains("food hall", StringComparison.Ordinal))
+        {
+            return "foodcourt";
+        }
+
+        if (searchText.Contains("drink", StringComparison.Ordinal))
+        {
+            return "coffee";
+        }
+
+        return "hotpot";
+    }
+
+    private static Audio? ResolvePreferredAudio(Location location) =>
+        location.AudioContents
+            .Where(item => item.Status == 1)
+            .OrderByDescending(item => item.Priority)
+            .ThenBy(item => ResolveSourceTypeOrder(item.SourceType))
+            .ThenBy(item => item.AudioId)
+            .FirstOrDefault();
+
+    private static string ResolveLanguageAudioTitle(Location location, string languagePrefix, Audio fallbackAudio)
+    {
+        var matchingAudio = location.AudioContents
+            .Where(item => item.Status == 1 && item.LanguageCode.StartsWith(languagePrefix, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(item => item.Priority)
+            .ThenBy(item => ResolveSourceTypeOrder(item.SourceType))
+            .ThenBy(item => item.AudioId)
+            .FirstOrDefault();
+
+        return matchingAudio?.Title ?? fallbackAudio.Title;
+    }
+
+    private List<object> BuildGalleryImages(HttpContext httpContext, Location location, string? heroImageUrl)
+    {
+        var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var images = new List<object>();
+
+        if (!string.IsNullOrWhiteSpace(heroImageUrl) && seenUrls.Add(heroImageUrl))
+        {
+            images.Add(new
+            {
+                url = heroImageUrl,
+                alt = location.Name,
+                title = "Hero image"
+            });
+        }
+
+        foreach (var image in location.Images
+                     .OrderBy(item => item.SortOrder)
+                     .ThenBy(item => item.ImageId))
+        {
+            var imageUrl = NormalizePublicAssetUrl(httpContext, image.ImageUrl);
+            if (string.IsNullOrWhiteSpace(imageUrl) || !seenUrls.Add(imageUrl))
+            {
+                continue;
+            }
+
+            images.Add(new
+            {
+                url = imageUrl,
+                alt = string.IsNullOrWhiteSpace(image.Description) ? location.Name : image.Description.Trim(),
+                title = string.IsNullOrWhiteSpace(image.Description) ? $"Image {images.Count + 1}" : image.Description.Trim()
+            });
+        }
+
+        return images;
+    }
+
+    private string? NormalizePublicAssetUrl(HttpContext httpContext, string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        if (Uri.TryCreate(path.Trim(), UriKind.Absolute, out var absoluteUri))
+        {
+            return absoluteUri.AbsoluteUri;
+        }
+
+        return BuildAbsoluteUrl(httpContext, path.Trim().TrimStart('/'));
+    }
+
+    private static string? SanitizeWebsiteUrl(string? websiteUrl)
+    {
+        if (string.IsNullOrWhiteSpace(websiteUrl)
+            || !Uri.TryCreate(websiteUrl.Trim(), UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        return uri.Scheme is "http" or "https"
+            ? uri.AbsoluteUri
+            : null;
+    }
+
+    private static string? BuildTelephoneUrl(string? phoneContact)
+    {
+        if (string.IsNullOrWhiteSpace(phoneContact))
+        {
+            return null;
+        }
+
+        var sanitized = new string(phoneContact
+            .Trim()
+            .Where(character => char.IsDigit(character) || character == '+')
+            .ToArray());
+
+        return string.IsNullOrWhiteSpace(sanitized) ? null : $"tel:{sanitized}";
+    }
+
+    private static string BuildMapUrl(Location location)
+    {
+        if (location.Latitude is >= -90 and <= 90 && location.Longitude is >= -180 and <= 180)
+        {
+            var lat = location.Latitude.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+            var lon = location.Longitude.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+            return $"https://maps.google.com/?q={lat},{lon}";
+        }
+
+        return string.IsNullOrWhiteSpace(location.Address)
+            ? "https://maps.google.com/"
+            : $"https://maps.google.com/?q={Uri.EscapeDataString(location.Address)}";
+    }
+
+    private static string BuildFooterLocationLine(Location location, string openingHours)
+    {
+        var address = string.IsNullOrWhiteSpace(location.Address)
+            ? "Smart Tourism destination"
+            : location.Address.Trim();
+
+        return $"{address} · {openingHours}";
+    }
+
+    private static string BuildFallbackFunFact(Location location, string categoryName)
+    {
+        if (location.EstablishedYear is > 0)
+        {
+            return $"{location.Name} has welcomed guests since {location.EstablishedYear.Value}, building a lasting local reputation in {categoryName.ToLowerInvariant()}.";
+        }
+
+        return $"{location.Name} is one of the Smart Tourism stops helping visitors discover the local story behind {categoryName.ToLowerInvariant()}.";
+    }
+
+    private static string BuildFallbackTip(Location location, string openingHours)
+    {
+        if (!string.IsNullOrWhiteSpace(location.PhoneContact))
+        {
+            return $"Call ahead if you want to confirm availability before visiting. Current hours: {openingHours}";
+        }
+
+        return $"Plan your visit around {openingHours} for the smoothest experience.";
+    }
+
+    private static HoursCardInfo BuildHoursCard(string openingHours)
+    {
+        if (string.IsNullOrWhiteSpace(openingHours))
+        {
+            return new HoursCardInfo("Open today", "Check venue", "Check on arrival", "📅 Schedule may vary");
+        }
+
+        var normalized = openingHours.Trim();
+        var separators = new[] { " - ", " – ", " to " };
+        foreach (var separator in separators)
+        {
+            var parts = normalized.Split(separator, 2, StringSplitOptions.TrimEntries);
+            if (parts.Length == 2)
+            {
+                return new HoursCardInfo("Open today", parts[0], parts[1], "📅 Smart Tourism verified");
+            }
+        }
+
+        return new HoursCardInfo("Open today", normalized, "Check on arrival", "📅 Smart Tourism verified");
+    }
+
     public string? ResolveConfiguredAndroidInstallUrl()
     {
         if (!string.IsNullOrWhiteSpace(_options.AndroidApkUrl))
@@ -927,6 +1096,14 @@ public sealed class LocationQrService(
             : null;
     }
 
+    private static int ResolveSourceTypeOrder(string? sourceType) =>
+        sourceType?.Trim().ToUpperInvariant() switch
+        {
+            "RECORDED" => 0,
+            "HYBRID" => 1,
+            _ => 2
+        };
+
     private static EncodingOptions CreateEncodingOptions(int size) =>
         new()
         {
@@ -1023,13 +1200,67 @@ public sealed class LocationQrService(
 
         public string? ImageUrl { get; init; }
 
+        public string? Badge { get; init; }
+
+        public string? FunFact { get; init; }
+
+        public string? Tip { get; init; }
+
+        public string? RankLabel { get; init; }
+
+        public string? ProjectName { get; init; }
+
+        public string? QrId { get; init; }
+
         public int VisitCountAllTime { get; init; }
 
         public int VisitCountLast7Days { get; init; }
 
         public int AudioPlayCount { get; init; }
 
+        public int VenueCount { get; init; }
+
+        public int AudioGuideCountTotal { get; init; }
+
+        public double Rating { get; init; } = 4.8;
+
+        public IReadOnlyList<LocationLandingRelatedLocationInfo> RelatedLocations { get; init; } = [];
+
+        public LocationLandingNextStopInfo? NextStop { get; init; }
+
         public DateTime? LastUpdatedUtc { get; init; }
+    }
+
+    public sealed record LocationLandingRelatedLocationInfo
+    {
+        public int LocationId { get; init; }
+
+        public string Name { get; init; } = "";
+
+        public string CategoryName { get; init; } = "";
+
+        public string? CategoryIcon { get; init; }
+
+        public int AudioCount { get; init; }
+
+        public string DistanceLabel { get; init; } = "";
+
+        public string Url { get; init; } = "";
+    }
+
+    public sealed record LocationLandingNextStopInfo
+    {
+        public string Name { get; init; } = "";
+
+        public string? CategoryIcon { get; init; }
+
+        public string? DistanceLabel { get; init; }
+
+        public string? Label { get; init; }
+
+        public string? ButtonLabel { get; init; }
+
+        public string? Url { get; init; }
     }
 
     private sealed record LocationQrResolvedLinks(
@@ -1039,4 +1270,10 @@ public sealed class LocationQrService(
         string AndroidApkUrl,
         string AndroidApkQrUrl,
         int? AudioTrackId);
+
+    private sealed record HoursCardInfo(
+        string Status,
+        string Opens,
+        string LastOrder,
+        string Days);
 }
