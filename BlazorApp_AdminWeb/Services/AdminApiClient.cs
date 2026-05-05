@@ -71,16 +71,17 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
     public Task<IReadOnlyList<DashboardUserDto>> GetUsersAsync() =>
         GetListAsync<DashboardUserDto>(ApiRoutes.Users, "Unable to load users.");
-
+// l2 quét qr admin
     public async Task<LocationQrStatusDto> GetLocationQrStatusAsync(
         int locationId,
         CancellationToken cancellationToken = default)
     {
         ApplyAuthHeader();
-
+// l3 quét qr admin
         using var response = await httpClient.GetAsync(ApiRoutes.GetLocationQrStatus(locationId), cancellationToken);
         await EnsureSuccessAsync(response, "Unable to load the location QR status.");
         return await ReadJsonAsync<LocationQrStatusDto>(response, "Unable to load the location QR status.");
+        //l8 quét qr admin + l11 quéT qr admiN
     }
 
     public async Task<DownloadedAdminFile> GenerateLocationQrAsync(
@@ -89,12 +90,13 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         CancellationToken cancellationToken = default)
     {
         ApplyAuthHeader();
-
+// l12 quét qr admin
         using var response = await httpClient.PostAsJsonAsync(
             ApiRoutes.GetLocationQrGenerate(locationId),
             request,
             cancellationToken);
 
+//l17 quét qr admin
         await EnsureSuccessAsync(response, "Unable to generate the location QR.");
         return await ReadFileAsync(response, cancellationToken);
     }
@@ -136,7 +138,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to load inbox messages.");
         return await ReadJsonAsync<InboxOverviewDto>(response, "Unable to load inbox messages.");
     }
-
+// l3 monitoring
     public async Task<UsageHistoryOverviewDto> GetUsageHistoryAsync(bool includeSynthetic = false)
     {
         if (includeSynthetic)

@@ -8,10 +8,10 @@ public sealed class GeofenceEvaluationEngine
     {
         _options = options;
     }
-
+// l4 xl trùng 
     public GeofenceEvaluationResult Evaluate(
         GeofenceLocationSample location,
-        GeofenceSpatialIndex spatialIndex,
+        GeofenceSpatialIndex spatialIndex, //l6 xl trùng (acceptedTriggers được tạo )
         IDictionary<string, GeofencePoiRuntimeState> runtimeStates,
         DateTimeOffset? globalCooldownUntilUtc)
     {
@@ -118,7 +118,7 @@ public sealed class GeofenceEvaluationEngine
                     skippedTriggers,
                     runtimeState,
                     definition,
-                    GeofenceTriggerEvent.EnteredRadius,
+                    GeofenceTriggerEvent.EnteredRadius, // l6 xl trùng
                     distanceMeters,
                     globalCooldownUntilUtc,
                     nowUtc);

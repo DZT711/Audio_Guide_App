@@ -131,7 +131,7 @@ public sealed partial class GeofenceOrchestratorService : INotifyPropertyChanged
         {
             return;
         }
-
+    // l2 xl trùng nối service này với 4 nguồn sự kiện: vị trí đang theo dõi, vị trí người dùng, thay đổi catalog POI, và thay đổi cài đặt app
         LocationTrackingService.Instance.LocationUpdated += OnTrackedLocationUpdated;
         UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
         PlaceCatalogService.Instance.CatalogChanged += OnCatalogChanged;
@@ -249,6 +249,7 @@ public sealed partial class GeofenceOrchestratorService : INotifyPropertyChanged
     private void RaisePropertyChanged([CallerMemberName] string? propertyName = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
+//L17 xl trùng
     private void RaiseTriggerAccepted(GeofenceTriggeredEvent trigger)
     {
         var handlers = TriggerAccepted;

@@ -8,7 +8,7 @@ public static class AnalyticsOnlineGuestService
     private static readonly TimeSpan DefaultOnlineWindow = TimeSpan.FromSeconds(10);
     private static readonly ConcurrentDictionary<string, PresenceEntry> PresenceByGuestKey =
         new(StringComparer.OrdinalIgnoreCase);
-
+// l12 monitoring 
     public static DateTime ResolveDefaultThresholdUtc() => DateTime.UtcNow - DefaultOnlineWindow;
 
     public static void ResetPresenceForTesting() => PresenceByGuestKey.Clear();
@@ -40,7 +40,7 @@ public static class AnalyticsOnlineGuestService
             }
         }
     }
-
+// l6 monitoring đếm số guest còn online 
     public static Task<int> CountOnlineUsageUsersAsync(
         DBContext context,
         DateTime thresholdUtc,
@@ -48,7 +48,7 @@ public static class AnalyticsOnlineGuestService
     {
         _ = context;
         _ = cancellationToken;
-        return Task.FromResult(CollectActivePresenceGuestKeys(thresholdUtc).Count);
+        return Task.FromResult(CollectActivePresenceGuestKeys(thresholdUtc).Count); // l8 monitoring trả số khách đang online 
     }
 
     public static Task<int> CountScopedOnlineGuestsAsync(
@@ -71,7 +71,7 @@ public static class AnalyticsOnlineGuestService
         _ = cancellationToken;
         return Task.FromResult(CollectActivePresenceGuestKeys(thresholdUtc, locationIds).Count);
     }
-
+// l7 monitoring lọc heartbeat hết hạn + l12
     private static HashSet<string> CollectActivePresenceGuestKeys(
         DateTime thresholdUtc,
         IReadOnlyCollection<int>? scopedLocationIds = null)
@@ -98,7 +98,7 @@ public static class AnalyticsOnlineGuestService
                 hasScopeMatch = scopedLocationSet is not null
                     && entry.LocationIds.Any(scopedLocationSet.Contains);
             }
-
+// l7 monitoring xóa guest hết hạn 
             if (lastSeenUtc < thresholdUtc)
             {
                 PresenceByGuestKey.TryRemove(guestKey, out _);

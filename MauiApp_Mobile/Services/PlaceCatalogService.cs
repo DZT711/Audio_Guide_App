@@ -197,7 +197,7 @@ public sealed class PlaceCatalogService
                 IsWithinActivationRadius(userLat, userLon, item, out _))
             .ToList();
     }
-
+// l11 xl trùng
     public PlaceItem? GetBestPOI(double userLat, double userLon, IReadOnlyList<PlaceItem>? candidatePois)
     {
         if (candidatePois is null || candidatePois.Count == 0)
@@ -211,11 +211,11 @@ public sealed class PlaceCatalogService
                 item.Status == 1 &&
                 item.IsGpsTriggerEnabled &&
                 IsWithinActivationRadius(userLat, userLon, item, out _))
-            .OrderByDescending(item => item.GetFinalPriority(userLat, userLon))
-            .ThenBy(item => item.LocationId)
+            .OrderByDescending(item => item.GetFinalPriority(userLat, userLon)) //l11 xl trùng
+            .ThenBy(item => item.LocationId) // l12 xl trùng
             .FirstOrDefault();
     }
-
+// l9 xl trùng
     public Task<PlaceItem?> GetBestPOIAsync(
         double userLat,
         double userLon,

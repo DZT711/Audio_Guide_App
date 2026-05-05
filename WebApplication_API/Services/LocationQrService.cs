@@ -66,7 +66,7 @@ public sealed class LocationQrService(
             DefaultAudioTrackId = normalizedRequest.AudioTrackId
         };
     }
-
+// l15 quét qr admin + 16 quét qr admin
     public QrRenderedFile GenerateLocationQrFile(
         HttpContext httpContext,
         Location location,

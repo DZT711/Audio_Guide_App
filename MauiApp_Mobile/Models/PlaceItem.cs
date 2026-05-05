@@ -154,7 +154,7 @@ public class PlaceItem : INotifyPropertyChanged
 
         return distanceScore + radiusScore + adminPriorityScore + GetTieBreaker();
     }
-
+// l10 xl trùng 
     public double GetFinalPriority(double userLat, double userLon) =>
         StaticScore + GetCurrentPriority(userLat, userLon);
 

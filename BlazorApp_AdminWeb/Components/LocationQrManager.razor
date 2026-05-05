@@ -1,4 +1,4 @@
-@inject AdminApiClient ApiClient
+@inject AdminApiClient ApiClient 
 @inject NotificationService Notifications
 @inject IJSRuntime JS
 @inject AdminUiLanguageService Language
@@ -46,6 +46,7 @@ else
                 <span>@_statusError</span>
             </div>
         }
+        // l12 quét qr admin
         else if (_isLoadingStatus && _status is null)
         {
             <div class="location-qr__loading">@L("qr.loading", "Loading QR status...")</div>
@@ -187,6 +188,7 @@ else
 
                         <div class="location-qr__actions">
                             <button type="button" class="btn btn-primary" @onclick="GeneratePreviewAsync" disabled="@(!CanGenerate || _isGeneratingPreview)">
+                                @* l10 quét qr admin *@
                                 @(_isGeneratingPreview ? L("qr.generating", "Generating...") : L("qr.generate", "Generate preview"))
                             </button>
                             <button type="button" class="btn btn-outline-secondary" @onclick="DownloadAsync" disabled="@(!CanGenerate || _isDownloading)">
@@ -398,9 +400,10 @@ else
 
         _isLoadingStatus = true;
         _statusError = null;
-
+// l2 quét qr admin
         try
         {
+            // l9 quét qr admin
             _status = await ApiClient.GetLocationQrStatusAsync(Location.Id);
             ApplyStatusDefaults();
             SyncSelectedTrackLabel();
@@ -457,7 +460,7 @@ else
         }
 
         _isGeneratingPreview = true;
-
+//l11 quét qr admin + l18 quét qr admin
         try
         {
             var file = await ApiClient.GenerateLocationQrAsync(Location.Id, CreateRequestSnapshot());
@@ -482,7 +485,7 @@ else
         }
 
         _isDownloading = true;
-
+//l10 quét qr admin + l11 quét qr admin + l18 quét qr admin 
         try
         {
             var file = await ApiClient.GenerateLocationQrAsync(Location.Id, CreateRequestSnapshot());

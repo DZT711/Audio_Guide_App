@@ -15,6 +15,7 @@ public class UsageController(
     AdminRequestAuthorizationService authService,
     AnalyticsDataFilterService analyticsDataFilter) : ControllerBase
 {
+    // l4 monitoring phương thức get
     [HttpGet]
     public async Task<IActionResult> GetUsageHistory([FromQuery] UsageHistoryQueryDto? query = null)
     {
@@ -70,7 +71,7 @@ public class UsageController(
             includeSynthetic,
             AnalyticsOnlineGuestService.ResolveDefaultThresholdUtc(),
             HttpContext.RequestAborted);
-
+// l9 monitoring trả dữ liệu tổng hợp về client ( trang usage history)
         return Ok(new UsageHistoryOverviewDto
         {
             TotalEvents = usageItems.Count,
@@ -87,7 +88,7 @@ public class UsageController(
             Items = usageItems
         });
     }
-
+// l5 monitoring xây dựng truy vấn playback
     private IQueryable<PlaybackEvent> BuildPlaybackQuery(DashboardUser currentUser)
     {
         var query = context.PlaybackEvents

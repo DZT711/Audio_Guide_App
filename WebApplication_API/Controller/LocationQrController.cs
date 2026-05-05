@@ -21,27 +21,29 @@ public class LocationQrController(
     AndroidApkPackagingService apkPackagingService,
     ILogger<LocationQrController> logger) : ControllerBase
 {
+    // l3 quét qr admin
     [HttpGet("location/{locationId:int}/status")]
     public async Task<IActionResult> GetLocationQrStatus(int locationId, CancellationToken cancellationToken)
     {
         if (!qrService.IsEnabled)
+        // l6 quét qr admin
         {
             return NotFound(new { message = "QR features are disabled." });
         }
-
+//l4 quét qr admin
         var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.QrRead);
         if (!access.Succeeded)
         {
             return access.ToFailureResult();
         }
-
+//l4 quét qr admin +l5 quét qr admin
         var location = await BuildScopedLocationQuery(access.User!)
             .FirstOrDefaultAsync(item => item.LocationId == locationId, cancellationToken);
         if (location is null)
         {
             return NotFound(new { message = "Location not found." });
         }
-
+// l5 quet qr admin + l6 quet qr admin + l7 quet qr admin + l8 quet qr admin
         return Ok(qrService.BuildStatus(HttpContext, location, ResolveDefaultAudio(location)));
     }
 
@@ -55,7 +57,7 @@ public class LocationQrController(
         {
             return NotFound(new { message = "QR features are disabled." });
         }
-
+// l13 quét qr admin
         var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.QrManage);
         if (!access.Succeeded)
         {
@@ -66,14 +68,14 @@ public class LocationQrController(
         {
             return ValidationProblem(ModelState);
         }
-
+//l13 quét qr admin + l14 quét qr admin
         var location = await BuildScopedLocationQuery(access.User!)
             .FirstOrDefaultAsync(item => item.LocationId == locationId, cancellationToken);
         if (location is null)
         {
             return NotFound(new { message = "Location not found." });
         }
-
+// l14 quét qr admin + l15 quét qr admin
         var file = qrService.GenerateLocationQrFile(HttpContext, location, ResolveDefaultAudio(location), request);
         logger.LogInformation(
             "User {UserId} generated a QR code for location {LocationId} in format {Format} at size {Size}.",
@@ -88,6 +90,7 @@ public class LocationQrController(
             "QR",
             location.LocationId,
             location.Name,
+            // l17 quét qr admin
             $"Generated QR for location '{location.Name}' as {request.Format} ({request.Size}px).",
             cancellationToken);
 
@@ -411,7 +414,7 @@ public class LocationQrController(
         Response.Headers.CacheControl = "public,max-age=300";
         return File(file.Content, file.ContentType, file.FileName);
     }
-
+// l4 quét qr admin
     private IQueryable<Location> BuildScopedLocationQuery(DashboardUser currentUser)
     {
         var query = context.Locations

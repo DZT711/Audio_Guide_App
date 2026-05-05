@@ -288,7 +288,7 @@ public sealed class LocationTrackingService : INotifyPropertyChanged
             isForeground,
             sample.CapturedAtUtc), cancellationToken);
 
-        LocationUpdated?.Invoke(this, sample);
+        LocationUpdated?.Invoke(this, sample); // l2 xl trùng ( lấy vị trí người dùng)
     }
 
     private GeolocationRequest CreateRequest()

@@ -49,7 +49,8 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-broadcast-pin"></i></span>
             <div>
-                <strong class="management-stat__value">@_overview.OnlineGuests</strong>
+                @* l11 hiển thị số khách online *@
+                <strong class="management-stat__value">@_overview.OnlineGuests</strong> 
                 <span class="management-stat__label">@L("usage.stats.online-guests", "Online Guests")</span>
             </div>
         </article>
@@ -246,7 +247,7 @@ else
         .Select(item => item.EventType)
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(item => item, StringComparer.OrdinalIgnoreCase);
-
+// l1 monitoring
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
@@ -254,7 +255,7 @@ else
     }
 
     private async Task RefreshAsync() => await LoadAsync();
-
+// l2 monitoring 
     private async Task LoadAsync(bool isAutoRefresh = false)
     {
         if (_isDisposed)
@@ -275,8 +276,7 @@ else
                 _loadError = null;
             }
 
-            _overview = await ApiClient.GetUsageHistoryAsync();
-            _loadError = null;
+            _overview = await ApiClient.GetUsageHistoryAsync(); // adminApiClient (140) + l10 monitoring client nhận dữ liệu usage history + onlineguests
             _currentPage = Math.Min(_currentPage, TotalPages);
 
             if (isAutoRefresh)

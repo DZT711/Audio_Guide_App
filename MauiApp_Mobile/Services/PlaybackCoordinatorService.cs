@@ -44,7 +44,7 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
     public double ProgressRatio => Duration.TotalMilliseconds <= 0 ? 0d : Math.Clamp(Position.TotalMilliseconds / Duration.TotalMilliseconds, 0d, 1d);
     public string PlayPauseGlyph => IsPlaying ? "❚❚" : "▶";
     public string? ActivePlaybackSource => _activePlaybackSource;
-
+// l7 hàng chờ + l8 hàng chờ +l10 hàng chờ
     public async Task PlayQueueAsync(
         IReadOnlyList<PlaybackQueueItem> items,
         int startIndex,
@@ -88,7 +88,7 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
             new PlaybackQueueItem(track, queueTitle, subtitle)
         ], 0, cancellationToken);
     }
-
+//l5 hàng chờ + l6 hàng chờ
     public void Enqueue(PublicAudioTrackDto track, string queueTitle, string subtitle)
     {
         if (ContainsTrack(track))
@@ -150,7 +150,7 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
         NotifyStateChanged();
         await PlayCurrentAsync(cancellationToken);
     }
-
+// l8 hàng chờ + l10 hàng chờ 
     public async Task StopAsync()
     {
         _manualStopRequested = true;

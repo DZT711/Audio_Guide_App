@@ -137,6 +137,7 @@ public sealed record GeofenceEvaluationResult(
 
 public static class GeofenceTriggerSelector
 {
+    // l15 xl trùng
     public static GeofenceTriggeredEvent? SelectBest(IReadOnlyList<GeofenceTriggeredEvent> triggers)
     {
         if (triggers.Count == 0)

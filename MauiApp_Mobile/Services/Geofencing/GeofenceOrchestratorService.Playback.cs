@@ -14,7 +14,8 @@ public sealed partial class GeofenceOrchestratorService
     private const string EnterPlaybackSource = "geofence-enter";
     private const string NearPlaybackSource = "geofence-near";
     private static readonly TimeSpan TrackLookupTimeout = TimeSpan.FromSeconds(12);
-
+// l18 xl trùng + l19 xl trùng 
+// l2 hàng chờ
     private async Task HandleTriggerAsync(GeofenceTriggeredEvent trigger, CancellationToken cancellationToken)
     {
         await _playbackSingleFlight.WaitAsync(cancellationToken);
@@ -100,7 +101,7 @@ public sealed partial class GeofenceOrchestratorService
 
             using var lookupCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             lookupCts.CancelAfter(TrackLookupTimeout);
-
+// l3 hàng chờ + l4 hàng chờ
             lookupCts.Token.ThrowIfCancellationRequested();
             var audioTracks = await LoadAudioTracksAsync(place.Id, lookupCts.Token);
             lookupCts.Token.ThrowIfCancellationRequested();
@@ -135,6 +136,8 @@ public sealed partial class GeofenceOrchestratorService
                     var playableTrack = await AudioDownloadService.Instance.ResolvePlayableTrackAsync(sourceTrack, cancellationToken);
                     var queueCountBefore = PlaybackCoordinatorService.Instance.QueueCount;
                     // Reuse the same enqueue path as POI detail "add to list".
+                    //l20 xl trùng
+                    //l5 + hàng chờ +l9 hàng chờ
                     PlaybackCoordinatorService.Instance.Enqueue(playableTrack, place.Name, sourceTrack.Title ?? string.Empty);
                     var queuedCount = Math.Max(0, PlaybackCoordinatorService.Instance.QueueCount - queueCountBefore);
                     if (queuedCount > 0)
@@ -156,7 +159,8 @@ public sealed partial class GeofenceOrchestratorService
                     LogSkip("Audio queue empty", ("poiId", place.Id), ("eventType", trigger.EventType));
                     return;
                 }
-
+// l20 xl trùng
+// l7 hàng chờ +l9 hàng chờ
                 var queueStartIndex = FindQueueIndex(queueItems, sourceTrack.Id);
                 await PlaybackCoordinatorService.Instance.PlayQueueAsync(
                     queueItems,
@@ -266,7 +270,7 @@ public sealed partial class GeofenceOrchestratorService
 
     private void OnNativeTransitionReceived(object? sender, NativeGeofenceTransition transition) =>
         _ = HandleNativeTransitionAsync(transition, _engineCts?.Token ?? CancellationToken.None);
-
+//l7 xl trùng
     private static bool ShouldAllowTrigger(GeofenceTriggeredEvent trigger) =>
         trigger.EventType != GeofenceTriggerEvent.NearStay || AppSettingsService.Instance.NotifyNearEnabled;
 
@@ -308,6 +312,7 @@ public sealed partial class GeofenceOrchestratorService
     private static async Task<IReadOnlyList<PublicAudioTrackDto>> LoadAudioTracksAsync(
         string placeId,
         CancellationToken cancellationToken)
+        //l3 hàng chờ + l4 hàng chờ 
     {
         cancellationToken.ThrowIfCancellationRequested();
         var audioTracks = await PlaceCatalogService.Instance.GetAudioTracksAsync(

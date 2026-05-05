@@ -292,6 +292,7 @@ public sealed partial class GeofenceOrchestratorService
             }
         }
     }
+// l3 xl trùng - đây là hàm chọn “địa điểm nào được phép kích hoạt audio” từ dữ liệu GPS.
 
     private async Task ProcessLocationSampleAsync(GeofenceLocationSample sample, CancellationToken cancellationToken)
     {
@@ -339,7 +340,7 @@ public sealed partial class GeofenceOrchestratorService
             stopwatch.Elapsed,
             sample.CapturedAtUtc,
             string.Empty);
-
+// l7 xl trùng
         var allowedTriggers = new List<GeofenceTriggeredEvent>(evaluationResult.AcceptedTriggers.Count);
         foreach (var acceptedTrigger in evaluationResult.AcceptedTriggers)
         {
@@ -355,7 +356,7 @@ public sealed partial class GeofenceOrchestratorService
                 ("eventType", acceptedTrigger.EventType.ToString()),
                 ("distanceMeters", Math.Round(acceptedTrigger.DistanceMeters, 2)));
         }
-
+// l8 xl trùng
         var candidatePois = allowedTriggers
             .Select(item => PlaceCatalogService.Instance.FindById(item.Definition.Id))
             .OfType<PlaceItem>()
@@ -366,7 +367,7 @@ public sealed partial class GeofenceOrchestratorService
         GeofenceTriggeredEvent? selectedTrigger = null;
         double selectedScore = double.MinValue;
         var switchBlockedByThreshold = false;
-
+// l9 xl trùng
         if (candidatePois.Count > 0)
         {
             var bestPoi = await PlaceCatalogService.Instance.GetBestPOIAsync(
@@ -374,13 +375,13 @@ public sealed partial class GeofenceOrchestratorService
                 sample.Longitude,
                 candidatePois,
                 cancellationToken);
-
+// l13 xl trùng
             if (bestPoi is not null)
             {
                 selectedTrigger = ResolveTriggerForPoi(bestPoi.Id, allowedTriggers);
                 if (selectedTrigger is not null)
                 {
-                    selectedScore = bestPoi.GetFinalPriority(sample.Latitude, sample.Longitude);
+                    selectedScore = bestPoi.GetFinalPriority(sample.Latitude, sample.Longitude); // l14 xl trùng 
                     if (!ShouldSwitchToCandidatePoi(
                             bestPoi.Id,
                             selectedScore,
@@ -400,7 +401,8 @@ public sealed partial class GeofenceOrchestratorService
         }
 
         if (selectedTrigger is null && !switchBlockedByThreshold)
-        {
+        { 
+            // l15 xl trùng
             selectedTrigger = GeofenceTriggerSelector.SelectBest(allowedTriggers);
             if (selectedTrigger is not null)
             {
@@ -457,13 +459,13 @@ public sealed partial class GeofenceOrchestratorService
                 ("selectedPoiId", selectedTrigger.Definition.Id),
                 ("acceptedCount", allowedTriggers.Count),
                 ("selectedScore", Math.Round(selectedPoiScore, 2)));
-        }
-
-        RememberActivePriorityPoi(selectedTrigger.Definition.Id);
+        } //l16 xl trùng
+    // l17 xl trùng
+        RememberActivePriorityPoi(selectedTrigger.Definition.Id); //l18 xl trùng
         RaiseTriggerAccepted(selectedTrigger);
         await HandleTriggerAsync(selectedTrigger, cancellationToken);
     }
-
+// l2 xl trùng - đây là điểm “nhận dữ liệu vị trí thật” để engine tự quyết định có phát audio hay không.
     private void OnTrackedLocationUpdated(object? sender, LocationSample sample)
     {
         try
@@ -637,7 +639,7 @@ public sealed partial class GeofenceOrchestratorService
             Interlocked.Exchange(ref _queueDepth, 0);
         }
     }
-
+// l13 xl trùng 
     private static GeofenceTriggeredEvent? ResolveTriggerForPoi(
         string poiId,
         IReadOnlyList<GeofenceTriggeredEvent> triggers)
@@ -654,7 +656,7 @@ public sealed partial class GeofenceOrchestratorService
             .ThenByDescending(item => item.Definition.Priority)
             .FirstOrDefault();
     }
-
+// l14 xl trùng
     private bool ShouldSwitchToCandidatePoi(
         string candidatePoiId,
         double candidateScore,
@@ -702,7 +704,7 @@ public sealed partial class GeofenceOrchestratorService
 
         return false;
     }
-
+    // l16 xl trùng 
     private void RememberActivePriorityPoi(string? poiId)
     {
         lock (_stateGate)
