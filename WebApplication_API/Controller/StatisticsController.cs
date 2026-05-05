@@ -122,7 +122,10 @@ public class StatisticsController(
         var tourLinks = await context.TourLocations
             .AsNoTracking()
             .Include(item => item.Tour)
-            .Where(item => locationIds.Contains(item.LocationId) && item.Tour != null)
+            .Where(item =>
+                onlineGuestScopeLocationIds.Contains(item.LocationId)
+                && item.Tour != null
+                && item.Tour.Status == 1)
             .ToListAsync();
 
         var wardLookup = locations.ToDictionary(
