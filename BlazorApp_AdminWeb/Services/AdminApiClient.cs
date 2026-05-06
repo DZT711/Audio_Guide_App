@@ -573,9 +573,10 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
     {
         foreach (var candidate in GetContentUrlCandidates(audioPath, SharedStoragePaths.NormalizePublicAudioPath))
         {
-            if (await UrlExistsAsync(candidate, cancellationToken))
+            var resolved = AppendNgrokBypassQuery(candidate);
+            if (await UrlExistsAsync(resolved, cancellationToken))
             {
-                return candidate.ToString();
+                return resolved.ToString();
             }
         }
 
@@ -584,6 +585,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
     public string? ResolveImageUrl(string? imagePath) =>
         GetContentUrlCandidates(imagePath, SharedStoragePaths.NormalizePublicImagePath)
+            .Select(AppendNgrokBypassQuery)
             .Select(candidate => candidate.ToString())
             .FirstOrDefault();
 
@@ -773,6 +775,38 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         {
             yield return new Uri(httpClient.BaseAddress!, normalizedManagedPath);
         }
+    }
+
+    private Uri AppendNgrokBypassQuery(Uri candidate)
+    {
+        if (!ShouldAppendNgrokBypass(candidate))
+        {
+            return candidate;
+        }
+
+        var builder = new UriBuilder(candidate);
+        if (builder.Query?.Length > 1)
+        {
+            builder.Query = builder.Query.TrimStart('?') + "&ngrok-skip-browser-warning=true";
+        }
+        else
+        {
+            builder.Query = "ngrok-skip-browser-warning=true";
+        }
+
+        return builder.Uri;
+    }
+
+    private bool ShouldAppendNgrokBypass(Uri candidate)
+    {
+        if (candidate.Host.EndsWith(".ngrok-free.dev", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var baseHost = httpClient.BaseAddress?.Host;
+        return !string.IsNullOrWhiteSpace(baseHost)
+            && baseHost.EndsWith(".ngrok-free.dev", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<bool> UrlExistsAsync(Uri audioUri, CancellationToken cancellationToken)

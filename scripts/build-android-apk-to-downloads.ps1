@@ -3,7 +3,7 @@ param(
     [string]$Configuration = "Debug",
     [string]$TargetFramework = "net10.0-android",
     [string]$RuntimeIdentifier = "android-arm64",
-    [string]$PublicBaseUrl = " https://expletive-cried-decimeter.ngrok-free.dev/",
+    [string]$PublicBaseUrl = " https://ransack-punctual-unrivaled.ngrok-free.dev/",
     # [string]$PublicBaseUrl = "https://squander-neurology-overhead.ngrok-free.dev",
     # [string]$PublicBaseUrl = "https://localhost:5123/",
     [string]$DownloadsDir = ".\WebApplication_API\wwwroot\downloads",

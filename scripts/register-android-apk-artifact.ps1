@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$ApkPath,
-    [string]$PublicBaseUrl = " https://expletive-cried-decimeter.ngrok-free.dev/",
+    [string]$PublicBaseUrl = " https://ransack-punctual-unrivaled.ngrok-free.dev/",
     # [string]$PublicBaseUrl = "https://squander-neurology-overhead.ngrok-free.dev",
     [string]$DownloadsDir = ".\WebApplication_API\wwwroot\downloads",
     [int]$KeepLatest = 5,

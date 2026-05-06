@@ -329,7 +329,7 @@ public static class MobileApiOptions
     {
         return
         [
-            "https://flirt-zeppelin-dimness.ngrok-free.dev/"
+            "https://ransack-punctual-unrivaled.ngrok-free.dev/"
         ];
     }
 
