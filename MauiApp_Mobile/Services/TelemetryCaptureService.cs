@@ -93,7 +93,7 @@ public sealed class TelemetryCaptureService
             _backgroundCts = null;
         }
 
-        if (activePlaybackAtStop is not null)
+        if (activePlaybackAtStop?.HasStarted == true)
         {
             await PersistPlaybackEndedAsync(activePlaybackAtStop, stoppedAtUtc);
         }
@@ -239,23 +239,56 @@ public sealed class TelemetryCaptureService
 
     private void OnPlaybackProgressChanged(object? sender, AudioPlaybackProgressSnapshot snapshot)
     {
-        lock (_playbackGate)
+        ActivePlaybackTelemetryState? startedState = null;
+        var startedAtUtc = DateTimeOffset.MinValue;
+
+        try
         {
-            if (_activePlayback is null || snapshot.Track is null)
+            lock (_playbackGate)
             {
-                return;
+                if (_activePlayback is null || snapshot.Track is null)
+                {
+                    return;
+                }
+
+                if (!string.Equals(_activePlayback.TrackIdentity, GetTrackIdentity(snapshot.Track), StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                var positionSeconds = Math.Max(0d, snapshot.Position.TotalSeconds);
+                var durationSeconds = Math.Max(0d, snapshot.Duration.TotalSeconds);
+
+                if (!_activePlayback.HasStarted && snapshot.IsPlaying)
+                {
+                    startedAtUtc = DateTimeOffset.UtcNow;
+                    _activePlayback = _activePlayback with
+                    {
+                        HasStarted = true,
+                        StartedAtUtc = startedAtUtc,
+                        LastKnownPositionSeconds = positionSeconds,
+                        LastKnownDurationSeconds = durationSeconds
+                    };
+                    startedState = _activePlayback;
+                }
+                else
+                {
+                    _activePlayback = _activePlayback with
+                    {
+                        LastKnownPositionSeconds = positionSeconds,
+                        LastKnownDurationSeconds = durationSeconds
+                    };
+                }
             }
 
-            if (!string.Equals(_activePlayback.TrackIdentity, GetTrackIdentity(snapshot.Track), StringComparison.Ordinal))
+            if (startedState is not null)
             {
-                return;
+                _ = PersistPlaybackStartedAsync(startedState, startedAtUtc);
             }
-
-            _activePlayback = _activePlayback with
-            {
-                LastKnownPositionSeconds = Math.Max(0d, snapshot.Position.TotalSeconds),
-                LastKnownDurationSeconds = Math.Max(0d, snapshot.Duration.TotalSeconds)
-            };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TelemetryCapture] Failed to handle playback progress: {ex.Message}");
         }
     }
 
@@ -263,53 +296,58 @@ public sealed class TelemetryCaptureService
     {
         var nowUtc = DateTimeOffset.UtcNow;
         ActivePlaybackTelemetryState? endedState = null;
-        ActivePlaybackTelemetryState? startedState = null;
 
-        lock (_playbackGate)
+        try
         {
-            var existing = _activePlayback;
-            if (currentTrack is null)
+            lock (_playbackGate)
             {
-                endedState = existing;
-                _activePlayback = null;
+                var existing = _activePlayback;
+                if (currentTrack is null)
+                {
+                    if (existing?.HasStarted == true)
+                    {
+                        endedState = existing;
+                    }
+
+                    _activePlayback = null;
+                }
+                else
+                {
+                    var identity = GetTrackIdentity(currentTrack);
+                    var isNewTrack = existing is null || !string.Equals(existing.TrackIdentity, identity, StringComparison.Ordinal);
+
+                    if (existing is not null && isNewTrack && existing.HasStarted)
+                    {
+                        endedState = existing;
+                    }
+
+                    if (isNewTrack)
+                    {
+                        var sessionIdentity = TelemetryAnonymizerService.Instance.CreateIdentitySnapshot();
+                        _activePlayback = new ActivePlaybackTelemetryState(
+                            TrackIdentity: identity,
+                            DeviceHash: sessionIdentity.DeviceHash,
+                            SessionHash: sessionIdentity.SessionHash,
+                            AudioId: currentTrack.Id > 0 ? currentTrack.Id : null,
+                            PoiId: currentTrack.LocationId > 0 ? currentTrack.LocationId : null,
+                            TourId: null,
+                            StartedAtUtc: nowUtc,
+                            TriggerSource: ResolvePlaybackSource(),
+                            LastKnownPositionSeconds: 0d,
+                            LastKnownDurationSeconds: Math.Max(0d, currentTrack.Duration),
+                            Context: currentTrack.SourceType);
+                    }
+                }
             }
-            else
+
+            if (endedState is not null)
             {
-                var identity = GetTrackIdentity(currentTrack);
-                if (existing is not null && !string.Equals(existing.TrackIdentity, identity, StringComparison.Ordinal))
-                {
-                    endedState = existing;
-                }
-
-                if (existing is null || !string.Equals(existing.TrackIdentity, identity, StringComparison.Ordinal))
-                {
-                    var sessionIdentity = TelemetryAnonymizerService.Instance.CreateIdentitySnapshot();
-                    startedState = new ActivePlaybackTelemetryState(
-                        TrackIdentity: identity,
-                        DeviceHash: sessionIdentity.DeviceHash,
-                        SessionHash: sessionIdentity.SessionHash,
-                        AudioId: currentTrack.Id > 0 ? currentTrack.Id : null,
-                        PoiId: currentTrack.LocationId > 0 ? currentTrack.LocationId : null,
-                        TourId: null,
-                        StartedAtUtc: nowUtc,
-                        TriggerSource: ResolvePlaybackSource(),
-                        LastKnownPositionSeconds: 0d,
-                        LastKnownDurationSeconds: Math.Max(0d, currentTrack.Duration),
-                        Context: currentTrack.SourceType);
-
-                    _activePlayback = startedState;
-                }
+                _ = PersistPlaybackEndedAsync(endedState, nowUtc);
             }
         }
-
-        if (endedState is not null)
+        catch (Exception ex)
         {
-            _ = PersistPlaybackEndedAsync(endedState, nowUtc);
-        }
-
-        if (startedState is not null)
-        {
-            _ = PersistPlaybackStartedAsync(startedState, nowUtc);
+            System.Diagnostics.Debug.WriteLine($"[TelemetryCapture] Failed to handle playback state: {ex.Message}");
         }
     }
 
@@ -803,7 +841,8 @@ public sealed class TelemetryCaptureService
         string TriggerSource,
         double LastKnownPositionSeconds,
         double LastKnownDurationSeconds,
-        string? Context);
+        string? Context,
+        bool HasStarted = false);
 
     private sealed record PendingDwellCandidate(
         int PoiId,

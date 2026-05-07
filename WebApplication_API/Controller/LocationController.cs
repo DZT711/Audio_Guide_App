@@ -102,6 +102,7 @@ public class LocationController(
         });
     }
 
+    //l1 -> l6 lấy poi
     [HttpGet]
     public async Task<IActionResult> GetAllLocations()
     {

@@ -17,7 +17,7 @@ public class StatisticsController(
     AnalyticsDataFilterService analyticsDataFilter) : ControllerBase
 {
     private const string DefaultReportTimezoneIana = "Asia/Ho_Chi_Minh";
-
+// l3 statistics overview
     [HttpGet]
     public async Task<IActionResult> GetStatistics([FromQuery] StatisticsQueryDto query)
     {
@@ -32,7 +32,7 @@ public class StatisticsController(
             ModelState.AddModelError(nameof(StatisticsQueryDto.Timezone), validationError);
             return ValidationProblem(ModelState);
         }
-
+//l4 statistics overview
         var overview = await BuildStatisticsOverviewAsync(query, access.User!, reportTimeZone, reportTimeZoneId);
         return Ok(overview);
     }
@@ -253,7 +253,7 @@ public class StatisticsController(
                 : "Showing analytics across all accessible POIs and telemetry sessions.",
             Summary = new StatisticsSummaryDto
             {
-                TotalPlaybackEvents = playbackItems.Count,
+                TotalPlaybackEvents = playCountItems.Count,
                 TotalTrackingPoints = trackingItems.Count,
                 RouteSessions = routeHistory.Count,
                 UniqueGuests = guestKeys,

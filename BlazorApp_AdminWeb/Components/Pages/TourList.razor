@@ -535,7 +535,7 @@ else
         .Skip((CurrentPlannerPage - 1) * PlannerLocationsPerPage)
         .Take(PlannerLocationsPerPage)
         .ToList();
-
+// l7,l8  loc tour
     private IEnumerable<TourDto> FilteredTours =>
         _tours
             .Where(item =>
