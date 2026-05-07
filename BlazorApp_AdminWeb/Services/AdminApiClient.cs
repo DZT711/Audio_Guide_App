@@ -1206,7 +1206,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
         return new UsageHistoryOverviewDto
         {
-            TotalEvents = totalCount > 0 ? totalCount : mappedItems.Count,
+            TotalEvents = CountPlaybackEventsFromV1(summary, items),
             UniqueGuests = summary.UniqueUsers > 0 ? summary.UniqueUsers : fallbackUniqueGuests,
             OnlineGuests = summary.OnlineUsers,
             DistinctLocations = distinctLocations,
@@ -1215,6 +1215,16 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
                 : Math.Round(listeningSamples.Average(), 1, MidpointRounding.AwayFromZero),
             Items = mappedItems
         };
+    }
+
+    private static int CountPlaybackEventsFromV1(UsageStatisticsDto summary, IReadOnlyList<UsageEvent> items)
+    {
+        if (summary.TotalAudioPlays > 0)
+        {
+            return summary.TotalAudioPlays;
+        }
+
+        return items.Count(item => item.EventType == UsageEventType.PlayAudio);
     }
 
     private static StatisticsOverviewDto MapStatisticsOverviewFromV1(

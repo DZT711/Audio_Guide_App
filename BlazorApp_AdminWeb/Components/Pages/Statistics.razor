@@ -51,11 +51,13 @@ else
                 <div class="statistics-filters">
                     <div class="management-field">
                         <label for="statistics-from">@L("statistics.filters.from", "From")</label>
-                        <InputDate id="statistics-from" class="form-control" @bind-Value="_fromDate" />
+                        <input id="statistics-from" class="form-control" type="text" placeholder="dd/MM/yyyy"
+                               @bind="_fromDateText" @bind:event="oninput" @onchange="HandleDateFilterChangedAsync" />
                     </div>
                     <div class="management-field">
                         <label for="statistics-to">@L("statistics.filters.to", "To")</label>
-                        <InputDate id="statistics-to" class="form-control" @bind-Value="_toDate" />
+                        <input id="statistics-to" class="form-control" type="text" placeholder="dd/MM/yyyy"
+                               @bind="_toDateText" @bind:event="oninput" @onchange="HandleDateFilterChangedAsync" />
                     </div>
                     <div class="management-field">
                         <label for="statistics-tour">@L("statistics.filters.tour", "Tour")</label>
@@ -77,7 +79,7 @@ else
                             }
                         </select>
                     </div>
-                    <div class="management-field management-field--full">
+                    @* <div class="management-field management-field--full">
                         <label for="statistics-search">@L("statistics.filters.search.label", "Search audio or POI")</label>
                         <div class="management-search statistics-search">
                             <i class="bi bi-search"></i>
@@ -85,7 +87,7 @@ else
                                    placeholder="@L("statistics.filters.search.placeholder", "Search by audio title, POI name, ward, or tour...")" @bind="_searchText"
                                    @bind:event="oninput" />
                         </div>
-                    </div>
+                    </div> *@
                 </div>
             </section>
 
@@ -111,12 +113,12 @@ else
                                     <div><strong class="management-stat__value">@_overview.Summary.UniqueGuests</strong><span
                                         class="management-stat__label">@L("statistics.stats.anonymous-guests", "Anonymous Guests")</span></div>
                                 </article>
-                                <article class="management-stat" data-reveal>
+                                @* <article class="management-stat" data-reveal>
                                     <span class="management-stat__icon"><i class="bi bi-hourglass-split"></i></span>
                                     <div><strong
                                         class="management-stat__value">@FormatSeconds(_overview.Summary.AverageListeningSeconds)</strong><span
                                         class="management-stat__label">@L("statistics.stats.average-listening", "Average Listening")</span></div>
-                                    </article>
+                                    </article> *@
                                     <article class="management-stat" data-reveal>
                                         <span class="management-stat__icon"><i class="bi bi-pin-map"></i></span>
                                         <div><strong class="management-stat__value">@_overview.Summary.VisiblePois</strong><span
@@ -537,10 +539,14 @@ else
 
 @code {
     private const string DefaultReportTimezone = "Asia/Ho_Chi_Minh";
+    private const string DateFilterFormat = "dd/MM/yyyy";
+    private static readonly CultureInfo VietnameseDateCulture = CultureInfo.GetCultureInfo("vi-VN");
     private static readonly TimeZoneInfo DefaultReportTimeZone = ResolveReportTimeZone(DefaultReportTimezone);
     private StatisticsOverviewDto _overview = new();
     private DateTime? _fromDate = GetDefaultReportToday().AddDays(-14);
     private DateTime? _toDate = GetDefaultReportToday();
+    private string _fromDateText = FormatDateFilter(GetDefaultReportToday().AddDays(-14));
+    private string _toDateText = FormatDateFilter(GetDefaultReportToday());
     private readonly List<MapSearchResult> _mapSearchResults = new();
     private string _selectedTourValue = "";
     private string _selectedWard = "";
@@ -644,19 +650,103 @@ string.Equals(item.SessionKey, _selectedSessionKey, StringComparison.OrdinalIgno
         }
     }
 
-    private async Task RefreshAsync() => await LoadAsync();
+    private async Task RefreshAsync()
+    {
+        if (!TryApplyDateFilterText(showWarning: true))
+        {
+            return;
+        }
+
+        await LoadAsync();
+    }
 
     private async Task ResetFiltersAsync()
     {
         var reportToday = GetDefaultReportToday();
         _fromDate = reportToday.AddDays(-14);
         _toDate = reportToday;
+        SyncDateFilterText();
         _selectedTourValue = "";
         _selectedWard = "";
         _searchText = "";
         _currentRoutePage = 1;
         await LoadAsync();
     }
+
+    private Task HandleDateFilterChangedAsync()
+    {
+        TryApplyDateFilterText(showWarning: true);
+        return Task.CompletedTask;
+    }
+
+    private bool TryApplyDateFilterText(bool showWarning)
+    {
+        var parsedFrom = _fromDate;
+        var parsedTo = _toDate;
+
+        if (!TryParseDateFilter(_fromDateText, out parsedFrom))
+        {
+            if (showWarning)
+            {
+                ShowDateFilterWarning(L("statistics.filters.from", "From"));
+            }
+
+            return false;
+        }
+
+        if (!TryParseDateFilter(_toDateText, out parsedTo))
+        {
+            if (showWarning)
+            {
+                ShowDateFilterWarning(L("statistics.filters.to", "To"));
+            }
+
+            return false;
+        }
+
+        _fromDate = parsedFrom;
+        _toDate = parsedTo;
+        return true;
+    }
+
+    private void ShowDateFilterWarning(string fieldLabel)
+    {
+        Notifications.Warning(
+            LF("statistics.filters.date.invalid.message", "{0} must use dd/MM/yyyy.", fieldLabel),
+            L("statistics.filters.date.invalid.title", "Invalid date"));
+    }
+
+    private void SyncDateFilterText()
+    {
+        _fromDateText = FormatDateFilter(_fromDate);
+        _toDateText = FormatDateFilter(_toDate);
+    }
+
+    private static bool TryParseDateFilter(string? value, out DateTime? parsedDate)
+    {
+        parsedDate = null;
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        if (DateTime.TryParseExact(
+            value.Trim(),
+            DateFilterFormat,
+            VietnameseDateCulture,
+            DateTimeStyles.None,
+            out var parsed))
+        {
+            parsedDate = parsed.Date;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static string FormatDateFilter(DateTime? value) =>
+        value.HasValue ? value.Value.ToString(DateFilterFormat, VietnameseDateCulture) : "";
 
     private async Task LoadAsync(bool isAutoRefresh = false)
     {

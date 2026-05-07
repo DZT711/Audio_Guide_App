@@ -176,18 +176,18 @@ public class DashboardController(
                     : "Your current role and account status in the admin web.",
                 AccentStart = "#7c3aed",
                 AccentEnd = "#c084fc"
-            },
-            new()
-            {
-                Title = "Telemetry Events",
-                Value = (totalPlaybackEvents + totalTrackingEvents).ToString(),
-                Trend = $"{totalPlaybackEvents} playback logs",
-                TrendTone = "negative",
-                Icon = "bi-activity",
-                Description = "Playback and GPS tracking entries collected for the POC analytics layer.",
-                AccentStart = "#dc2626",
-                AccentEnd = "#fb7185"
             }
+            // new()
+            // {
+            //     Title = "Telemetry Events",
+            //     Value = (totalPlaybackEvents + totalTrackingEvents).ToString(),
+            //     Trend = $"{totalPlaybackEvents} playback logs",
+            //     TrendTone = "negative",
+            //     Icon = "bi-activity",
+            //     Description = "Playback and GPS tracking entries collected for the POC analytics layer.",
+            //     AccentStart = "#dc2626",
+            //     AccentEnd = "#fb7185"
+            // }
         };
 
         return new DashboardOverviewDto
