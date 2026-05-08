@@ -42,6 +42,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-signpost-2"></i></span>
             <div>
+                @* luồng 11 tour management - Visible Tours *@
                 <strong class="management-stat__value">@_tours.Count</strong>
                 <span class="management-stat__label">@L("tours.stats.visible", "Visible Tours")</span>
             </div>
@@ -49,6 +50,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
             <div>
+                @* luồng 12 tour management - Active Tours *@
                 <strong class="management-stat__value">@_tours.Count(item => item.Status == 1)</strong>
                 <span class="management-stat__label">@L("tours.stats.active", "Active Tours")</span>
             </div>
@@ -56,6 +58,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-geo-alt"></i></span>
             <div>
+                @* luồng 13 tour management - Planner POIs*@
                 <strong class="management-stat__value">@(CanManage ? PlannerLocations.Count : _tours.Sum(item => item.StopCount))</strong>
                 <span class="management-stat__label">@(CanManage ? L("tours.stats.planner-pois", "Planner POIs") : L("tours.stats.visible-stops", "Visible Stops"))</span>
             </div>
@@ -63,6 +66,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-search"></i></span>
             <div>
+                @* luồng 14 tour management - Matching Tours*@
                 <strong class="management-stat__value">@FilteredTours.Count()</strong>
                 <span class="management-stat__label">@L("tours.stats.matching", "Matching Results")</span>
             </div>
@@ -535,7 +539,7 @@ else
         .Skip((CurrentPlannerPage - 1) * PlannerLocationsPerPage)
         .Take(PlannerLocationsPerPage)
         .ToList();
-// l7,l8  loc tour
+// l15,l6  tim kiem loc tour
     private IEnumerable<TourDto> FilteredTours =>
         _tours
             .Where(item =>

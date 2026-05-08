@@ -41,6 +41,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-mic"></i></span>
             <div>
+                @* l9 audio & voice -Total Audio Items *@
                 <strong class="management-stat__value">@_audioItems.Count</strong>
                 <span class="management-stat__label">@L("audio.stats.total", "Total Audio Items")</span>
             </div>
@@ -48,6 +49,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-gender-male"></i></span>
             <div>
+                @* l10 audio & voice - Male Voice Labels *@
                 <strong class="management-stat__value">@_audioItems.Count(item => IsVoice(item, "Male"))</strong>
                 <span class="management-stat__label">@L("audio.stats.male-voices", "Male Voice Labels")</span>
             </div>
@@ -55,6 +57,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-gender-female"></i></span>
             <div>
+                @* l11 audio & voice - Female Voice Labels *@
                 <strong class="management-stat__value">@_audioItems.Count(item => IsVoice(item, "Female"))</strong>
                 <span class="management-stat__label">@L("audio.stats.female-voices", "Female Voice Labels")</span>
             </div>
@@ -62,6 +65,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-file-text"></i></span>
             <div>
+                @* l12 audio & voice - Script-backed TTS Items *@
                 <strong class="management-stat__value">@_audioItems.Count(item => !string.IsNullOrWhiteSpace(item.Script))</strong>
                 <span class="management-stat__label">@L("audio.stats.script-backed", "Script-backed TTS Items")</span>
             </div>
@@ -621,7 +625,7 @@ else
             .Where(item => item.Status == 1)
             .OrderByDescending(item => item.IsDefault)
             .ThenBy(item => item.Name);
-
+//l15 lọc và tìm kiếm (audio & voices)
     private IEnumerable<AudioDto> FilteredAudio =>
         _audioItems.Where(audio =>
                 string.IsNullOrWhiteSpace(_searchText)

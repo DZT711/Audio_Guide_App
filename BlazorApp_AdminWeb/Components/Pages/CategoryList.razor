@@ -39,6 +39,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-diagram-3"></i></span>
             <div>
+                @* l9 Category management - Total Categories*@
                 <strong class="management-stat__value">@_categories.Count</strong>
                 <span class="management-stat__label">@L("categories.stats.total", "Total Categories")</span>
             </div>
@@ -46,6 +47,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
             <div>
+                @* l10 Category management - Active Categories*@
                 <strong class="management-stat__value">@_categories.Count(item => item.Status == 1)</strong>
                 <span class="management-stat__label">@L("status.active", "Active")</span>
             </div>
@@ -53,6 +55,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-pause-circle"></i></span>
             <div>
+                @* l11 Category management - Inactive Categories*@
                 <strong class="management-stat__value">@_categories.Count(item => item.Status == 0)</strong>
                 <span class="management-stat__label">@L("status.inactive", "Inactive")</span>
             </div>
@@ -297,7 +300,7 @@ else
     private bool CanView => SessionState.HasPermission(AdminPermissions.CategoryRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.CategoryManage);
     private CategoryDto? SelectedCategoryForDisplay => ResolveSelectedCategory();
-
+//l12 matching search categories + l13 + l14 search categories
     private IEnumerable<CategoryDto> FilteredCategories =>
         _categories.Where(category =>
             string.IsNullOrWhiteSpace(_searchText)

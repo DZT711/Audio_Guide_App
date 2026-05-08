@@ -194,7 +194,7 @@ public class DashboardController(
             //     AccentEnd = "#fb7185"
             // }
         };
-
+        // l25 trả về dữ liệu tổng quan dashboard
         return new DashboardOverviewDto
         {
             Metrics = metrics,

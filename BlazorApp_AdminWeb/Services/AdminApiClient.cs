@@ -83,7 +83,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         return await ReadJsonAsync<LocationQrStatusDto>(response, "Unable to load the location QR status.");
         //l8 quét qr admin + l11 quéT qr admiN
     }
-
+// l35 tạo qr ( locations)
     public async Task<DownloadedAdminFile> GenerateLocationQrAsync(
         int locationId,
         LocationQrGenerateRequest request,
@@ -410,7 +410,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         using var response = await httpClient.DeleteAsync($"{ApiRoutes.Tours}/{id}");
         await EnsureSuccessAsync(response, "Unable to archive tour.");
     }
-
+// l19 QL tour- Xem tuyến đường di chuyển giữa các tour
     public async Task<TourRoutePreviewDto> PreviewTourRouteAsync(
         TourRoutePreviewRequest request,
         CancellationToken cancellationToken = default)
@@ -1207,6 +1207,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         return new UsageHistoryOverviewDto
         {
             TotalEvents = CountPlaybackEventsFromV1(summary, items),
+            // code trả về luồng 20
             UniqueGuests = summary.UniqueUsers > 0 ? summary.UniqueUsers : fallbackUniqueGuests,
             OnlineGuests = summary.OnlineUsers,
             DistinctLocations = distinctLocations,
