@@ -58,13 +58,15 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-geo-alt"></i></span>
             <div>
-                <strong class="management-stat__value">@_locations.Count</strong>
+                @*l11 location - total location  *@
+                <strong class="management-stat__value">@_locations.Count</strong> 
                 <span class="management-stat__label">@L("poi.stats.total", "Total Locations")</span>
             </div>
         </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
             <div>
+                @* l12 locations- active *@
                 <strong class="management-stat__value">@_locations.Count(item => item.Status == 1)</strong>
                 <span class="management-stat__label">@L("status.active", "Active")</span>
             </div>
@@ -72,6 +74,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-diagram-3"></i></span>
             <div>
+                @* l13 categories - linked categories *@
                 <strong class="management-stat__value">@CategoryOptions.Count()</strong>
                 <span class="management-stat__label">@L("poi.stats.categories", "Linked Categories")</span>
             </div>
@@ -79,6 +82,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-search"></i></span>
             <div>
+                @* l14 locations - filtered*@
                 <strong class="management-stat__value">@FilteredLocations.Count()</strong>
                 <span class="management-stat__label">@L("poi.stats.matching", "Matching Search")</span>
             </div>
@@ -886,16 +890,19 @@ else
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(item => item, StringComparer.OrdinalIgnoreCase);
-
+// l15 + l16 locations 
     private IEnumerable<LocationDto> FilteredLocations =>
         _locations.Where(location =>
+        // tìm kiếm 
                 string.IsNullOrWhiteSpace(_searchText)
                 || location.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
                 || (location.Address?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)
                 || location.Category.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+                // lọc thheo category
             .Where(location =>
                 string.IsNullOrWhiteSpace(_selectedCategoryName)
                 || string.Equals(location.Category, _selectedCategoryName, StringComparison.OrdinalIgnoreCase))
+                // lọc theo status
             .Where(location =>
                 string.IsNullOrWhiteSpace(_selectedStatus)
                 || location.Status.ToString() == _selectedStatus);

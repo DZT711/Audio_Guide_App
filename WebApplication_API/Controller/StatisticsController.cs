@@ -93,7 +93,7 @@ public class StatisticsController(
         var overview = await BuildStatisticsOverviewAsync(query, access.User!, reportTimeZone, reportTimeZoneId);
         return Ok(overview.HeatmapPoints);
     }
-
+//l31 statistics 
     private async Task<StatisticsOverviewDto> BuildStatisticsOverviewAsync(
         StatisticsQueryDto query,
         DashboardUser currentUser,
@@ -142,7 +142,7 @@ public class StatisticsController(
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
                     .ToList());
-
+        //l31 statistics - phần filter dữ liệu theo các điều kiện đã chọn ( tour, ward, search ) + lấy dữ liệu để hiển thị trên dashboard ( timeline, plays by ward/tour, heatmap, top pois, average listening by poi )
         var filteredLocationIds = FilterLocationIds(query, locations, audios, tourLinks, wardLookup, tourNamesByLocation);
         var scopedLocationIds = HasContextFilters(query) ? filteredLocationIds : locationIds;
         var selectedTourRoute = await BuildSelectedTourRouteAsync(
@@ -253,12 +253,12 @@ public class StatisticsController(
                 : "Showing analytics across all accessible POIs and telemetry sessions.",
             Summary = new StatisticsSummaryDto
             {
-                TotalPlaybackEvents = playCountItems.Count,
+                TotalPlaybackEvents = playCountItems.Count, // l12 statistics overview - tổng số lần phát âm thanh
                 TotalTrackingPoints = trackingItems.Count,
                 RouteSessions = routeHistory.Count,
-                UniqueGuests = guestKeys,
+                UniqueGuests = guestKeys, // l13 statistics overview - tổng số unique guests
                 OnlineGuests = onlineGuests,
-                VisiblePois = filteredLocations.Count,
+                VisiblePois = filteredLocations.Count, // l14 statistics overview - tổng số POIs hiển thị trên dashboard sau khi áp dụng filter
                 AverageListeningSeconds = listeningSamples.Count == 0
                     ? 0d
                     : Math.Round(listeningSamples.Average(), 1, MidpointRounding.AwayFromZero)

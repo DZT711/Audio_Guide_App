@@ -162,7 +162,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             return await GetLegacyUsageHistoryAsync(includeSynthetic);
         }
     }
-
+    
     public async Task<StatisticsOverviewDto> GetStatisticsAsync(StatisticsQueryDto query, CancellationToken cancellationToken = default)
     {
         // Statistics map requires coordinate-rich payloads (Locations + HeatmapPoints + RouteHistory).
@@ -1144,7 +1144,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to load statistics.");
         return await ReadJsonAsync<StatisticsOverviewDto>(response, "Unable to load statistics.");
     }
-//
+// l20 usage history 
     private static UsageHistoryOverviewDto MapUsageHistoryOverviewFromV1(
         IReadOnlyList<UsageEvent> items,
         int totalCount,
@@ -1196,7 +1196,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
-
+        // code chính tính location used
         var distinctLocations = mappedItems
             .Select(item => item.LocationName)
             .Where(item => !string.IsNullOrWhiteSpace(item) &&
