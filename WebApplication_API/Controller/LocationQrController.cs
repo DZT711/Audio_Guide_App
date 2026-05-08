@@ -22,31 +22,31 @@ public class LocationQrController(
     ILogger<LocationQrController> logger) : ControllerBase
 {
     // l3 quét qr admin
+    //l37 POI- Phương thức GET-lấy trạng thái QR (chỉnh format,size QR,...)
     [HttpGet("location/{locationId:int}/status")]
     public async Task<IActionResult> GetLocationQrStatus(int locationId, CancellationToken cancellationToken)
     {
         if (!qrService.IsEnabled)
-        // l6 quét qr admin
+
         {
             return NotFound(new { message = "QR features are disabled." });
         }
-//l4 quét qr admin
         var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.QrRead);
         if (!access.Succeeded)
         {
             return access.ToFailureResult();
         }
-//l4 quét qr admin +l5 quét qr admin
         var location = await BuildScopedLocationQuery(access.User!)
             .FirstOrDefaultAsync(item => item.LocationId == locationId, cancellationToken);
         if (location is null)
         {
             return NotFound(new { message = "Location not found." });
         }
-// l5 quet qr admin + l6 quet qr admin + l7 quet qr admin + l8 quet qr admin
+// l6 quet qr admin 
         return Ok(qrService.BuildStatus(HttpContext, location, ResolveDefaultAudio(location)));
     }
-
+//l37 Locations- Phương thức POST-tạo qr cho POI chỉ định 
+//l12 quét qr admin
     [HttpPost("location/{locationId:int}/generate")]
     public async Task<IActionResult> GenerateLocationQr(
         int locationId,

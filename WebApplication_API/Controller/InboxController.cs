@@ -14,6 +14,7 @@ public class InboxController(
     ChangeRequestWorkflowService workflowService,
     ActivityLogService activityLogService) : ControllerBase
 {
+    // L56 owner -GET-lấy data inbox kết quả request change từ owner
     [HttpGet]
     public async Task<IActionResult> GetInbox([FromQuery] InboxQueryDto query, CancellationToken cancellationToken)
     {

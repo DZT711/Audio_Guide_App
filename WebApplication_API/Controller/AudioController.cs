@@ -102,7 +102,8 @@ public class AudioController(
             GetLanguage(languageLookup, audio.LanguageCode),
             true));
     }
-
+// L5 audio -GET-lấy data audio
+//l31 L31 owner -GET-lấy DS audio của POI do owner sở hữu
     [HttpGet]
     public async Task<IActionResult> GetAllAudio()
     {
@@ -237,7 +238,7 @@ public class AudioController(
             return StatusCode(502, new { message = "The cloud speech provider could not be reached." });
         }
     }
-
+// L24 audio -POST/PUT-tạo/sửa audio
     [HttpPost]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateAudio(
@@ -336,7 +337,7 @@ public class AudioController(
 
         return CreatedAtAction(nameof(GetAudioById), new { id = audio.AudioId }, savedAudio.ToDto(language));
     }
-
+// L24 audio -POST/PUT-tạo/sửa audio
     [HttpPut("{id:int}")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UpdateAudio(
@@ -448,7 +449,7 @@ public class AudioController(
 
         return Ok(new ApiMessageResponse { Message = "Audio updated successfully." });
     }
-
+// L31 audio -DELETE-xóa(lưu trữ) audio
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteAudio(int id)
     {

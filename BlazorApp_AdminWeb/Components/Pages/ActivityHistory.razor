@@ -38,6 +38,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-clock-history"></i></span>
             <div>
+                @* l10 activity history - matching events *@
                 <strong class="management-stat__value">@_result.TotalCount</strong>
                 <span class="management-stat__label">@L("history.stats.matching-events", "Matching Events")</span>
             </div>
@@ -45,6 +46,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-people"></i></span>
             <div>
+                @* l11 activity history - actors on page *@
                 <strong class="management-stat__value">@DistinctActorCount</strong>
                 <span class="management-stat__label">@L("history.stats.actors-on-page", "Actors On Page")</span>
             </div>
@@ -52,6 +54,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-funnel"></i></span>
             <div>
+                @* l12 activity history - current filters *@
                 <strong class="management-stat__value">@GetFilterSummary()</strong>
                 <span class="management-stat__label">@L("history.stats.current-filters", "Current Filters")</span>
             </div>
@@ -59,6 +62,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-calendar-event"></i></span>
             <div>
+                @* l13 activity history - latest event *@
                 <strong class="management-stat__value">@GetLatestLogLabel()</strong>
                 <span class="management-stat__label">@L("history.stats.latest-event", "Latest Event")</span>
             </div>
@@ -294,7 +298,7 @@ else
         _currentPage = pageNumber;
         await LoadAsync();
     }
-
+//L15 activity -LoadItemsAsync- tìm kiếm và lọc lịch sử log hệ thống
     private async Task LoadAsync()
     {
         _isLoading = true;

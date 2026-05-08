@@ -137,7 +137,7 @@ public sealed partial class GeofenceOrchestratorService
                     var queueCountBefore = PlaybackCoordinatorService.Instance.QueueCount;
                     // Reuse the same enqueue path as POI detail "add to list".
                     //l20 xl trùng
-                    //l5 + hàng chờ +l9 hàng chờ
+                    //l9 hàng chờ
                     PlaybackCoordinatorService.Instance.Enqueue(playableTrack, place.Name, sourceTrack.Title ?? string.Empty);
                     var queuedCount = Math.Max(0, PlaybackCoordinatorService.Instance.QueueCount - queueCountBefore);
                     if (queuedCount > 0)

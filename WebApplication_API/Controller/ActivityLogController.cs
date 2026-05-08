@@ -14,6 +14,7 @@ public class ActivityLogController(
     AdminRequestAuthorizationService authService,
     ActivityLogService activityLogService) : ControllerBase
 {
+    // L4 activity history - GET- lấy log lịch sử tài khoản tương tác với hệ thống
     [HttpGet]
     public async Task<IActionResult> GetActivityLogs([FromQuery] ActivityLogQueryDto query, CancellationToken cancellationToken)
     {

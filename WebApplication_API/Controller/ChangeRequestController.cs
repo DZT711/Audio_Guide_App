@@ -13,6 +13,7 @@ public class ChangeRequestController(
     AdminRequestAuthorizationService authService,
     ChangeRequestWorkflowService workflowService) : ControllerBase
 {
+    // L5 moderation - GET- lấy DS yêu cầu từ owner cho admin
     [HttpGet]
     public async Task<IActionResult> GetRequests([FromQuery] ChangeRequestQueryDto query, CancellationToken cancellationToken)
     {
@@ -38,7 +39,7 @@ public class ChangeRequestController(
         var result = await workflowService.GetRequestsAsync(query, access.User!, ownerOnly: true, cancellationToken);
         return Ok(result);
     }
-
+// L47,38 owner -GET-submit thay đổi POI,audio từ owner
     [HttpPost("location")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> SubmitLocationRequest(
@@ -102,7 +103,7 @@ public class ChangeRequestController(
             return ToErrorResult(ex);
         }
     }
-
+// L23,33 Moderations- chấp nhận / hủy yêu cầu sửa dữ liệu
     [HttpPost("{id:int}/approve")]
     public async Task<IActionResult> Approve(int id, [FromBody] ReviewChangeRequestRequest request, CancellationToken cancellationToken)
     {
@@ -127,7 +128,7 @@ public class ChangeRequestController(
             return ToErrorResult(ex);
         }
     }
-
+// L23,33 Moderations- chấp nhận / hủy yêu cầu sửa dữ liệu
     [HttpPost("{id:int}/reject")]
     public async Task<IActionResult> Reject(int id, [FromBody] ReviewChangeRequestRequest request, CancellationToken cancellationToken)
     {

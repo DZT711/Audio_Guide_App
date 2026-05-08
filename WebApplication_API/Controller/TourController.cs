@@ -82,7 +82,7 @@ public class TourController(
 
         return Ok(result);
     }
-
+//L17 owner -GET-lấy data tour có chứa POI do owner sở hữu
     [HttpGet]
     public async Task<IActionResult> GetTours()
     {
@@ -99,7 +99,7 @@ public class TourController(
 
         return Ok(tours.Select(item => item.ToDto()).ToList());
     }
-
+//l4 QL tour- Phuong thuc GET- lấy data tour
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetTourById(int id)
     {

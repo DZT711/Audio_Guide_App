@@ -18,6 +18,7 @@ public class StatisticsController(
 {
     private const string DefaultReportTimezoneIana = "Asia/Ho_Chi_Minh";
 // l3 statistics overview
+//l3 owner -GET-lấy dữ liệu trang thống kê chi tiết cho POI do owner sở hữu
     [HttpGet]
     public async Task<IActionResult> GetStatistics([FromQuery] StatisticsQueryDto query)
     {
