@@ -103,6 +103,8 @@ public class LocationController(
     }
 
     //l1 -> l6 lấy poi
+    //L10 owner -GET-lấy DS POI do owner sở hữu
+
     [HttpGet]
     public async Task<IActionResult> GetAllLocations()
     {
@@ -139,7 +141,7 @@ public class LocationController(
 
         return Ok(location.ToDto());
     }
-
+// l4 locations -  Phương thức GET-lay data POI
     [HttpGet("category/{categoryId:int}")]
     public async Task<IActionResult> GetLocationsByCategory(int categoryId)
     {

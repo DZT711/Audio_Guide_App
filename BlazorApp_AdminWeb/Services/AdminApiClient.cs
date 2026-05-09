@@ -77,13 +77,13 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         CancellationToken cancellationToken = default)
     {
         ApplyAuthHeader();
-// l3 quét qr admin
-        using var response = await httpClient.GetAsync(ApiRoutes.GetLocationQrStatus(locationId), cancellationToken);
+
+        using var response = await httpClient.GetAsync(ApiRoutes.GetLocationQrStatus(locationId), cancellationToken); // l3 quét qr admin
         await EnsureSuccessAsync(response, "Unable to load the location QR status.");
-        return await ReadJsonAsync<LocationQrStatusDto>(response, "Unable to load the location QR status.");
-        //l8 quét qr admin + l11 quéT qr admiN
+        return await ReadJsonAsync<LocationQrStatusDto>(response, "Unable to load the location QR status."); //l8 quét qr admin
+        
     }
-// l35 tạo qr ( locations)
+//l11 admin quét qr
     public async Task<DownloadedAdminFile> GenerateLocationQrAsync(
         int locationId,
         LocationQrGenerateRequest request,
@@ -96,7 +96,6 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             request,
             cancellationToken);
 
-//l17 quét qr admin
         await EnsureSuccessAsync(response, "Unable to generate the location QR.");
         return await ReadFileAsync(response, cancellationToken);
     }

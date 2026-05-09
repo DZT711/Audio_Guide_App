@@ -15,6 +15,7 @@ public class LanguageController(
     AdminRequestAuthorizationService authService,
     ActivityLogService activityLogService) : ControllerBase
 {
+    // L24 owner -GET-lấy DS ngôn ngữ
     [HttpGet]
     public async Task<IActionResult> GetAllLanguages()
     {
@@ -32,7 +33,7 @@ public class LanguageController(
 
         return Ok(languages.Select(item => item.ToDto()).ToList());
     }
-
+// L5 Language - PT GET- lấy data ngôn ngữ
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetLanguageById(int id)
     {
@@ -50,7 +51,7 @@ public class LanguageController(
 
         return Ok(language.ToDto());
     }
-
+//L19 Language - POST/PUT- thêm/sửa ngông ngữ
     [HttpPost]
     public async Task<IActionResult> CreateLanguage([FromBody] LanguageUpsertRequest request)
     {
@@ -101,7 +102,7 @@ public class LanguageController(
 
         return CreatedAtAction(nameof(GetLanguageById), new { id = language.LanguageId }, language.ToDto());
     }
-
+// L19 Language - POST/PUT- thêm/sửa ngông ngữ
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateLanguage(int id, [FromBody] LanguageUpsertRequest request)
     {
@@ -154,7 +155,7 @@ public class LanguageController(
 
         return Ok(new ApiMessageResponse { Message = "Language updated successfully." });
     }
-
+// L27 Language- DELETE- xóa ngôn ngữ
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteLanguage(int id)
     {

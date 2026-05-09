@@ -17,7 +17,7 @@ public class DashboardUserController(
     ActivityLogService activityLogService) : ControllerBase
 {
     private static readonly PasswordHasher<DashboardUser> PasswordHasher = new();
-
+// L4 QL user -GET-lấy data quản lý tài khoản
     [HttpGet]
     public async Task<IActionResult> GetUsers()
     {
@@ -67,7 +67,7 @@ public class DashboardUserController(
 
         return Ok(user.User.ToDto(user.OwnedLocationCount, user.OwnedAudioCount));
     }
-
+// L20 QL user -POST-tạo tài khoản
     [HttpPost]
     public async Task<IActionResult> CreateUser([FromBody] DashboardUserUpsertRequest request)
     {
@@ -124,7 +124,7 @@ public class DashboardUserController(
 
         return CreatedAtAction(nameof(GetUserById), new { id = user.UserId }, user.ToDto(0, 0));
     }
-
+// L29 QL user -POST-mời tham gia hệ thống
     [HttpPost("invite")]
     public async Task<IActionResult> InviteUser([FromBody] DashboardUserInviteRequest request)
     {
@@ -195,7 +195,7 @@ public class DashboardUserController(
             TemporaryPassword = upsertRequest.Password
         });
     }
-
+// L38 QL user -PUT-sửa TT tài khoản
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateUser(int id, [FromBody] DashboardUserUpsertRequest request)
     {
@@ -251,7 +251,7 @@ public class DashboardUserController(
             $"Updated user '{user.Username}' with role {user.Role}.");
         return Ok(new ApiMessageResponse { Message = "User updated successfully." });
     }
-
+// L46 QL user -DELETE-đổi trạng thái tài khoản
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> ArchiveUser(int id)
     {

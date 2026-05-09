@@ -28,7 +28,8 @@ public class CategoryController(
 
         return Ok(categories.Select(item => item.ToDto()).ToList());
     }
-
+// l5 QL category- Phuong thuc GET-lấy data tour
+//L24 owner -GET-lấy DS thể loại
     [HttpGet]
     public async Task<IActionResult> GetAllCategories()
     {
@@ -63,7 +64,7 @@ public class CategoryController(
 
         return Ok(category.ToDto());
     }
-
+// L17 QL Category- Phuong thuc POST-tạo thể loại mới
     [HttpPost]
     public async Task<IActionResult> CreateCategory([FromBody] CategoryUpsertRequest request)
     {
@@ -122,7 +123,7 @@ public class CategoryController(
 
         return CreatedAtAction(nameof(GetCategoryById), new { id = category.CategoryId }, category.ToDto());
     }
-
+// L26 QL Category- Phuong thuc PUT-sửa thể loại
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateCategory(int id, [FromBody] CategoryUpsertRequest request)
     {
@@ -185,7 +186,7 @@ public class CategoryController(
             $"Updated category '{category.Name}'.");
         return Ok(new ApiMessageResponse { Message = "Category updated successfully." });
     }
-
+// L34 QL Category- Phuong thuc DELETE-lưu trữ (xóa ) thể loại
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteCategory(int id)
     {

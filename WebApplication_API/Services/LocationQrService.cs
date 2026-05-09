@@ -25,7 +25,7 @@ public sealed class LocationQrService(
         "smart-tourism-qr-landing.template.html");
 
     public bool IsEnabled => _options.Enabled;
-
+//l6 qr admin
     public LocationQrStatusDto BuildStatus(
         HttpContext httpContext,
         Location location,
@@ -66,7 +66,7 @@ public sealed class LocationQrService(
             DefaultAudioTrackId = normalizedRequest.AudioTrackId
         };
     }
-// l15 quét qr admin + 16 quét qr admin
+// l15 quét qr admin 
     public QrRenderedFile GenerateLocationQrFile(
         HttpContext httpContext,
         Location location,
