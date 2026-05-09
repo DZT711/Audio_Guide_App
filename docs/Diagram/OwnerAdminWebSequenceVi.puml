@@ -1,0 +1,117 @@
+@startuml OwnerAdminWebSequenceVi
+title Owner trong Admin Web
+
+hide footbox
+
+skinparam shadowing false
+skinparam sequence {
+  ArrowColor #2F4858
+  LifeLineBorderColor #2F4858
+  LifeLineBackgroundColor #EAF3F7
+  ParticipantBorderColor #2F4858
+  ParticipantBackgroundColor white
+  ParticipantFontColor #1F2D3D
+  ActorBorderColor #2F4858
+  ActorBackgroundColor white
+  ActorFontColor #1F2D3D
+}
+
+autonumber 1
+
+actor "Owner" as Owner
+boundary "Dashboard / Statistics /\nUsage / POI / Tour /\nCategories / Languages /\nAudio / Inbox" as OwnerPage
+control "AdminApiClient" as ApiClient
+control "DashboardController /\nStatisticsController /\nUsageController" as AnalyticsControllers
+control "LocationController /\nTourController /\nCategoryController /\nLanguageController /\nAudioController" as ContentControllers
+control "ChangeRequestController" as ChangeRequestController
+control "InboxController" as InboxController
+control "ChangeRequestWorkflowService" as WorkflowService
+entity "DBContext" as DBContext
+
+opt Xem Dashboard / Statistics / Usage
+    Owner -> OwnerPage : Mo Dashboard / Statistics / Usage
+    OwnerPage -> ApiClient : Gui yeu cau tai du lieu tong hop\n(GetDashboardOverviewAsync() / GetStatisticsAsync() / GetUsageHistoryAsync())
+    ApiClient -> AnalyticsControllers : GET Dashboard/overview / GET Statistics / GET Usage\nGoi API tong hop theo quyen owner
+    AnalyticsControllers -> DBContext : Lay du lieu da scope theo owner
+    DBContext --> AnalyticsControllers : Du lieu dashboard / statistics / usage
+    AnalyticsControllers --> ApiClient : Tra ve du lieu tong hop
+    ApiClient --> OwnerPage : Hien thi dashboard / statistics / usage
+end
+
+opt Xem POI cua minh
+    Owner -> OwnerPage : Mo trang POI
+    OwnerPage -> ApiClient : Gui yeu cau lay POI\n(GetLocationsAsync())
+    ApiClient -> ContentControllers : GET Location\nGoi API POI theo quyen owner
+    ContentControllers -> DBContext : Lay danh sach POI owner hien tai
+    DBContext --> ContentControllers : Danh sach POI
+    ContentControllers --> ApiClient : Tra du lieu POI
+    ApiClient --> OwnerPage : Hien thi danh sach POI
+end
+
+opt Xem Tour cua minh
+    Owner -> OwnerPage : Mo trang Tour
+    OwnerPage -> ApiClient : Gui yeu cau lay tour\n(GetToursAsync())
+    ApiClient -> ContentControllers : GET Tour\nGoi API Tour theo quyen owner
+    ContentControllers -> DBContext : Lay danh sach tour owner hien tai
+    DBContext --> ContentControllers : Danh sach tour
+    ContentControllers --> ApiClient : Tra du lieu tour
+    ApiClient --> OwnerPage : Hien thi danh sach tour
+end
+
+opt Xem Categories / Languages
+    Owner -> OwnerPage : Mo trang Categories / Languages
+    OwnerPage -> ApiClient : Gui yeu cau lay categories / languages\n(GetCategoriesAsync() / GetLanguagesAsync())
+    ApiClient -> ContentControllers : GET Category / GET Language\nGoi API Categories / Languages
+    ContentControllers -> DBContext : Lay danh muc va ngon ngu hien thi
+    DBContext --> ContentControllers : Du lieu categories / languages
+    ContentControllers --> ApiClient : Tra du lieu categories / languages
+    ApiClient --> OwnerPage : Hien thi categories / languages
+end
+
+opt Xem Audio cua minh
+    Owner -> OwnerPage : Mo trang Audio
+    OwnerPage -> ApiClient : Gui yeu cau lay audio\n(GetAudioAsync())
+    ApiClient -> ContentControllers : GET Audio\nGoi API Audio theo quyen owner
+    ContentControllers -> DBContext : Lay danh sach audio owner hien tai
+    DBContext --> ContentControllers : Danh sach audio
+    ContentControllers --> ApiClient : Tra du lieu audio
+    ApiClient --> OwnerPage : Hien thi danh sach audio
+end
+
+opt Gui yeu cau tao / cap nhat / archive POI
+    Owner -> OwnerPage : Tao moi / chinh sua / archive POI
+    OwnerPage -> ApiClient : Gui request thay doi POI\n(SubmitLocationChangeRequestAsync())
+    ApiClient -> ChangeRequestController : POST ChangeRequest/location\nGoi API tao request POI
+    ChangeRequestController -> WorkflowService : Tao yeu cau thay doi POI\n(SubmitLocationAsync())
+    WorkflowService -> DBContext : Kiem tra owner, du lieu live va luu request
+    DBContext --> WorkflowService : Request da tao
+    WorkflowService --> ChangeRequestController : Tra ket qua request
+    ChangeRequestController --> ApiClient : Tra change request
+    ApiClient --> OwnerPage : Thong bao gui request thanh cong
+end
+
+opt Gui yeu cau tao / cap nhat / archive Audio
+    Owner -> OwnerPage : Tao moi / chinh sua / archive Audio
+    OwnerPage -> ApiClient : Gui request thay doi Audio\n(SubmitAudioChangeRequestAsync())
+    ApiClient -> ChangeRequestController : POST ChangeRequest/audio\nGoi API tao request Audio
+    ChangeRequestController -> WorkflowService : Tao yeu cau thay doi Audio\n(SubmitAudioAsync())
+    WorkflowService -> DBContext : Kiem tra owner, du lieu live va luu request
+    DBContext --> WorkflowService : Request da tao
+    WorkflowService --> ChangeRequestController : Tra ket qua request
+    ChangeRequestController --> ApiClient : Tra change request
+    ApiClient --> OwnerPage : Thong bao gui request thanh cong
+end
+
+opt Xem Inbox / ket qua phe duyet
+    Owner -> OwnerPage : Mo Inbox
+    OwnerPage -> ApiClient : Gui yeu cau lay hop thu\n(GetInboxAsync())
+    ApiClient -> InboxController : GET Inbox\nGoi API Inbox
+    InboxController -> WorkflowService : Lay inbox theo owner hien tai\n(GetInboxAsync())
+    WorkflowService -> DBContext : Lay message va unread count
+    DBContext --> WorkflowService : Du lieu hop thu
+    WorkflowService --> InboxController : InboxOverviewDto
+    InboxController --> ApiClient : Tra du lieu hop thu
+    ApiClient --> OwnerPage : Hien thi thong bao phe duyet / tu choi
+end
+
+@enduml
