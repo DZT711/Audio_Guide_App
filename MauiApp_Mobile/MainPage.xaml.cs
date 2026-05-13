@@ -177,9 +177,13 @@ public partial class MainPage : ContentPage
         UpdatePlaceDetailSheetLayout();
     }
 
-    protected override void OnAppearing()
+    protected override async void OnAppearing()
     {
         base.OnAppearing();
+
+        // Android optimization: Delay heavy initialization until tab transition animation completes
+        await Task.Delay(250);
+
         AttachSingletonSubscriptions();
         UpdateLiveReloadTimer();
         _ = StartSearchPlaceholderAnimationAsync();
@@ -268,6 +272,26 @@ public partial class MainPage : ContentPage
             UpdateFilterHeader();
             RefreshSelectedPlaceGallery(resetPosition: false);
             UpdateConnectionStatusChip();
+        });
+    }
+
+    private void OnAppDataModeChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(AppDataModeService.IsApiEnabled), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            UpdateConnectionStatusChip();
+            UpdateLiveReloadTimer();
+            _ = RefreshPlacesSilentlyAsync();
+
+            if (SelectedPlace is not null && SelectedPlace.AudioTracks.Count == 0)
+            {
+                await LoadSelectedPlaceAudioTracksSafelyAsync(SelectedPlace);
+            }
         });
     }
 
@@ -899,7 +923,7 @@ public partial class MainPage : ContentPage
                 }
             });
 
-            await Task.Delay(55, token);
+            await Task.Delay(85, token);
         }
     }
 
@@ -1662,24 +1686,6 @@ public partial class MainPage : ContentPage
         }
     }
 
-    private void OnAppDataModeChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (!string.Equals(e.PropertyName, nameof(AppDataModeService.IsApiEnabled), StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        MainThread.BeginInvokeOnMainThread(async () =>
-        {
-            UpdateLiveReloadTimer();
-            await RefreshPlacesSilentlyAsync();
-
-            if (SelectedPlace is not null && SelectedPlace.AudioTracks.Count == 0)
-            {
-                await LoadSelectedPlaceAudioTracksSafelyAsync(SelectedPlace);
-            }
-        });
-    }
 
     private void UpdateLiveReloadTimer()
     {

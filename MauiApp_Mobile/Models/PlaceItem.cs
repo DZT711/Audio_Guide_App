@@ -102,8 +102,11 @@ public class PlaceItem : INotifyPropertyChanged
     }
 
     public string PlayIcon => IsPlaying ? "❚❚" : "▶";
-    public IReadOnlyList<LanguageBadgeChip> LanguageBadges => LanguageBadgeService.BuildItems(AudioTracks, LanguageBadgeSummaryText);
-    public bool HasLanguageBadges => LanguageBadges.Count > 0;
+
+    private IReadOnlyList<LanguageBadgeChip>? _languageBadges;
+    public IReadOnlyList<LanguageBadgeChip> LanguageBadges => _languageBadges ??= LanguageBadgeService.BuildItems(AudioTracks, LanguageBadgeSummaryText);
+
+    public bool HasLanguageBadges => !string.IsNullOrWhiteSpace(LanguageBadgeSummaryText) || (AudioTracks != null && AudioTracks.Count > 0);
     public bool HasCategory => !string.IsNullOrWhiteSpace(Category);
     public Color DisplayCategoryColor => ResolveCategoryPalette(Category).Background;
     public Color DisplayCategoryTextColor => ResolveCategoryPalette(Category).Foreground;

@@ -28,6 +28,11 @@ public partial class MapPage : ContentPage
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true
     };
+
+    private static string? _cachedMapHtml;
+    private static string? _cachedLeafletCss;
+    private static string? _cachedLeafletJs;
+
     private readonly SemaphoreSlim _locationSemaphore = new(1, 1);
     private readonly SemaphoreSlim _mapScriptSemaphore = new(1, 1);
     private readonly ObservableCollection<MapSearchSuggestion> _searchResults = new();
@@ -130,9 +135,13 @@ public partial class MapPage : ContentPage
 
     }
 
-    protected override void OnAppearing()
+    protected override async void OnAppearing()
     {
         base.OnAppearing();
+
+        // Android optimization: Delay heavy initialization until tab transition animation completes
+        await Task.Delay(300);
+
         _isPageActive = true;
         _isPageDisposing = false;
         AttachEventHandlers();
@@ -211,9 +220,20 @@ public partial class MapPage : ContentPage
         AppSettingsService.Instance.PropertyChanged += OnAppSettingsChanged;
         AppSettingsService.Instance.SettingsSaved += OnSettingsSaved;
         Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
+        AppDataModeService.Instance.PropertyChanged += OnAppDataModeChanged;
         UserLocationService.Instance.LocationUpdated += OnUserLocationUpdated;
         UserLocationService.Instance.HeadingUpdated += OnHeadingUpdated;
         _eventsAttached = true;
+    }
+
+    private void OnAppDataModeChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(AppDataModeService.IsApiEnabled), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(UpdateConnectionStatusChip);
     }
 
     private void ApplyTexts()
@@ -315,8 +335,7 @@ public partial class MapPage : ContentPage
                 {
                     UpdateDeveloperModeAvailability();
                     UpdateConnectionStatusChip();
-                    await SyncPlacesToMapAsync();
-                    await ApplyMapBehaviorAsync();
+                    await BatchInitializeMapAsync();
                 });
             });
     }
@@ -338,11 +357,7 @@ public partial class MapPage : ContentPage
                 {
                     UpdateDeveloperModeAvailability();
                     UpdateConnectionStatusChip();
-                    await SyncPlacesToMapAsync();
-                    await ApplyMapThemeAsync();
-                    await ApplyMapStringsAsync();
-                    await ApplyMapBehaviorAsync();
-                    await ApplyDeveloperModeAsync();
+                    await BatchInitializeMapAsync();
                     await LoadToursAsync(forceRefresh: AppDataModeService.Instance.IsApiEnabled);
                 });
             });
@@ -361,21 +376,30 @@ public partial class MapPage : ContentPage
         {
             StartMapLoadingState();
 
-            using var stream = await FileSystem.OpenAppPackageFileAsync("leaflet_map.html");
-            using var reader = new StreamReader(stream);
-            var htmlContent = await reader.ReadToEndAsync();
+            if (_cachedMapHtml == null)
+            {
+                using var stream = await FileSystem.OpenAppPackageFileAsync("leaflet_map.html");
+                using var reader = new StreamReader(stream);
+                _cachedMapHtml = await reader.ReadToEndAsync();
+            }
 
-            using var leafletCssStream = await FileSystem.OpenAppPackageFileAsync("vendor/leaflet/leaflet.css");
-            using var leafletCssReader = new StreamReader(leafletCssStream);
-            var leafletCss = await leafletCssReader.ReadToEndAsync();
+            if (_cachedLeafletCss == null)
+            {
+                using var leafletCssStream = await FileSystem.OpenAppPackageFileAsync("vendor/leaflet/leaflet.css");
+                using var leafletCssReader = new StreamReader(leafletCssStream);
+                _cachedLeafletCss = await leafletCssReader.ReadToEndAsync();
+            }
 
-            using var leafletJsStream = await FileSystem.OpenAppPackageFileAsync("vendor/leaflet/leaflet.js");
-            using var leafletJsReader = new StreamReader(leafletJsStream);
-            var leafletJs = await leafletJsReader.ReadToEndAsync();
+            if (_cachedLeafletJs == null)
+            {
+                using var leafletJsStream = await FileSystem.OpenAppPackageFileAsync("vendor/leaflet/leaflet.js");
+                using var leafletJsReader = new StreamReader(leafletJsStream);
+                _cachedLeafletJs = await leafletJsReader.ReadToEndAsync();
+            }
 
-            htmlContent = htmlContent
-                .Replace("__LEAFLET_CSS__", leafletCss, StringComparison.Ordinal)
-                .Replace("__LEAFLET_JS__", leafletJs, StringComparison.Ordinal);
+            var htmlContent = _cachedMapHtml
+                .Replace("__LEAFLET_CSS__", _cachedLeafletCss, StringComparison.Ordinal)
+                .Replace("__LEAFLET_JS__", _cachedLeafletJs, StringComparison.Ordinal);
 
             ConfigureAndroidWebViewUserAgent();
 
@@ -519,11 +543,7 @@ public partial class MapPage : ContentPage
                 return;
             }
 
-            await SyncPlacesToMapAsync();
-            await ApplyMapThemeAsync();
-            await ApplyMapStringsAsync();
-            await ApplyMapBehaviorAsync();
-            await ApplyDeveloperModeAsync();
+            await BatchInitializeMapAsync();
             await CompleteMapLoadingStateAsync();
             await TryFocusPendingPlaceAsync();
             await LoadToursAsync();
@@ -872,6 +892,51 @@ public partial class MapPage : ContentPage
 
         return latitude is >= -90d and <= 90d &&
                longitude is >= -180d and <= 180d;
+    }
+
+    private async Task BatchInitializeMapAsync()
+    {
+        if (!CanExecuteMapScript())
+            return;
+
+        try
+        {
+            var placesJson = JsonSerializer.Serialize(await BuildMapInteropPointsAsync(), JsonInteropOptions);
+            var themeJson = JsonSerializer.Serialize(ThemeService.Instance.MapThemeKey);
+            var stringsJson = JsonSerializer.Serialize(new MapStringPayload
+            {
+                ViewDetails = LocalizationService.Instance.T("Map.ViewDetails"),
+                NearestLabel = LocalizationService.Instance.T("Map.NearestLabel"),
+                CurrentLocationTitle = LocalizationService.Instance.T("Map.CurrentLocationTitle"),
+                SearchResultTitle = LocalizationService.Instance.T("Map.SearchResultTitle"),
+                NearestPrefix = LocalizationService.Instance.T("Map.NearestPrefix")
+            }, JsonInteropOptions);
+
+            var behaviorJson = JsonSerializer.Serialize(new MapBehaviorPayload
+            {
+                ShowPoiRadius = AppSettingsService.Instance.ShowPoiRadiusEnabled,
+                PoiRadiusMeters = AppSettingsService.Instance.TriggerRadiusMeters,
+                AutoFocusIdleSeconds = AppSettingsService.Instance.AutoFocusIdleSeconds,
+                CameraMoveThresholdMeters = 5
+            }, JsonInteropOptions);
+
+            var devModeEnabledLiteral = _isDeveloperModeEnabled ? "true" : "false";
+
+            // Consolidate all initial setup into a single script to reduce Bridge overhead
+            var batchScript = $@"
+                if (window.setPlaces) window.setPlaces({placesJson});
+                if (window.applyMapTheme) window.applyMapTheme({themeJson});
+                if (window.setMapStrings) window.setMapStrings({stringsJson});
+                if (window.applyMapBehavior) window.applyMapBehavior({behaviorJson});
+                if (window.setDeveloperMode) window.setDeveloperMode({devModeEnabledLiteral});
+            ";
+
+            await EvaluateMapScriptAsync(batchScript);
+        }
+        catch (Exception ex)
+        {
+            LogMapFailure("BatchInitializeMap", ex);
+        }
     }
 
     private async Task SyncPlacesToMapAsync()
@@ -2347,6 +2412,7 @@ public partial class MapPage : ContentPage
         AppSettingsService.Instance.PropertyChanged -= OnAppSettingsChanged;
         AppSettingsService.Instance.SettingsSaved -= OnSettingsSaved;
         Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
+        AppDataModeService.Instance.PropertyChanged -= OnAppDataModeChanged;
         UserLocationService.Instance.LocationUpdated -= OnUserLocationUpdated;
         UserLocationService.Instance.HeadingUpdated -= OnHeadingUpdated;
         _eventsAttached = false;

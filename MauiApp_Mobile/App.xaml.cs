@@ -223,7 +223,7 @@ public partial class App : Application
 
             await RunInitStepAsync("background-services-start", StartBackgroundServicesAsync);
 
-            await RunInitStepAsync("place-catalog", async () =>
+            _ = RunInitStepAsync("place-catalog-background", async () =>
             {
                 var service = GetService<PlaceCatalogService>();
                 if (service == null) throw new InvalidOperationException("PlaceCatalogService not registered");

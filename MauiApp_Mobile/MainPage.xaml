@@ -288,27 +288,12 @@
                                                        VerticalOptions="Center" />
                                             </HorizontalStackLayout>
 
-                                            <FlexLayout BindableLayout.ItemsSource="{Binding LanguageBadges}"
-                                                        Wrap="Wrap"
-                                                        Direction="Row"
-                                                        AlignItems="Start"
-                                                        JustifyContent="Start"
-                                                        IsVisible="{Binding HasLanguageBadges}">
-                                                <BindableLayout.ItemTemplate>
-                                                    <DataTemplate x:DataType="models:LanguageBadgeChip">
-                                                        <Border Margin="0,0,6,6"
-                                                                Padding="8,4"
-                                                                BackgroundColor="{Binding BackgroundColor}"
-                                                                StrokeThickness="0"
-                                                                StrokeShape="RoundRectangle 10">
-                                                            <Label Text="{Binding Label}"
-                                                                   FontSize="11"
-                                                                   FontAttributes="Bold"
-                                                                   TextColor="{Binding TextColor}" />
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </BindableLayout.ItemTemplate>
-                                            </FlexLayout>
+                                            <Label Text="{Binding LanguageBadgeSummaryText}"
+                                                   FontSize="12"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#667085"
+                                                   IsVisible="{Binding HasLanguageBadges}"
+                                                   Margin="0,6,0,0" />
                                         </VerticalStackLayout>
                                     </Grid>
 
