@@ -32,13 +32,13 @@ else
     </section>
 
     <div class="management-stat-grid" data-stagger data-stagger-step="80">
-        @* <article class="management-stat" data-reveal>
+        <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-activity"></i></span>
             <div>
                 <strong class="management-stat__value">@_overview.TotalEvents</strong>
                 <span class="management-stat__label">@L("usage.stats.playback-events", "Playback Events")</span>
             </div>
-        </article> *@
+        </article>
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-people"></i></span>
             <div>
@@ -61,13 +61,13 @@ else
                 <span class="management-stat__label">@L("usage.stats.locations-used", "Locations Used")</span>
             </div>
         </article>
-        @* <article class="management-stat" data-reveal>
+        <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-hourglass-split"></i></span>
             <div>
                 <strong class="management-stat__value">@_overview.AverageListeningSeconds.ToString("0.#")s</strong>
                 <span class="management-stat__label">@L("usage.stats.average-listening", "Average Listening")</span>
             </div>
-        </article> *@
+        </article>
     </div>
 
     <section class="management-panel" data-reveal>

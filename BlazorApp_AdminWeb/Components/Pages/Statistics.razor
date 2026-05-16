@@ -81,7 +81,7 @@ else
                             }
                         </select>
                     </div>
-                    @* <div class="management-field management-field--full">
+                    <div class="management-field management-field--full">
                         <label for="statistics-search">@L("statistics.filters.search.label", "Search audio or POI")</label>
                         <div class="management-search statistics-search">
                             <i class="bi bi-search"></i>
@@ -89,7 +89,7 @@ else
                                    placeholder="@L("statistics.filters.search.placeholder", "Search by audio title, POI name, ward, or tour...")" @bind="_searchText"
                                    @bind:event="oninput" />
                         </div>
-                    </div> *@
+                    </div>
                 </div>
             </section>
 
@@ -100,27 +100,27 @@ else
                     <div><strong class="management-stat__value">@_overview.Summary.TotalPlaybackEvents</strong><span
                         class="management-stat__label">@L("statistics.stats.playback-events", "Playback Events")</span></div>
                     </article>
-                    @* <article class="management-stat" data-reveal>
+                    <article class="management-stat" data-reveal>
                         <span class="management-stat__icon"><i class="bi bi-geo"></i></span>
                         <div><strong class="management-stat__value">@_overview.Summary.TotalTrackingPoints</strong><span
                             class="management-stat__label">@L("statistics.stats.tracking-points", "Tracking Points")</span></div>
-                        </article> *@
-                        @* <article class="management-stat" data-reveal>
+                        </article>
+                        <article class="management-stat" data-reveal>
                             <span class="management-stat__icon"><i class="bi bi-signpost-2"></i></span>
                             <div><strong class="management-stat__value">@_overview.Summary.RouteSessions</strong><span
                                 class="management-stat__label">@L("statistics.stats.anonymous-routes", "Anonymous Routes")</span></div>
-                            </article> *@
+                            </article>
                                 <article class="management-stat" data-reveal>
                                     <span class="management-stat__icon"><i class="bi bi-people"></i></span>
                                     <div><strong class="management-stat__value">@_overview.Summary.UniqueGuests</strong><span
                                         class="management-stat__label">@L("statistics.stats.anonymous-guests", "Anonymous Guests")</span></div>
                                 </article>
-                                @* <article class="management-stat" data-reveal>
+                                <article class="management-stat" data-reveal>
                                     <span class="management-stat__icon"><i class="bi bi-hourglass-split"></i></span>
                                     <div><strong
                                         class="management-stat__value">@FormatSeconds(_overview.Summary.AverageListeningSeconds)</strong><span
                                         class="management-stat__label">@L("statistics.stats.average-listening", "Average Listening")</span></div>
-                                    </article> *@
+                                    </article>
                                     <article class="management-stat" data-reveal>
                                         <span class="management-stat__icon"><i class="bi bi-pin-map"></i></span>
                                         <div><strong class="management-stat__value">@_overview.Summary.VisiblePois</strong><span

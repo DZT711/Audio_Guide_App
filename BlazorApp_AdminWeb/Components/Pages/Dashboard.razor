@@ -129,14 +129,14 @@ else
                         @L("dashboard.action.users", "Manage Users")
                     </button>
                 }
-                @* <button class="btn btn-outline-light btn-lg" type="button" disabled="@(!CanExport || _isExporting)" @onclick="ExportSnapshotAsync">
+                <button class="btn btn-outline-light btn-lg" type="button" disabled="@(!CanExport || _isExporting)" @onclick="ExportSnapshotAsync">
                     <i class="bi bi-download me-2"></i>
                     @(_isExporting ? L("dashboard.action.exporting", "Exporting...") : L("dashboard.action.export", "Export Snapshot"))
-                </button> *@
+                </button>
             </div>
         </div>
 
-        @* <div class="dashboard-hero__stats" data-stagger data-stagger-step="90">
+        <div class="dashboard-hero__stats" data-stagger data-stagger-step="90">
             <article class="hero-stat" data-reveal>
                 <strong>94%</strong>
                 <span>@L("dashboard.hero.stat.sla", "Review SLA met this week")</span>
@@ -149,7 +149,7 @@ else
                 <strong>3.8k</strong>
                 <span>@L("dashboard.hero.stat.audio-plays", "Audio plays in the last 24 hours")</span>
             </article>
-        </div> *@
+        </div>
     </section>
 
     <div class="row g-4" data-stagger data-stagger-step="80">
@@ -363,7 +363,7 @@ else
             "Total POIs" => L("dashboard.metric.total-pois", "Total POIs"),
             "Total Audios" => L("dashboard.metric.total-audios", "Total Audios"),
             "Curated Tours" => L("dashboard.metric.curated-tours", "Curated Tours"),
-            @* "Dashboard Users" => L("dashboard.metric.dashboard-users", "Dashboard Users"), *@
+            "Dashboard Users" => L("dashboard.metric.dashboard-users", "Dashboard Users"),
             "Telemetry Events" => L("dashboard.metric.telemetry-events", "Telemetry Events"),
             "Published and draft points of interest in the POC database." => L("dashboard.metric.total-pois.desc", "Published and draft points of interest in the POC database."),
             "Narration items supporting GPS, QR, and manual playback." => L("dashboard.metric.total-audios.desc", "Narration items supporting GPS, QR, and manual playback."),

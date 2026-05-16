@@ -42,10 +42,10 @@ else
             }
             @if (CanBulkGenerateQr)
             {
-                @* <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="OpenBulkQrModal" disabled="@(_isLoading || _locations.Count == 0)">
+                <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="OpenBulkQrModal" disabled="@(_isLoading || _locations.Count == 0)">
                     <i class="bi bi-qr-code me-2"></i>
                     @L("poi.bulk.title", "Bulk QR") (@SelectedQrLocationCount)
-                </button> *@
+                </button>
             }
             <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
                 <i class="bi bi-arrow-clockwise me-2"></i>
