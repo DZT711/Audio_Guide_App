@@ -72,7 +72,7 @@ public sealed class GeofenceSpatialIndex
 
     public bool TryGetDefinition(string poiId, out PoiGeofenceDefinition definition) =>
         _definitionsById.TryGetValue(poiId, out definition!);
-// l4 + l5 xử lý trùng 
+//  l5 + l6 xử lý trùng 
     public IReadOnlyList<PoiGeofenceDefinition> GetCandidateDefinitions(
         double latitude,
         double longitude,

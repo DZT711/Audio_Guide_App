@@ -218,6 +218,7 @@ else
     private bool _isDisposed;
 
     private bool CanView => SessionState.HasPermission(AdminPermissions.UsageHistoryView);
+    // l25 + l26 usage history (lọc và tìm kiếm )
     private IEnumerable<UsageHistoryItemDto> FilteredItems => _overview.Items
         .Where(item =>
             string.IsNullOrWhiteSpace(_searchText)
@@ -227,6 +228,7 @@ else
             || item.EventType.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
             || (item.SessionId?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)
             || (item.DeviceId?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
+            // lọc theo location và event type
         .Where(item =>
             string.IsNullOrWhiteSpace(_selectedLocation)
             || string.Equals(item.LocationName, _selectedLocation, StringComparison.OrdinalIgnoreCase))

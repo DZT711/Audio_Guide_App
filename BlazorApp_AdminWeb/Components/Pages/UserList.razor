@@ -279,7 +279,7 @@ else
         .Skip((CurrentUserPage - 1) * UsersPerPage)
         .Take(UsersPerPage)
         .ToList();
-
+// l11-l12 tìm kiếm và lọc người dùng (user management)
     private List<DashboardUserDto> VisibleUsers =>
         _users
             .Where(user =>
@@ -297,7 +297,7 @@ else
             .OrderByDescending(user => user.Status)
             .ThenBy(user => user.FullName ?? user.Username)
             .ToList();
-
+// l7 + l8 + l9 + l10 thống kê người dùng (user management)
     private IReadOnlyList<UserSummaryItem> Summaries =>
     [
         new UserSummaryItem(L("users.summary.total.label", "Total Users"), _users.Count.ToString(), L("users.summary.total.copy", "Accounts available in the dashboard database"), "bi-people", "teal"),

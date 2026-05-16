@@ -103,6 +103,8 @@ public class LocationController(
     }
 
     //l1 -> l6 lấy poi
+    //L10 owner -GET-lấy DS POI do owner sở hữu
+
     [HttpGet]
     public async Task<IActionResult> GetAllLocations()
     {
@@ -139,7 +141,7 @@ public class LocationController(
 
         return Ok(location.ToDto());
     }
-
+// l4 locations -  Phương thức GET-lay data POI
     [HttpGet("category/{categoryId:int}")]
     public async Task<IActionResult> GetLocationsByCategory(int categoryId)
     {
@@ -163,7 +165,7 @@ public class LocationController(
 
         return Ok(locations.Select(item => item.ToDto()).ToList());
     }
-
+// l22 tạo poi sửa poi  (location) 
     [HttpPost]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateLocation(
@@ -263,7 +265,7 @@ public class LocationController(
 
         return CreatedAtAction(nameof(GetLocationById), new { id = location.LocationId }, savedLocation.ToDto());
     }
-
+// l22 tạo poi sửa poi  (location) 
     [HttpPut("{id:int}")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UpdateLocation(
@@ -402,7 +404,7 @@ public class LocationController(
             cancellationToken);
         return Ok(new ApiMessageResponse { Message = "Location updated successfully." });
     }
-
+// l30 xóa poi location 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteLocation(int id)
     {

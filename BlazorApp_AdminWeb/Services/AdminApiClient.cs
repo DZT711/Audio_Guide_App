@@ -77,13 +77,26 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         CancellationToken cancellationToken = default)
     {
         ApplyAuthHeader();
-// l3 quét qr admin
-        using var response = await httpClient.GetAsync(ApiRoutes.GetLocationQrStatus(locationId), cancellationToken);
+
+        using var response = await httpClient.GetAsync(ApiRoutes.GetLocationQrStatus(locationId), cancellationToken); // l3 quét qr admin
         await EnsureSuccessAsync(response, "Unable to load the location QR status.");
-        return await ReadJsonAsync<LocationQrStatusDto>(response, "Unable to load the location QR status.");
-        //l8 quét qr admin + l11 quéT qr admiN
+        return await ReadJsonAsync<LocationQrStatusDto>(response, "Unable to load the location QR status."); //l8 quét qr admin
+        
     }
 
+    public async Task<QrOverviewDto> GetQrOverviewAsync(
+        int? locationId = null,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.GetAsync(
+            ApiRoutes.GetLocationQrAdminOverview(locationId),
+            cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load QR management data.");
+        return await ReadJsonAsync<QrOverviewDto>(response, "Unable to load QR management data.");
+    }
+//l11 admin quét qr
     public async Task<DownloadedAdminFile> GenerateLocationQrAsync(
         int locationId,
         LocationQrGenerateRequest request,
@@ -96,7 +109,6 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             request,
             cancellationToken);
 
-//l17 quét qr admin
         await EnsureSuccessAsync(response, "Unable to generate the location QR.");
         return await ReadFileAsync(response, cancellationToken);
     }
@@ -162,7 +174,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             return await GetLegacyUsageHistoryAsync(includeSynthetic);
         }
     }
-
+    
     public async Task<StatisticsOverviewDto> GetStatisticsAsync(StatisticsQueryDto query, CancellationToken cancellationToken = default)
     {
         // Statistics map requires coordinate-rich payloads (Locations + HeatmapPoints + RouteHistory).
@@ -410,7 +422,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         using var response = await httpClient.DeleteAsync($"{ApiRoutes.Tours}/{id}");
         await EnsureSuccessAsync(response, "Unable to archive tour.");
     }
-
+// l19 QL tour- Xem tuyến đường di chuyển giữa các tour
     public async Task<TourRoutePreviewDto> PreviewTourRouteAsync(
         TourRoutePreviewRequest request,
         CancellationToken cancellationToken = default)
@@ -1144,7 +1156,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to load statistics.");
         return await ReadJsonAsync<StatisticsOverviewDto>(response, "Unable to load statistics.");
     }
-//
+// l19 usage history 
     private static UsageHistoryOverviewDto MapUsageHistoryOverviewFromV1(
         IReadOnlyList<UsageEvent> items,
         int totalCount,
@@ -1196,7 +1208,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
-
+        // code chính tính location used
         var distinctLocations = mappedItems
             .Select(item => item.LocationName)
             .Where(item => !string.IsNullOrWhiteSpace(item) &&
@@ -1206,7 +1218,8 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
 
         return new UsageHistoryOverviewDto
         {
-            TotalEvents = totalCount > 0 ? totalCount : mappedItems.Count,
+            TotalEvents = CountPlaybackEventsFromV1(summary, items),
+            // code trả về luồng 20
             UniqueGuests = summary.UniqueUsers > 0 ? summary.UniqueUsers : fallbackUniqueGuests,
             OnlineGuests = summary.OnlineUsers,
             DistinctLocations = distinctLocations,
@@ -1215,6 +1228,16 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
                 : Math.Round(listeningSamples.Average(), 1, MidpointRounding.AwayFromZero),
             Items = mappedItems
         };
+    }
+
+    private static int CountPlaybackEventsFromV1(UsageStatisticsDto summary, IReadOnlyList<UsageEvent> items)
+    {
+        if (summary.TotalAudioPlays > 0)
+        {
+            return summary.TotalAudioPlays;
+        }
+
+        return items.Count(item => item.EventType == UsageEventType.PlayAudio);
     }
 
     private static StatisticsOverviewDto MapStatisticsOverviewFromV1(

@@ -66,7 +66,7 @@ public sealed class UsageAnalyticsService(
             RejectedCount = rejected
         };
     }
-
+// l5 + l6 + l8 usage history
     public async Task<UsageStatisticsDto> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
         var query = context.UsageEvents.AsNoTracking();
@@ -77,11 +77,13 @@ public sealed class UsageAnalyticsService(
         var totalMapViewsTask = query.CountAsync(
             item => item.EventType == UsageEventType.ViewMap,
             cancellationToken);
+            // cụ thể tính tổng số Unique Guests
         var uniqueUsersTask = query
             .Select(item => item.DeviceId)
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Distinct()
             .CountAsync(cancellationToken);
+            // cụ thể tính tổng số online guests
         var onlineUsersTask = AnalyticsOnlineGuestService.CountOnlineUsageUsersAsync(
             context,
             AnalyticsOnlineGuestService.ResolveDefaultThresholdUtc(),

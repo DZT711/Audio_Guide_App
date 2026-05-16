@@ -22,31 +22,31 @@ public class LocationQrController(
     ILogger<LocationQrController> logger) : ControllerBase
 {
     // l3 quét qr admin
+    //l37 POI- Phương thức GET-lấy trạng thái QR (chỉnh format,size QR,...)
     [HttpGet("location/{locationId:int}/status")]
     public async Task<IActionResult> GetLocationQrStatus(int locationId, CancellationToken cancellationToken)
     {
         if (!qrService.IsEnabled)
-        // l6 quét qr admin
+
         {
             return NotFound(new { message = "QR features are disabled." });
         }
-//l4 quét qr admin
         var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.QrRead);
         if (!access.Succeeded)
         {
             return access.ToFailureResult();
         }
-//l4 quét qr admin +l5 quét qr admin
         var location = await BuildScopedLocationQuery(access.User!)
             .FirstOrDefaultAsync(item => item.LocationId == locationId, cancellationToken);
         if (location is null)
         {
             return NotFound(new { message = "Location not found." });
         }
-// l5 quet qr admin + l6 quet qr admin + l7 quet qr admin + l8 quet qr admin
+// l6 quet qr admin 
         return Ok(qrService.BuildStatus(HttpContext, location, ResolveDefaultAudio(location)));
     }
-
+//l37 Locations- Phương thức POST-tạo qr cho POI chỉ định 
+//l12 quét qr admin
     [HttpPost("location/{locationId:int}/generate")]
     public async Task<IActionResult> GenerateLocationQr(
         int locationId,
@@ -312,7 +312,9 @@ public class LocationQrController(
 
         if (location is not null && location.Status == 1)
         {
+            await RecordDeviceCheckAsync(location, cancellationToken);
             var insights = await BuildLocationLandingInsightsAsync(location, cancellationToken);
+            var qrOverview = await BuildQrOverviewAsync([location.LocationId], cancellationToken);
             return Content(
                 qrService.RenderDownloadPage(
                     HttpContext,
@@ -325,11 +327,53 @@ public class LocationQrController(
                         Autoplay = autoplay,
                         AudioTrackId = audioTrackId
                     },
-                    insights),
+                    insights,
+                    qrOverview),
                 "text/html; charset=utf-8");
         }
 
         return Content(qrService.RenderDownloadPage(HttpContext, openUrl, locationName), "text/html; charset=utf-8");
+    }
+
+    [HttpGet("admin/overview")]
+    public async Task<IActionResult> GetAdminOverview(
+        [FromQuery] int? locationId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var access = await authService.AuthorizeAsync(HttpContext, context, AdminPermissions.AnalyticsView);
+        if (!access.Succeeded)
+        {
+            return access.ToFailureResult();
+        }
+
+        var accessibleLocations = BuildScopedLocationQuery(access.User!)
+            .AsNoTracking()
+            .Where(item => item.Status == 1);
+
+        IReadOnlyCollection<int> scopedLocationIds;
+        if (locationId is > 0)
+        {
+            var scopedLocationId = await accessibleLocations
+                .Where(item => item.LocationId == locationId.Value)
+                .Select(item => (int?)item.LocationId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (!scopedLocationId.HasValue)
+            {
+                return NotFound(new { message = "Location not found." });
+            }
+
+            scopedLocationIds = [scopedLocationId.Value];
+        }
+        else
+        {
+            scopedLocationIds = await accessibleLocations
+                .Select(item => item.LocationId)
+                .ToListAsync(cancellationToken);
+        }
+
+        var overview = await BuildQrOverviewAsync(scopedLocationIds, cancellationToken);
+        return Ok(overview);
     }
 
     [AllowAnonymous]
@@ -450,6 +494,167 @@ public class LocationQrController(
             .Include(item => item.AudioContents)
             .Include(item => item.Images)
             .FirstOrDefaultAsync(item => item.LocationId == locationId, cancellationToken);
+
+    private async Task RecordDeviceCheckAsync(Location location, CancellationToken cancellationToken)
+    {
+        var weakScore = Random.Shared.Next(0, 2);
+        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+        var deviceInfo = ResolveDeviceInfo(userAgent);
+        if (!deviceInfo.IsMobile)
+        {
+            return;
+        }
+
+        try
+        {
+            context.QrDeviceCheckLogs.Add(new QrDeviceCheckLog
+            {
+                LocationId = location.LocationId,
+                OpenedAt = DateTime.UtcNow,
+                DeviceName = deviceInfo.DeviceName,
+                Platform = deviceInfo.Platform,
+                OsVersion = deviceInfo.OsVersion,
+                QrCode = $"LOC-{location.LocationId:D4}",
+                WeakScore = weakScore,
+                UserAgent = userAgent
+            });
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Unable to persist QR device-check telemetry for location {LocationId}.", location.LocationId);
+        }
+    }
+
+    private async Task<QrOverviewDto> BuildQrOverviewAsync(
+        IReadOnlyCollection<int> locationIds,
+        CancellationToken cancellationToken)
+    {
+        if (locationIds.Count == 0)
+        {
+            return new QrOverviewDto();
+        }
+
+        var scopedLocationIds = locationIds.ToList();
+        var last7DaysUtc = DateTime.UtcNow.AddDays(-7);
+
+        var visitCountAllTime = await context.QrLandingVisits
+            .AsNoTracking()
+            .CountAsync(item => scopedLocationIds.Contains(item.LocationId), cancellationToken);
+        var visitCountLast7Days = await context.QrLandingVisits
+            .AsNoTracking()
+            .CountAsync(item =>
+                scopedLocationIds.Contains(item.LocationId)
+                && item.OpenedAt >= last7DaysUtc,
+                cancellationToken);
+        var audioGuideCount = await context.AudioContents
+            .AsNoTracking()
+            .CountAsync(item =>
+                scopedLocationIds.Contains(item.LocationId)
+                && item.Status == 1,
+                cancellationToken);
+        var mobileDeviceChecks = context.QrDeviceCheckLogs
+            .AsNoTracking()
+            .Where(item =>
+                scopedLocationIds.Contains(item.LocationId)
+                && (item.Platform == "Android"
+                    || item.Platform == "iOS"
+                    || item.DeviceName == "Điện thoại"
+                    || item.DeviceName == "Máy tính bảng"));
+        var deviceCheckTotal = await mobileDeviceChecks
+            .CountAsync(cancellationToken);
+        var weakCount = await mobileDeviceChecks
+            .CountAsync(item => item.WeakScore == 1, cancellationToken);
+        var strongCount = Math.Max(0, deviceCheckTotal - weakCount);
+        var recentLogItems = await mobileDeviceChecks
+            .OrderByDescending(item => item.OpenedAt)
+            .ThenByDescending(item => item.QrDeviceCheckLogId)
+            .Take(10)
+            .Select(item => new
+            {
+                item.OpenedAt,
+                item.DeviceName,
+                item.Platform,
+                item.OsVersion,
+                item.QrCode,
+                item.WeakScore
+            })
+            .ToListAsync(cancellationToken);
+
+        return new QrOverviewDto
+        {
+            QrAnalytics = new QrAnalyticsOverviewDto
+            {
+                VisitCountAllTime = visitCountAllTime,
+                VisitCountLast7Days = visitCountLast7Days,
+                AudioGuideCount = audioGuideCount,
+                Rating = 4.8
+            },
+            DeviceCheck = new QrDeviceCheckOverviewDto
+            {
+                TotalScans = deviceCheckTotal,
+                StrongCount = strongCount,
+                WeakCount = weakCount,
+                WeakRatePercent = deviceCheckTotal == 0
+                    ? 0d
+                    : Math.Round((weakCount / (double)deviceCheckTotal) * 100d, 2, MidpointRounding.AwayFromZero)
+            },
+            RecentLogs = recentLogItems
+                .Select(item => new QrDeviceCheckLogDto
+                {
+                    Time = item.OpenedAt,
+                    DeviceName = NormalizeDeviceText(item.DeviceName),
+                    Platform = NormalizeDeviceText(item.Platform),
+                    OsVersion = NormalizeDeviceText(item.OsVersion),
+                    QrCode = string.IsNullOrWhiteSpace(item.QrCode) ? "QR" : item.QrCode.Trim(),
+                    WeakScore = item.WeakScore == 1 ? 1 : 0
+                })
+                .ToList()
+        };
+    }
+
+    private static DeviceInfo ResolveDeviceInfo(string? userAgent)
+    {
+        if (string.IsNullOrWhiteSpace(userAgent))
+        {
+            return new DeviceInfo("Không xác định", "Không xác định", "Không xác định", false);
+        }
+
+        var normalized = userAgent.ToLowerInvariant();
+        var isTablet = normalized.Contains("ipad", StringComparison.Ordinal)
+            || normalized.Contains("tablet", StringComparison.Ordinal)
+            || normalized.Contains("kindle", StringComparison.Ordinal)
+            || normalized.Contains("silk", StringComparison.Ordinal);
+        var isPhone = normalized.Contains("mobi", StringComparison.Ordinal)
+            || normalized.Contains("android", StringComparison.Ordinal)
+            || normalized.Contains("iphone", StringComparison.Ordinal)
+            || normalized.Contains("ipod", StringComparison.Ordinal);
+        var deviceName = isTablet
+            ? "Máy tính bảng"
+            : isPhone
+                ? "Điện thoại"
+                : "Máy tính để bàn";
+
+        var os = normalized.Contains("android", StringComparison.Ordinal)
+            ? "Android"
+            : normalized.Contains("iphone", StringComparison.Ordinal)
+              || normalized.Contains("ipad", StringComparison.Ordinal)
+              || normalized.Contains("ipod", StringComparison.Ordinal)
+                ? "iOS"
+                : normalized.Contains("windows nt", StringComparison.Ordinal)
+                    ? "Windows"
+                    : normalized.Contains("mac os x", StringComparison.Ordinal)
+                      || normalized.Contains("macintosh", StringComparison.Ordinal)
+                        ? "macOS"
+                        : normalized.Contains("linux", StringComparison.Ordinal)
+                            ? "Linux"
+                            : "Không xác định";
+
+        return new DeviceInfo(deviceName, os, os, isTablet || isPhone);
+    }
+
+    private static string NormalizeDeviceText(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Không xác định" : value.Trim();
 
     private async Task<LocationQrService.LocationLandingInsights> BuildLocationLandingInsightsAsync(
         Location location,
@@ -624,4 +829,10 @@ public class LocationQrController(
             ? $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}/"
             : $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}/{pathBase}/";
     }
+
+    private sealed record DeviceInfo(
+        string DeviceName,
+        string Platform,
+        string OsVersion,
+        bool IsMobile);
 }

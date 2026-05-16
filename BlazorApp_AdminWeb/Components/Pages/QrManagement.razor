@@ -1,0 +1,208 @@
+@page "/qr-management"
+@using System.Globalization
+@inject AdminApiClient ApiClient
+@inject NotificationService Notifications
+@inject AdminSessionState SessionState
+@inject AdminUiLanguageService LanguageService
+
+<PageTitle>@L("page.qr-management", "QR Management")</PageTitle>
+
+@if (!CanView)
+{
+    <div class="management-page qr-management-page">
+        <div class="management-error">
+            <strong>@L("qr-management.access.denied.title", "Access denied.")</strong>
+            <div>@L("qr-management.access.denied.desc", "Your current role cannot view QR management.")</div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="management-page qr-management-page">
+        <section class="management-hero" data-reveal>
+            <div>
+                <span class="management-hero__eyebrow">@L("qr-management.hero.eyebrow", "Overview")</span>
+                <h1>@L("qr-management.hero.title", "QR Management")</h1>
+                <p>@L("qr-management.hero.desc", "Monitor QR scans, audio guides, and stored device-check results from one read-only dashboard.")</p>
+            </div>
+            <div class="management-hero__actions">
+                <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="RefreshAsync" disabled="@_isLoading">
+                    <i class="bi bi-arrow-clockwise me-2"></i>
+                    @L("qr-management.action.refresh", "Refresh")
+                </button>
+            </div>
+        </section>
+
+        @if (_isLoading)
+        {
+            <section class="management-panel" data-reveal>
+                <div class="tour-skeleton-table">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <div class="skeleton-table-row">
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--line"></div>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+        else if (!string.IsNullOrWhiteSpace(_loadError))
+        {
+            <div class="management-error">
+                <strong>@L("qr-management.load.failed.title", "Unable to load QR management data.")</strong>
+                <div>@_loadError</div>
+            </div>
+        }
+        else
+        {
+            <section class="management-panel qr-management-panel" data-reveal>
+                <div class="management-panel__header">
+                    <div>
+                        <span class="management-panel__eyebrow">@L("qr-management.analytics.eyebrow", "QR Analytics")</span>
+                        <h2>@L("qr-management.analytics.title", "QR Analytics")</h2>
+                    </div>
+                </div>
+
+                <div class="qr-management-grid">
+                    <article class="qr-management-metric">
+                        <i class="bi bi-phone"></i>
+                        <strong>@_overview.QrAnalytics.VisitCountAllTime</strong>
+                        <span>@L("qr-management.analytics.total-scans", "Total Scans")</span>
+                    </article>
+                    <article class="qr-management-metric">
+                        <i class="bi bi-mic-fill"></i>
+                        <strong>@_overview.QrAnalytics.AudioGuideCount</strong>
+                        <span>@L("qr-management.analytics.audio-guides", "Audio Guides")</span>
+                    </article>
+                    <article class="qr-management-metric">
+                        <i class="bi bi-calendar3"></i>
+                        <strong>@_overview.QrAnalytics.VisitCountLast7Days</strong>
+                        <span>@L("qr-management.analytics.weekly-scans", "Scans This Week")</span>
+                    </article>
+                    <article class="qr-management-metric">
+                        <i class="bi bi-star-fill"></i>
+                        <strong>@_overview.QrAnalytics.Rating.ToString("0.0", CultureInfo.InvariantCulture)</strong>
+                        <span>@L("qr-management.analytics.rating", "Avg Rating")</span>
+                    </article>
+                </div>
+            </section>
+
+            <section class="management-panel qr-management-panel" data-reveal>
+                <div class="management-panel__header">
+                    <div>
+                        <span class="management-panel__eyebrow">@L("qr-management.devices.eyebrow", "Device Check")</span>
+                        <h2>@L("qr-management.devices.title", "Device Check")</h2>
+                    </div>
+                </div>
+
+                <div class="qr-management-grid">
+                    <article class="qr-management-metric qr-management-metric--compact">
+                        <strong>@_overview.DeviceCheck.TotalScans</strong>
+                        <span>@L("qr-management.devices.total", "Total QR devices")</span>
+                    </article>
+                    <article class="qr-management-metric qr-management-metric--compact">
+                        <strong>@_overview.DeviceCheck.StrongCount</strong>
+                        <span>@L("qr-management.devices.strong", "Strong devices")</span>
+                    </article>
+                    <article class="qr-management-metric qr-management-metric--compact">
+                        <strong>@_overview.DeviceCheck.WeakCount</strong>
+                        <span>@L("qr-management.devices.weak", "Weak devices")</span>
+                    </article>
+                    <article class="qr-management-metric qr-management-metric--compact">
+                        <strong>@_overview.DeviceCheck.WeakRatePercent.ToString("0.00", CultureInfo.InvariantCulture)%</strong>
+                        <span>@L("qr-management.devices.weak-rate", "Weak rate")</span>
+                    </article>
+                </div>
+
+                <div class="qr-management-logs">
+                    <div>
+                        <h3>@L("qr-management.logs.title", "Recent logs")</h3>
+                        <p>@L("qr-management.logs.desc", "Latest devices that opened QR content.")</p>
+                    </div>
+
+                    @if (_overview.RecentLogs.Count == 0)
+                    {
+                        <div class="app-empty-state">@L("qr-management.logs.empty", "No data")</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table management-table qr-management-table">
+                                <thead>
+                                    <tr>
+                                        <th>@L("qr-management.table.time", "Time")</th>
+                                        <th>@L("qr-management.table.device", "Device")</th>
+                                        <th>@L("qr-management.table.platform", "Platform")</th>
+                                        <th>@L("qr-management.table.os", "Operating System")</th>
+                                        <th>@L("qr-management.table.qr-code", "QR Code")</th>
+                                        <th>@L("qr-management.table.weak-score", "Weak Score")</th>
+                                        <th>@L("qr-management.table.result", "Result")</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var log in _overview.RecentLogs)
+                                    {
+                                        <tr>
+                                            <td>@FormatLogTime(log.Time)</td>
+                                            <td>@log.DeviceName</td>
+                                            <td>@log.Platform</td>
+                                            <td>@log.OsVersion</td>
+                                            <td>@log.QrCode</td>
+                                            <td>@log.WeakScore</td>
+                                            <td>@GetResultLabel(log.WeakScore)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    private string L(string key, string fallback) => LanguageService.T(key, fallback);
+    private QrOverviewDto _overview = new();
+    private bool _isLoading = true;
+    private string? _loadError;
+
+    private bool CanView => SessionState.HasPermission(AdminPermissions.AnalyticsView);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task RefreshAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            _overview = await ApiClient.GetQrOverviewAsync();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Notifications.Error(ex.Message, L("qr-management.load.failed.toast", "QR management load failed"));
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string FormatLogTime(DateTime value) =>
+        value.ToLocalTime().ToString("HH:mm:ss dd/MM/yyyy", CultureInfo.InvariantCulture);
+
+    private static string GetResultLabel(int weakScore) =>
+        weakScore == 1 ? "1 - Máy yếu" : "0 - Máy mạnh";
+}

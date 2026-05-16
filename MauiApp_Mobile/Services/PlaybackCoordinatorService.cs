@@ -150,7 +150,7 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
         NotifyStateChanged();
         await PlayCurrentAsync(cancellationToken);
     }
-// l8 hàng chờ + l10 hàng chờ 
+ 
     public async Task StopAsync()
     {
         _manualStopRequested = true;
@@ -197,7 +197,7 @@ public sealed class PlaybackCoordinatorService : INotifyPropertyChanged
 
         NotifyStateChanged();
     }
-
+//l9 hàng chờ
     private async Task PlayCurrentAsync(CancellationToken cancellationToken = default)
     {
         var item = CurrentQueueItem;

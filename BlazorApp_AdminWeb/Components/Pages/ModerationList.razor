@@ -39,6 +39,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-inboxes"></i></span>
             <div>
+                @* l11 moderation - matching requests  *@
                 <strong class="management-stat__value">@_result.TotalCount</strong>
                 <span class="management-stat__label">@L("moderation.stats.matching", "Matching Requests")</span>
             </div>
@@ -46,6 +47,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-geo-alt"></i></span>
             <div>
+                @* l12 moderation - poi requests *@
                 <strong class="management-stat__value">@_items.Count(item => item.Type == "POI")</strong>
                 <span class="management-stat__label">@L("moderation.stats.poi", "POI Requests")</span>
             </div>
@@ -53,6 +55,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-mic"></i></span>
             <div>
+                @* l13 moderation - audio requests *@   
                 <strong class="management-stat__value">@_items.Count(item => item.Type == "Audio")</strong>
                 <span class="management-stat__label">@L("moderation.stats.audio", "Audio Requests")</span>
             </div>
@@ -60,6 +63,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-funnel"></i></span>
             <div>
+                @* l14 moderation - pending queue  *@
                 <strong class="management-stat__value">@(_statusFilter == "Pending" ? _result.TotalCount : _items.Count(item => item.Status == "Pending"))</strong>
                 <span class="management-stat__label">@L("moderation.stats.pending", "Pending Queue")</span>
             </div>
@@ -685,7 +689,7 @@ else
         _currentPage = _result.Page - 1;
         await LoadItemsAsync();
     }
-
+// L16 moderation-LoadItemsAsync-Tìm kiếm và lọc trạng thái request từ shop 
     private async Task LoadItemsAsync()
     {
         _isLoading = true;
@@ -861,59 +865,89 @@ else
         ? "moderation-detail-modal moderation-detail-modal--open"
         : "moderation-detail-modal";
 
-    private static string GetModerationCardClass(ChangeRequestDto item) =>
-        $"{(item.ActionType == "Delete"
+    private static string GetModerationCardClass(ChangeRequestDto item)
+    {
+        var baseClass = item.ActionType == "Delete"
             ? "audio-card audio-card--inactive moderation-card moderation-card--delete"
-            : "audio-card moderation-card")} {GetModerationStatusToneClass(item.Status)}".Trim();
+            : "audio-card moderation-card";
 
-    private static string GetModerationStatusToneClass(string status) => status switch
+        return $"{baseClass} {GetModerationStatusToneClass(item.Status)}".Trim();
+    }
+
+    private static string GetModerationStatusToneClass(string status)
     {
-        "Approved" => "moderation-card--approved",
-        "Rejected" => "moderation-card--rejected",
-        _ => string.Empty
-    };
+        return status switch
+        {
+            "Approved" => "moderation-card--approved",
+            "Rejected" => "moderation-card--rejected",
+            _ => string.Empty
+        };
+    }
 
-    private static string GetActionClass(string actionType) => actionType switch
+    private static string GetActionClass(string actionType)
     {
-        "Add" => "management-status management-status--active",
-        "Edit" => "management-status management-status--pending",
-        "Delete" => "management-status management-status--inactive",
-        _ => "management-status management-status--info"
-    };
+        return actionType switch
+        {
+            "Add" => "management-status management-status--active",
+            "Edit" => "management-status management-status--pending",
+            "Delete" => "management-status management-status--inactive",
+            _ => "management-status management-status--info"
+        };
+    }
 
-    private static string GetStatusPillClass(string status) => status switch
+    private static string GetStatusPillClass(string status)
     {
-        "Approved" => "audio-card__tag moderation-status-pill moderation-status-pill--approved",
-        "Rejected" => "audio-card__tag moderation-status-pill moderation-status-pill--rejected",
-        _ => "audio-card__tag moderation-status-pill"
-    };
+        return status switch
+        {
+            "Approved" => "audio-card__tag moderation-status-pill moderation-status-pill--approved",
+            "Rejected" => "audio-card__tag moderation-status-pill moderation-status-pill--rejected",
+            _ => "audio-card__tag moderation-status-pill"
+        };
+    }
 
-    private static string GetStatusIconClass(string status) => status switch
+    private static string GetStatusIconClass(string status)
     {
-        "Approved" => "bi bi-check-lg",
-        "Rejected" => "bi bi-x-lg",
-        _ => "bi bi-hourglass-split"
-    };
+        return status switch
+        {
+            "Approved" => "bi bi-check-lg",
+            "Rejected" => "bi bi-x-lg",
+            _ => "bi bi-hourglass-split"
+        };
+    }
 
-    private static bool HasChangedField(IReadOnlyCollection<string> changedFields, params string[] fieldNames) =>
-        fieldNames.Any(fieldName => changedFields.Contains(fieldName));
+    private static bool HasChangedField(IReadOnlyCollection<string> changedFields, params string[] fieldNames)
+    {
+        return fieldNames.Any(fieldName => changedFields.Contains(fieldName));
+    }
 
-    private static string GetDetailCardClass(IReadOnlyCollection<string> changedFields, params string[] fieldNames) =>
-        HasChangedField(changedFields, fieldNames)
+    private static string GetDetailCardClass(IReadOnlyCollection<string> changedFields, params string[] fieldNames)
+    {
+        return HasChangedField(changedFields, fieldNames)
             ? "audio-detail-card audio-detail-card--changed"
             : "audio-detail-card";
+    }
 
-    private static string GetWideDetailCardClass(IReadOnlyCollection<string> changedFields, params string[] fieldNames) =>
-        HasChangedField(changedFields, fieldNames)
+    private static string GetWideDetailCardClass(IReadOnlyCollection<string> changedFields, params string[] fieldNames)
+    {
+        return HasChangedField(changedFields, fieldNames)
             ? "audio-detail-card audio-detail-card--wide audio-detail-card--changed"
             : "audio-detail-card audio-detail-card--wide";
+    }
 
-    private static string GetSummary(ChangeRequestDto item) =>
-        item.Location is not null
-            ? $"Category: {item.Location.Category}. {(string.IsNullOrWhiteSpace(item.Location.Address) ? "No address" : item.Location.Address)}"
-            : item.Audio is not null
-                ? $"{item.Audio.LocationName} · {GetAudioLanguageLabel(item.Audio)} · {item.Audio.SourceType}"
-                : "No summary available.";
+    private static string GetSummary(ChangeRequestDto item)
+    {
+        if (item.Location is not null)
+        {
+            return $"Category: {item.Location.Category}. {(string.IsNullOrWhiteSpace(item.Location.Address) ? "No address" : item.Location.Address)}";
+        }
+
+        if (item.Audio is not null)
+        {
+            return $"{item.Audio.LocationName} · {GetAudioLanguageLabel(item.Audio)} · {item.Audio.SourceType}";
+        }
+
+        return "No summary available.";
+    }
 
     private List<ChangeSummaryRow> GetChangeSummaryRows(ChangeRequestDto item)
     {
@@ -923,7 +957,7 @@ else
         {
             if (item.LiveLocation is null)
             {
-                rows.Add(new("POI", "No live item", item.Location.Name));
+                rows.Add(new ChangeSummaryRow("POI", "No live item", item.Location.Name));
                 return rows;
             }
 
@@ -939,7 +973,7 @@ else
         {
             if (item.LiveAudio is null)
             {
-                rows.Add(new("Audio", "No live item", item.Audio.Title));
+                rows.Add(new ChangeSummaryRow("Audio", "No live item", item.Audio.Title));
                 return rows;
             }
 
@@ -958,7 +992,7 @@ else
         {
             if (!string.Equals(from, to, StringComparison.Ordinal))
             {
-                rows.Add(new(field, from, to));
+                rows.Add(new ChangeSummaryRow(field, from, to));
             }
         }
     }

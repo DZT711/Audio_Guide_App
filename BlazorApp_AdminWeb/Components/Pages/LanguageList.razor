@@ -39,6 +39,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-translate"></i></span>
             <div>
+                @* l9 total languages - Total Languages*@
                 <strong class="management-stat__value">@_languages.Count</strong>
                 <span class="management-stat__label">@L("languages.stats.total", "Total Languages")</span>
             </div>
@@ -46,6 +47,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-check2-circle"></i></span>
             <div>
+                @* l10 total languages-active *@
                 <strong class="management-stat__value">@_languages.Count(item => item.Status == 1)</strong>
                 <span class="management-stat__label">@L("status.active", "Active")</span>
             </div>
@@ -53,6 +55,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-volume-up"></i></span>
             <div>
+                @* l11 total languages with native voice *@
                 <strong class="management-stat__value">@_languages.Count(item => item.PreferNativeVoice && item.Status == 1)</strong>
                 <span class="management-stat__label">@L("languages.stats.native-voice-on", "Native Voice On")</span>
             </div>
@@ -60,6 +63,7 @@ else
         <article class="management-stat" data-reveal>
             <span class="management-stat__icon"><i class="bi bi-star-fill"></i></span>
             <div>
+                @* l12 default languages *@
                 <strong class="management-stat__value">@_languages.Count(item => item.IsDefault && item.Status == 1)</strong>
                 <span class="management-stat__label">@L("languages.stats.default-language", "Default Language")</span>
             </div>
@@ -296,7 +300,7 @@ else
     private bool CanView => SessionState.HasPermission(AdminPermissions.LanguageRead);
     private bool CanManage => SessionState.HasPermission(AdminPermissions.LanguageManage);
     private LanguageDto? SelectedLanguageForDisplay => ResolveSelectedLanguage();
-
+//l14+ l15 language tìm kiếm + matching search languages
     private IEnumerable<LanguageDto> FilteredLanguages =>
         _languages.Where(language =>
             string.IsNullOrWhiteSpace(_searchText)

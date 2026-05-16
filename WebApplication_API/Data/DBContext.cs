@@ -21,6 +21,7 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
     public DbSet<HeatmapEvent> HeatmapEvents => Set<HeatmapEvent>();
     public DbSet<UsageEventEntity> UsageEvents => Set<UsageEventEntity>();
     public DbSet<QrLandingVisit> QrLandingVisits => Set<QrLandingVisit>();
+    public DbSet<QrDeviceCheckLog> QrDeviceCheckLogs => Set<QrDeviceCheckLog>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
@@ -222,6 +223,25 @@ public class DBContext(DbContextOptions<DBContext> options) : DbContext(options)
             entity.Property(item => item.Source).HasMaxLength(64);
             entity.Property(item => item.UserAgent).HasMaxLength(512);
             entity.Property(item => item.Referrer).HasMaxLength(500);
+
+            entity.HasOne(item => item.Location)
+                .WithMany()
+                .HasForeignKey(item => item.LocationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<QrDeviceCheckLog>(entity =>
+        {
+            entity.ToTable("QrDeviceCheckLogs");
+            entity.HasKey(item => item.QrDeviceCheckLogId);
+            entity.HasIndex(item => item.OpenedAt);
+            entity.HasIndex(item => new { item.LocationId, item.OpenedAt });
+
+            entity.Property(item => item.DeviceName).HasMaxLength(80);
+            entity.Property(item => item.Platform).HasMaxLength(80);
+            entity.Property(item => item.OsVersion).HasMaxLength(120);
+            entity.Property(item => item.QrCode).HasMaxLength(32);
+            entity.Property(item => item.UserAgent).HasMaxLength(512);
 
             entity.HasOne(item => item.Location)
                 .WithMany()

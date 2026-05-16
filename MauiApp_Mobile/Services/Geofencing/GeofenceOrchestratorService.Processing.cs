@@ -460,10 +460,10 @@ public sealed partial class GeofenceOrchestratorService
                 ("acceptedCount", allowedTriggers.Count),
                 ("selectedScore", Math.Round(selectedPoiScore, 2)));
         } //l16 xl trùng
-    // l17 xl trùng
-        RememberActivePriorityPoi(selectedTrigger.Definition.Id); //l18 xl trùng
-        RaiseTriggerAccepted(selectedTrigger);
-        await HandleTriggerAsync(selectedTrigger, cancellationToken);
+    
+        RememberActivePriorityPoi(selectedTrigger.Definition.Id); 
+        RaiseTriggerAccepted(selectedTrigger); // l17 xl trùng
+        await HandleTriggerAsync(selectedTrigger, cancellationToken); //l18 xl trùng
     }
 // l2 xl trùng - đây là điểm “nhận dữ liệu vị trí thật” để engine tự quyết định có phát audio hay không.
     private void OnTrackedLocationUpdated(object? sender, LocationSample sample)

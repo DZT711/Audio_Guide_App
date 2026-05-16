@@ -14,6 +14,7 @@ public class DashboardController(
     DBContext context,
     AdminRequestAuthorizationService authService) : ControllerBase
 {
+    //l3 L3 owner -GET-lấy thống kê tổng quan cho POI do owner sở hữu
     [HttpGet("overview")]
     public async Task<IActionResult> GetOverview()
     {
@@ -95,6 +96,7 @@ public class DashboardController(
         });
     }
 
+// l12 -> 20 dashboard
     private async Task<DashboardOverviewDto> BuildOverviewAsync(DashboardUser currentUser)
     {
         var ownerScoped = IsOwnerScoped(currentUser);
@@ -108,13 +110,16 @@ public class DashboardController(
             : context.AudioContents.AsQueryable();
         var tourQuery = BuildTourScopeQuery(currentUser);
         var playbackQuery = BuildPlaybackQuery(currentUser);
-
-        var totalLocations = await locationsQuery.CountAsync();
+        // l13 total pois
+        var totalLocations = await locationsQuery.CountAsync(); 
         var activeLocations = await locationsQuery.CountAsync(item => item.Status == 1);
+        // l15 total audio
         var totalAudio = await audioQuery.CountAsync();
         var activeAudio = await audioQuery.CountAsync(item => item.Status == 1);
+        //l17 Curated Tours
         var totalTours = await tourQuery.CountAsync();
         var activeTours = await tourQuery.CountAsync(item => item.Status == 1);
+        //l19 Dashboard Users
         var canViewUsers = AdminRolePolicies.HasPermission(currentUser.Role, AdminPermissions.UserRead);
         var totalUsers = canViewUsers
             ? await context.DashboardUsers.CountAsync()
@@ -122,6 +127,7 @@ public class DashboardController(
         var activeUsers = canViewUsers
             ? await context.DashboardUsers.CountAsync(item => item.Status == 1)
             : currentUser.Status == 1 ? 1 : 0;
+
         var totalPlaybackEvents = await playbackQuery.CountAsync();
         var totalTrackingEvents = ownerScoped
             ? 0
@@ -189,7 +195,7 @@ public class DashboardController(
                 AccentEnd = "#fb7185"
             }
         };
-
+        // l25 trả về dữ liệu tổng quan dashboard
         return new DashboardOverviewDto
         {
             Metrics = metrics,
@@ -197,7 +203,7 @@ public class DashboardController(
             FocusItems = await BuildFocusItemsAsync(currentUser)
         };
     }
-
+// l21 lấy Recent Activity ( dashboard )
     private async Task<List<DashboardActivityDto>> BuildActivitiesAsync(DashboardUser currentUser)
     {
         var ownerScoped = IsOwnerScoped(currentUser);
@@ -283,7 +289,7 @@ public class DashboardController(
             .Take(8)
             .ToList();
     }
-
+        // l23 + 24 Team Priorities ( dashboard )
     private async Task<List<FocusItemDto>> BuildFocusItemsAsync(DashboardUser currentUser)
     {
         var ownerScoped = IsOwnerScoped(currentUser);

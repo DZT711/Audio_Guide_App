@@ -25,7 +25,7 @@ public sealed class LocationQrService(
         "smart-tourism-qr-landing.template.html");
 
     public bool IsEnabled => _options.Enabled;
-
+//l6 qr admin
     public LocationQrStatusDto BuildStatus(
         HttpContext httpContext,
         Location location,
@@ -66,7 +66,7 @@ public sealed class LocationQrService(
             DefaultAudioTrackId = normalizedRequest.AudioTrackId
         };
     }
-// l15 quét qr admin + 16 quét qr admin
+// l15 quét qr admin 
     public QrRenderedFile GenerateLocationQrFile(
         HttpContext httpContext,
         Location location,
@@ -136,7 +136,8 @@ public sealed class LocationQrService(
         Location? location = null,
         Audio? defaultAudio = null,
         LocationQrGenerateRequest? request = null,
-        LocationLandingInsights? insights = null)
+        LocationLandingInsights? insights = null,
+        QrOverviewDto? qrOverview = null)
     {
         if (location is not null)
         {
@@ -155,7 +156,8 @@ public sealed class LocationQrService(
                 defaultAudio,
                 insights,
                 links,
-                autoOpenDeepLink: false);
+                autoOpenDeepLink: false,
+                qrOverview);
         }
 
         var apkUrl = WebUtility.HtmlEncode(BuildAbsoluteUrl(httpContext, ApiRoutes.PublicAndroidApkDownload));
@@ -420,7 +422,8 @@ public sealed class LocationQrService(
         Audio? defaultAudio,
         LocationLandingInsights? insights,
         LocationQrResolvedLinks links,
-        bool autoOpenDeepLink)
+        bool autoOpenDeepLink,
+        QrOverviewDto? qrOverview = null)
     {
         var resolvedInsights = insights ?? new LocationLandingInsights();
         var theme = ResolveThemeDefinition(location);
@@ -537,6 +540,24 @@ public sealed class LocationQrService(
                 audioGuideCount = audioGuideCount,
                 rating = resolvedInsights.Rating <= 0 ? 4.8 : resolvedInsights.Rating
             },
+            deviceCheck = qrOverview is null
+                ? null
+                : new
+                {
+                    totalScans = qrOverview.DeviceCheck.TotalScans,
+                    strongCount = qrOverview.DeviceCheck.StrongCount,
+                    weakCount = qrOverview.DeviceCheck.WeakCount,
+                    weakRatePercent = qrOverview.DeviceCheck.WeakRatePercent,
+                    recentLogs = qrOverview.RecentLogs.Select(item => new
+                    {
+                        time = item.Time,
+                        device = item.DeviceName,
+                        platform = item.Platform,
+                        os = item.OsVersion,
+                        qrCode = item.QrCode,
+                        weakScore = item.WeakScore
+                    })
+                },
             links = new
             {
                 landingUrl = links.LandingUrl,
@@ -595,6 +616,7 @@ public sealed class LocationQrService(
             behavior = new
             {
                 autoOpenDeepLink,
+                showDownloadDeviceCheck = !autoOpenDeepLink,
                 openDelayMs = Math.Max(0, _options.LandingOpenDelayMs),
                 fallbackDelayMs = Math.Max(600, _options.LandingFallbackDelayMs)
             }

@@ -17,7 +17,8 @@ public class StatisticsController(
     AnalyticsDataFilterService analyticsDataFilter) : ControllerBase
 {
     private const string DefaultReportTimezoneIana = "Asia/Ho_Chi_Minh";
-// l3 statistics overview
+    // l3 statistics overview
+    //l3 owner -GET-lấy dữ liệu trang thống kê chi tiết cho POI do owner sở hữu
     [HttpGet]
     public async Task<IActionResult> GetStatistics([FromQuery] StatisticsQueryDto query)
     {
@@ -32,7 +33,7 @@ public class StatisticsController(
             ModelState.AddModelError(nameof(StatisticsQueryDto.Timezone), validationError);
             return ValidationProblem(ModelState);
         }
-//l4 statistics overview
+        //l4 statistics overview
         var overview = await BuildStatisticsOverviewAsync(query, access.User!, reportTimeZone, reportTimeZoneId);
         return Ok(overview);
     }
@@ -93,7 +94,7 @@ public class StatisticsController(
         var overview = await BuildStatisticsOverviewAsync(query, access.User!, reportTimeZone, reportTimeZoneId);
         return Ok(overview.HeatmapPoints);
     }
-
+//l31 statistics 
     private async Task<StatisticsOverviewDto> BuildStatisticsOverviewAsync(
         StatisticsQueryDto query,
         DashboardUser currentUser,
@@ -105,6 +106,7 @@ public class StatisticsController(
         var onlineGuestScopeLocationIds = await BuildOnlineGuestScopeQuery(currentUser)
             .Select(item => item.LocationId)
             .ToListAsync();
+        //Lấy danh sách Locations từ DB để biết mỗi LocationId thuộc phường nào:
         var locations = await BuildLocationScopeQuery(currentUser)
             .Include(item => item.Owner)
             .OrderBy(item => item.Name)
@@ -127,7 +129,7 @@ public class StatisticsController(
                 && item.Tour != null
                 && item.Tour.Status == 1)
             .ToListAsync();
-
+        //Lọc theo phường
         var wardLookup = locations.ToDictionary(
             item => item.LocationId,
             item => ExtractWard(item.Address));
@@ -142,7 +144,7 @@ public class StatisticsController(
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
                     .ToList());
-
+        //l31 statistics - phần filter dữ liệu theo các điều kiện đã chọn ( tour, ward, search ) + lấy dữ liệu để hiển thị trên dashboard ( timeline, plays by ward/tour, heatmap, top pois, average listening by poi )
         var filteredLocationIds = FilterLocationIds(query, locations, audios, tourLinks, wardLookup, tourNamesByLocation);
         var scopedLocationIds = HasContextFilters(query) ? filteredLocationIds : locationIds;
         var selectedTourRoute = await BuildSelectedTourRouteAsync(
@@ -253,12 +255,12 @@ public class StatisticsController(
                 : "Showing analytics across all accessible POIs and telemetry sessions.",
             Summary = new StatisticsSummaryDto
             {
-                TotalPlaybackEvents = playCountItems.Count,
+                TotalPlaybackEvents = playCountItems.Count, // l12 statistics overview - tổng số lần phát âm thanh + tăng số playback event
                 TotalTrackingPoints = trackingItems.Count,
                 RouteSessions = routeHistory.Count,
-                UniqueGuests = guestKeys,
+                UniqueGuests = guestKeys, // l13 statistics overview - tổng số unique guests
                 OnlineGuests = onlineGuests,
-                VisiblePois = filteredLocations.Count,
+                VisiblePois = filteredLocations.Count, // l14 statistics overview - tổng số POIs hiển thị trên dashboard sau khi áp dụng filter
                 AverageListeningSeconds = listeningSamples.Count == 0
                     ? 0d
                     : Math.Round(listeningSamples.Average(), 1, MidpointRounding.AwayFromZero)
@@ -607,7 +609,7 @@ public class StatisticsController(
             .Select(group => new StatisticsChartPointDto
             {
                 Label = group.Key,
-                Value = group.Count(),
+                Value = group.Count(), // l16 statistics overview - tăng trọng số plays có location để cân bằng với plays không có location trong biểu đồ
                 Hint = $"{group.Count()} plays"
             })
             .ToList();
@@ -932,7 +934,7 @@ public class StatisticsController(
             .Take(10)
             .ToList();
     }
-
+//luồng xử lý sự kiện play count: ưu tiên event "Started" để phản ánh chính xác hơn số lần bắt đầu phát âm thanh, nếu không có event "Started" nào thì mới tính event "Completed" như một phương án fallback để đảm bảo không bỏ sót các lượt phát âm thanh đã hoàn tất nhưng thiếu event "Started".
     private static List<PlaybackEvent> SelectPlayCountEvents(IReadOnlyCollection<PlaybackEvent> playbackItems)
     {
         var startedItems = playbackItems

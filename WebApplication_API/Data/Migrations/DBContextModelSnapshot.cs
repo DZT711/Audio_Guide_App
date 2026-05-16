@@ -849,6 +849,50 @@ namespace WebApplication_API.Data.Migrations
                     b.ToTable("QrLandingVisits", (string)null);
                 });
 
+            modelBuilder.Entity("WebApplication_API.Model.QrDeviceCheckLog", b =>
+                {
+                    b.Property<int>("QrDeviceCheckLogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LocationId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OsVersion")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Platform")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QrCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WeakScore")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("QrDeviceCheckLogId");
+
+                    b.HasIndex("OpenedAt");
+
+                    b.HasIndex("LocationId", "OpenedAt");
+
+                    b.ToTable("QrDeviceCheckLogs", (string)null);
+                });
+
             modelBuilder.Entity("WebApplication_API.Model.Tour", b =>
                 {
                     b.Property<int>("TourId")
@@ -985,6 +1029,17 @@ namespace WebApplication_API.Data.Migrations
                 {
                     b.HasOne("WebApplication_API.Model.Location", "Location")
                         .WithMany("AudioContents")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("WebApplication_API.Model.QrDeviceCheckLog", b =>
+                {
+                    b.HasOne("WebApplication_API.Model.Location", "Location")
+                        .WithMany()
                         .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

@@ -82,7 +82,7 @@ public class TourController(
 
         return Ok(result);
     }
-
+//L17 owner -GET-lấy data tour có chứa POI do owner sở hữu
     [HttpGet]
     public async Task<IActionResult> GetTours()
     {
@@ -99,7 +99,7 @@ public class TourController(
 
         return Ok(tours.Select(item => item.ToDto()).ToList());
     }
-
+//l4 QL tour- Phuong thuc GET- lấy data tour
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetTourById(int id)
     {
@@ -149,7 +149,7 @@ public class TourController(
 
         return Ok(preview);
     }
-
+// l27 QL tour- Phuong thuc POST- tạo tour mới
     [HttpPost]
     public async Task<IActionResult> CreateTour([FromBody] TourUpsertRequest request, CancellationToken cancellationToken)
     {
@@ -233,7 +233,7 @@ public class TourController(
 
         return CreatedAtAction(nameof(GetTourById), new { id = tour.TourId }, savedTour.ToDto());
     }
-
+//l27 QL tour- Phuong thuc PUT- chỉnh sửa thông tin/POI có trong tour
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateTour(int id, [FromBody] TourUpsertRequest request, CancellationToken cancellationToken)
     {
@@ -349,7 +349,7 @@ public class TourController(
             cancellationToken);
         return Ok(new ApiMessageResponse { Message = "Tour updated successfully." });
     }
-
+// l39 QL tour- Phuong thuc DELETE- lưu trữ(xóa) tour
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> ArchiveTour(int id)
     {

@@ -8,7 +8,7 @@ public sealed class GeofenceEvaluationEngine
     {
         _options = options;
     }
-// l4 xl trùng 
+// l4 xl trùng + l7 xl trùng 
     public GeofenceEvaluationResult Evaluate(
         GeofenceLocationSample location,
         GeofenceSpatialIndex spatialIndex, //l6 xl trùng (acceptedTriggers được tạo )
@@ -18,7 +18,7 @@ public sealed class GeofenceEvaluationEngine
         var acceptedTriggers = new List<GeofenceTriggeredEvent>();
         var skippedTriggers = new List<GeofenceSkippedTrigger>();
         var nowUtc = location.CapturedAtUtc;
-        var candidateDefinitions = spatialIndex.GetCandidateDefinitions(
+        var candidateDefinitions = spatialIndex.GetCandidateDefinitions( //l4 xl trùng
             location.Latitude,
             location.Longitude,
             _options.CandidateLimit);
