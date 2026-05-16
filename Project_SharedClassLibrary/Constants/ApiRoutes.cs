@@ -35,6 +35,7 @@ public static class ApiRoutes
     public const string StatisticsHeatmap = "Statistics/heatmap";
     public const string ActivityLogs = "ActivityLog";
     public const string LocationQr = "LocationQr";
+    public const string LocationQrAdminOverview = "LocationQr/admin/overview";
     public const string TelemetryIngestRouteHistoryV1 = "Telemetry/v1/route-history";
     public const string TelemetryIngestHeatmapEventsV1 = "Telemetry/v1/heatmap-events";
     public const string TelemetryIngestAudioPlayEventsV1 = "Telemetry/v1/audio-play-events";
@@ -61,6 +62,11 @@ public static class ApiRoutes
 
     public static string GetLocationQrBulkGenerate() =>
         $"{LocationQr}/bulk/generate";
+
+    public static string GetLocationQrAdminOverview(int? locationId = null) =>
+        locationId is > 0
+            ? $"{LocationQrAdminOverview}?locationId={locationId.Value}"
+            : LocationQrAdminOverview;
 
     public static string GetPublicLocationQrLanding(int locationId) =>
         $"{LocationQr}/public/location/{locationId}";

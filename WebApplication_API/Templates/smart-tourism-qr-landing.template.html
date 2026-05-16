@@ -764,6 +764,102 @@ body.theme-dinner .stat-label {
 }
 
 /* ═══════════════════════════════════════════════
+   DOWNLOAD PAGE DEVICE CHECK
+   ═══════════════════════════════════════════════ */
+
+.b1-device-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.b1-device-stat {
+  min-height: 92px;
+}
+
+.b1-device-stat .stat-label {
+  line-height: 1.45;
+}
+
+.b1-device-logs {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.b1-device-logs h3 {
+  margin: 0;
+  font-size: 18px;
+  font-family: var(--font-display);
+}
+
+.b1-device-logs p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.b1-device-table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 14px;
+}
+
+.b1-device-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  background: var(--bg-card);
+}
+
+.b1-device-table th,
+.b1-device-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  text-align: left;
+  font-size: 12px;
+  vertical-align: top;
+}
+
+.b1-device-table th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.b1-device-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.b1-device-table td:last-child {
+  font-weight: 700;
+}
+
+body.theme-pub .b1-device-table-wrap,
+body.theme-junkfood .b1-device-table-wrap,
+body.theme-dinner .b1-device-table-wrap {
+  border-color: rgba(255,255,255,0.12);
+}
+
+body.theme-pub .b1-device-table th,
+body.theme-pub .b1-device-table td,
+body.theme-junkfood .b1-device-table th,
+body.theme-junkfood .b1-device-table td,
+body.theme-dinner .b1-device-table th,
+body.theme-dinner .b1-device-table td {
+  border-bottom-color: rgba(255,255,255,0.12);
+}
+
+@media (max-width: 760px) {
+  .b1-device-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ═══════════════════════════════════════════════
    AUDIO PLAYER
    ═══════════════════════════════════════════════ */
 
@@ -2361,6 +2457,52 @@ body.theme-dinner .footer-inner {
     </div>
   </div>
 
+  <!-- ── DOWNLOAD PAGE DEVICE CHECK ── -->
+  <div class="card reveal" id="b1DeviceCheckCard" hidden>
+    <div class="card-label">Kiểm tra thiết bị</div>
+    <div class="b1-device-grid">
+      <div class="stat-block b1-device-stat">
+        <div class="stat-value" id="b1DeviceTotal">0</div>
+        <div class="stat-label">Tổng thiết bị đã quét QR</div>
+      </div>
+      <div class="stat-block b1-device-stat">
+        <div class="stat-value" id="b1StrongDeviceCount">0</div>
+        <div class="stat-label">Số máy mạnh</div>
+      </div>
+      <div class="stat-block b1-device-stat">
+        <div class="stat-value" id="b1WeakDeviceCount">0</div>
+        <div class="stat-label">Số máy yếu</div>
+      </div>
+      <div class="stat-block b1-device-stat">
+        <div class="stat-value" id="b1WeakDeviceRate">0.00%</div>
+        <div class="stat-label">Tỷ lệ máy yếu</div>
+      </div>
+    </div>
+
+    <section class="b1-device-logs" aria-label="Recent device logs">
+      <div>
+        <h3>Recent logs</h3>
+        <p>Danh sách thiết bị gần nhất đã mở nội dung từ mã QR.</p>
+      </div>
+      <div class="b1-device-table-wrap">
+        <table class="b1-device-table">
+          <thead>
+            <tr>
+              <th>THỜI GIAN</th>
+              <th>THIẾT BỊ</th>
+              <th>NỀN TẢNG</th>
+              <th>HỆ ĐIỀU HÀNH</th>
+              <th>MÃ QR</th>
+              <th>ĐIỂM YẾU</th>
+              <th>KẾT QUẢ</th>
+            </tr>
+          </thead>
+          <tbody id="b1DeviceLogRows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
   <!-- ── AUDIO PLAYER ── -->
   <div class="card reveal reveal-delay-1" id="playerCard">
     <div class="card-label">Audio Guide</div>
@@ -3333,6 +3475,64 @@ function renderAudioCard() {
   document.getElementById("timeTotal").textContent = formatDuration(audio.durationSeconds || 0);
 }
 
+function formatB1LogTime(value) {
+  if (!value) {
+    return "Không xác định";
+  }
+
+  var parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? "Không xác định"
+    : parsed.toLocaleString("vi-VN", { hour12: false });
+}
+
+function renderB1DeviceLogs(logs) {
+  var body = document.getElementById("b1DeviceLogRows");
+  if (!body) {
+    return;
+  }
+
+  body.innerHTML = "";
+  (Array.isArray(logs) ? logs : []).forEach(function(log) {
+    var row = document.createElement("tr");
+    [
+      formatB1LogTime(log.time),
+      log.device || "Không xác định",
+      log.platform || "Không xác định",
+      log.os || "Không xác định",
+      log.qrCode || "QR",
+      String(Number(log.weakScore) || 0),
+      log.result || "0 - Máy mạnh"
+    ].forEach(function(value) {
+      var cell = document.createElement("td");
+      cell.textContent = value;
+      row.appendChild(cell);
+    });
+    body.appendChild(row);
+  });
+}
+
+function initB1DeviceCheck() {
+  var behavior = POI_DATA.behavior || {};
+  var card = document.getElementById("b1DeviceCheckCard");
+  if (!behavior.showDownloadDeviceCheck || !card) {
+    return;
+  }
+
+  var state = POI_DATA.deviceCheck || {};
+  var total = Math.max(0, Number(state.totalScans) || 0);
+  var strongCount = Math.max(0, Number(state.strongCount) || 0);
+  var weakCount = Math.max(0, Number(state.weakCount) || 0);
+  var weakRatePercent = Math.max(0, Number(state.weakRatePercent) || 0);
+
+  document.getElementById("b1DeviceTotal").textContent = formatNumber(total);
+  document.getElementById("b1StrongDeviceCount").textContent = formatNumber(strongCount);
+  document.getElementById("b1WeakDeviceCount").textContent = formatNumber(weakCount);
+  document.getElementById("b1WeakDeviceRate").textContent = weakRatePercent.toFixed(2) + "%";
+  renderB1DeviceLogs(state.recentLogs);
+  card.hidden = false;
+}
+
 function renderPage() {
   var analytics = POI_DATA.analytics || {};
   var footer = POI_DATA.footer || {};
@@ -3412,6 +3612,7 @@ function tryOpenDeepLink() {
 /* ── INIT ── */
 document.addEventListener("DOMContentLoaded", function() {
   renderPage();
+  initB1DeviceCheck();
   buildWaveform();
   initReveal();
   setTheme(currentTheme);

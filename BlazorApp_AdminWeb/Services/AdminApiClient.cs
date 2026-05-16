@@ -83,6 +83,19 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         return await ReadJsonAsync<LocationQrStatusDto>(response, "Unable to load the location QR status."); //l8 quét qr admin
         
     }
+
+    public async Task<QrOverviewDto> GetQrOverviewAsync(
+        int? locationId = null,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.GetAsync(
+            ApiRoutes.GetLocationQrAdminOverview(locationId),
+            cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load QR management data.");
+        return await ReadJsonAsync<QrOverviewDto>(response, "Unable to load QR management data.");
+    }
 //l11 admin quét qr
     public async Task<DownloadedAdminFile> GenerateLocationQrAsync(
         int locationId,
