@@ -1,4 +1,4 @@
-# 📱 Smart Tourism MAUI — Audio Guide App
+﻿# 📱 Smart Tourism MAUI — Audio Guide App
 
 **Audio Tour POI App for Vinh Khanh Food Street, Ho Chi Minh City**
 
@@ -468,8 +468,8 @@ Ràng buộc: Rate limit Owner 10 lần/ngày · Admin không giới hạn · Ti
 ```mermaid
 graph TB
     subgraph CLIENT["CLIENT SIDE"]
-        MAUI["MauiApp_Mobile\n(.NET MAUI)\nMVVM + Services\nOffline-First"]
-        BLAZOR["BlazorApp_AdminWeb\n(Blazor Server)\nAdmin + Owner Portal\nReal-time SSE"]
+        MAUI["src\MauiApp_Mobile\n(.NET MAUI)\nMVVM + Services\nOffline-First"]
+        BLAZOR["src\BlazorApp_AdminWeb\n(Blazor Server)\nAdmin + Owner Portal\nReal-time SSE"]
     end
 
     subgraph BACKEND["BACKEND — WebApplication_API (ASP.NET Core)"]
@@ -1000,7 +1000,7 @@ WebAppThuyetMinh/
 │
 ├── README.md
 │
-├── MauiApp_Mobile/
+├── src/MauiApp_Mobile/
 │   ├── MauiProgram.cs              # DI registration
 │   ├── App.xaml / App.xaml.cs
 │   ├── AppShell.xaml               # Navigation shell
@@ -1035,7 +1035,7 @@ WebAppThuyetMinh/
 │       ├── Images/
 │       └── Styles/
 │
-├── BlazorApp_AdminWeb/
+├── src/BlazorApp_AdminWeb/
 │   ├── Program.cs
 │   ├── Components/
 │   │   ├── Layout/
@@ -1050,7 +1050,7 @@ WebAppThuyetMinh/
 │   │       └── AuditLog/
 │   └── wwwroot/
 │
-├── WebApplication_API/
+├── src/WebApplication_API/
 │   ├── Program.cs
 │   ├── Modules/
 │   │   ├── Content/               # POI endpoints
@@ -1065,7 +1065,7 @@ WebAppThuyetMinh/
 │   │   └── Middleware/
 │   └── appsettings.json
 │
-└── Project_SharedClassLibrary/
+└── src/Project_SharedClassLibrary/
     ├── Models/                     # POI, User, Role...
     ├── DTOs/
     │   ├── Requests/
@@ -1262,7 +1262,7 @@ Nguồn: OpenStreetMap / MapTiler
    - Chạy ứng dụng (F5) → API sẽ chạy trên `https://localhost:5123`.
 
    ```cmd
-    dotnet run --project WebApplication_API/WebApplication_API.csproj --urls "https://0.0.0.0:5123"
+    dotnet run --project src/WebApplication_API/WebApplication_API.csproj --urls "https://0.0.0.0:5123"
    ```
 
 2. **Admin Web:**
@@ -1271,7 +1271,7 @@ Nguồn: OpenStreetMap / MapTiler
    - Chạy ứng dụng → Đăng nhập bằng tài khoản admin đã seed sẵn.
 
    ```cmd
-    dotnet run --project BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj 
+    dotnet run --project src/BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj 
    ```
 
    - Tài khoản thử nghiệm : username:admin/ password:admin
@@ -1284,7 +1284,7 @@ Nguồn: OpenStreetMap / MapTiler
     Cách 1: chạy trên windows :
 
     ```cmd
-        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-windows10.0.19041.0
+        dotnet run --project src/MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-windows10.0.19041.0
     ```
 
     Cách 2: chạy trên Android cắm cáp usb vào máy chủ
@@ -1293,7 +1293,7 @@ Nguồn: OpenStreetMap / MapTiler
    ```cmd
         adb devices (đảm bảo thiết bị ở trạng thái mở "device")
         adb reverse tcp:5123 tcp:5123 (để chuyển tiếp cổng từ máy chủ đến thiết bị)
-        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
+        dotnet run --project src/MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
    ```
 
     - Thử gọi api: "[http://127.0.0.1:5123/location/public/catalog](http://127.0.0.1:5123/location/public/catalog)"
@@ -1301,7 +1301,7 @@ Nguồn: OpenStreetMap / MapTiler
     - Bật Wifi Debug trên android : lấy thông tin ip và cổng kết nối
     - Chỉnh mạng máy sever thanh private
     - Đảm bảo sử dụng chung 1 mạng
-    - Thêm ip sever vào file cấu hình mạng của android trong MauiApp_Mobile/Platforms/Android/Resources/xml/network_security_config.xml
+    - Thêm ip sever vào file cấu hình mạng của android trong src/MauiApp_Mobile/Platforms/Android/Resources/xml/network_security_config.xml
 
     ```xml
             <domain includeSubdomains="false">yourSeverIP</domain>
@@ -1311,7 +1311,7 @@ Nguồn: OpenStreetMap / MapTiler
         adb connect ip:port (kết nối qua wifi, ví dụ adb connect 192.168.x.x:44444)
         adb devices (đảm bảo thiết bị ở trạng thái mở "device")
         ipconfig(lấy ipv4 của máy sever ipsever )
-        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
+        dotnet run --project src/MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
     ```
 
    -Thử gọi api: "[http://ipsever:5123/location/public/catalog](http://ipsever:5123/location/public/catalog)"

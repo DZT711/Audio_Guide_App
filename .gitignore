@@ -65,18 +65,18 @@ obj/
 project.nuget.cache
 .build-temp/
 .env/
-MauiApp_Mobile/MauiApp_Mobile.csproj.lscache
-Project_SharedClassLibrary/Shared_ClassLibrary.csproj.lscache
-WebApplication_API/WebApplication_API.csproj.lscache
-BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj.lscache
+src/MauiApp_Mobile/MauiApp_Mobile.csproj.lscache
+src/Project_SharedClassLibrary/Shared_ClassLibrary.csproj.lscache
+src/WebApplication_API/WebApplication_API.csproj.lscache
+src/BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj.lscache
 .maui-obj/
 scripts/tempCodeRunnerFile.ps1
 api-build-diagnostic.txt
 .oldzip/
 .oldzip-selected/
-BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj.lscache
-WebApplication_API/WebApplication_API.csproj.lscache
-Project_SharedClassLibrary/Shared_ClassLibrary.csproj.lscache
+src/BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj.lscache
+src/WebApplication_API/WebApplication_API.csproj.lscache
+src/Project_SharedClassLibrary/Shared_ClassLibrary.csproj.lscache
 buildverify/
 .codex-build-verify/
 Project_SharedClassLibrary.Tests/
@@ -87,8 +87,8 @@ Project_SharedClassLibrary.Tests/
 .codex-auto-translations.txt
 
 # WebApplication_API Dynamic Content
-WebApplication_API/wwwroot/archive/audio/*
-WebApplication_API/wwwroot/archive/images/*
-WebApplication_API/wwwroot/android-packages/*
-WebApplication_API/wwwroot/downloads/*
+src/WebApplication_API/wwwroot/archive/audio/*
+src/WebApplication_API/wwwroot/archive/images/*
+src/WebApplication_API/wwwroot/android-packages/*
+src/WebApplication_API/wwwroot/downloads/*
 .kilo/

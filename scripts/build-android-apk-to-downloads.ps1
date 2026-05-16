@@ -1,13 +1,13 @@
 param(
-    [string]$ProjectPath = ".\MauiApp_Mobile\MauiApp_Mobile.csproj",
+    [string]$ProjectPath = ".\src\MauiApp_Mobile\MauiApp_Mobile.csproj",
     [string]$Configuration = "Debug",
     [string]$TargetFramework = "net10.0-android",
     [string]$RuntimeIdentifier = "android-arm64",
     [string]$PublicBaseUrl = " https://expletive-cried-decimeter.ngrok-free.dev/",
     # [string]$PublicBaseUrl = "https://squander-neurology-overhead.ngrok-free.dev",
     # [string]$PublicBaseUrl = "https://localhost:5123/",
-    [string]$DownloadsDir = ".\WebApplication_API\wwwroot\downloads",
-    [string]$PublishCacheDir = ".\WebApplication_API\wwwroot\downloads\publish-cache",
+    [string]$DownloadsDir = ".\src\WebApplication_API\wwwroot\downloads",
+    [string]$PublishCacheDir = ".\src\WebApplication_API\wwwroot\downloads\publish-cache",
     [int]$KeepLatest = 5,
     [switch]$SkipPublishCacheSync,
     [switch]$SkipRestore
@@ -33,7 +33,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $projectFullPath = Resolve-RepoPath -PathValue $ProjectPath
 $downloadsFullPath = Resolve-RepoPath -PathValue $DownloadsDir
 $publishCacheFullPath = Resolve-RepoPath -PathValue $PublishCacheDir
-$mobileApiConfigPath = Resolve-RepoPath -PathValue ".\MauiApp_Mobile\Resources\Raw\mobile-api.json"
+$mobileApiConfigPath = Resolve-RepoPath -PathValue ".\src\MauiApp_Mobile\Resources\Raw\mobile-api.json"
 $registerScriptPath = Join-Path $PSScriptRoot "register-android-apk-artifact.ps1"
 $publishDir = [System.IO.Path]::GetFullPath((Join-Path $repoRoot ".artifacts\android-publish\$Configuration"))
 $publishDirForMsBuild = if ($publishDir.EndsWith("\", [StringComparison]::Ordinal) -or $publishDir.EndsWith("/", [StringComparison]::Ordinal)) {

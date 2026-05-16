@@ -59,45 +59,16 @@ The project is built on **.NET MAUI** (Multi-platform App UI), targeting **Andro
 
 ```
 Smart-Tourism-MAUI/
-├── MauiApp_Mobile/              # .NET MAUI App (Android + Windows)
-│   ├── Services/
-│   │   ├── PlaybackCoordinatorService.cs   # Audio queue management
-│   │   ├── AudioPlaybackService.cs         # TTS + MP3 playback
-│   │   ├── LocationTrackingService.cs      # GPS (foreground + background)
-│   │   ├── Geofencing/                     # Haversine geofence engine
-│   │   ├── AudioDownloadService.cs         # Audio file caching
-│   │   ├── MobileDatabaseService.cs        # SQLite ORM layer
-│   │   └── AppSettingsService.cs           # User preferences
-│   ├── Views/                              # XAML Pages (Map, Settings, Offline)
-│   ├── ViewModels/                         # MVVM ViewModels
-│   ├── Platforms/Android|Windows/          # Platform-specific services
-│   └── Resources/Raw/leaflet_map.html      # Leaflet map (WebView)
+├── 📁 src/                               # Main application projects
+│   ├── 📱 MauiApp_Mobile/                # .NET MAUI Mobile App (Android + iOS)
+│   ├── 🌐 WebApplication_API/            # ASP.NET Core Backend API
+│   ├── 🎨 BlazorApp_AdminWeb/            # Admin Dashboard (Blazor)
+│   └── 📚 Project_SharedClassLibrary/    # Shared code
 │
-├── WebApplication_API/          # ASP.NET Core REST API
-│   ├── Controller/              # REST endpoints (Location, Audio, User, Telemetry, Auth)
-│   ├── Data/DBContext.cs        # EF Core DbContext
-│   ├── Model/                   # Domain entities
-│   ├── DTO/                     # Data Transfer Objects
-│   └── Services/                # Business logic
-│
-├── BlazorApp_AdminWeb/          # Admin Dashboard (Blazor Server)
-│   ├── Components/Pages/
-│   │   ├── POIList.razor        # Create / Edit / Delete POI
-│   │   ├── UserList.razor       # User & role management
-│   │   ├── Statistics.razor     # Dashboard analytics
-│   │   └── ModerationList.razor # Owner change-request review
-│   └── Services/                # API client, data services
-│
-├── Project_SharedClassLibrary/  # Shared DTOs, contracts, validation (.NET 10)
-│   ├── Contracts/               # DTOs shared across all projects
-│   ├── Geofencing/              # Shared geofence models
-│   ├── Security/                # RBAC helpers
-│   └── Validation/              # Shared validation logic
-│
-├── docs/
-│   ├── specification.md         # Feature specification & user stories
-│   ├── DatabaseStructure/       # SQLite schema, migrations, sample data
-│   └── Diagram/                 # Architecture diagrams
+├── 🔧 scripts/                           # PowerShell utility scripts
+│   ├── run-android-clean.ps1             # Clean Android build
+│   ├── start-smarttour-tunnel.ps1        # Start development tunnel
+│   └── update-android-network-security-config.ps1
 │
 └── scripts/                     # PowerShell dev utilities
 ```
@@ -215,7 +186,9 @@ Base URL: `http://<server>:5123` (or `https://localhost:7284` when using the HTT
 
 ---
 
-## 🔗 External APIs & Services
+**Android:**
+```bash
+cd src/MauiApp_Mobile
 
 | Service | Badge | Purpose |
 |---|---|---|
@@ -310,10 +283,10 @@ ngrok http 5123 --host-header="localhost:5123"
 ### 2 — Admin Dashboard
 
 ```bash
-# appsettings.json defaults to http://localhost:5123/
-dotnet run --project BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj
-# Login with a seeded DashboardUser account
-```
+cd src/WebApplication_API
+
+# Build
+dotnet build -c Debug
 
 ### 3 — Mobile App
 
@@ -350,8 +323,10 @@ SQLite databases are created automatically on first run — no manual setup need
 The API applies EF Core migrations and seeds baseline admin users, POIs, audio, tours, and analytics samples at startup.
 
 ```bash
-# Mobile SQLite (applied automatically on app launch)
-# Schema: docs/DatabaseStructure/mobile-sqlite-migration.sql
+cd src/BlazorApp_AdminWeb
+
+# Debug build
+dotnet build -c Debug
 
 # Server SQLite — optional manual migration command
 cd WebApplication_API
@@ -596,6 +571,79 @@ Full license: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 Special thanks to **Vinh Khanh Food Street** (Phố Ẩm Thực Vĩnh Khánh) as the project location and primary stakeholder.
 
----
+### E.Cách chạy dự án
+
+1. **Backend API:**
+   - Mở `src/WebApplication_API` trong Visual Studio.
+   - Cấu hình chuỗi kết nối SQL Server trong `appsettings.json`.
+   - Chạy migrations để tạo database.
+   - Chạy ứng dụng (F5) → API sẽ chạy trên `https://localhost:5123`.
+
+   ```cmd
+    dotnet run --project src/WebApplication_API/WebApplication_API.csproj --urls "https://0.0.0.0:5123"
+    ngrok http 5123 --host-header="localhost:5123"
+   ```
+
+2. **Admin Web:**
+   - Mở `src/BlazorApp_AdminWeb` trong Visual Studio.
+   - Cấu hình `appsettings.json` để trỏ đến API. Mặc định project đang dùng `https://localhost:5123/`.
+   - Chạy ứng dụng → Đăng nhập bằng tài khoản admin đã seed sẵn.
+
+   ```cmd
+    dotnet run --project src/BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj 
+   ```
+
+   - Tài khoản thử nghiệm : username:admin/ password:admin
+
+3. **Mobile App:**
+   - Mở `src/MauiApp_Mobile` trong Visual Studio/VSCode.
+   - Cấu hình `ApiEndpoints.cs` để trỏ đến API.
+   - Chạy ứng dụng trên Android Emulator hoặc thiết bị thật.
+
+    Cách 1: chạy trên windows :
+
+    ```cmd
+        dotnet run --project src/MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-windows10.0.19041.0
+    ```
+
+    Cách 2: chạy trên Android cắm cáp usb vào máy chủ
+    - Cho phép máy tính debug trên android(bật dev mode trong setting)
+
+   ```cmd
+        adb devices (đảm bảo thiết bị ở trạng thái mở "device")
+        adb reverse tcp:5123 tcp:5123 (để chuyển tiếp cổng từ máy chủ đến thiết bị)
+        dotnet run --project src/MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
+   ```
+
+    - Thử gọi api: "[http://127.0.0.1:5123/location/public/catalog](http://127.0.0.1:5123/location/public/catalog)"
+    Cách 3: chạy thông qua wifi
+    - Bật Wifi Debug trên android : lấy thông tin ip và cổng kết nối
+    - Chỉnh mạng máy sever thanh private
+    - Đảm bảo sử dụng chung 1 mạng
+    - Thêm ip sever vào file cấu hình mạng của android trong src/MauiApp_Mobile/Platforms/Android/Resources/xml/network_security_config.xml
+
+    ```xml
+            <domain includeSubdomains="false">yourSeverIP</domain>
+    ```
+
+    ```cmd
+        adb connect ip:port (kết nối qua wifi, ví dụ adb connect 192.168.x.x:44444)
+        adb devices (đảm bảo thiết bị ở trạng thái mở "device")
+        ipconfig(lấy ipv4 của máy sever ipsever )
+        dotnet run --project src/MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
+    ```
+
+   -Thử gọi api: "[http://ipsever:5123/location/public/catalog](http://ipsever:5123/location/public/catalog)"
+    Lệnh pull db từ điện thoại kêt nối
+    
+    ```cmd
+        adb exec-out run-as com.companyname.mauiapp_mobile cat files/smarttour-mobile.db3 > docs\smarttour-mobile.db
+    ```
+
+*© 2026 — Nguyễn Sĩ Huy (3123411122) & Nguyễn Văn Cường (3123411045)*
+*Dự Án Thuyết Minh Phố Ẩm Thực Vĩnh Khánh — Khoa Công nghệ Thông tin*
+**Last Updated:** April 23, 2026  
+**Current Branch:** `Mobile_AppPerformance`  
+**Status:** 🟡 Active Development
 
 *Last Updated: May 2026 · Status:* 🟡 *Active Development*
