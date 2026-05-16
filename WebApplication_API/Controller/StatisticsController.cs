@@ -106,6 +106,7 @@ public class StatisticsController(
         var onlineGuestScopeLocationIds = await BuildOnlineGuestScopeQuery(currentUser)
             .Select(item => item.LocationId)
             .ToListAsync();
+        //Lấy danh sách Locations từ DB để biết mỗi LocationId thuộc phường nào:
         var locations = await BuildLocationScopeQuery(currentUser)
             .Include(item => item.Owner)
             .OrderBy(item => item.Name)
@@ -128,7 +129,7 @@ public class StatisticsController(
                 && item.Tour != null
                 && item.Tour.Status == 1)
             .ToListAsync();
-
+        //Lọc theo phường
         var wardLookup = locations.ToDictionary(
             item => item.LocationId,
             item => ExtractWard(item.Address));
@@ -933,7 +934,7 @@ public class StatisticsController(
             .Take(10)
             .ToList();
     }
-
+//luồng xử lý sự kiện play count: ưu tiên event "Started" để phản ánh chính xác hơn số lần bắt đầu phát âm thanh, nếu không có event "Started" nào thì mới tính event "Completed" như một phương án fallback để đảm bảo không bỏ sót các lượt phát âm thanh đã hoàn tất nhưng thiếu event "Started".
     private static List<PlaybackEvent> SelectPlayCountEvents(IReadOnlyCollection<PlaybackEvent> playbackItems)
     {
         var startedItems = playbackItems
