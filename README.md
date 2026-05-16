@@ -10,6 +10,7 @@
 [![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey?style=for-the-badge)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Windows-blue?style=for-the-badge)](https://github.com/DZT711/Smart-Tourism-MAUI)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![ngrok](https://img.shields.io/badge/ngrok-deploy%20%2F%20tunnel-1F1E37?style=for-the-badge&logo=ngrok&logoColor=white)](https://ngrok.com/)
 
 ---
 
@@ -31,6 +32,7 @@
 | **Map** | [![Leaflet](https://img.shields.io/badge/Leaflet-199900?style=flat-square&logo=leaflet&logoColor=white)](https://leafletjs.com/) [![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white)](https://www.openstreetmap.org/) | — |
 | **Web (Map/UI)** | [![HTML](https://img.shields.io/badge/HTML-E34F26?style=flat-square&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML) [![CSS](https://img.shields.io/badge/CSS-1572B6?style=flat-square&logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS) [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript) | 28.7% / 4.6% / 2.7% |
 | **Scripts** | [![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=flat-square&logo=powershell&logoColor=white)](https://learn.microsoft.com/en-us/powershell/) | 2.5% |
+| **Tunnel / Deploy** | [![ngrok](https://img.shields.io/badge/ngrok-1F1E37?style=flat-square&logo=ngrok&logoColor=white)](https://ngrok.com/) | API tunnel on :5123 |
 | **App Targets** | [![Android](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/) [![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat-square&logo=windows&logoColor=white)](https://learn.microsoft.com/en-us/windows/apps/) | Android API 24+ / Windows 10.0.19041+ |
 
 ---
@@ -49,6 +51,7 @@ The project is built on **.NET MAUI** (Multi-platform App UI), targeting **Andro
 | Audio TTS — Android | Android `TextToSpeech` engine | [![Android](https://img.shields.io/badge/Android_TTS-34A853?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/reference/android/speech/tts/TextToSpeech) |
 | GPS — Android | MAUI Geolocation + Android foreground service | [![Android](https://img.shields.io/badge/Android_Geolocation-34A853?style=flat-square&logo=android&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/maui/platform-integration/device/geolocation) |
 | Map engine | Leaflet.js inside MAUI WebView | [![Leaflet](https://img.shields.io/badge/Leaflet.js-199900?style=flat-square&logo=leaflet&logoColor=white)](https://leafletjs.com/) |
+| API tunnel | ngrok on port 5123 | [![ngrok](https://img.shields.io/badge/ngrok-1F1E37?style=flat-square&logo=ngrok&logoColor=white)](https://ngrok.com/) |
 
 ---
 
@@ -219,6 +222,7 @@ Base URL: `http://<server>:5123` (or `https://localhost:7284` when using the HTT
 | OpenStreetMap | [![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white)](https://www.openstreetmap.org/) | Base map tile data |
 | OSRM demo routing | [![OSRM](https://img.shields.io/badge/OSRM-routing-44A833?style=flat-square)](https://project-osrm.org/) | Walking route planning through `routing.openstreetmap.de` |
 | Gemini Speech | [![Gemini](https://img.shields.io/badge/Gemini-optional-4285F4?style=flat-square&logo=googlegemini&logoColor=white)](https://ai.google.dev/) | Optional server-side translation and TTS preview |
+| ngrok | [![ngrok](https://img.shields.io/badge/ngrok-tunnel%20%3A5123-1F1E37?style=flat-square&logo=ngrok&logoColor=white)](https://ngrok.com/) | Public HTTPS tunnel for the API — device & field testing |
 | MAUI Geolocation / Android foreground service | [![Android](https://img.shields.io/badge/Android_Geolocation-34A853?style=flat-square&logo=android&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/maui/platform-integration/device/geolocation) | GPS polling and background tracking on Android |
 | Android TextToSpeech | [![Android](https://img.shields.io/badge/Android_TTS-34A853?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/reference/android/speech/tts/TextToSpeech) | On-device TTS fallback |
 
@@ -283,6 +287,7 @@ Base URL: `http://<server>:5123` (or `https://localhost:7284` when using the HTT
 [![.NET](https://img.shields.io/badge/.NET_SDK-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download)
 [![Android SDK](https://img.shields.io/badge/Android_SDK-API_24%2B-34A853?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/studio)
 [![SQLite](https://img.shields.io/badge/SQLite-included-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![ngrok](https://img.shields.io/badge/ngrok-optional-1F1E37?style=flat-square&logo=ngrok&logoColor=white)](https://ngrok.com/download)
 
 ### Clone & Restore
 
@@ -357,6 +362,197 @@ dotnet ef database update
 
 ---
 
+## 🌐 Publishing & Deployment with ngrok
+
+[![ngrok](https://img.shields.io/badge/ngrok-1F1E37?style=for-the-badge&logo=ngrok&logoColor=white)](https://ngrok.com/)
+
+ngrok creates a secure public HTTPS tunnel to the local ASP.NET Core API running on port **5123**, making it reachable from physical Android devices and external testers without configuring firewalls, port forwarding, or a cloud server.
+
+### Why ngrok?
+
+| Scenario | Without ngrok | With ngrok |
+|---|---|---|
+| Android device on same Wi-Fi | Needs LAN IP (`192.168.x.x`) — may still fail on restricted networks | Single stable HTTPS URL |
+| Android device on mobile data | ❌ Unreachable | ✅ Works from anywhere |
+| Share API with a team member | ❌ Not possible without VPN | ✅ Send them the tunnel URL |
+| Test push-style telemetry sync | Requires static IP or cloud VM | ✅ ngrok URL + inspect dashboard |
+| Admin dashboard from a phone | Must be on the same LAN | ✅ Any browser, any network |
+
+### Installation
+
+**Windows (winget):**
+```bash
+winget install ngrok.ngrok
+```
+
+**Windows (Chocolatey):**
+```bash
+choco install ngrok
+```
+
+**macOS (Homebrew):**
+```bash
+brew install ngrok/ngrok/ngrok
+```
+
+**Linux:**
+```bash
+curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+  && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+  | sudo tee /etc/apt/sources.list.d/ngrok.list \
+  && sudo apt update && sudo apt install ngrok
+```
+
+Or download the binary directly from [ngrok.com/download](https://ngrok.com/download).
+
+### Account & Auth Token (one-time setup)
+
+1. Sign up for a free account at [dashboard.ngrok.com](https://dashboard.ngrok.com).
+2. Copy your **Authtoken** from the dashboard.
+3. Register it locally:
+
+```bash
+ngrok config add-authtoken <YOUR_AUTHTOKEN>
+```
+
+### Start the Tunnel
+
+Run the API first, then open the tunnel in a separate terminal:
+
+```bash
+# Terminal 1 — start the API
+dotnet run --project WebApplication_API/WebApplication_API.csproj --launch-profile http
+# Kestrel listens on http://localhost:5123
+
+# Terminal 2 — open the ngrok tunnel
+ngrok http 5123 --host-header="localhost:5123"
+```
+
+ngrok will print output like:
+
+```
+Forwarding  https://a1b2-103-xxx-xxx-xxx.ngrok-free.app -> http://localhost:5123
+```
+
+The `https://` URL is your public API endpoint. Copy it.
+
+### Configure the Mobile App to Use the Tunnel URL
+
+Open `MauiApp_Mobile/Resources/Raw/mobile-api.json` and replace the base URL:
+
+```json
+{
+  "ApiBaseUrl": "https://a1b2-103-xxx-xxx-xxx.ngrok-free.app",
+  "PublicCatalogEndpoint": "/Location/public/catalog",
+  "AudioEndpoint": "/Audio/public/location"
+}
+```
+
+> **Note:** The free ngrok tier generates a new random URL every time you restart the tunnel. Paste the new URL into `mobile-api.json` and redeploy, or upgrade to a paid ngrok plan to get a **static subdomain** (e.g., `https://smart-tourism.ngrok.app`).
+
+### Configure the Admin Dashboard to Use the Tunnel URL
+
+Open `BlazorApp_AdminWeb/appsettings.json`:
+
+```json
+{
+  "ApiSettings": {
+    "BaseUrl": "https://a1b2-103-xxx-xxx-xxx.ngrok-free.app"
+  }
+}
+```
+
+### ASP.NET Core — Allow the ngrok Host Header
+
+Add the following to `WebApplication_API/appsettings.json` so Kestrel accepts requests forwarded by ngrok:
+
+```json
+{
+  "AllowedHosts": "*"
+}
+```
+
+Or configure forwarded headers in `Program.cs` to preserve the original scheme and host:
+
+```csharp
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+```
+
+### ngrok Inspection Dashboard
+
+While the tunnel is running, open [http://127.0.0.1:4040](http://127.0.0.1:4040) in your browser to see every HTTP request in real time — headers, payloads, status codes, and timing. This is especially useful for debugging telemetry sync from the mobile app.
+
+### ngrok Configuration File (optional)
+
+For a one-command startup of both the API tunnel and the admin dashboard tunnel, create `~/.config/ngrok/ngrok.yml` (or `%HOMEPATH%\AppData\Local/ngrok/ngrok.yml` on Windows):
+
+```yaml
+version: "3"
+agent:
+  authtoken: <YOUR_AUTHTOKEN>
+
+tunnels:
+  api:
+    proto: http
+    addr: 5123
+    host_header: "localhost:5123"
+    # schemes: [https]          # force HTTPS only (paid plans)
+    # domain: smart-tourism.ngrok.app  # static domain (paid plans)
+
+  admin:
+    proto: http
+    addr: 5223
+    host_header: "localhost:5223"
+```
+
+Start all tunnels at once:
+
+```bash
+ngrok start --all
+```
+
+### Free vs Paid ngrok Plans
+
+| Feature | Free | Paid |
+|---|---|---|
+| HTTPS tunnel | ✅ | ✅ |
+| Random URL (changes on restart) | ✅ | ✅ |
+| Static / custom subdomain | ❌ | ✅ |
+| Simultaneous tunnels | 1 | Multiple |
+| Requests per minute | Rate-limited | Higher limits |
+| TCP tunnels | ❌ | ✅ |
+| IP restrictions | ❌ | ✅ |
+
+For academic/demo use the **free tier** is sufficient. For a persistent field deployment at Phố Ẩm Thực Vĩnh Khánh, a static domain on a paid plan or a proper cloud VM (e.g., Azure App Service, Railway, Fly.io) is recommended.
+
+### Tunnel Architecture Diagram
+
+```
+[Android Device / Tester Browser]
+          │  HTTPS :443
+          ▼
+  ┌───────────────────────┐
+  │  ngrok Edge (Cloud)   │   https://xxxx.ngrok-free.app
+  └───────────┬───────────┘
+              │  encrypted tunnel
+              ▼
+  ┌───────────────────────┐
+  │  ngrok Agent (local)  │   running on dev machine
+  └───────────┬───────────┘
+              │  HTTP
+              ▼
+  ┌───────────────────────┐
+  │  ASP.NET Core Kestrel │   http://localhost:5123
+  │  WebApplication_API   │
+  └───────────────────────┘
+```
+
+---
+
 ## 📖 Documentation
 
 | Document | Purpose |
@@ -396,6 +592,7 @@ Full license: https://creativecommons.org/licenses/by-nc-sa/4.0/
 [![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-map_data-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white)](https://www.openstreetmap.org/)
 [![Leaflet](https://img.shields.io/badge/Leaflet.js-interactive_map-199900?style=flat-square&logo=leaflet&logoColor=white)](https://leafletjs.com/)
 [![OSRM](https://img.shields.io/badge/OSRM-routing-44A833?style=flat-square)](https://project-osrm.org/)
+[![ngrok](https://img.shields.io/badge/ngrok-tunnel_%26_testing-1F1E37?style=flat-square&logo=ngrok&logoColor=white)](https://ngrok.com/)
 
 Special thanks to **Vinh Khanh Food Street** (Phố Ẩm Thực Vĩnh Khánh) as the project location and primary stakeholder.
 
