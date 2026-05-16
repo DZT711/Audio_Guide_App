@@ -17,8 +17,8 @@ public class StatisticsController(
     AnalyticsDataFilterService analyticsDataFilter) : ControllerBase
 {
     private const string DefaultReportTimezoneIana = "Asia/Ho_Chi_Minh";
-// l3 statistics overview
-//l3 owner -GET-lấy dữ liệu trang thống kê chi tiết cho POI do owner sở hữu
+    // l3 statistics overview
+    //l3 owner -GET-lấy dữ liệu trang thống kê chi tiết cho POI do owner sở hữu
     [HttpGet]
     public async Task<IActionResult> GetStatistics([FromQuery] StatisticsQueryDto query)
     {
@@ -33,7 +33,7 @@ public class StatisticsController(
             ModelState.AddModelError(nameof(StatisticsQueryDto.Timezone), validationError);
             return ValidationProblem(ModelState);
         }
-//l4 statistics overview
+        //l4 statistics overview
         var overview = await BuildStatisticsOverviewAsync(query, access.User!, reportTimeZone, reportTimeZoneId);
         return Ok(overview);
     }
@@ -254,7 +254,7 @@ public class StatisticsController(
                 : "Showing analytics across all accessible POIs and telemetry sessions.",
             Summary = new StatisticsSummaryDto
             {
-                TotalPlaybackEvents = playCountItems.Count, // l12 statistics overview - tổng số lần phát âm thanh
+                TotalPlaybackEvents = playCountItems.Count, // l12 statistics overview - tổng số lần phát âm thanh + tăng số playback event
                 TotalTrackingPoints = trackingItems.Count,
                 RouteSessions = routeHistory.Count,
                 UniqueGuests = guestKeys, // l13 statistics overview - tổng số unique guests
@@ -608,7 +608,7 @@ public class StatisticsController(
             .Select(group => new StatisticsChartPointDto
             {
                 Label = group.Key,
-                Value = group.Count(),
+                Value = group.Count(), // l16 statistics overview - tăng trọng số plays có location để cân bằng với plays không có location trong biểu đồ
                 Hint = $"{group.Count()} plays"
             })
             .ToList();
