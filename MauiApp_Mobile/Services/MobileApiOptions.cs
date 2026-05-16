@@ -329,7 +329,7 @@ public static class MobileApiOptions
     {
         return
         [
-            "https://ransack-punctual-unrivaled.ngrok-free.dev/"
+            "https://expletive-cried-decimeter.ngrok-free.dev/"
         ];
     }
 

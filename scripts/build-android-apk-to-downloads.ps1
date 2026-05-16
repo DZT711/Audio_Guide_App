@@ -3,7 +3,7 @@ param(
     [string]$Configuration = "Debug",
     [string]$TargetFramework = "net10.0-android",
     [string]$RuntimeIdentifier = "android-arm64",
-    [string]$PublicBaseUrl = " https://ransack-punctual-unrivaled.ngrok-free.dev/",
+    [string]$PublicBaseUrl = " https://expletive-cried-decimeter.ngrok-free.dev/",
     # [string]$PublicBaseUrl = "https://squander-neurology-overhead.ngrok-free.dev",
     # [string]$PublicBaseUrl = "https://localhost:5123/",
     [string]$DownloadsDir = ".\WebApplication_API\wwwroot\downloads",
@@ -84,17 +84,17 @@ $fallbackBinDir = Join-Path $projectDirectory ("bin\{0}\{1}" -f $Configuration, 
 $apkCandidates = @()
 if (Test-Path -LiteralPath $publishDir) {
     $apkCandidates += Get-ChildItem -Path $publishDir -Filter *.apk -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { -not $_.PSIsContainer }
+    Where-Object { -not $_.PSIsContainer }
 }
 
 if (Test-Path -LiteralPath $fallbackBinDir) {
     $apkCandidates += Get-ChildItem -Path $fallbackBinDir -Filter *.apk -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { -not $_.PSIsContainer }
+    Where-Object { -not $_.PSIsContainer }
 }
 
 $apk = $apkCandidates |
-    Sort-Object LastWriteTimeUtc -Descending |
-    Select-Object -First 1
+Sort-Object LastWriteTimeUtc -Descending |
+Select-Object -First 1
 
 if ($null -eq $apk) {
     if ($publishExitCode -ne 0) {
