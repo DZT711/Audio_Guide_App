@@ -17,6 +17,7 @@ public class UsageController(
 {
     // l4 monitoring phương thức get
     //L3 owner -GET-lấy thống kê sử dụng cho POI do owner sở hữu
+    //l9 monitoring
     [HttpGet]
     public async Task<IActionResult> GetUsageHistory([FromQuery] UsageHistoryQueryDto? query = null)
     {

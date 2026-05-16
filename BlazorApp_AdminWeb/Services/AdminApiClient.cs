@@ -83,6 +83,19 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         return await ReadJsonAsync<LocationQrStatusDto>(response, "Unable to load the location QR status."); //l8 quét qr admin
         
     }
+
+    public async Task<QrOverviewDto> GetQrOverviewAsync(
+        int? locationId = null,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuthHeader();
+
+        using var response = await httpClient.GetAsync(
+            ApiRoutes.GetLocationQrAdminOverview(locationId),
+            cancellationToken);
+        await EnsureSuccessAsync(response, "Unable to load QR management data.");
+        return await ReadJsonAsync<QrOverviewDto>(response, "Unable to load QR management data.");
+    }
 //l11 admin quét qr
     public async Task<DownloadedAdminFile> GenerateLocationQrAsync(
         int locationId,
@@ -1143,7 +1156,7 @@ public sealed class AdminApiClient(HttpClient httpClient, AdminSessionState sess
         await EnsureSuccessAsync(response, "Unable to load statistics.");
         return await ReadJsonAsync<StatisticsOverviewDto>(response, "Unable to load statistics.");
     }
-// l20 usage history 
+// l19 usage history 
     private static UsageHistoryOverviewDto MapUsageHistoryOverviewFromV1(
         IReadOnlyList<UsageEvent> items,
         int totalCount,

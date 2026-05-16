@@ -50,6 +50,13 @@
                 }
             </NavLink>
         }
+        @if (SessionState.HasPermission(AdminPermissions.AnalyticsView))
+        {
+            <NavLink class="sidebar-link" href="/qr-management" title="@(Language.T("sidebar.qr-management", "QR Management"))" aria-label="@(Language.T("sidebar.qr-management", "QR Management"))" @attributes="GetDismissAttributes()">
+                <i class="bi bi-qr-code-scan"></i>
+                <span class="sidebar-link__text">@Language.T("sidebar.qr-management", "QR Management")</span>
+            </NavLink>
+        }
     </div>
 
     <div class="sidebar-group">

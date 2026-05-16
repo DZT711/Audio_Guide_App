@@ -80,3 +80,49 @@ public sealed class LocationQrStatusDto
     public bool DefaultAutoplay { get; init; } = true;
     public int? DefaultAudioTrackId { get; init; }
 }
+
+public sealed class QrOverviewDto
+{
+    public QrAnalyticsOverviewDto QrAnalytics { get; init; } = new();
+
+    public QrDeviceCheckOverviewDto DeviceCheck { get; init; } = new();
+
+    public IReadOnlyList<QrDeviceCheckLogDto> RecentLogs { get; init; } = [];
+}
+
+public sealed class QrAnalyticsOverviewDto
+{
+    public int VisitCountAllTime { get; init; }
+
+    public int VisitCountLast7Days { get; init; }
+
+    public int AudioGuideCount { get; init; }
+
+    public double Rating { get; init; } = 4.8;
+}
+
+public sealed class QrDeviceCheckOverviewDto
+{
+    public int TotalScans { get; init; }
+
+    public int StrongCount { get; init; }
+
+    public int WeakCount { get; init; }
+
+    public double WeakRatePercent { get; init; }
+}
+
+public sealed class QrDeviceCheckLogDto
+{
+    public DateTime Time { get; init; }
+
+    public string DeviceName { get; init; } = string.Empty;
+
+    public string Platform { get; init; } = string.Empty;
+
+    public string OsVersion { get; init; } = string.Empty;
+
+    public string QrCode { get; init; } = string.Empty;
+
+    public int WeakScore { get; init; }
+}
