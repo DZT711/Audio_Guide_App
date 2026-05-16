@@ -215,7 +215,7 @@ public class LocationQrController(
             return NotFound(new { message = "QR features are disabled." });
         }
 
-        var location = await LoadPublicLocationAsync(locationId, cancellationToken);
+        var location = await renLocationAsync(locationId, cancellationToken);
 
         if (location is null)
         {

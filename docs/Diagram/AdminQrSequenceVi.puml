@@ -1,0 +1,78 @@
+@startuml AdminQrSequenceVi
+title QR cho POI tren trang Admin Web
+
+hide footbox
+
+skinparam shadowing false
+skinparam sequence {
+  ArrowColor #2F4858
+  LifeLineBorderColor #2F4858
+  LifeLineBackgroundColor #EAF3F7
+  ParticipantBorderColor #2F4858
+  ParticipantBackgroundColor white
+  ParticipantFontColor #1F2D3D
+  ActorBorderColor #2F4858
+  ActorBackgroundColor white
+  ActorFontColor #1F2D3D
+}
+
+autonumber 1
+
+actor "Admin" as Admin
+boundary "Giao dien QR\n(LocationQrManager.razor)" as QrPage
+control "AdminApiClient" as ApiClient
+control "LocationQrController" as QrController
+control "LocationQrService" as QrService
+entity "DBContext" as DBContext
+
+Admin -> QrPage : Mo chuc nang QR cua POI
+activate QrPage
+
+QrPage -> ApiClient : Lay trang thai QR cua dia diem (GetLocationQrStatusAsync())
+activate ApiClient
+
+ApiClient -> QrController : Goi API lay trang thai QR\nGET LocationQr/location/{locationId}/status\nXu ly tai controller: GetLocationQrStatus()
+activate QrController
+
+QrController -> DBContext : Kiem tra quyen va lay dia diem duoc phep thao tac
+activate DBContext
+DBContext --> QrController : Thong tin dia diem + audio mac dinh
+deactivate DBContext
+
+QrController -> QrService : Tao du lieu trang thai QR (BuildStatus())
+activate QrService
+QrService --> QrController : Du lieu QR
+deactivate QrService
+
+QrController --> ApiClient : Tra ve trang thai QR (LocationQrStatusDto)
+deactivate QrController
+ApiClient --> QrPage : Hien thi thong tin QR
+deactivate ApiClient
+
+opt In / tai QR
+    Admin -> QrPage : Chon tao preview hoac tai QR
+    QrPage -> ApiClient : Tao file QR (GenerateLocationQrAsync())
+    activate ApiClient
+
+    ApiClient -> QrController : Goi API tao QR\nPOST LocationQr/location/{locationId}/generate\nXu ly tai controller: GenerateLocationQr()
+    activate QrController
+
+    QrController -> DBContext : Kiem tra quyen va lay dia diem duoc phep thao tac
+    activate DBContext
+    DBContext --> QrController : Thong tin dia diem + audio mac dinh
+    deactivate DBContext
+
+    QrController -> QrService : Tao file QR (GenerateLocationQrFile())
+    activate QrService
+    QrService --> QrController : Tep QR
+    deactivate QrService
+
+    QrController --> ApiClient : Tra ve file QR
+    deactivate QrController
+    ApiClient --> QrPage : Hien thi preview / tai file QR
+    deactivate ApiClient
+end
+
+deactivate QrPage
+
+@enduml
