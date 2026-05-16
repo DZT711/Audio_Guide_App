@@ -1,21 +1,54 @@
 # 📱 Smart Tourism MAUI — Audio Guide App
 
-**Audio Tour POI App for Vinh Khanh Food Street, Ho Chi Minh City**
+**Ứng dụng thuyết minh âm thanh tự động cho Phố Ẩm Thực Vĩnh Khánh, TP. Hồ Chí Minh**
 
-> Multi-language offline-first audio guide system for tourists with geofencing-triggered playback and admin content management.
+> A geofencing-triggered, offline-first, multi-language audio tour system for tourists — paired with a Blazor admin dashboard for full content management.
+
+<br/>
+
+[![Status](https://img.shields.io/badge/Status-Active%20Development-yellow?style=for-the-badge)](https://github.com/DZT711/Smart-Tourism-MAUI)
+[![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey?style=for-the-badge)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Windows-blue?style=for-the-badge)](https://github.com/DZT711/Smart-Tourism-MAUI)
+[![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 
 ---
 
-## 📋 Quick Reference
+## 🧰 Tech Stack & Languages
 
-| Item | Details |
-|------|---------|
-| **Project Name** | Smart Tourism MAUI |
-| **Current Branch** | `Mobile_AppPerformance` |
-| **Default Branch** | `main` |
-| **Repository** | DZT711/Smart-Tourism-MAUI |
-| **Status** | 🟡 Active Development |
-| **Last Updated** | April 23, 2026 |
+<p align="left">
+  <img src="https://skillicons.dev/icons?i=dotnet,cs,html,css,js,ps,sqlite,android,visualstudio" alt="Tech stack icons" />
+</p>
+
+| Layer | Badge | Version |
+|---|---|---|
+| **Mobile App** | [![MAUI](https://img.shields.io/badge/.NET_MAUI-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/maui/) | .NET 10 |
+| **Backend API** | [![ASP.NET Core](https://img.shields.io/badge/ASP.NET_Core-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://learn.microsoft.com/en-us/aspnet/core/) | .NET 10 |
+| **Admin Dashboard** | [![Blazor](https://img.shields.io/badge/Blazor_Server-512BD4?style=flat-square&logo=blazor&logoColor=white)](https://learn.microsoft.com/en-us/aspnet/core/blazor/) | .NET 10 |
+| **Shared Library** | [![.NET](https://img.shields.io/badge/.NET-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/) | .NET 10 |
+| **Language** | [![C#](https://img.shields.io/badge/C%23-239120?style=flat-square&logo=csharp&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/csharp/) | primary (61.5%) |
+| **Database** | [![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlite.org/) | sqlite-net-pcl |
+| **ORM** | [![EF Core](https://img.shields.io/badge/EF_Core-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://learn.microsoft.com/en-us/ef/core/) | EF Core SQLite |
+| **Map** | [![Leaflet](https://img.shields.io/badge/Leaflet-199900?style=flat-square&logo=leaflet&logoColor=white)](https://leafletjs.com/) [![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white)](https://www.openstreetmap.org/) | — |
+| **Web (Map/UI)** | [![HTML](https://img.shields.io/badge/HTML-E34F26?style=flat-square&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML) [![CSS](https://img.shields.io/badge/CSS-1572B6?style=flat-square&logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS) [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript) | 28.7% / 4.6% / 2.7% |
+| **Scripts** | [![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=flat-square&logo=powershell&logoColor=white)](https://learn.microsoft.com/en-us/powershell/) | 2.5% |
+| **App Targets** | [![Android](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/) [![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat-square&logo=windows&logoColor=white)](https://learn.microsoft.com/en-us/windows/apps/) | Android API 24+ / Windows 10.0.19041+ |
+
+---
+
+## ⚙️ Engine & Framework
+
+The project is built on **.NET MAUI** (Multi-platform App UI), targeting **Android** and **Windows** from a single C# codebase. The backend runs **ASP.NET Core** on Kestrel; the admin panel uses **Blazor Server**.
+
+| Component | Engine | Badge |
+|---|---|---|
+| Mobile runtime | .NET MAUI (.NET 10) | [![MAUI](https://img.shields.io/badge/.NET_MAUI-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/maui/) |
+| Admin web runtime | Blazor Server (.NET 10) | [![Blazor](https://img.shields.io/badge/Blazor_Server-10-512BD4?style=flat-square&logo=blazor&logoColor=white)](https://learn.microsoft.com/en-us/aspnet/core/blazor/) |
+| REST API runtime | ASP.NET Core (.NET 10) — Kestrel | [![ASP.NET](https://img.shields.io/badge/ASP.NET_Core-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://learn.microsoft.com/en-us/aspnet/core/) |
+| ORM — server | EF Core SQLite | [![EF Core](https://img.shields.io/badge/EF_Core-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://learn.microsoft.com/en-us/ef/core/) |
+| ORM — mobile | sqlite-net-pcl | [![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlite.org/) |
+| Audio TTS — Android | Android `TextToSpeech` engine | [![Android](https://img.shields.io/badge/Android_TTS-34A853?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/reference/android/speech/tts/TextToSpeech) |
+| GPS — Android | MAUI Geolocation + Android foreground service | [![Android](https://img.shields.io/badge/Android_Geolocation-34A853?style=flat-square&logo=android&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/maui/platform-integration/device/geolocation) |
+| Map engine | Leaflet.js inside MAUI WebView | [![Leaflet](https://img.shields.io/badge/Leaflet.js-199900?style=flat-square&logo=leaflet&logoColor=white)](https://leafletjs.com/) |
 
 ---
 
@@ -23,338 +56,303 @@
 
 ```
 Smart-Tourism-MAUI/
-├── 📱 MauiApp_Mobile/                    # .NET MAUI Mobile App (Android + iOS)
-│   ├── App.xaml / App.xaml.cs            # App lifecycle, startup, cleanup
-│   ├── MainPage.xaml / MainPage.xaml.cs  # Main UI (tabs, POI list, mini player)
-│   ├── AppShell.xaml                     # Shell navigation, tab routes
-│   ├── MauiProgram.cs                    # DI container, service registration
-│   ├── Components/                       # XAML components (dialog, buttons)
-│   ├── Models/                           # Data models
-│   ├── Services/                         # Business logic services
-│   │   ├── PlaybackCoordinatorService.cs    # Audio queue management
-│   │   ├── AudioPlaybackService.cs          # Audio playback (TTS/MP3)
-│   │   ├── AppSettingsService.cs            # User preferences, settings
-│   │   ├── LocationTrackingService.cs       # GPS tracking (foreground/background)
-│   │   ├── Geofencing/                      # Geofence detection engine
-│   │   │   ├── GeofenceOrchestratorService.cs
-│   │   │   ├── GeofenceOrchestratorService.Playback.cs
-│   │   │   └── GeofenceOrchestratorService.Processing.cs
-│   │   ├── AudioDownloadService.cs          # Audio file management
-│   │   ├── HistoryService.cs                # Playback history logging
-│   │   ├── MobileDatabaseService.cs         # SQLite ORM layer
-│   │   └── (Platform-specific services)
-│   ├── Views/                            # XAML Pages
-│   │   ├── MapPage.xaml / MapPage.xaml.cs  # Interactive map (Leaflet)
-│   │   ├── SettingsPage.xaml                # User preferences UI
-│   │   ├── OfflinePage.xaml                 # Offline content management
-│   │   └── (Other page views)
-│   ├── Platforms/                        # Platform-specific code
-│   │   ├── Android/                      # Android services, permissions
-│   │   ├── iOS/                          # iOS services, geofencing
-│   │   └── Windows/
-│   ├── Resources/
-│   │   ├── Raw/leaflet_map.html          # Web map (Leaflet + OpenStreetMap)
-│   │   ├── Styles/
-│   │   └── (Images, data files)
-│   ├── ViewModels/                       # MVVM view models
-│   └── MauiApp_Mobile.csproj
+├── MauiApp_Mobile/              # .NET MAUI App (Android + Windows)
+│   ├── Services/
+│   │   ├── PlaybackCoordinatorService.cs   # Audio queue management
+│   │   ├── AudioPlaybackService.cs         # TTS + MP3 playback
+│   │   ├── LocationTrackingService.cs      # GPS (foreground + background)
+│   │   ├── Geofencing/                     # Haversine geofence engine
+│   │   ├── AudioDownloadService.cs         # Audio file caching
+│   │   ├── MobileDatabaseService.cs        # SQLite ORM layer
+│   │   └── AppSettingsService.cs           # User preferences
+│   ├── Views/                              # XAML Pages (Map, Settings, Offline)
+│   ├── ViewModels/                         # MVVM ViewModels
+│   ├── Platforms/Android|Windows/          # Platform-specific services
+│   └── Resources/Raw/leaflet_map.html      # Leaflet map (WebView)
 │
-├── 🌐 WebApplication_API/                # ASP.NET Core Backend API
-│   ├── Program.cs                        # Startup, middleware, DI
-│   ├── appsettings.json                  # Configuration (DB, URLs, secrets)
-│   ├── Controller/                       # REST API endpoints
-│   │   ├── POIController.cs              # CRUD: /api/pois
-│   │   ├── AudioController.cs            # Audio CRUD, upload
-│   │   ├── UserController.cs             # Auth, user management
-│   │   ├── SyncController.cs             # Mobile sync endpoints
-│   │   └── (Other controllers)
-│   ├── Data/                             # EF Core DbContext
-│   │   └── AppDbContext.cs
-│   ├── Model/                            # Domain entities
-│   ├── DTO/                              # Data transfer objects
-│   ├── Services/                         # Business logic
-│   ├── Properties/                       # App config, launch settings
-│   └── WebApplication_API.csproj
+├── WebApplication_API/          # ASP.NET Core REST API
+│   ├── Controller/              # REST endpoints (Location, Audio, User, Telemetry, Auth)
+│   ├── Data/DBContext.cs        # EF Core DbContext
+│   ├── Model/                   # Domain entities
+│   ├── DTO/                     # Data Transfer Objects
+│   └── Services/                # Business logic
 │
-├── 🎨 BlazorApp_AdminWeb/                # Admin Dashboard (Blazor)
-│   ├── App.razor                         # Main Blazor app
-│   ├── Components/                       # Blazor components
-│   │   ├── Pages/                        # Page components
-│   │   │   ├── POIManagement.razor       # Create/Edit/Delete POI
-│   │   │   ├── UserManagement.razor      # User & role management
-│   │   │   ├── Analytics.razor           # Dashboard analytics
-│   │   │   ├── OwnerPortal.razor         # Owner self-service
-│   │   │   └── (Other pages)
-│   │   ├── Shared/                       # Shared components (navbar, sidebar)
-│   │   └── (Form components, dialogs)
-│   ├── Services/                         # API client, data services
-│   ├── Layout/                           # Blazor layouts
-│   ├── wwwroot/                          # Static files (CSS, JS, images)
-│   ├── appsettings.json                  # Blazor config
-│   ├── Program.cs                        # Blazor startup
-│   └── BlazorApp_AdminWeb.csproj
+├── BlazorApp_AdminWeb/          # Admin Dashboard (Blazor Server)
+│   ├── Components/Pages/
+│   │   ├── POIList.razor        # Create / Edit / Delete POI
+│   │   ├── UserList.razor       # User & role management
+│   │   ├── Statistics.razor     # Dashboard analytics
+│   │   └── ModerationList.razor # Owner change-request review
+│   └── Services/                # API client, data services
 │
-├── 📚 Project_SharedClassLibrary/        # Shared Code (.NET Standard)
-│   ├── Contracts/                        # DTOs, interfaces shared between projects
-│   │   ├── PublicAudioTrackDto.cs
-│   │   ├── PoiDataTransferObject.cs
-│   │   └── (Other DTOs)
-│   ├── Constants/                        # Shared constants (API routes, etc)
-│   ├── Geofencing/                       # Shared geofence models
-│   │   ├── PoiGeofenceDefinition.cs
-│   │   └── (Geofence DTOs)
-│   ├── Security/                         # RBAC, auth helpers
-│   ├── Validation/                       # Validation logic, attributes
-│   ├── Storage/                          # Storage abstractions
-│   └── Shared_ClassLibrary.csproj
+├── Project_SharedClassLibrary/  # Shared DTOs, contracts, validation (.NET 10)
+│   ├── Contracts/               # DTOs shared across all projects
+│   ├── Geofencing/              # Shared geofence models
+│   ├── Security/                # RBAC helpers
+│   └── Validation/              # Shared validation logic
 │
-├── 🔧 scripts/                           # PowerShell utility scripts
-│   ├── run-android-clean.ps1             # Clean Android build
-│   ├── start-smarttour-tunnel.ps1        # Start development tunnel
-│   └── update-android-network-security-config.ps1
+├── docs/
+│   ├── specification.md         # Feature specification & user stories
+│   ├── DatabaseStructure/       # SQLite schema, migrations, sample data
+│   └── Diagram/                 # Architecture diagrams
 │
-├── 📖 docs/                              # Documentation
-│   ├── specification.md                  # Full feature specification
-│   ├── task.md                           # Development task checklist
-│   ├── DatabaseStructure/                # DB schema docs
-│   │   ├── database.sql                  # SQL Server schema
-│   │   ├── mobile-sqlite-migration.sql   # SQLite schema
-│   │   ├── sample-data.sql               # Sample POI data
-│   │   └── smarttour-mobile.db3          # SQLite template
-│   ├── Diagram/                          # Architecture diagrams
-│   └── PRD-DoAnC#-.docx                  # Product requirement doc
-│
-├── 📄 README.md                          # THIS FILE - Project overview
-├── 📄 Smart-Tourism-MAUI.sln             # Visual Studio solution file
-├── 📄 Directory.Build.props               # MSBuild common properties
-└── 📄 .gitignore                         # Git ignore rules
-
+└── scripts/                     # PowerShell dev utilities
 ```
 
 ---
 
-## 🏗️ Architecture Overview
+## 🔄 App / Web Flow
 
-### **Three-Tier Architecture**
+### Mobile App Flow
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Presentation Layer                                     │
-├──────────────────────┬──────────────────┐────────────────┤
-│   Mobile             │   Admin Web      │  Owner Portal  │
-│  (MAUI Android/iOS)  │  (Blazor)        │  (Blazor)      │
-└──────────────────────┴──────────────────┴────────────────┘
-           ↓                    ↓                 ↓
-┌─────────────────────────────────────────────────────────┐
-│  Business Logic Layer                                   │
-├─ Services (Playback, Geofencing, Audio, Settings, etc)─┤
-│  - Offline-first logic                                 │
-│  - Queue management                                    │
-│  - Geofence detection                                  │
-│  - Audio decision logic (4-Tier Hybrid)                │
-└─────────────────────────────────────────────────────────┘
-           ↓                    ↓
-┌─────────────────────────────────────────────────────────┐
-│  Data Access Layer                                      │
-├─ SQLite (Mobile)  │  SQL Server (Backend)  │  Cache     ─┤
-│ - Local POI data  │  - Users, POI, Audio   │  - Audio   │
-│ - Offline sync    │  - Analytics, history  │  - Images  │
-└─────────────────────────────────────────────────────────┘
+[App Launch]
+     │
+     ├─► Load local SQLite (POI data, audio cache)
+     ├─► Check network → if online: refresh public catalog from API
+     │
+     ▼
+[Location Service starts]
+     │  GPS polling interval follows the selected accuracy mode / foreground service on Android
+     ▼
+[Geofence Engine — Haversine formula]
+     │  Distance check against all POIs (default radius: 30m)
+     │  Cooldown: 5 min per POI to prevent audio spam
+     ▼
+[Audio Decision — Hybrid playback]
+     │
+     ├─ Tier 1: Cached MP3 on device          → play immediately (offline)
+     ├─ Tier 2: TTS script stored locally      → Device TTS
+     └─ Tier 3: Optional Gemini speech service → server-side translation/TTS preview
+     │
+     ▼
+[Playback Queue Manager]
+     │  Play → Pause → Next → Previous
+     │  Auto-pause on OS notification / incoming call
+     ▼
+[History logged → sync to server when online]
 ```
 
-### **Technology Stack**
+### QR Code Direct-Play Flow
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Mobile** | .NET MAUI (C#) | Cross-platform mobile (Android/iOS) |
-| **Admin Web** | Blazor Server | Real-time web dashboard |
-| **Backend** | ASP.NET Core 8 | REST API, business logic |
-| **Database** | SQL Server (prod), SQLite (mobile) | Data persistence |
-| **Audio** | Android TTS, iOS AVSpeechSynthesizer | Text-to-speech |
-| **Map** | Leaflet + OpenStreetMap | Interactive map, offline support (PMTiles) |
-| **GPS/Geofence** | Native iOS CLLocationManager, Android FusedLocationProviderClient | Location tracking |
-| **Shared Lib** | .NET Standard 2.1 | DTOs, contracts, validation |
+```
+[Tourist scans QR at venue]
+     │
+     ▼
+[Deep link → opens app or web landing page]
+     │
+     ▼
+[POI ID resolved → audio plays immediately — no GPS required]
+```
+
+### Admin Web Flow
+
+```
+[Admin logs in — session-token auth]
+     │
+     ├─► POI Management     → Create / Edit / Delete → saved to SQLite via EF Core
+     ├─► Audio Management   → Upload MP3 → stored on server → served to mobile
+     ├─► Translation Mgmt   → Add multilingual TTS scripts per POI
+     ├─► Tour Management    → Group POIs into ordered tours
+     ├─► Analytics          → Playback logs, heatmaps, top POIs
+     └─► Owner Portal       → Shop owners manage own POI content (restricted RBAC)
+```
+
+---
+
+## 🌐 Internal REST API
+
+Base URL: `http://<server>:5123` (or `https://localhost:7284` when using the HTTPS launch profile)
+
+### POI — Points of Interest
+
+| Method | Endpoint | Description |
+|---|---|---|
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/Location` | List all POIs |
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/Location/{id}` | Get POI detail |
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/Location/public/catalog` | Public POI catalog (mobile, no auth) |
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/Location/category/{categoryId}` | List POIs by category |
+| ![POST](https://img.shields.io/badge/POST-49CC90?style=flat-square&logoColor=white) | `/Location` | Create POI |
+| ![PUT](https://img.shields.io/badge/PUT-FCA130?style=flat-square&logoColor=white) | `/Location/{id}` | Update POI |
+| ![DELETE](https://img.shields.io/badge/DELETE-F93E3E?style=flat-square&logoColor=white) | `/Location/{id}` | Delete POI |
+
+### Audio
+
+| Method | Endpoint | Description |
+|---|---|---|
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/Audio` | List audio records |
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/Audio/{id}` | Get audio detail |
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/Audio/public/location/{locationId}` | Public audio tracks for one POI |
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/Audio/public/location/{locationId}/default` | Default public audio track |
+| ![POST](https://img.shields.io/badge/POST-49CC90?style=flat-square&logoColor=white) | `/Audio` | Create or upload audio content |
+| ![PUT](https://img.shields.io/badge/PUT-FCA130?style=flat-square&logoColor=white) | `/Audio/{id}` | Update audio content |
+| ![DELETE](https://img.shields.io/badge/DELETE-F93E3E?style=flat-square&logoColor=white) | `/Audio/{id}` | Delete audio content |
+
+### Authentication & Users
+
+| Method | Endpoint | Description |
+|---|---|---|
+| ![POST](https://img.shields.io/badge/POST-49CC90?style=flat-square&logoColor=white) | `/Auth/login` | Login — returns an admin session token |
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/Auth/me` | Current admin session |
+| ![POST](https://img.shields.io/badge/POST-49CC90?style=flat-square&logoColor=white) | `/Auth/logout` | End admin session |
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/DashboardUser` | List users |
+| ![POST](https://img.shields.io/badge/POST-49CC90?style=flat-square&logoColor=white) | `/DashboardUser` | Create user |
+| ![PUT](https://img.shields.io/badge/PUT-FCA130?style=flat-square&logoColor=white) | `/DashboardUser/{id}` | Update user / role |
+
+### Telemetry & Analytics
+
+| Method | Endpoint | Description |
+|---|---|---|
+| ![POST](https://img.shields.io/badge/POST-49CC90?style=flat-square&logoColor=white) | `/Telemetry/v1/route-history` | Ingest mobile route telemetry |
+| ![POST](https://img.shields.io/badge/POST-49CC90?style=flat-square&logoColor=white) | `/Telemetry/v1/audio-play-events` | Ingest playback events |
+| ![POST](https://img.shields.io/badge/POST-49CC90?style=flat-square&logoColor=white) | `/Telemetry/v1/heatmap-events` | Ingest heatmap events |
+| ![POST](https://img.shields.io/badge/POST-49CC90?style=flat-square&logoColor=white) | `/api/v1/analytics/events` | Ingest usage analytics event |
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/Statistics/top-pois` | Top POIs by play count |
+| ![GET](https://img.shields.io/badge/GET-61AFFE?style=flat-square&logoColor=white) | `/Statistics/heatmap` | User position heatmap data |
+
+---
+
+## 🔗 External APIs & Services
+
+| Service | Badge | Purpose |
+|---|---|---|
+| OpenStreetMap | [![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white)](https://www.openstreetmap.org/) | Base map tile data |
+| OSRM demo routing | [![OSRM](https://img.shields.io/badge/OSRM-routing-44A833?style=flat-square)](https://project-osrm.org/) | Walking route planning through `routing.openstreetmap.de` |
+| Gemini Speech | [![Gemini](https://img.shields.io/badge/Gemini-optional-4285F4?style=flat-square&logo=googlegemini&logoColor=white)](https://ai.google.dev/) | Optional server-side translation and TTS preview |
+| MAUI Geolocation / Android foreground service | [![Android](https://img.shields.io/badge/Android_Geolocation-34A853?style=flat-square&logo=android&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/maui/platform-integration/device/geolocation) | GPS polling and background tracking on Android |
+| Android TextToSpeech | [![Android](https://img.shields.io/badge/Android_TTS-34A853?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/reference/android/speech/tts/TextToSpeech) | On-device TTS fallback |
+
+> Gemini speech is disabled by default in `appsettings.json`; enable it only when you provide a Gemini API key.
+
+---
+
+## ✨ Features
+
+### 📱 Mobile App
+
+| Feature | Details |
+|---|---|
+| **GPS Tracking** | Configurable foreground polling + Android foreground service |
+| **Geofencing** | Haversine formula · configurable radius (default 30m) · 5-min cooldown |
+| **Hybrid Audio Playback** | Cached MP3 / downloaded audio → local TTS script → optional Gemini speech |
+| **Audio Queue** | Play, pause, next, previous · auto-pause on notification / incoming call |
+| **Multi-language** | 🇻🇳 Vietnamese · 🇬🇧 English · 🇨🇳 Chinese · 🇯🇵 Japanese · 🇰🇷 Korean |
+| **Offline Mode** | Local SQLite catalog cache + downloaded/cached audio |
+| **Telemetry Sync** | Queued route, playback, listening-session, heatmap, and usage events sync when connectivity is restored |
+| **QR Code Scan** | Scan QR at a venue → plays that POI's audio directly, bypassing GPS |
+| **Interactive Map** | Leaflet + OpenStreetMap in WebView · all POIs + current location |
+| **Settings** | Language selector · GPS sensitivity · TTS voice · offline pack download |
+
+### 🎛️ Admin Dashboard
+
+| Feature | Details |
+|---|---|
+| **POI CRUD** | Create, edit, delete POIs with coordinates, radius, priority, images |
+| **Audio Management** | Upload pre-recorded MP3 files · manage TTS scripts per language |
+| **Translation Management** | Add/edit multilingual content per POI |
+| **Tour Management** | Group POIs into ordered tours |
+| **User & Role Management** | Admin assignment · shop owner verification · RBAC |
+| **Analytics Dashboard** | Top POIs by play count · average listen time · date range filtering |
+| **Heatmap** | Visual heatmap of user positions across the food street |
+| **Owner Portal** | Self-service: shop owners edit their own POI and upload audio |
+
+### 🗄️ Database
+
+**[![SQLite](https://img.shields.io/badge/SQLite-both_server_%26_mobile-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlite.org/)**
+
+| Table | Used by | Purpose |
+|---|---|---|
+| `Locations` / `CachedLocations` | Server + Mobile | Points of interest: name, coords, radius, priority, category |
+| `AudioContents` / `CachedAudioTracks` | Server + Mobile | Audio records, scripts, language, source type, priority |
+| `Categories` / `CachedCategories` | Server + Mobile | POI category metadata |
+| `Languages` | Server | Managed language records |
+| `Tours`, `TourLocations` | Server | Grouped POI tours with ordering and route data |
+| `DashboardUsers` | Server | Admin/owner/user accounts and roles |
+| `PlaybackEvents`, `AudioListeningSessions` | Server | Playback and listening analytics |
+| `LocationTrackingEvents`, `HeatmapEvents`, `UsageEvents` | Server + Mobile queue | Telemetry and usage analytics |
+| `ChangeRequests`, `InboxMessages`, `ActivityLogs` | Server | Owner moderation workflow, notifications, and audit trail |
+| `LocalSettings`, `DeviceSyncStates`, `PlaybackHistory` | Mobile | User preferences, catalog sync state, and local history |
 
 ---
 
 ## 🚀 Getting Started
 
-### **Prerequisites**
+### Prerequisites
 
-- **Visual Studio 2022** (or VS Code + .NET CLI)
-- **.NET 8 SDK** (or later)
-- **Android SDK** (API 26+) for mobile development
-- **Git**
+[![VS 2022](https://img.shields.io/badge/Visual_Studio-2022-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)](https://visualstudio.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET_SDK-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download)
+[![Android SDK](https://img.shields.io/badge/Android_SDK-API_24%2B-34A853?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/studio)
+[![SQLite](https://img.shields.io/badge/SQLite-included-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 
-### **Clone & Setup**
+### Clone & Restore
 
 ```bash
-# Clone repository
 git clone https://github.com/DZT711/Smart-Tourism-MAUI.git
 cd Smart-Tourism-MAUI
-
-# Restore NuGet packages
 dotnet restore Smart-Tourism-MAUI.sln
-
-# Verify solution loads
-dotnet build Smart-Tourism-MAUI.sln
 ```
 
----
+### 1 — Backend API
 
-## 📱 Mobile App (MauiApp_Mobile)
-
-### **Build & Run**
-
-**Android:**
 ```bash
-cd MauiApp_Mobile
+# Uses WebApplication_API/appsettings.json (default SQLite: Data Source=App.db)
+dotnet run --project WebApplication_API/WebApplication_API.csproj --launch-profile http
 
-# Debug build for Android
-dotnet build -f net8.0-android -c Debug
-
-# Run on Android emulator/device
-dotnet run -f net8.0-android
-
-# Or via script
-.\scripts\run-android-clean.ps1
+# Expose for device testing (optional)
+ngrok http 5123 --host-header="localhost:5123"
 ```
 
-**iOS:**
-```bash
-# Debug build for iOS
-dotnet build -f net8.0-ios -c Debug
+### 2 — Admin Dashboard
 
-# Run on iOS simulator
-dotnet run -f net8.0-ios
+```bash
+# appsettings.json defaults to http://localhost:5123/
+dotnet run --project BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj
+# Login with a seeded DashboardUser account
 ```
 
-### **Key Features**
+### 3 — Mobile App
 
-✅ **GPS Tracking**
-- Foreground: Always-on location updates (5s throttle)
-- Background: Foreground service (Android 8+)
+**Windows (quick test):**
+```bash
+dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-windows10.0.19041.0
+```
 
-✅ **Geofencing & Auto-Playback**
-- Haversine distance detection
-- Configurable radius (default 30m)
-- Cooldown mechanism (5 min)
-- Priority-based POI selection
+**Android — USB cable:**
+```bash
+adb devices                        # confirm device shows as "device"
+adb reverse tcp:5123 tcp:5123      # forward API port to device
+dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
+```
 
-✅ **Audio Playback**
-- 4-Tier Hybrid (Cache → Translate+TTS → Cloud TTS → Device TTS)
-- Queue management (play, pause, next, previous)
-- Multiple audio files per POI
+**Android — Wi-Fi:**
+```bash
+adb connect <device-ip>:<port>
+adb devices
+# Server URLs are configured in MauiApp_Mobile/Resources/Raw/mobile-api.json.
+# Debug Android builds also update network_security_config.xml before build.
+dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
+```
 
-✅ **Offline Support**
-- SQLite database for POI data
-- Pre-cached audio files
-- Offline map (PMTiles)
-- Delta sync when connected
+**Pull SQLite DB from device:**
+```bash
+adb exec-out run-as com.companyname.mauiapp_mobile cat files/smarttour-mobile.db3 > docs/smarttour-mobile.db
+```
 
-✅ **Multi-Language**
-- Vietnamese (VI), English (EN), Chinese (ZH), Japanese (JA), Korean (KO)
-- TTS voice per language
-- Settings page language selector
+### 4 — Database Setup
 
----
+SQLite databases are created automatically on first run — no manual setup needed.
 
-## 🌐 Backend API (WebApplication_API)
-
-### **Build & Run**
+The API applies EF Core migrations and seeds baseline admin users, POIs, audio, tours, and analytics samples at startup.
 
 ```bash
+# Mobile SQLite (applied automatically on app launch)
+# Schema: docs/DatabaseStructure/mobile-sqlite-migration.sql
+
+# Server SQLite — optional manual migration command
 cd WebApplication_API
+dotnet ef database update
 
-# Build
-dotnet build -c Debug
-
-# Run
-dotnet run
-
-# API will be available at: http://localhost:5000 (or port in launchSettings.json)
-```
-
-### **API Endpoints**
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/pois` | GET | List all POIs |
-| `/api/pois/{id}` | GET | POI detail |
-| `/api/pois` | POST | Create POI |
-| `/api/pois/{id}` | PUT | Update POI |
-| `/api/pois/{id}` | DELETE | Delete POI |
-| `/api/audio` | POST | Upload audio file |
-| `/api/audio/{id}` | GET | Download audio |
-| `/api/sync/delta` | POST | Mobile delta sync |
-| `/api/users` | GET/POST | User management |
-| `/api/auth/login` | POST | Authentication |
-
-See [specification.md](docs/specification.md) for full API documentation.
-
----
-
-## 🎨 Admin Dashboard (BlazorApp_AdminWeb)
-
-### **Build & Run**
-
-```bash
-cd BlazorApp_AdminWeb
-
-# Debug build
-dotnet build -c Debug
-
-# Run
-dotnet run
-
-# Access at: http://localhost:7000 (or configured port)
-```
-
-### **Features**
-
-✅ **POI Management**
-- Create/Edit/Delete POI
-- Multiple images per POI
-- Audio file management
-- Language support per POI
-
-✅ **User Management**
-- Admin role assignment
-- Shop owner verification
-- Permission control (RBAC)
-
-✅ **Analytics Dashboard**
-- Top POIs by playback count
-- Average listening time per POI
-- User heatmap
-- Date range filtering
-
-✅ **Owner Portal**
-- Self-service POI editing
-- Audio upload
-- Approval workflow
-
----
-
-## 💾 Database
-
-### **Database Setup**
-
-**SQL Server (Production):**
-```bash
-# Execute database.sql to create schema
-sqlcmd -S your_server -U sa -P your_password -i docs/DatabaseStructure/database.sql
-```
-
-**SQLite (Mobile):**
-- Schema in `mobile-sqlite-migration.sql`
-- Template DB: `smarttour-mobile.db3`
-- Auto-created on first app launch
-
-**Sample Data:**
-```bash
-# Populate sample POI data
-sqlcmd -S your_server -U sa -P your_password -i docs/DatabaseStructure/sample-data.sql
+# Optional SQL sample data lives in docs/DatabaseStructure/sample-data.sql
 ```
 
 ---
@@ -362,261 +360,45 @@ sqlcmd -S your_server -U sa -P your_password -i docs/DatabaseStructure/sample-da
 ## 📖 Documentation
 
 | Document | Purpose |
-|----------|---------|
-| [specification.md](docs/specification.md) | Full feature specification & user stories |
-| [task.md](docs/task.md) | Development task checklist & completed items |
-| [DatabaseStructure/](docs/DatabaseStructure/) | DB schema, migrations, sample data |
-| [Diagram/](docs/Diagram/) | Architecture & flow diagrams |
-
----
-
-## 🔄 Development Workflow
-
-### **Branch Strategy**
-
-- `main` — Stable, production-ready code
-- `Mobile_AppPerformance` — Current development branch
-- `develop` — Integration branch for features
-
-### **Commit Convention**
-
-```
-[FEATURE|FIX|DOCS|TEST]: Brief description
-
-- Detailed change explanation
-- Related task: #123
-```
-
-### **Build & Test**
-
-```bash
-# Full solution build (all projects)
-dotnet build Smart-Tourism-MAUI.sln -c Debug
-
-# Run tests (if test project exists)
-dotnet test Smart-Tourism-MAUI.sln
-
-# Clean build
-dotnet clean Smart-Tourism-MAUI.sln
-dotnet build Smart-Tourism-MAUI.sln -c Release
-```
-
----
-
-## 🛠️ Scripts
-
-| Script | Purpose |
-|--------|---------|
-| `run-android-clean.ps1` | Clean Android build & run |
-| `start-smarttour-tunnel.ps1` | Start local dev tunnel |
-| `update-android-network-security-config.ps1` | Update Android security config |
-
-**Usage:**
-```powershell
-cd scripts
-.\run-android-clean.ps1
-```
-
----
-
-## 🧪 Testing
-
-### **Mobile Testing Checklist**
-
-- [ ] GPS tracking updates every 5 seconds
-- [ ] Geofence triggers within 30m radius
-- [ ] Audio plays on trigger (3 sec debounce)
-- [ ] Queue management: add/remove/next/previous
-- [ ] Offline mode: map loads, audio plays from cache
-- [ ] Language switch applies to new POIs
-- [ ] Settings persist after app restart
-
-### **Admin Dashboard Testing**
-
-- [ ] Create/Edit/Delete POI works
-- [ ] Upload audio file works
-- [ ] Analytics charts load correctly
-- [ ] User roles applied correctly
-- [ ] Owner portal shows only own POIs
-
----
-
-## 📊 Project Status
-
-### **Completed ✅**
-
-- [x] GPS tracking (foreground + background)
-- [x] Geofencing engine (Haversine formula)
-- [x] 4-Tier audio playback (TTS + pre-recorded)
-- [x] Queue management system
-- [x] Multi-language support (5 languages)
-- [x] Offline sync (delta sync)
-- [x] SQLite mobile database
-- [x] Admin POI CRUD
-- [x] User authentication & RBAC
-- [x] Admin dashboard
-- [x] Owner portal
-- [x] Analytics (playback logs, heatmap)
-
-### **In Progress 🟡**
-
-- Audio queue auto-insertion on trigger (not waiting for other POIs)
-- Notification cleanup on app kill
-- Performance optimization (Mobile_AppPerformance branch)
-
-### **Planned 📋**
-
-- [ ] Push notifications
-- [ ] Route optimization (OSRM integration)
-- [ ] Real-time analytics
-- [ ] Advanced geofencing (zones)
-
----
-
-## 🐛 Common Issues & Solutions
-
-### **Android Build Fails**
-
-**Error:** `Platform version Android 13 (API 33) not found`
-
-**Solution:**
-```bash
-# Install required Android SDK
-dotnet workload install android
-```
-
-### **Mobile Database Locked**
-
-**Error:** `SQLite database is locked`
-
-**Solution:**
-- Close other processes accessing the DB
-- Restart the app
-- Clear app data
-
-### **Audio Not Playing**
-
-**Checklist:**
-- [ ] Audio file exists in cache
-- [ ] TTS is enabled in settings
-- [ ] Volume not muted
-- [ ] Check app logs for errors
-
-### **GPS Not Updating**
-
-**Checklist:**
-- [ ] Location permission granted
-- [ ] GPS enabled on device
-- [ ] Foreground service running (Android)
-- [ ] Check location_tracking_enabled setting
-
----
-
-## 👥 Contributing
-
-1. Create feature branch: `git checkout -b feature/your-feature`
-2. Commit changes: `git commit -m "[FEATURE]: Description"`
-3. Push to branch: `git push origin feature/your-feature`
-4. Open Pull Request to `main`
-
----
-
-## 📞 Support & Contact
-
-**Questions or Issues?**
-- Create GitHub Issue: [DZT711/Smart-Tourism-MAUI/issues](https://github.com/DZT711/Smart-Tourism-MAUI/issues)
-- Contact: Nguyễn Sĩ Huy (Product Owner)
+|---|---|
+| [`docs/specification.md`](docs/specification.md) | Full feature specification & user stories |
+| [`docs/DatabaseStructure/`](docs/DatabaseStructure) | SQLite schema, migrations, sample data |
+| [`docs/Diagram/`](docs/Diagram) | Architecture & flow diagrams |
 
 ---
 
 ## 📜 License
 
-Proprietary — Smart Tourism MAUI Project
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey?style=for-the-badge)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+**Creative Commons Attribution – NonCommercial – ShareAlike 4.0 International**
+
+Copyright © 2026 Nguyễn Sĩ Huy (3123411122) & Nguyễn Văn Cường (3123411045)
+*Khoa Công nghệ Thông tin — Dự Án Thuyết Minh Phố Ẩm Thực Vĩnh Khánh*
+
+You are free to:
+- **Share** — copy and redistribute this material in any medium or format
+- **Adapt** — remix, transform, and build upon the material
+
+Under the following terms:
+- **Attribution** — Give appropriate credit and link to this repository.
+- **NonCommercial** — You may not use the material for commercial purposes.
+- **ShareAlike** — Derivatives must be distributed under the same license.
+
+Full license: https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+> This project was built as an academic capstone at Ho Chi Minh City University of Technology and Education (UTE) and is intended for non-commercial, educational, and cultural heritage use only.
 
 ---
 
 ## 🙏 Acknowledgments
 
-- **Vinh Khanh Food Street** — Project location & stakeholder
-- **Microsoft Edge-TTS** — Free text-to-speech service
-- **OpenStreetMap** — Map data provider
-- **Leaflet** — Interactive map library
-- **PMTiles** — Offline tile storage
+[![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-map_data-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white)](https://www.openstreetmap.org/)
+[![Leaflet](https://img.shields.io/badge/Leaflet.js-interactive_map-199900?style=flat-square&logo=leaflet&logoColor=white)](https://leafletjs.com/)
+[![OSRM](https://img.shields.io/badge/OSRM-routing-44A833?style=flat-square)](https://project-osrm.org/)
+
+Special thanks to **Vinh Khanh Food Street** (Phố Ẩm Thực Vĩnh Khánh) as the project location and primary stakeholder.
 
 ---
 
-### E.Cách chạy dự án
-
-1. **Backend API:**
-   - Mở `WebApplication_API` trong Visual Studio.
-   - Cấu hình chuỗi kết nối SQL Server trong `appsettings.json`.
-   - Chạy migrations để tạo database.
-   - Chạy ứng dụng (F5) → API sẽ chạy trên `https://localhost:5123`.
-
-   ```cmd
-    dotnet run --project WebApplication_API/WebApplication_API.csproj --urls "https://0.0.0.0:5123"
-    ngrok http 5123 --host-header="localhost:5123"
-   ```
-
-2. **Admin Web:**
-   - Mở `BlazorApp_AdminWeb` trong Visual Studio.
-   - Cấu hình `appsettings.json` để trỏ đến API. Mặc định project đang dùng `https://localhost:5123/`.
-   - Chạy ứng dụng → Đăng nhập bằng tài khoản admin đã seed sẵn.
-
-   ```cmd
-    dotnet run --project BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj 
-   ```
-
-   - Tài khoản thử nghiệm : username:admin/ password:admin
-
-3. **Mobile App:**
-   - Mở `MauiApp_Mobile` trong Visual Studio/VSCode.
-   - Cấu hình `ApiEndpoints.cs` để trỏ đến API.
-   - Chạy ứng dụng trên Android Emulator hoặc thiết bị thật.
-
-    Cách 1: chạy trên windows :
-
-    ```cmd
-        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-windows10.0.19041.0
-    ```
-
-    Cách 2: chạy trên Android cắm cáp usb vào máy chủ
-    - Cho phép máy tính debug trên android(bật dev mode trong setting)
-
-   ```cmd
-        adb devices (đảm bảo thiết bị ở trạng thái mở "device")
-        adb reverse tcp:5123 tcp:5123 (để chuyển tiếp cổng từ máy chủ đến thiết bị)
-        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
-   ```
-
-    - Thử gọi api: "[http://127.0.0.1:5123/location/public/catalog](http://127.0.0.1:5123/location/public/catalog)"
-    Cách 3: chạy thông qua wifi
-    - Bật Wifi Debug trên android : lấy thông tin ip và cổng kết nối
-    - Chỉnh mạng máy sever thanh private
-    - Đảm bảo sử dụng chung 1 mạng
-    - Thêm ip sever vào file cấu hình mạng của android trong MauiApp_Mobile/Platforms/Android/Resources/xml/network_security_config.xml
-
-    ```xml
-            <domain includeSubdomains="false">yourSeverIP</domain>
-    ```
-
-    ```cmd
-        adb connect ip:port (kết nối qua wifi, ví dụ adb connect 192.168.x.x:44444)
-        adb devices (đảm bảo thiết bị ở trạng thái mở "device")
-        ipconfig(lấy ipv4 của máy sever ipsever )
-        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
-    ```
-
-   -Thử gọi api: "[http://ipsever:5123/location/public/catalog](http://ipsever:5123/location/public/catalog)"
-    Lệnh pull db từ điện thoại kêt nối
-    
-    ```cmd
-        adb exec-out run-as com.companyname.mauiapp_mobile cat files/smarttour-mobile.db3 > docs\smarttour-mobile.db
-    ```
-
-*© 2026 — Nguyễn Sĩ Huy (3123411122) & Nguyễn Văn Cường (3123411045)*
-*Dự Án Thuyết Minh Phố Ẩm Thực Vĩnh Khánh — Khoa Công nghệ Thông tin*
-**Last Updated:** April 23, 2026  
-**Current Branch:** `Mobile_AppPerformance`  
-**Status:** 🟡 Active Development
-
+*Last Updated: May 2026 · Status:* 🟡 *Active Development*
