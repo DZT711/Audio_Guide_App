@@ -2,9 +2,9 @@
 param(
     [int]$ApiPort = 5123,
     [string]$Configuration = "Debug",
-    [string]$ApiProjectPath = "WebApplication_API/WebApplication_API.csproj",
+    [string]$ApiProjectPath = "src/WebApplication_API/WebApplication_API.csproj",
     [string]$NgrokAuthtoken = $env:NGROK_AUTHTOKEN,
-    [string]$NgrokTokenJsonPath = "MauiApp_Mobile/Resources/Raw/mobile-api.json",
+    [string]$NgrokTokenJsonPath = "src/MauiApp_Mobile/Resources/Raw/mobile-api.json",
     [string]$NgrokDownloadUrl = "",
     [string]$AndroidApkFilePath = "",
     [string]$AndroidStoreUrl = "",
@@ -557,7 +557,7 @@ function Select-AndroidApkFile {
     }
 
     $searchRoots = @(
-        (Join-Path $repoRoot "MauiApp_Mobile\bin"),
+        (Join-Path $repoRoot "src\MauiApp_Mobile\bin"),
         (Join-Path $repoRoot "artifacts"),
         (Join-Path $repoRoot "publish"),
         (Join-Path $repoRoot "drops")
@@ -584,7 +584,7 @@ function Publish-AndroidApk {
         return $null
     }
 
-    $downloadsDirectory = Join-Path $repoRoot "WebApplication_API\wwwroot\downloads"
+    $downloadsDirectory = Join-Path $repoRoot "src\WebApplication_API\wwwroot\downloads"
     New-Item -ItemType Directory -Force -Path $downloadsDirectory | Out-Null
 
     $destinationFileName = "smarttour-latest.apk"
@@ -631,8 +631,8 @@ function Update-ConfigurationFiles {
     )
 
     $apiConfigFiles = @(
-        (Join-Path $repoRoot "WebApplication_API\appsettings.json"),
-        (Join-Path $repoRoot "WebApplication_API\appsettings.Development.json")
+        (Join-Path $repoRoot "src\WebApplication_API\appsettings.json"),
+        (Join-Path $repoRoot "src\WebApplication_API\appsettings.Development.json")
     )
 
     foreach ($configFile in $apiConfigFiles) {
@@ -663,8 +663,8 @@ function Update-ConfigurationFiles {
     }
 
     $adminConfigFiles = @(
-        (Join-Path $repoRoot "BlazorApp_AdminWeb\appsettings.json"),
-        (Join-Path $repoRoot "BlazorApp_AdminWeb\appsettings.Development.json")
+        (Join-Path $repoRoot "src\BlazorApp_AdminWeb\appsettings.json"),
+        (Join-Path $repoRoot "src\BlazorApp_AdminWeb\appsettings.Development.json")
     )
 
     foreach ($configFile in $adminConfigFiles) {
@@ -673,7 +673,7 @@ function Update-ConfigurationFiles {
         Save-JsonDocument -FilePath $configFile -Document $document
     }
 
-    $mobileConfigFile = Join-Path $repoRoot "MauiApp_Mobile\Resources\Raw\mobile-api.json"
+    $mobileConfigFile = Join-Path $repoRoot "src\MauiApp_Mobile\Resources\Raw\mobile-api.json"
     $mobileDocument = Get-JsonDocument -FilePath $mobileConfigFile
     Set-JsonValue -FilePath $mobileConfigFile -Document $mobileDocument -Segments @("BaseUrl") -Value $ResolvedBaseUrl
     Set-JsonValue -FilePath $mobileConfigFile -Document $mobileDocument -Segments @("PublicBaseUrl") -Value $ResolvedBaseUrl

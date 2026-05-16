@@ -1,7 +1,7 @@
 param(
-    [string]$DbPath = ".\WebApplication_API\App.db",
-    [string]$ImageArchiveDir = ".\WebApplication_API\wwwroot\archive\images",
-    [string]$AudioArchiveDir = ".\WebApplication_API\wwwroot\archive\audio"
+    [string]$DbPath = ".\src\WebApplication_API\App.db",
+    [string]$ImageArchiveDir = ".\src\WebApplication_API\wwwroot\archive\images",
+    [string]$AudioArchiveDir = ".\src\WebApplication_API\wwwroot\archive\audio"
 )
 
 $ErrorActionPreference = "Stop"

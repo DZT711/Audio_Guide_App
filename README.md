@@ -23,90 +23,11 @@
 
 ```
 Smart-Tourism-MAUI/
-├── 📱 MauiApp_Mobile/                    # .NET MAUI Mobile App (Android + iOS)
-│   ├── App.xaml / App.xaml.cs            # App lifecycle, startup, cleanup
-│   ├── MainPage.xaml / MainPage.xaml.cs  # Main UI (tabs, POI list, mini player)
-│   ├── AppShell.xaml                     # Shell navigation, tab routes
-│   ├── MauiProgram.cs                    # DI container, service registration
-│   ├── Components/                       # XAML components (dialog, buttons)
-│   ├── Models/                           # Data models
-│   ├── Services/                         # Business logic services
-│   │   ├── PlaybackCoordinatorService.cs    # Audio queue management
-│   │   ├── AudioPlaybackService.cs          # Audio playback (TTS/MP3)
-│   │   ├── AppSettingsService.cs            # User preferences, settings
-│   │   ├── LocationTrackingService.cs       # GPS tracking (foreground/background)
-│   │   ├── Geofencing/                      # Geofence detection engine
-│   │   │   ├── GeofenceOrchestratorService.cs
-│   │   │   ├── GeofenceOrchestratorService.Playback.cs
-│   │   │   └── GeofenceOrchestratorService.Processing.cs
-│   │   ├── AudioDownloadService.cs          # Audio file management
-│   │   ├── HistoryService.cs                # Playback history logging
-│   │   ├── MobileDatabaseService.cs         # SQLite ORM layer
-│   │   └── (Platform-specific services)
-│   ├── Views/                            # XAML Pages
-│   │   ├── MapPage.xaml / MapPage.xaml.cs  # Interactive map (Leaflet)
-│   │   ├── SettingsPage.xaml                # User preferences UI
-│   │   ├── OfflinePage.xaml                 # Offline content management
-│   │   └── (Other page views)
-│   ├── Platforms/                        # Platform-specific code
-│   │   ├── Android/                      # Android services, permissions
-│   │   ├── iOS/                          # iOS services, geofencing
-│   │   └── Windows/
-│   ├── Resources/
-│   │   ├── Raw/leaflet_map.html          # Web map (Leaflet + OpenStreetMap)
-│   │   ├── Styles/
-│   │   └── (Images, data files)
-│   ├── ViewModels/                       # MVVM view models
-│   └── MauiApp_Mobile.csproj
-│
-├── 🌐 WebApplication_API/                # ASP.NET Core Backend API
-│   ├── Program.cs                        # Startup, middleware, DI
-│   ├── appsettings.json                  # Configuration (DB, URLs, secrets)
-│   ├── Controller/                       # REST API endpoints
-│   │   ├── POIController.cs              # CRUD: /api/pois
-│   │   ├── AudioController.cs            # Audio CRUD, upload
-│   │   ├── UserController.cs             # Auth, user management
-│   │   ├── SyncController.cs             # Mobile sync endpoints
-│   │   └── (Other controllers)
-│   ├── Data/                             # EF Core DbContext
-│   │   └── AppDbContext.cs
-│   ├── Model/                            # Domain entities
-│   ├── DTO/                              # Data transfer objects
-│   ├── Services/                         # Business logic
-│   ├── Properties/                       # App config, launch settings
-│   └── WebApplication_API.csproj
-│
-├── 🎨 BlazorApp_AdminWeb/                # Admin Dashboard (Blazor)
-│   ├── App.razor                         # Main Blazor app
-│   ├── Components/                       # Blazor components
-│   │   ├── Pages/                        # Page components
-│   │   │   ├── POIManagement.razor       # Create/Edit/Delete POI
-│   │   │   ├── UserManagement.razor      # User & role management
-│   │   │   ├── Analytics.razor           # Dashboard analytics
-│   │   │   ├── OwnerPortal.razor         # Owner self-service
-│   │   │   └── (Other pages)
-│   │   ├── Shared/                       # Shared components (navbar, sidebar)
-│   │   └── (Form components, dialogs)
-│   ├── Services/                         # API client, data services
-│   ├── Layout/                           # Blazor layouts
-│   ├── wwwroot/                          # Static files (CSS, JS, images)
-│   ├── appsettings.json                  # Blazor config
-│   ├── Program.cs                        # Blazor startup
-│   └── BlazorApp_AdminWeb.csproj
-│
-├── 📚 Project_SharedClassLibrary/        # Shared Code (.NET Standard)
-│   ├── Contracts/                        # DTOs, interfaces shared between projects
-│   │   ├── PublicAudioTrackDto.cs
-│   │   ├── PoiDataTransferObject.cs
-│   │   └── (Other DTOs)
-│   ├── Constants/                        # Shared constants (API routes, etc)
-│   ├── Geofencing/                       # Shared geofence models
-│   │   ├── PoiGeofenceDefinition.cs
-│   │   └── (Geofence DTOs)
-│   ├── Security/                         # RBAC, auth helpers
-│   ├── Validation/                       # Validation logic, attributes
-│   ├── Storage/                          # Storage abstractions
-│   └── Shared_ClassLibrary.csproj
+├── 📁 src/                               # Main application projects
+│   ├── 📱 MauiApp_Mobile/                # .NET MAUI Mobile App (Android + iOS)
+│   ├── 🌐 WebApplication_API/            # ASP.NET Core Backend API
+│   ├── 🎨 BlazorApp_AdminWeb/            # Admin Dashboard (Blazor)
+│   └── 📚 Project_SharedClassLibrary/    # Shared code
 │
 ├── 🔧 scripts/                           # PowerShell utility scripts
 │   ├── run-android-clean.ps1             # Clean Android build
@@ -208,7 +129,7 @@ dotnet build Smart-Tourism-MAUI.sln
 
 **Android:**
 ```bash
-cd MauiApp_Mobile
+cd src/MauiApp_Mobile
 
 # Debug build for Android
 dotnet build -f net8.0-android -c Debug
@@ -264,7 +185,7 @@ dotnet run -f net8.0-ios
 ### **Build & Run**
 
 ```bash
-cd WebApplication_API
+cd src/WebApplication_API
 
 # Build
 dotnet build -c Debug
@@ -299,7 +220,7 @@ See [specification.md](docs/specification.md) for full API documentation.
 ### **Build & Run**
 
 ```bash
-cd BlazorApp_AdminWeb
+cd src/BlazorApp_AdminWeb
 
 # Debug build
 dotnet build -c Debug
@@ -548,36 +469,36 @@ Proprietary — Smart Tourism MAUI Project
 ### E.Cách chạy dự án
 
 1. **Backend API:**
-   - Mở `WebApplication_API` trong Visual Studio.
+   - Mở `src/WebApplication_API` trong Visual Studio.
    - Cấu hình chuỗi kết nối SQL Server trong `appsettings.json`.
    - Chạy migrations để tạo database.
    - Chạy ứng dụng (F5) → API sẽ chạy trên `https://localhost:5123`.
 
    ```cmd
-    dotnet run --project WebApplication_API/WebApplication_API.csproj --urls "https://0.0.0.0:5123"
+    dotnet run --project src/WebApplication_API/WebApplication_API.csproj --urls "https://0.0.0.0:5123"
     ngrok http 5123 --host-header="localhost:5123"
    ```
 
 2. **Admin Web:**
-   - Mở `BlazorApp_AdminWeb` trong Visual Studio.
+   - Mở `src/BlazorApp_AdminWeb` trong Visual Studio.
    - Cấu hình `appsettings.json` để trỏ đến API. Mặc định project đang dùng `https://localhost:5123/`.
    - Chạy ứng dụng → Đăng nhập bằng tài khoản admin đã seed sẵn.
 
    ```cmd
-    dotnet run --project BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj 
+    dotnet run --project src/BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj 
    ```
 
    - Tài khoản thử nghiệm : username:admin/ password:admin
 
 3. **Mobile App:**
-   - Mở `MauiApp_Mobile` trong Visual Studio/VSCode.
+   - Mở `src/MauiApp_Mobile` trong Visual Studio/VSCode.
    - Cấu hình `ApiEndpoints.cs` để trỏ đến API.
    - Chạy ứng dụng trên Android Emulator hoặc thiết bị thật.
 
     Cách 1: chạy trên windows :
 
     ```cmd
-        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-windows10.0.19041.0
+        dotnet run --project src/MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-windows10.0.19041.0
     ```
 
     Cách 2: chạy trên Android cắm cáp usb vào máy chủ
@@ -586,7 +507,7 @@ Proprietary — Smart Tourism MAUI Project
    ```cmd
         adb devices (đảm bảo thiết bị ở trạng thái mở "device")
         adb reverse tcp:5123 tcp:5123 (để chuyển tiếp cổng từ máy chủ đến thiết bị)
-        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
+        dotnet run --project src/MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
    ```
 
     - Thử gọi api: "[http://127.0.0.1:5123/location/public/catalog](http://127.0.0.1:5123/location/public/catalog)"
@@ -594,7 +515,7 @@ Proprietary — Smart Tourism MAUI Project
     - Bật Wifi Debug trên android : lấy thông tin ip và cổng kết nối
     - Chỉnh mạng máy sever thanh private
     - Đảm bảo sử dụng chung 1 mạng
-    - Thêm ip sever vào file cấu hình mạng của android trong MauiApp_Mobile/Platforms/Android/Resources/xml/network_security_config.xml
+    - Thêm ip sever vào file cấu hình mạng của android trong src/MauiApp_Mobile/Platforms/Android/Resources/xml/network_security_config.xml
 
     ```xml
             <domain includeSubdomains="false">yourSeverIP</domain>
@@ -604,7 +525,7 @@ Proprietary — Smart Tourism MAUI Project
         adb connect ip:port (kết nối qua wifi, ví dụ adb connect 192.168.x.x:44444)
         adb devices (đảm bảo thiết bị ở trạng thái mở "device")
         ipconfig(lấy ipv4 của máy sever ipsever )
-        dotnet run --project MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
+        dotnet run --project src/MauiApp_Mobile/MauiApp_Mobile.csproj -f net10.0-android
     ```
 
    -Thử gọi api: "[http://ipsever:5123/location/public/catalog](http://ipsever:5123/location/public/catalog)"

@@ -1,9 +1,9 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$projectPath = Join-Path $repoRoot "MauiApp_Mobile\MauiApp_Mobile.csproj"
-$lpPath = Join-Path $repoRoot "MauiApp_Mobile\obj\Debug\net10.0-android\lp"
-$binPath = Join-Path $repoRoot "MauiApp_Mobile\bin\Debug\net10.0-android"
+$projectPath = Join-Path $repoRoot "src\MauiApp_Mobile\MauiApp_Mobile.csproj"
+$lpPath = Join-Path $repoRoot "src\MauiApp_Mobile\obj\Debug\net10.0-android\lp"
+$binPath = Join-Path $repoRoot "src\MauiApp_Mobile\bin\Debug\net10.0-android"
 
 $env:DOTNET_CLI_HOME = Join-Path $repoRoot ".dotnet-cli"
 $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"

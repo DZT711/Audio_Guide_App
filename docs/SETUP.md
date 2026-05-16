@@ -1,4 +1,4 @@
-# 📝 Project Setup Guide
+﻿# 📝 Project Setup Guide
 
 Complete step-by-step guide for setting up Smart Tourism MAUI development environment.
 
@@ -173,7 +173,7 @@ cd ../BlazorApp_AdminWeb && dotnet restore
 
 ### 1. Update appsettings.json
 
-**Backend API** (`WebApplication_API/appsettings.json`):
+**Backend API** (`src/WebApplication_API/appsettings.json`):
 ```json
 {
   "ConnectionStrings": {
@@ -192,7 +192,7 @@ cd ../BlazorApp_AdminWeb && dotnet restore
 }
 ```
 
-**Admin Web** (`BlazorApp_AdminWeb/appsettings.json`):
+**Admin Web** (`src/BlazorApp_AdminWeb/appsettings.json`):
 ```json
 {
   "ApiBaseUrl": "http://localhost:5000",
@@ -206,7 +206,7 @@ cd ../BlazorApp_AdminWeb && dotnet restore
 
 ### 2. Verify Mobile Configuration
 
-**MauiApp_Mobile/MauiProgram.cs** - Check API base URL:
+**src/MauiApp_Mobile/MauiProgram.cs** - Check API base URL:
 ```csharp
 // Default configuration
 var apiBaseUrl = "http://10.0.2.2:5000"; // Android emulator to host

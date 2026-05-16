@@ -1,4 +1,4 @@
-# 📁 Project Structure & Organization
+﻿# 📁 Project Structure & Organization
 
 Complete guide to understanding the Smart Tourism MAUI codebase organization.
 
@@ -44,14 +44,14 @@ Smart-Tourism-MAUI/
 
 ## Mobile App Structure
 
-**Project:** `MauiApp_Mobile/MauiApp_Mobile.csproj`  
+**Project:** `src/MauiApp_Mobile/MauiApp_Mobile.csproj`  
 **Framework:** .NET MAUI (Multi-platform App UI)  
 **Target Platforms:** Android, iOS, Windows (optional)
 
 ### Directory Layout
 
 ```
-MauiApp_Mobile/
+src/MauiApp_Mobile/
 │
 ├── ┌─ APP LIFECYCLE & CONFIGURATION ─┐
 │   ├── App.xaml                    # App-level XAML (styles, themes)
@@ -274,14 +274,14 @@ MauiApp_Mobile/
 
 ## Backend API Structure
 
-**Project:** `WebApplication_API/WebApplication_API.csproj`  
+**Project:** `src/WebApplication_API/WebApplication_API.csproj`  
 **Framework:** ASP.NET Core 8  
 **Database:** SQL Server, Entity Framework Core
 
 ### Directory Layout
 
 ```
-WebApplication_API/
+src/WebApplication_API/
 │
 ├── ┌─ STARTUP & CONFIGURATION ─┐
 │   ├── Program.cs              # Startup, middleware, DI registration
@@ -419,14 +419,14 @@ WebApplication_API/
 
 ## Admin Web Structure
 
-**Project:** `BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj`  
+**Project:** `src/BlazorApp_AdminWeb/BlazorApp_AdminWeb.csproj`  
 **Framework:** Blazor Server  
 **UI Framework:** Bootstrap 5
 
 ### Directory Layout
 
 ```
-BlazorApp_AdminWeb/
+src/BlazorApp_AdminWeb/
 │
 ├── ┌─ STARTUP & CONFIGURATION ─┐
 │   ├── Program.cs              # Blazor startup, service registration
@@ -544,14 +544,14 @@ BlazorApp_AdminWeb/
 
 ## Shared Library
 
-**Project:** `Project_SharedClassLibrary/Shared_ClassLibrary.csproj`  
+**Project:** `src/Project_SharedClassLibrary/Shared_ClassLibrary.csproj`  
 **Framework:** .NET Standard 2.1  
 **Purpose:** Shared contracts, DTOs, validators between Mobile, API, Admin Web
 
 ### Directory Layout
 
 ```
-Project_SharedClassLibrary/
+src/Project_SharedClassLibrary/
 │
 ├── ┌─ DATA TRANSFER OBJECTS ─┐
 │   └── Contracts/
